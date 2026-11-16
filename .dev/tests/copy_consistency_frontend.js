@@ -192,6 +192,74 @@ const check = (name, condition) => { assert(condition, name); passed++; console.
   check('company name hint removed from system settings', !modalsPhp.includes('留空显示“立象原型”'));
   check('allowed email domains label combines optional tag and delimiter hint', modalsPhp.includes('选填。多个域名用逗号分隔；留空不限制') && !modalsPhp.includes('line-height:1.5;">多个域名用逗号分隔；留空不限制</div>'));
   check('timezone options provide complete UTC-11 to UTC+12 scale', modalsPhp.includes('UTC-11 (中途岛 / 萨摩亚)') && modalsPhp.includes('UTC+8 (北京时间 / 中国标准时间)') && modalsPhp.includes('UTC+12 (斐济 / 马绍尔群岛 / 堪察加)'));
+  check('upload modal exposes concise append last changelog button', modalsPhp.includes('id="uploadLastLogBtn"') && modalsPhp.includes('appendUploadLastChangelog()') && modalsPhp.includes('上版日志'));
+
+  {
+    const btnAttrs = {};
+    const lastLogBtn = {
+      hidden: true,
+      getAttribute: k => (k in btnAttrs ? btnAttrs[k] : null),
+      setAttribute: (k, v) => { btnAttrs[k] = String(v); },
+      removeAttribute: k => { delete btnAttrs[k]; }
+    };
+    const lastVerName = {
+      length: 1, textVal: '', dataVal: {},
+      text(v) { if (v !== undefined) this.textVal = v; return this; },
+      data(k, v) { if (v !== undefined) this.dataVal[k] = v; return this; }
+    };
+    const lastVerHint = { length: 1, shown: false, show() { this.shown = true; }, hide() { this.shown = false; } };
+    const uploadChangelogInput = {
+      value: '', focused: false, scrollHeight: 120, scrollTop: 0,
+      classList: { removed: [], remove(c) { this.removed.push(c); } },
+      getAttribute: k => (k === 'maxlength' ? '20' : null),
+      focus() { this.focused = true; },
+      setSelectionRange(s, e) { this.sel = [s, e]; }
+    };
+    const toasts = [];
+    const mockVersionsByItem = {
+      '10': [{ id: 1, version_name: 'V1.0', changelog: '' }, { id: 2, version_name: 'V1.1', changelog: '- 修复登录\n- 优化细节' }],
+      '11': [{ id: 3, version_name: 'V2.0', changelog: '   ' }],
+      '12': []
+    };
+    const appendCtx = {
+      document: {
+        getElementById: id => ({
+          uploadLastLogBtn: lastLogBtn,
+          uploadChangelog: uploadChangelogInput,
+          uploadItemId: { value: '10' }
+        }[id] || null)
+      },
+      $: sel => sel === '#uploadLastVerHint' ? lastVerHint : (sel === '#uploadLastVerName' ? lastVerName : { length: 0 }),
+      getItemVersionsData: id => mockVersionsByItem[String(id)] || [],
+      showToast: (msg, type) => toasts.push({ msg, type })
+    };
+    vm.createContext(appendCtx);
+    for (const fn of ['getLatestItemVersion', 'updateUploadLastVersionHint', 'appendUploadLastChangelog']) {
+      vm.runInContext(extract(admin, fn), appendCtx);
+    }
+
+    appendCtx.updateUploadLastVersionHint(10);
+    check('shows last changelog button when latest version has changelog', !lastLogBtn.hidden && lastVerHint.shown && lastVerName.textVal === 'V1.1');
+
+    uploadChangelogInput.value = '';
+    appendCtx.appendUploadLastChangelog();
+    check('fills empty changelog directly and focuses textarea', uploadChangelogInput.value === '- 修复登录\n- 优化细节' && uploadChangelogInput.focused && uploadChangelogInput.scrollTop === 120);
+
+    uploadChangelogInput.value = '新增首页卡片';
+    uploadChangelogInput.classList.removed = [];
+    appendCtx.appendUploadLastChangelog();
+    check('appends last changelog with newline separator after existing text', uploadChangelogInput.value === '新增首页卡片\n- 修复登录\n- 优化细节' && uploadChangelogInput.classList.removed.includes('m-input-error'));
+
+    uploadChangelogInput.value = '123456789012345';
+    appendCtx.appendUploadLastChangelog();
+    check('truncates appended changelog at maxlength with notice', uploadChangelogInput.value.length === 20 && toasts.some(t => t.type === 'info' && t.msg.includes('截断')));
+
+    appendCtx.updateUploadLastVersionHint(11);
+    check('hides last changelog button when latest version changelog is blank', lastLogBtn.hidden && !lastLogBtn.getAttribute('data-changelog') && lastVerHint.shown);
+
+    appendCtx.updateUploadLastVersionHint(12);
+    check('hides both hints when project has no versions', lastLogBtn.hidden && !lastVerHint.shown);
+  }
 
   console.log(JSON.stringify({passed,scope:'production JS functions with mocked DOM and clipboard'}));
 })().catch(e=>{console.error(e);process.exitCode=1;});

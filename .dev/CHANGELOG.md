@@ -7,6 +7,11 @@
 
 ## 发布前修复（全新版本，未发布）
 
+- 2026-11-16：发布版本弹窗「更新日志」新增 `+ 上版日志` 快捷按钮（无需键盘快捷键）。
+  - 在 `includes/modals.php`「更新日志」标签行右侧增加对称操作按钮 `#uploadLastLogBtn`（`+ 上版日志`），在 `assets/css/app.css` 补充 `.upload-label-row` 与 `.upload-last-log-btn` 样式及 `[hidden]` 隐藏守卫。
+  - 在 `assets/js/admin.js` 提取 `getLatestItemVersion()`，随项目选中及切换自动刷新按钮显隐（仅在上一版本含非空日志时展示），点击 `appendUploadLastChangelog()` 自动将上一版日志换行追加至输入框末尾并支持 3000 字上限截断提示。
+  - 在 `.dev/tests/copy_consistency_frontend.js` 增补显隐联动、空填/末尾追加及截断提示单元测试。
+
 - 2026-11-16：管理员登录后自动同步入驻申请状态。工作台可见时每 15 秒检查，切回可见页面或重新获得焦点时立即检查。控制中心红点、团队成员角标及入驻申请角标同步更新。打开申请列表时同步新申请，保留已选角色和焦点。
   - 后台检查复用管理员待审批接口，仅查询数量。批准或驳回后重新请求，忽略操作前启动的旧响应，读取失败时沿用最近确认的状态。
   - 本机 Playwright 与 Chrome 157 专项 12 项通过。验证从零到有申请、批准或驳回清零、后台暂停和切回补查、角色草稿保留、慢响应和协作者不轮询。浏览器计时使用加速时钟，请求走临时 PHP 站点。截图位于 `.dev/tmp/pending-approval-refresh/two-pending-applications.png`，已观察。生产环境待验证。

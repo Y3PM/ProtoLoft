@@ -350,29 +350,91 @@ function getItemVersionsData(itemId) {
     return versions || [];
 }
 
-function updateUploadLastVersionHint(itemId) {
-    var $hintWrap = $('#uploadLastVerHint');
-    var $nameEl = $('#uploadLastVerName');
-    if (!$hintWrap.length || !$nameEl.length) return;
+function getLatestItemVersion(itemId) {
     var versions = getItemVersionsData(itemId);
-    if (!versions || !versions.length) {
-        $hintWrap.hide();
-        $nameEl.text('').data('ver-name', '');
-        return;
-    }
+    if (!versions || !versions.length) return null;
     var latest = versions[0];
     for (var i = 1; i < versions.length; i++) {
         if ((parseInt(versions[i].id, 10) || 0) > (parseInt(latest.id, 10) || 0)) {
             latest = versions[i];
         }
     }
-    var verName = (latest && latest.version_name) ? latest.version_name : '';
-    if (verName) {
-        $nameEl.text(verName).data('ver-name', verName);
-        $hintWrap.show();
+    return latest || null;
+}
+
+function updateUploadLastVersionHint(itemId) {
+    var $hintWrap = $('#uploadLastVerHint');
+    var $nameEl = $('#uploadLastVerName');
+    var logBtn = document.getElementById('uploadLastLogBtn');
+    var latest = getLatestItemVersion(itemId);
+    if ($hintWrap.length && $nameEl.length) {
+        var verName = (latest && latest.version_name) ? latest.version_name : '';
+        if (verName) {
+            $nameEl.text(verName).data('ver-name', verName);
+            $hintWrap.show();
+        } else {
+            $hintWrap.hide();
+            $nameEl.text('').data('ver-name', '');
+        }
+    }
+    if (logBtn) {
+        var lastLog = (latest && typeof latest.changelog === 'string') ? latest.changelog.replace(/\r\n?/g, '\n').trim() : '';
+        if (lastLog) {
+            logBtn.setAttribute('data-changelog', lastLog);
+            logBtn.hidden = false;
+        } else {
+            logBtn.removeAttribute('data-changelog');
+            logBtn.hidden = true;
+        }
+    }
+}
+
+function appendUploadLastChangelog() {
+    var logBtn = document.getElementById('uploadLastLogBtn');
+    var lastLog = logBtn ? (logBtn.getAttribute('data-changelog') || '') : '';
+    if (!lastLog) {
+        var itemEl = document.getElementById('uploadItemId');
+        var latest = itemEl && itemEl.value ? getLatestItemVersion(itemEl.value) : null;
+        lastLog = (latest && typeof latest.changelog === 'string') ? latest.changelog.replace(/\r\n?/g, '\n').trim() : '';
+    }
+    if (!lastLog) return;
+
+    var logEl = document.getElementById('uploadChangelog');
+    if (!logEl) return;
+    if (logEl.classList && typeof logEl.classList.remove === 'function') {
+        logEl.classList.remove('m-input-error');
+    }
+
+    var cur = typeof logEl.value === 'string' ? logEl.value : '';
+    var addition = (cur === '' || cur.slice(-1) === '\n') ? lastLog : ('\n' + lastLog);
+    var maxLen = parseInt((typeof logEl.getAttribute === 'function' ? logEl.getAttribute('maxlength') : '') || '3000', 10) || 3000;
+    if (cur.length >= maxLen) {
+        if (typeof showToast === 'function') showToast('更新日志已达 ' + maxLen + ' 字上限', 'warning');
+        if (typeof logEl.focus === 'function') logEl.focus();
+        return;
+    }
+
+    var truncated = false;
+    if (cur.length + addition.length > maxLen) {
+        addition = addition.slice(0, maxLen - cur.length);
+        truncated = true;
+    }
+
+    if (typeof logEl.setRangeText === 'function') {
+        logEl.setRangeText(addition, cur.length, cur.length, 'end');
     } else {
-        $hintWrap.hide();
-        $nameEl.text('').data('ver-name', '');
+        logEl.value = cur + addition;
+    }
+    if (typeof logEl.focus === 'function') logEl.focus();
+    if (typeof logEl.setSelectionRange === 'function') {
+        var endPos = logEl.value.length;
+        logEl.setSelectionRange(endPos, endPos);
+    }
+    if (typeof logEl.scrollHeight === 'number') {
+        logEl.scrollTop = logEl.scrollHeight;
+    }
+    if (truncated && typeof showToast === 'function') {
+        showToast('已添加上版日志（超出 ' + maxLen + ' 字部分已截断）', 'info');
     }
 }
 

@@ -97,10 +97,15 @@ $allUsers = $db->query("SELECT id, email, name, role FROM users WHERE status = 1
             </div>
 
             <div class="m-form-group">
-                <label class="m-label" id="uploadChangelogLabel">
-                    <span>更新日志 <span class="req-star" id="changelogReqStar" style="display:none;">*</span></span>
-                    <span class="opt-tag" id="changelogOptTag">选填</span>
-                </label>
+                <div class="upload-label-row">
+                    <label class="m-label" id="uploadChangelogLabel" for="uploadChangelog">
+                        <span>更新日志 <span class="req-star" id="changelogReqStar" style="display:none;">*</span></span>
+                        <span class="opt-tag" id="changelogOptTag">选填</span>
+                    </label>
+                    <button type="button" id="uploadLastLogBtn" class="upload-last-log-btn" hidden onclick="appendUploadLastChangelog()" title="将上一版本的更新日志添加到末尾">
+                        <i class="ri-add-line"></i> 上版日志
+                    </button>
+                </div>
                 <textarea id="uploadChangelog" name="changelog" class="m-input upload-changelog" placeholder="本次版本的改动说明，支持换行与 Markdown（如 - 列表、**加粗**、# 标题）" maxlength="3000" oninput="this.classList.remove('m-input-error')"></textarea>
             </div>
 
