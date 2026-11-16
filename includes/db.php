@@ -266,6 +266,18 @@ class DB {
 
         $db->exec("CREATE TABLE IF NOT EXISTS asset_gc (storage_dir TEXT PRIMARY KEY, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)");
 
+        // 12. 密码重置一次性令牌表 (仅存 SHA-256 哈希)
+        $db->exec("
+            CREATE TABLE IF NOT EXISTS password_resets (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                token_hash TEXT UNIQUE NOT NULL,
+                expires_at INTEGER NOT NULL,
+                used_at INTEGER DEFAULT NULL,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            );
+        ");
+
         // 高性能索引集群
         $db->exec("
             CREATE INDEX IF NOT EXISTS idx_items_cat ON items(category_id, sort_order);
@@ -278,6 +290,7 @@ class DB {
             CREATE INDEX IF NOT EXISTS idx_anno_target ON annotations(item_id, ver_id, status);
             CREATE INDEX IF NOT EXISTS idx_anno_page ON annotations(item_id, ver_id, page_path);
             CREATE INDEX IF NOT EXISTS idx_reply_anno ON annotation_replies(annotation_id);
+            CREATE INDEX IF NOT EXISTS idx_password_resets_user ON password_resets(user_id);
         ");
     }
 }

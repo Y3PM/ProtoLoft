@@ -1840,6 +1840,106 @@ $allUsers = $db->query("SELECT id, email, name, role FROM users WHERE status = 1
                                 </div>
                             </div>
                         </div>
+
+                        <!-- 卡片 5: 邮件服务 (找回密码 SMTP 发信配置) -->
+                        <?php
+                            $smtpPresets = Mailer::presets();
+                            $smtpCfg = Mailer::getPublicSettings();
+                            $curAdminEmail = htmlspecialchars((string)($currentUser['email'] ?? ''));
+                        ?>
+                        <div class="settings-section-card">
+                            <div class="settings-section-header">
+                                <div class="settings-section-title"><i class="ri-mail-settings-line"></i> 邮件服务</div>
+                            </div>
+
+                            <div class="settings-row" style="margin-bottom:14px;padding-top:0;padding-bottom:14px;">
+                                <div class="settings-row-info">
+                                    <label class="settings-row-label" for="settingSmtpEnabled">邮件找回密码</label>
+                                </div>
+                                <div class="settings-row-control">
+                                    <label class="linear-switch">
+                                        <input type="checkbox" id="settingSmtpEnabled" name="smtp_enabled" value="1" <?php echo $smtpCfg['enabled'] ? 'checked' : ''; ?>>
+                                        <span class="linear-switch-slider"></span>
+                                    </label>
+                                </div>
+                            </div>
+
+                            <div class="settings-grid-2">
+                                <div class="m-form-group" style="margin-bottom:0;">
+                                    <label class="m-label" for="settingSmtpPreset">服务商预设</label>
+                                    <select id="settingSmtpPreset" name="smtp_preset" class="m-select-md" style="width:100%;" onchange="onSmtpPresetChange(this.value)">
+                                        <?php foreach ($smtpPresets as $pKey => $pInfo): ?>
+                                            <option value="<?php echo htmlspecialchars($pKey); ?>"
+                                                data-host="<?php echo htmlspecialchars($pInfo['host']); ?>"
+                                                data-port="<?php echo (int)$pInfo['port']; ?>"
+                                                data-enc="<?php echo htmlspecialchars($pInfo['encryption']); ?>"
+                                                <?php echo $smtpCfg['preset'] === $pKey ? 'selected' : ''; ?>>
+                                                <?php echo htmlspecialchars($pInfo['label']); ?>
+                                            </option>
+                                        <?php endforeach; ?>
+                                    </select>
+                                </div>
+                                <div class="m-form-group" style="margin-bottom:0;">
+                                    <label class="m-label" for="settingSmtpEncryption">加密方式</label>
+                                    <select id="settingSmtpEncryption" name="smtp_encryption" class="m-select-md" style="width:100%;" onchange="onSmtpEncryptionChange(this.value)">
+                                        <option value="ssl" <?php echo $smtpCfg['encryption'] === 'ssl' ? 'selected' : ''; ?>>SSL / TLS</option>
+                                        <option value="tls" <?php echo $smtpCfg['encryption'] === 'tls' ? 'selected' : ''; ?>>STARTTLS</option>
+                                        <option value="none" <?php echo $smtpCfg['encryption'] === 'none' ? 'selected' : ''; ?>>无加密</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div class="settings-grid-2">
+                                <div class="m-form-group" style="margin-bottom:0;">
+                                    <label class="m-label" for="settingSmtpHost">SMTP 服务器</label>
+                                    <input type="text" id="settingSmtpHost" name="smtp_host" class="m-input" value="<?php echo htmlspecialchars($smtpCfg['host']); ?>" placeholder="例如：smtp.qiye.163.com" maxlength="120" oninput="syncSmtpPresetFromManual()">
+                                </div>
+                                <div class="m-form-group" style="margin-bottom:0;">
+                                    <label class="m-label" for="settingSmtpPort">端口</label>
+                                    <input type="number" id="settingSmtpPort" name="smtp_port" class="m-input" min="1" max="65535" value="<?php echo (int)$smtpCfg['port']; ?>" placeholder="465">
+                                </div>
+                            </div>
+
+                            <div class="settings-grid-2">
+                                <div class="m-form-group" style="margin-bottom:0;">
+                                    <label class="m-label" for="settingSmtpUser">发信邮箱</label>
+                                    <input type="email" id="settingSmtpUser" name="smtp_user" class="m-input" value="<?php echo htmlspecialchars($smtpCfg['user']); ?>" placeholder="例如：noreply@company.com" maxlength="100" autocomplete="off">
+                                </div>
+                                <div class="m-form-group" style="margin-bottom:0;">
+                                    <label class="m-label" for="settingSmtpPass" style="display:flex;align-items:center;justify-content:space-between;">
+                                        <span>授权码 / 密码 <span class="opt-tag" id="smtpPassBadge"><?php echo $smtpCfg['has_pass'] ? '已配置' : '请使用客户端授权码'; ?></span></span>
+                                        <a href="javascript:void(0)" id="btnClearSmtpPass" onclick="clearSavedSmtpPass()" style="font-size:11.5px;color:var(--text-3);font-weight:400;text-decoration:none;<?php echo $smtpCfg['has_pass'] ? '' : 'display:none;'; ?>">清除</a>
+                                    </label>
+                                    <div style="position:relative;display:flex;align-items:center;">
+                                        <input type="password" id="settingSmtpPass" name="smtp_pass" class="m-input" value="" data-has-pass="<?php echo $smtpCfg['has_pass'] ? '1' : '0'; ?>" placeholder="<?php echo $smtpCfg['has_pass'] ? '已配置，留空保持不变' : '输入客户端授权码'; ?>" maxlength="128" autocomplete="new-password" style="flex:1;padding-right:36px;">
+                                        <button type="button" class="btn-eye-toggle" onclick="togglePasswordVisibility('settingSmtpPass', this)" style="position:absolute;right:8px;background:none;border:none;color:var(--text-3);cursor:pointer;padding:4px 6px;font-size:15px;display:flex;align-items:center;" title="显示/隐藏授权码">
+                                            <i class="ri-eye-line"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="m-form-group">
+                                <label class="m-label" for="settingSmtpFromName">
+                                    <span>发件人名称</span>
+                                    <span class="opt-tag">选填</span>
+                                </label>
+                                <input type="text" id="settingSmtpFromName" name="smtp_from_name" class="m-input" value="<?php echo htmlspecialchars($smtpCfg['from_name']); ?>" placeholder="默认使用当前站点名称" maxlength="40">
+                            </div>
+
+                            <div class="m-form-group" style="margin-bottom:0;margin-top:14px;padding-top:14px;border-top:1px solid var(--border);">
+                                <label class="m-label" for="smtpTestEmail">
+                                    <span>测试发信</span>
+                                    <span class="opt-tag">填写收件邮箱验证配置</span>
+                                </label>
+                                <div class="m-form-row">
+                                    <input type="email" id="smtpTestEmail" class="m-input" value="<?php echo $curAdminEmail; ?>" placeholder="收件测试邮箱" maxlength="100">
+                                    <button type="button" class="btn-cancel btn-standard" onclick="handleTestSmtp(this)">
+                                        <i class="ri-send-plane-line"></i> 发送测试
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
                     </form>
                 </div>
 

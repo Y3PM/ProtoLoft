@@ -1,5 +1,6 @@
 <?php
 $visitorRegEnabled = (Auth::getSetting('visitor_register_enabled', '1') !== '0');
+$mailResetEnabled = class_exists('Mailer') ? Mailer::isConfiguredAndEnabled() : false;
 $allowedDomainsSetting = Auth::getSetting('allowed_email_domains', '');
 $fixedEmailDomain = '';
 if (!empty(trim($allowedDomainsSetting))) {
@@ -42,17 +43,52 @@ if (!empty(trim($allowedDomainsSetting))) {
                         </button>
                     </div>
                 </div>
-                <div style="display:flex;align-items:center;justify-content:space-between;margin:10px 0 14px;">
+                <div style="display:flex;align-items:center;justify-content:flex-start;margin:10px 0 14px;">
                     <label style="display:flex;align-items:center;gap:6px;font-size:12.5px;color:var(--text-2);cursor:pointer;user-select:none;">
                         <input type="checkbox" id="loginRememberMe" name="remember_me" value="1" checked style="cursor:pointer;accent-color:var(--primary);width:14px;height:14px;">
                         <span>记住登录 (30天)</span>
                     </label>
-                    <?php if ($visitorRegEnabled): ?>
-                        <a href="javascript:void(0)" onclick="toggleLoginRegPane('reg')" id="linkToRegister" style="font-size:12.5px;color:var(--primary);text-decoration:none;">申请加入协作</a>
-                    <?php endif; ?>
                 </div>
                 <div id="loginError" class="m-error" style="display:none;margin-bottom:12px;"></div>
                 <button type="submit" id="btnLoginSubmit" class="btn-primary btn-block" style="margin-top:4px;">登录</button>
+                <div class="auth-footer-links">
+                    <?php if ($visitorRegEnabled): ?>
+                        <a href="javascript:void(0)" onclick="toggleLoginRegPane('reg')" id="linkToRegister">申请加入协作</a>
+                    <?php else: ?>
+                        <span></span>
+                    <?php endif; ?>
+                    <a href="javascript:void(0)" onclick="toggleLoginRegPane('forgot')" id="linkToForgot" class="auth-link-muted">忘记密码？</a>
+                </div>
+            </form>
+        </div>
+
+        <!-- 3. 找回密码面板 -->
+        <div id="paneForgotPassword" style="display:none;">
+            <form id="modalForgotForm" onsubmit="handleDoForgotPassword(event)">
+                <div id="modalForgotMailBox">
+                    <div id="modalForgotSuccess" class="m-alert m-alert-success" style="display:none;margin-bottom:14px;align-items:center;gap:6px;">
+                        <i class="ri-checkbox-circle-fill" style="font-size:15px;color:#10b981;flex-shrink:0;"></i>
+                        <span></span>
+                    </div>
+                    <div class="m-form-group">
+                        <label class="m-label" for="modalForgotEmail">工作邮箱</label>
+                        <div style="position:relative;display:flex;align-items:center;">
+                            <input type="text" id="modalForgotEmail" class="m-input" data-fixed-domain="<?php echo htmlspecialchars($fixedEmailDomain); ?>" placeholder="<?php echo $fixedEmailDomain ? '输入邮箱名' : '输入注册时的工作邮箱'; ?>" autocomplete="email" required maxlength="100" style="flex:1;<?php echo $fixedEmailDomain ? ('padding-right:' . (mb_strlen($fixedEmailDomain)*8 + 34) . 'px;') : ''; ?>" oninput="handleEmailInputWithDomain(this, 'modalForgotDomainBadge')">
+                            <?php if ($fixedEmailDomain): ?>
+                                <span id="modalForgotDomainBadge" class="email-fixed-badge" style="position:absolute;right:8px;font-size:12px;color:var(--text-3);background:var(--bg-tag, #f1f5f9);border:1px solid var(--border-light, #e2e8f0);padding:2px 7px;border-radius:4px;pointer-events:none;user-select:none;">@<?php echo htmlspecialchars($fixedEmailDomain); ?></span>
+                            <?php endif; ?>
+                        </div>
+                    </div>
+                    <div id="modalForgotError" class="m-error" style="display:none;margin-bottom:12px;"></div>
+                    <button type="submit" id="btnModalForgotSubmit" class="btn-primary btn-block" style="margin-top:4px;">发送重置邮件</button>
+                </div>
+                <div id="modalForgotDisabledBox" style="display:none;">
+                    <div class="auth-sub-note">暂未启用邮件找回，请联系管理员重置密码。</div>
+                    <button type="button" class="btn-primary btn-block" onclick="toggleLoginRegPane('login')">返回登录</button>
+                </div>
+                <div id="modalForgotBackWrap" style="text-align:center;margin-top:12px;">
+                    <a href="javascript:void(0)" onclick="toggleLoginRegPane('login')" style="font-size:12.5px;color:var(--text-3);text-decoration:none;">返回登录</a>
+                </div>
             </form>
         </div>
 
@@ -168,25 +204,39 @@ if (!empty(trim($allowedDomainsSetting))) {
         return val;
     }
 
+    function isModalMailResetEnabled() {
+        if (typeof window.SYS_MAIL_RESET_ENABLED === 'boolean') {
+            return window.SYS_MAIL_RESET_ENABLED;
+        }
+        return <?php echo $mailResetEnabled ? 'true' : 'false'; ?>;
+    }
+
     function toggleLoginRegPane(target) {
         var paneLogin = document.getElementById('paneDoLogin');
         var paneReg = document.getElementById('paneDoRegister');
+        var paneForgot = document.getElementById('paneForgotPassword');
         var titleEl = document.getElementById('loginModalTitle');
         var errLogin = document.getElementById('loginError');
         var errReg = document.getElementById('regError');
+        var errForgot = document.getElementById('modalForgotError');
         var succReg = document.getElementById('regSuccess');
+        var succForgot = document.getElementById('modalForgotSuccess');
         if (errLogin) errLogin.style.display = 'none';
         if (errReg) errReg.style.display = 'none';
+        if (errForgot) errForgot.style.display = 'none';
         if (succReg) succReg.style.display = 'none';
+        if (succForgot) succForgot.style.display = 'none';
 
         var regEnabled = <?php echo $visitorRegEnabled ? 'true' : 'false'; ?>;
         if (target === 'reg' && !regEnabled) {
             target = 'login';
         }
 
+        if (paneLogin) paneLogin.style.display = (target === 'login' || !target) ? 'block' : 'none';
+        if (paneReg) paneReg.style.display = (target === 'reg') ? 'block' : 'none';
+        if (paneForgot) paneForgot.style.display = (target === 'forgot') ? 'block' : 'none';
+
         if (target === 'reg') {
-            paneLogin.style.display = 'none';
-            paneReg.style.display = 'block';
             titleEl.textContent = '申请加入协作';
             var succLogin = document.getElementById('loginSuccessNotice');
             if (succLogin) succLogin.style.display = 'none';
@@ -195,9 +245,29 @@ if (!empty(trim($allowedDomainsSetting))) {
                 u.focus();
                 handleEmailInputWithDomain(u, 'regDomainBadge');
             }
+        } else if (target === 'forgot') {
+            titleEl.textContent = '找回密码';
+            var succLogin2 = document.getElementById('loginSuccessNotice');
+            if (succLogin2) succLogin2.style.display = 'none';
+            var mailEnabled = isModalMailResetEnabled();
+            var mailBox = document.getElementById('modalForgotMailBox');
+            var disBox = document.getElementById('modalForgotDisabledBox');
+            var backWrap = document.getElementById('modalForgotBackWrap');
+            if (mailBox) mailBox.style.display = mailEnabled ? 'block' : 'none';
+            if (disBox) disBox.style.display = mailEnabled ? 'none' : 'block';
+            if (backWrap) backWrap.style.display = mailEnabled ? 'block' : 'none';
+            if (mailEnabled) {
+                var fEmail = document.getElementById('modalForgotEmail');
+                var lEmail = document.getElementById('loginEmail');
+                if (fEmail) {
+                    if (!fEmail.value && lEmail && lEmail.value.trim()) {
+                        fEmail.value = lEmail.value.trim();
+                    }
+                    fEmail.focus();
+                    handleEmailInputWithDomain(fEmail, 'modalForgotDomainBadge');
+                }
+            }
         } else {
-            paneReg.style.display = 'none';
-            paneLogin.style.display = 'block';
             titleEl.textContent = '账号登录';
             var u2 = document.getElementById('loginEmail');
             if (u2) {
@@ -348,6 +418,56 @@ if (!empty(trim($allowedDomainsSetting))) {
         .catch(function() {
             btn.disabled = false;
             btn.innerText = '申请加入';
+            err.innerText = '网络连接异常，请重试';
+            err.style.display = 'block';
+        });
+    }
+
+    function handleDoForgotPassword(e) {
+        e.preventDefault();
+        var emailInput = document.getElementById('modalForgotEmail');
+        var email = getResolvedEmail('modalForgotEmail');
+        var err = document.getElementById('modalForgotError');
+        var succ = document.getElementById('modalForgotSuccess');
+        var btn = document.getElementById('btnModalForgotSubmit');
+        if (!emailInput || !btn || !err) return;
+
+        var fixedDomain = emailInput.getAttribute('data-fixed-domain') || '';
+        if (!fixedDomain && email.indexOf('@') === -1) {
+            err.innerText = '请输入完整工作邮箱，如 name@company.com';
+            err.style.display = 'block';
+            emailInput.focus();
+            return;
+        }
+
+        btn.disabled = true;
+        btn.innerText = '发送中...';
+        err.style.display = 'none';
+        if (succ) succ.style.display = 'none';
+
+        var fd = new FormData();
+        fd.append('action', 'request_password_reset');
+        fd.append('email', email);
+
+        fetch('api.php', { method: 'POST', body: fd })
+        .then(function(r) { return r.json(); })
+        .then(function(res) {
+            btn.disabled = false;
+            btn.innerText = '发送重置邮件';
+            if (res.success) {
+                if (succ) {
+                    var tipSpan = succ.querySelector('span');
+                    if (tipSpan) tipSpan.innerText = res.message || '如果该邮箱已注册且状态正常，重置链接已发送，请查收邮件';
+                    succ.style.display = 'flex';
+                }
+            } else {
+                err.innerText = res.message || '发送失败，请重试';
+                err.style.display = 'block';
+            }
+        })
+        .catch(function() {
+            btn.disabled = false;
+            btn.innerText = '发送重置邮件';
             err.innerText = '网络连接异常，请重试';
             err.style.display = 'block';
         });

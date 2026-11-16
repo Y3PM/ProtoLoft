@@ -228,6 +228,39 @@ body.page-standalone {
 .standalone-card .admin-login-link a:hover {
     text-decoration: underline;
 }
+.auth-footer-links {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: 16px;
+    font-size: 12.5px;
+    color: var(--text-3);
+}
+.auth-footer-links a {
+    color: var(--primary);
+    text-decoration: none;
+    font-weight: 500;
+    cursor: pointer;
+}
+.auth-footer-links a:hover {
+    text-decoration: underline;
+}
+.auth-footer-links .auth-link-muted {
+    color: var(--text-2);
+}
+.auth-footer-links .auth-link-muted:hover {
+    color: var(--primary);
+}
+.auth-sub-note {
+    padding: 12px 14px;
+    background: var(--canvas);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    font-size: 13px;
+    line-height: 1.6;
+    color: var(--text-2);
+    margin-bottom: 16px;
+}
 
 /* 全屏独立页面底部版权信息 */
 .standalone-footer {

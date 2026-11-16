@@ -169,6 +169,13 @@ SUITES = [
         "cmd": ["python3", "-B", str(TESTS_DIR / "webhook_split_notify_regression.py")],
         "needs_php": True,
         "type": "python"
+    },
+    {
+        "id": "password_reset_smtp",
+        "name": "登录布局、邮件服务配置与邮箱找回密码全链路",
+        "cmd": ["python3", "-B", str(TESTS_DIR / "password_reset_smtp_regression.py")],
+        "needs_php": True,
+        "type": "python"
     }
 ]
 

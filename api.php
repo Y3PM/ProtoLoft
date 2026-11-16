@@ -26,6 +26,7 @@ require_once __DIR__ . '/includes/db.php';
 require_once __DIR__ . '/includes/auth.php';
 require_once __DIR__ . '/includes/zip_handler.php';
 require_once __DIR__ . '/includes/webhook.php';
+require_once __DIR__ . '/includes/mailer.php';
 require_once __DIR__ . '/includes/storage.php';
 require_once __DIR__ . '/includes/collaboration.php';
 
@@ -251,7 +252,7 @@ if (!empty($_SERVER['HTTP_ORIGIN'])) {
 Auth::getCurrentUser();
 
 // 敏感管理写操作 CSRF 强制校验
-$csrfExemptActions = ['login', 'get_session', 'register_visitor'];
+$csrfExemptActions = ['login', 'get_session', 'register_visitor', 'request_password_reset', 'reset_password'];
 if (!in_array($action, $csrfExemptActions, true) && ($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
     $token = $_SERVER['HTTP_X_CSRF_TOKEN'] ?? ($_POST['csrf_token'] ?? '');
     if (!verify_csrf_token($token)) {
@@ -266,6 +267,8 @@ $actionRoutes = [
     'logout' => 'auth',
     'get_session' => 'auth',
     'register_visitor' => 'auth',
+    'request_password_reset' => 'auth',
+    'reset_password' => 'auth',
     'profile_update' => 'auth',
     'profile_update_webhook' => 'auth',
     'change_my_password' => 'auth',
@@ -334,6 +337,7 @@ $actionRoutes = [
     'log_clear' => 'system',
     'log_workspace_access' => 'system',
     'test_webhook' => 'system',
+    'test_smtp' => 'system',
 ];
 
 $domain = $actionRoutes[$action] ?? null;

@@ -39,6 +39,7 @@ data/install.lock
 data/install_token.txt
 data/install_token.php
 data/.install_throttle.json
+data/.smtp_secret
 data/prototypes/
 data/chunks/
 data/sessions/

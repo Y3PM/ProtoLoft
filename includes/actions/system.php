@@ -137,6 +137,77 @@ switch ($action) {
         foreach (['global_watermark_enabled', 'perm_editor_share', 'perm_viewer_download_rp', 'perm_viewer_share'] as $key) {
             if (isset($_POST[$key])) $updates[$key] = !empty($_POST[$key]) ? '1' : '0';
         }
+        if (isset($_POST['smtp_enabled'])) {
+            $updates['smtp_enabled'] = !empty($_POST['smtp_enabled']) ? '1' : '0';
+        }
+        if (isset($_POST['smtp_preset'])) {
+            $presetKey = trim((string)$_POST['smtp_preset']);
+            $presets = Mailer::presets();
+            $updates['smtp_preset'] = isset($presets[$presetKey]) ? $presetKey : 'custom';
+        }
+        if (isset($_POST['smtp_host'])) {
+            $smtpHost = trim((string)$_POST['smtp_host']);
+            if ($smtpHost !== '' && !Mailer::isValidHost($smtpHost)) {
+                jsonResponse(false, null, 'SMTP 服务器地址格式不正确');
+            }
+            $updates['smtp_host'] = $smtpHost;
+        }
+        if (isset($_POST['smtp_port'])) {
+            $smtpPort = (int)$_POST['smtp_port'];
+            if ($smtpPort < 1 || $smtpPort > 65535) {
+                jsonResponse(false, null, 'SMTP 端口需在 1 ~ 65535 之间');
+            }
+            $updates['smtp_port'] = (string)$smtpPort;
+        }
+        if (isset($_POST['smtp_encryption'])) {
+            $smtpEnc = strtolower(trim((string)$_POST['smtp_encryption']));
+            $updates['smtp_encryption'] = in_array($smtpEnc, ['ssl', 'tls', 'none'], true) ? $smtpEnc : 'ssl';
+        }
+        if (isset($_POST['smtp_user'])) {
+            $smtpUser = trim(strtolower((string)$_POST['smtp_user']));
+            if (strlen($smtpUser) > 100) {
+                jsonResponse(false, null, '发信邮箱不能超过 100 个字符');
+            }
+            if ($smtpUser !== '' && !filter_var($smtpUser, FILTER_VALIDATE_EMAIL)) {
+                jsonResponse(false, null, '发信邮箱格式不正确');
+            }
+            $updates['smtp_user'] = $smtpUser;
+        }
+        if (isset($_POST['smtp_from_name'])) {
+            $fromName = trim((string)$_POST['smtp_from_name']);
+            if (mb_strlen($fromName, 'UTF-8') > 40) {
+                jsonResponse(false, null, '发件人名称不能超过 40 个字符');
+            }
+            $updates['smtp_from_name'] = $fromName;
+        }
+        if (!empty($_POST['smtp_pass_clear']) && $_POST['smtp_pass_clear'] === '1') {
+            $updates['smtp_pass_enc'] = '';
+        } elseif (isset($_POST['smtp_pass']) && (string)$_POST['smtp_pass'] !== '') {
+            $smtpPass = (string)$_POST['smtp_pass'];
+            if (strlen($smtpPass) > 128) {
+                jsonResponse(false, null, '授权码长度不能超过 128 个字符');
+            }
+            try {
+                $updates['smtp_pass_enc'] = Mailer::encryptSecret($smtpPass);
+            } catch (Throwable $e) {
+                jsonResponse(false, null, $e->getMessage());
+            }
+        }
+        $effectiveSmtpEnabled = array_key_exists('smtp_enabled', $updates)
+            ? $updates['smtp_enabled']
+            : Auth::getSetting('smtp_enabled', '0');
+        if ($effectiveSmtpEnabled === '1') {
+            $effHost = array_key_exists('smtp_host', $updates) ? $updates['smtp_host'] : Auth::getSetting('smtp_host', '');
+            $effPort = (int)(array_key_exists('smtp_port', $updates) ? $updates['smtp_port'] : Auth::getSetting('smtp_port', '465'));
+            $effUser = array_key_exists('smtp_user', $updates) ? $updates['smtp_user'] : Auth::getSetting('smtp_user', '');
+            $effPassEnc = array_key_exists('smtp_pass_enc', $updates) ? $updates['smtp_pass_enc'] : Auth::getSetting('smtp_pass_enc', '');
+            if (!Mailer::isValidHost($effHost) || $effPort < 1 || $effPort > 65535 || !filter_var($effUser, FILTER_VALIDATE_EMAIL)) {
+                jsonResponse(false, null, '请先填写完整的 SMTP 服务器、端口与发信邮箱');
+            }
+            if ($effPassEnc === '' || Mailer::decryptSecret($effPassEnc) === '') {
+                jsonResponse(false, null, '请填写邮箱客户端授权码');
+            }
+        }
         if (!empty($_POST['reset_logo'])) {
             $updates['site_logo'] = 'assets/images/logo.png';
         }
@@ -192,7 +263,53 @@ switch ($action) {
             }
         }
 
-        jsonResponse(true, null, '企业品牌与系统配置已保存');
+        $smtpPassEncNow = Auth::getSetting('smtp_pass_enc', '');
+        $smtpHasPassNow = ($smtpPassEncNow !== '' && Mailer::decryptSecret($smtpPassEncNow) !== '');
+        jsonResponse(true, [
+            'smtp_has_pass' => $smtpHasPassNow,
+            'mail_reset_enabled' => Mailer::isConfiguredAndEnabled()
+        ], '企业品牌与系统配置已保存');
+        break;
+
+    case 'test_smtp':
+        if (!Auth::isAdmin()) jsonResponse(false, null, '无管理员权限');
+        $toEmail = trim(strtolower((string)($_POST['to_email'] ?? '')));
+        if ($toEmail === '' || !filter_var($toEmail, FILTER_VALIDATE_EMAIL)) {
+            jsonResponse(false, null, '请输入有效的测试收件邮箱');
+        }
+        $host = trim((string)($_POST['smtp_host'] ?? Auth::getSetting('smtp_host', '')));
+        $port = (int)($_POST['smtp_port'] ?? Auth::getSetting('smtp_port', '465'));
+        $enc = strtolower(trim((string)($_POST['smtp_encryption'] ?? Auth::getSetting('smtp_encryption', 'ssl'))));
+        $user = trim(strtolower((string)($_POST['smtp_user'] ?? Auth::getSetting('smtp_user', ''))));
+        $fromName = trim((string)($_POST['smtp_from_name'] ?? Auth::getSetting('smtp_from_name', '')));
+        $pass = (string)($_POST['smtp_pass'] ?? '');
+        if ($pass === '') {
+            $pass = Mailer::decryptSecret(Auth::getSetting('smtp_pass_enc', ''));
+        }
+        if (!Mailer::isValidHost($host) || $port < 1 || $port > 65535) {
+            jsonResponse(false, null, '请先填写正确的 SMTP 服务器与端口');
+        }
+        if (!filter_var($user, FILTER_VALIDATE_EMAIL)) {
+            jsonResponse(false, null, '请先填写正确的发信邮箱');
+        }
+        if ($pass === '') {
+            jsonResponse(false, null, '请先填写邮箱客户端授权码');
+        }
+        $curUser = Auth::getCurrentUser();
+        $res = Mailer::sendTest(
+            $toEmail,
+            [
+                'host' => $host,
+                'port' => $port,
+                'encryption' => in_array($enc, ['ssl', 'tls', 'none'], true) ? $enc : 'ssl',
+                'user' => $user,
+                'pass' => $pass,
+                'from_name' => $fromName,
+            ],
+            Auth::getCompanyDisplayName(),
+            (string)($curUser['name'] ?? '')
+        );
+        jsonResponse($res['success'], null, $res['success'] ? '测试邮件已发送，请查收' : ($res['message'] ?? '发送失败'));
         break;
 
     case 'save_role_permissions':

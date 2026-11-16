@@ -32,7 +32,8 @@ switch ($action) {
             'canAnnotate' => Auth::canAnnotate(),
             'siteTitle' => $effectiveTitle,
             'visitorRegisterEnabled' => Auth::getSetting('visitor_register_enabled', '1') !== '0',
-            'allowedEmailDomains' => Auth::getSetting('allowed_email_domains', '')
+            'allowedEmailDomains' => Auth::getSetting('allowed_email_domains', ''),
+            'mailResetEnabled' => Mailer::isConfiguredAndEnabled()
         ]);
         break;
 
@@ -196,5 +197,24 @@ switch ($action) {
         }
 
         jsonResponse(true, ['id' => $newId], '申请已提交，等待管理员审核后即可登录');
+        break;
+
+    case 'request_password_reset':
+        $email = trim($_POST['email'] ?? '');
+        $res = Auth::requestPasswordReset($email);
+        jsonResponse($res['success'], null, $res['message'] ?? '');
+        break;
+
+    case 'reset_password':
+        $token = trim($_POST['token'] ?? '');
+        $new = $_POST['new_password'] ?? '';
+        $confirm = $_POST['confirm_password'] ?? '';
+        if ($new === '') jsonResponse(false, null, '请输入新密码');
+        if ($new !== $confirm) jsonResponse(false, null, '两次输入的新密码不一致');
+        $res = Auth::resetPasswordByToken($token, $new);
+        if (!empty($res['success']) && Auth::getCurrentUser()) {
+            Auth::logout();
+        }
+        jsonResponse($res['success'], !empty($res['success']) ? ['email' => $res['email'] ?? ''] : null, $res['message'] ?? '');
         break;
 }

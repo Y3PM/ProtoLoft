@@ -5,6 +5,7 @@
 require_once __DIR__ . '/includes/config.php';
 require_once __DIR__ . '/includes/db.php';
 require_once __DIR__ . '/includes/auth.php';
+require_once __DIR__ . '/includes/mailer.php';
 
 // 确保已安装
 require_installed();
@@ -14,8 +15,10 @@ $currentUser = Auth::getCurrentUser();
 $canManage = Auth::canManage();
 $isAdmin = Auth::isAdmin();
 
-// 未登录人员严禁进入工作台内部界面，一律拦截在专门的独立登录页面
-$isSiteAuthorized = !empty($currentUser);
+// 未登录人员严禁进入工作台内部界面，一律拦截在专门的独立登录页面；携带重置令牌时优先展示重设密码卡片
+$resetTokenParam = trim((string)($_GET['reset_token'] ?? ''));
+$hasResetToken = ($resetTokenParam !== '');
+$isSiteAuthorized = !empty($currentUser) && !$hasResetToken;
 
 // 系统品牌固化 (立象原型 · 立象以尽意 · 披图而同心)
 $systemName = '立象原型';
@@ -23,11 +26,7 @@ $systemSlogan = '立象以尽意 · 披图而同心';
 $siteFooter = '© ' . date('Y') . ' 立象原型 · 让想法可见，让协作清晰';
 
 // 获取企业名称定制 (选填: 若未配置则纯粹展示立象原型)
-$rawTitle = trim(Auth::getSetting('site_title', ''));
-$companyName = '';
-if (!empty($rawTitle) && $rawTitle !== '立象原型' && $rawTitle !== '立象原型托管平台' && strcasecmp($rawTitle, 'ProtoLoft') !== 0) {
-    $companyName = $rawTitle;
-}
+$companyName = Auth::getCompanyDisplayName();
 $siteTitle = !empty($companyName) ? ($companyName . ' · 立象原型') : '立象原型';
 
 // 系统固定矢量 Favicon
@@ -36,6 +35,8 @@ $favType = (pathinfo($siteFavicon, PATHINFO_EXTENSION) === 'svg') ? 'image/svg+x
 $favUrl = $siteFavicon . '?v=' . substr(sha1_file(ROOT_PATH . '/' . $siteFavicon), 0, 12);
 
 $visitorRegEnabled = (Auth::getSetting('visitor_register_enabled', '1') !== '0');
+$mailResetEnabled = Mailer::isConfiguredAndEnabled();
+$resetTokenInfo = $hasResetToken ? Auth::verifyPasswordResetToken($resetTokenParam) : ['valid' => false, 'message' => ''];
 
 // 企业邮箱域名白名单与固化后缀支持
 $allowedDomainsSetting = Auth::getSetting('allowed_email_domains', '');
@@ -47,8 +48,14 @@ if (!empty(trim($allowedDomainsSetting))) {
     }
 }
 
-// 2. 如果未通过全站访问密码验证，渲染锁屏输入页
+// 2. 如果未通过全站访问密码验证，或携带密码重置令牌，渲染独立认证页
 if (!$isSiteAuthorized) {
+    $initialAuthPane = $hasResetToken ? 'reset' : 'login';
+    $loginBaseTitle = !empty($companyName) ? ($companyName . ' · 账号登录') : '账号登录';
+    $initialTitle = $loginBaseTitle;
+    if ($hasResetToken) {
+        $initialTitle = !empty($resetTokenInfo['valid']) ? '设置新密码' : '重置链接已失效';
+    }
     ?>
     <!DOCTYPE html>
     <html lang="zh-CN">
@@ -73,10 +80,10 @@ if (!$isSiteAuthorized) {
         </div>
 
         <div class="standalone-card">
-            <div style="font-size: 18px; font-weight: 700; color: var(--text-1); margin-bottom: 22px; text-align: center;" id="authPanelTitle"><?php echo htmlspecialchars(!empty($companyName) ? ($companyName . ' · 账号登录') : '账号登录'); ?></div>
+            <div style="font-size: 18px; font-weight: 700; color: var(--text-1); margin-bottom: 22px; text-align: center;" id="authPanelTitle"><?php echo htmlspecialchars($initialTitle); ?></div>
 
             <!-- 人员账号登录面板 (作为首选默认主面板) -->
-            <form id="adminLoginForm" onsubmit="submitAdminLogin(event)" autocomplete="on">
+            <form id="adminLoginForm" onsubmit="submitAdminLogin(event)" autocomplete="on" style="<?php echo $initialAuthPane === 'login' ? '' : 'display:none;'; ?>">
                 <div id="adminLoginSuccessTip" style="display:none;margin-bottom:14px;padding:9px 12px;background:#ecfdf5;color:#047857;border:1px solid #a7f3d0;border-radius:6px;font-size:12.5px;line-height:1.5;align-items:center;gap:6px;"><i class="ri-checkbox-circle-fill" style="font-size:15px;color:#10b981;flex-shrink:0;"></i><span></span></div>
                 <div style="margin-bottom: 14px; position:relative; display:flex; align-items:center;">
                     <input type="text" id="adminLoginUser" name="username" class="form-control" data-fixed-domain="<?php echo htmlspecialchars($fixedEmailDomain); ?>" placeholder="<?php echo $fixedEmailDomain ? '邮箱名' : '工作邮箱'; ?>" autocomplete="username" required maxlength="100" style="<?php echo $fixedEmailDomain ? ('padding-right:' . (mb_strlen($fixedEmailDomain)*8 + 32) . 'px;') : ''; ?>" oninput="handleLockEmailInput(this, 'adminDomainBadge')">
@@ -92,6 +99,14 @@ if (!$isSiteAuthorized) {
                 </div>
                 <button type="submit" class="btn-submit" id="btnAdminLogin">登录</button>
                 <div class="error-tip" id="adminLoginError"></div>
+                <div class="auth-footer-links" id="authLoginFooter">
+                    <?php if ($visitorRegEnabled): ?>
+                        <a href="javascript:void(0)" id="switchRegister" onclick="toggleAuthPane('reg')">申请加入协作</a>
+                    <?php else: ?>
+                        <span></span>
+                    <?php endif; ?>
+                    <a href="javascript:void(0)" id="linkForgotPwd" class="auth-link-muted" onclick="toggleAuthPane('forgot')">忘记密码？</a>
+                </div>
             </form>
 
             <?php if ($visitorRegEnabled): ?>
@@ -141,12 +156,69 @@ if (!$isSiteAuthorized) {
                 <button type="submit" class="btn-submit" id="btnVisitorReg">申请加入</button>
                 <div class="error-tip" id="regErrorTip"></div>
                 <div id="regSuccessTip" style="display:none;margin-top:12px;padding:8px 12px;background:#ecfdf5;color:#047857;border:1px solid #a7f3d0;border-radius:6px;font-size:12.5px;line-height:1.5;"></div>
+                <div class="admin-login-link">
+                    <span>已有账号？</span><a href="javascript:void(0)" onclick="toggleAuthPane('login')">返回登录</a>
+                </div>
+            </form>
+            <?php endif; ?>
+
+            <!-- 找回密码面板 -->
+            <form id="forgotPwdForm" onsubmit="submitForgotPwd(event)" style="display:none;">
+                <?php if ($mailResetEnabled): ?>
+                    <div id="forgotSuccessTip" style="display:none;margin-bottom:14px;padding:10px 12px;background:#ecfdf5;color:#047857;border:1px solid #a7f3d0;border-radius:6px;font-size:12.5px;line-height:1.5;align-items:center;gap:6px;"><i class="ri-checkbox-circle-fill" style="font-size:15px;color:#10b981;flex-shrink:0;"></i><span></span></div>
+                    <label class="m-label" for="forgotEmailInput">工作邮箱</label>
+                    <div style="margin-bottom: 16px; position:relative; display:flex; align-items:center;">
+                        <input type="text" id="forgotEmailInput" class="form-control" data-fixed-domain="<?php echo htmlspecialchars($fixedEmailDomain); ?>" placeholder="<?php echo $fixedEmailDomain ? '邮箱名' : '输入注册时的工作邮箱'; ?>" autocomplete="email" required maxlength="100" style="<?php echo $fixedEmailDomain ? ('padding-right:' . (mb_strlen($fixedEmailDomain)*8 + 32) . 'px;') : ''; ?>" oninput="handleLockEmailInput(this, 'forgotDomainBadge')">
+                        <?php if ($fixedEmailDomain): ?>
+                            <span id="forgotDomainBadge" style="position:absolute;right:8px;font-size:12px;color:var(--text-3);background:var(--bg-tag,#f1f5f9);border:1px solid var(--border-light,#e2e8f0);padding:2px 7px;border-radius:4px;pointer-events:none;user-select:none;">@<?php echo htmlspecialchars($fixedEmailDomain); ?></span>
+                        <?php endif; ?>
+                    </div>
+                    <button type="submit" class="btn-submit" id="btnForgotSubmit">发送重置邮件</button>
+                    <div class="error-tip" id="forgotErrorTip"></div>
+                <?php else: ?>
+                    <div class="auth-sub-note">暂未启用邮件找回，请联系管理员重置密码。</div>
+                    <button type="button" class="btn-submit" onclick="toggleAuthPane('login')">返回登录</button>
+                <?php endif; ?>
+                <?php if ($mailResetEnabled): ?>
+                <div class="admin-login-link">
+                    <a href="javascript:void(0)" onclick="toggleAuthPane('login')">返回登录</a>
+                </div>
+                <?php endif; ?>
             </form>
 
-            <div class="admin-login-link" style="text-align:center;font-size:13px;margin-top:22px;color:var(--text-3);">
-                <span id="authSwitchTip">还没有账号？</span><a href="javascript:void(0)" id="switchRegister" onclick="toggleAuthPane()" style="color:var(--primary);text-decoration:none;font-weight:500;">申请加入协作</a>
-            </div>
-            <?php endif; ?>
+            <!-- 设置新密码面板（邮件链接回调） -->
+            <form id="resetPwdForm" onsubmit="submitResetPwd(event)" style="<?php echo $initialAuthPane === 'reset' ? '' : 'display:none;'; ?>">
+                <?php if (!empty($resetTokenInfo['valid'])): ?>
+                    <input type="hidden" id="resetTokenInput" value="<?php echo htmlspecialchars($resetTokenParam); ?>">
+                    <div class="auth-sub-note">账号：<strong><?php echo htmlspecialchars($resetTokenInfo['masked_email']); ?></strong></div>
+                    <label class="m-label" for="resetNewPwdInput">新密码 <span class="req-star">*</span></label>
+                    <div style="margin-bottom: 12px; position:relative; display:flex; align-items:center;">
+                        <input type="password" id="resetNewPwdInput" class="form-control" placeholder="至少 6 位密码" autocomplete="new-password" required maxlength="64" style="padding-right:36px;">
+                        <button type="button" onclick="toggleLockPwd('resetNewPwdInput', this)" style="position:absolute;right:8px;background:none;border:none;color:var(--text-3);cursor:pointer;padding:4px 6px;font-size:15px;display:flex;align-items:center;" title="显示/隐藏密码">
+                            <i class="ri-eye-line"></i>
+                        </button>
+                    </div>
+                    <label class="m-label" for="resetConfirmPwdInput">确认新密码 <span class="req-star">*</span></label>
+                    <div style="margin-bottom: 18px; position:relative; display:flex; align-items:center;">
+                        <input type="password" id="resetConfirmPwdInput" class="form-control" placeholder="再次输入新密码" autocomplete="new-password" required maxlength="64" style="padding-right:36px;">
+                        <button type="button" onclick="toggleLockPwd('resetConfirmPwdInput', this)" style="position:absolute;right:8px;background:none;border:none;color:var(--text-3);cursor:pointer;padding:4px 6px;font-size:15px;display:flex;align-items:center;" title="显示/隐藏密码">
+                            <i class="ri-eye-line"></i>
+                        </button>
+                    </div>
+                    <button type="submit" class="btn-submit" id="btnResetSubmit">保存新密码</button>
+                    <div class="error-tip" id="resetErrorTip"></div>
+                <?php else: ?>
+                    <div class="auth-sub-note"><?php echo htmlspecialchars($resetTokenInfo['message'] ?: '重置链接无效或已过期，请重新申请。'); ?></div>
+                    <?php if ($mailResetEnabled): ?>
+                        <button type="button" class="btn-submit" onclick="toggleAuthPane('forgot')">重新找回</button>
+                    <?php else: ?>
+                        <button type="button" class="btn-submit" onclick="toggleAuthPane('login')">返回登录</button>
+                    <?php endif; ?>
+                <?php endif; ?>
+                <div class="admin-login-link">
+                    <a href="javascript:void(0)" onclick="toggleAuthPane('login')">返回登录</a>
+                </div>
+            </form>
         </div>
 
         <?php if (!empty($siteFooter)): ?>
@@ -154,52 +226,70 @@ if (!$isSiteAuthorized) {
         <?php endif; ?>
 
         <script>
-            var authPane = 'login';
+            var authPane = <?php echo json_encode($initialAuthPane); ?>;
             var visitorRegAllowed = <?php echo $visitorRegEnabled ? 'true' : 'false'; ?>;
+            var loginBaseTitle = <?php echo json_encode($loginBaseTitle); ?>;
 
             function toggleAuthPane(forceTarget) {
-                if (!visitorRegAllowed) return;
-                if (forceTarget === 'login' || forceTarget === 'reg') {
-                    authPane = forceTarget;
-                } else {
-                    authPane = (authPane === 'login') ? 'reg' : 'login';
+                var target = forceTarget || ((authPane === 'login') ? 'reg' : 'login');
+                if (target === 'reg' && !visitorRegAllowed) {
+                    target = 'login';
                 }
-                document.getElementById('adminLoginForm').style.display = (authPane === 'login') ? 'block' : 'none';
+                authPane = target;
+
+                var loginForm = document.getElementById('adminLoginForm');
                 var regForm = document.getElementById('visitorRegForm');
+                var forgotForm = document.getElementById('forgotPwdForm');
+                var resetForm = document.getElementById('resetPwdForm');
+                if (loginForm) loginForm.style.display = (authPane === 'login') ? 'block' : 'none';
                 if (regForm) regForm.style.display = (authPane === 'reg') ? 'block' : 'none';
+                if (forgotForm) forgotForm.style.display = (authPane === 'forgot') ? 'block' : 'none';
+                if (resetForm) resetForm.style.display = (authPane === 'reset') ? 'block' : 'none';
 
                 var panelTitle = document.getElementById('authPanelTitle');
                 if (panelTitle) {
-                    panelTitle.innerText = (authPane === 'reg') ? '申请加入协作' : '账号登录';
+                    if (authPane === 'reg') panelTitle.innerText = '申请加入协作';
+                    else if (authPane === 'forgot') panelTitle.innerText = '找回密码';
+                    else if (authPane === 'reset') panelTitle.innerText = '设置新密码';
+                    else panelTitle.innerText = loginBaseTitle;
                 }
 
-                var tipEl = document.getElementById('authSwitchTip');
-                var regLink = document.getElementById('switchRegister');
-                if (authPane === 'reg') {
-                    if (tipEl) tipEl.innerText = '已有账号？';
-                    if (regLink) regLink.innerText = '返回登录';
+                if (authPane !== 'login') {
                     var succTip = document.getElementById('adminLoginSuccessTip');
                     if (succTip) succTip.style.display = 'none';
-                } else {
-                    if (tipEl) tipEl.innerText = '还没有账号？';
-                    if (regLink) regLink.innerText = '申请加入协作';
                 }
 
-                document.getElementById('adminLoginError').style.display = 'none';
-                var regErr = document.getElementById('regErrorTip');
-                if (regErr) regErr.style.display = 'none';
+                ['adminLoginError', 'regErrorTip', 'forgotErrorTip', 'resetErrorTip'].forEach(function(id) {
+                    var el = document.getElementById(id);
+                    if (el) el.style.display = 'none';
+                });
 
                 if (authPane === 'login') {
+                    if (window.location.search && window.location.search.indexOf('reset_token=') !== -1 && window.history && window.history.replaceState) {
+                        window.history.replaceState(null, '', window.location.pathname);
+                    }
                     var adminUser = document.getElementById('adminLoginUser');
                     if (adminUser) {
                         adminUser.focus();
                         handleLockEmailInput(adminUser, 'adminDomainBadge');
                     }
-                } else {
+                } else if (authPane === 'reg') {
                     var regInput = document.getElementById('regEmailInput');
                     if (regInput) {
                         regInput.focus();
                         handleLockEmailInput(regInput, 'regLockDomainBadge');
+                    }
+                } else if (authPane === 'forgot') {
+                    var fSucc = document.getElementById('forgotSuccessTip');
+                    if (fSucc) fSucc.style.display = 'none';
+                    var forgotInput = document.getElementById('forgotEmailInput');
+                    if (forgotInput) {
+                        var existingEmail = document.getElementById('adminLoginUser');
+                        if (!forgotInput.value && existingEmail && existingEmail.value.trim()) {
+                            forgotInput.value = existingEmail.value.trim();
+                        }
+                        forgotInput.focus();
+                        handleLockEmailInput(forgotInput, 'forgotDomainBadge');
                     }
                 }
             }
@@ -385,6 +475,132 @@ if (!$isSiteAuthorized) {
                     err.style.display = 'block';
                     btn.disabled = false;
                     btn.innerText = '登录';
+                });
+            }
+
+            function submitForgotPwd(e) {
+                e.preventDefault();
+                var emailInput = document.getElementById('forgotEmailInput');
+                var email = getLockResolvedEmail('forgotEmailInput');
+                var btn = document.getElementById('btnForgotSubmit');
+                var err = document.getElementById('forgotErrorTip');
+                var succ = document.getElementById('forgotSuccessTip');
+                if (!emailInput || !btn || !err) return;
+
+                var fixedDomain = emailInput.getAttribute('data-fixed-domain') || '';
+                if (!fixedDomain && email.indexOf('@') === -1) {
+                    err.innerText = '请输入完整工作邮箱，如 name@company.com';
+                    err.style.display = 'block';
+                    emailInput.focus();
+                    return;
+                }
+
+                btn.disabled = true;
+                btn.innerText = '发送中...';
+                err.style.display = 'none';
+                if (succ) succ.style.display = 'none';
+
+                var fd = new FormData();
+                fd.append('action', 'request_password_reset');
+                fd.append('email', email);
+
+                postLockApi(fd)
+                .then(function(r) { return r.json(); })
+                .then(function(res) {
+                    btn.disabled = false;
+                    btn.innerText = '发送重置邮件';
+                    if (res.success) {
+                        if (succ) {
+                            var tipSpan = succ.querySelector('span');
+                            if (tipSpan) tipSpan.innerText = res.message || '如果该邮箱已注册且状态正常，重置链接已发送，请查收邮件';
+                            succ.style.display = 'flex';
+                        }
+                    } else {
+                        err.innerText = res.message || '发送失败，请重试';
+                        err.style.display = 'block';
+                    }
+                })
+                .catch(function() {
+                    btn.disabled = false;
+                    btn.innerText = '发送重置邮件';
+                    err.innerText = '网络异常，请重试';
+                    err.style.display = 'block';
+                });
+            }
+
+            function submitResetPwd(e) {
+                e.preventDefault();
+                var tokenEl = document.getElementById('resetTokenInput');
+                var newEl = document.getElementById('resetNewPwdInput');
+                var confirmEl = document.getElementById('resetConfirmPwdInput');
+                var btn = document.getElementById('btnResetSubmit');
+                var err = document.getElementById('resetErrorTip');
+                if (!tokenEl || !newEl || !confirmEl || !btn || !err) return;
+
+                var newPwd = newEl.value;
+                var confirmPwd = confirmEl.value;
+                if (newPwd.length < 6) {
+                    err.innerText = '新密码长度至少需要 6 位';
+                    err.style.display = 'block';
+                    newEl.focus();
+                    return;
+                }
+                if (newPwd !== confirmPwd) {
+                    err.innerText = '两次输入的新密码不一致';
+                    err.style.display = 'block';
+                    confirmEl.focus();
+                    return;
+                }
+
+                btn.disabled = true;
+                btn.innerText = '保存中...';
+                err.style.display = 'none';
+
+                var fd = new FormData();
+                fd.append('action', 'reset_password');
+                fd.append('token', tokenEl.value);
+                fd.append('new_password', newPwd);
+                fd.append('confirm_password', confirmPwd);
+
+                postLockApi(fd)
+                .then(function(r) { return r.json(); })
+                .then(function(res) {
+                    btn.disabled = false;
+                    btn.innerText = '保存新密码';
+                    if (res.success) {
+                        toggleAuthPane('login');
+                        var loginUserInput = document.getElementById('adminLoginUser');
+                        var returnedEmail = (res.data && res.data.email) ? res.data.email : '';
+                        if (loginUserInput && returnedEmail) {
+                            var fixedDomain = loginUserInput.getAttribute('data-fixed-domain') || '';
+                            if (fixedDomain && returnedEmail.toLowerCase().endsWith('@' + fixedDomain.toLowerCase())) {
+                                loginUserInput.value = returnedEmail.slice(0, -(fixedDomain.length + 1));
+                            } else {
+                                loginUserInput.value = returnedEmail;
+                            }
+                            handleLockEmailInput(loginUserInput, 'adminDomainBadge');
+                        }
+                        var succTip = document.getElementById('adminLoginSuccessTip');
+                        if (succTip) {
+                            var tipSpan = succTip.querySelector('span');
+                            if (tipSpan) tipSpan.innerText = res.message || '密码已重置，请使用新密码登录';
+                            succTip.style.display = 'flex';
+                        }
+                        var pwdInput = document.getElementById('adminLoginPwd');
+                        if (pwdInput) {
+                            pwdInput.value = '';
+                            pwdInput.focus();
+                        }
+                    } else {
+                        err.innerText = res.message || '重置失败，请重试';
+                        err.style.display = 'block';
+                    }
+                })
+                .catch(function() {
+                    btn.disabled = false;
+                    btn.innerText = '保存新密码';
+                    err.innerText = '网络异常，请重试';
+                    err.style.display = 'block';
                 });
             }
         </script>
