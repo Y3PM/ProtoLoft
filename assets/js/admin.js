@@ -3390,7 +3390,7 @@ function renderPendingUsers(users) {
     if (!tbody) return;
     if (users.length === 0) {
         if (!pendingUsersLoaded || tbody.querySelector('[data-pending-id]')) {
-            tbody.innerHTML = '<tr><td colspan="4" style="padding:32px;text-align:center;color:var(--text-3);"><i class="ri-checkbox-circle-line" style="font-size:18px;vertical-align:middle;margin-right:4px;color:var(--success);"></i> 无待审批的加入申请</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="5" style="padding:32px;text-align:center;color:var(--text-3);"><i class="ri-checkbox-circle-line" style="font-size:18px;vertical-align:middle;margin-right:4px;color:var(--success);"></i> 无待审批的加入申请</td></tr>';
         }
         return;
     }
@@ -3416,17 +3416,22 @@ function renderPendingUsers(users) {
         var nameText = esc(u.name || u.display_name || '未命名');
         var emailText = esc(u.email || u.username || '-');
         var deptText = esc(u.department || u.apply_remark || '-');
+        var requestedRole = (u.role === 'editor') ? 'editor' : 'viewer';
+        var roleBadge = (requestedRole === 'editor')
+            ? '<span class="badge-tag badge-role-editor">协作者</span>'
+            : '<span class="badge-tag badge-role-viewer">审阅人</span>';
         row.innerHTML = `
                     <td style="padding:10px 12px;">
                         <div style="font-weight:600;font-size:13.5px;color:var(--text-1);">${nameText}</div>
                         <div style="font-size:11.5px;color:var(--text-3);margin-top:2px;font-family:monospace;">${emailText}</div>
                     </td>
                     <td style="padding:10px 12px;color:var(--text-2);font-size:12.5px;">${deptText}</td>
+                    <td style="padding:10px 12px;">${roleBadge}</td>
                     <td style="padding:10px 12px;color:var(--text-3);font-size:12px;">${esc(u.created_at || '-')}</td>
                     <td style="padding:10px 12px;text-align:right;white-space:nowrap;">
                         <select id="pendingRole_${id}" class="m-select-sm" style="margin-right:6px;">
-                            <option value="viewer" selected>审阅人</option>
-                            <option value="editor">协作者</option>
+                            <option value="viewer"${requestedRole === 'viewer' ? ' selected' : ''}>审阅人</option>
+                            <option value="editor"${requestedRole === 'editor' ? ' selected' : ''}>协作者</option>
                         </select>
                         <button type="button" class="btn-primary btn-sm" style="margin-right:6px;" onclick="handleApproveUser(${id})"><i class="ri-check-line"></i> 批准</button>
                         <button type="button" class="btn-cancel btn-sm btn-danger-sm" onclick="handleRejectUser(${id})"><i class="ri-close-line"></i> 驳回</button>
@@ -3461,7 +3466,7 @@ function refreshPendingUsers(includeList) {
     }).catch(function(error) {
         if (!includeList || pendingUsersLoaded || revision !== pendingUsersRevision) return;
         var tbody = document.getElementById('pendingUsersTbody');
-        if (tbody) tbody.innerHTML = '<tr><td colspan="4" style="padding:24px;text-align:center;color:var(--danger);">' + esc(error.message || '加载待审批列表失败') + '</td></tr>';
+        if (tbody) tbody.innerHTML = '<tr><td colspan="5" style="padding:24px;text-align:center;color:var(--danger);">' + esc(error.message || '加载待审批列表失败') + '</td></tr>';
     }).then(function() {
         pendingUsersRequest = null;
     });

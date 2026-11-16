@@ -71,14 +71,34 @@ const turn = () => new Promise(resolve => setImmediate(resolve));
   const escContext = {}; vm.createContext(escContext);
   vm.runInContext(app.slice(app.indexOf('function esc(s)'), app.indexOf('function getCsrfToken')), escContext);
   check('HTML attribute encoder covers both quote characters', escContext.esc('"\'<>') === '&quot;&#39;&lt;&gt;');
-  const approvalRow = { style: {}, setAttribute() {} };
-  const approvalBody = { rows: [], insertRow: () => approvalRow };
-  const injection = { document: { getElementById: () => approvalBody }, esc: escContext.esc };
+  const approvalRow = { style: {}, setAttribute(k, v) { this[k] = v; }, getAttribute(k) { return this[k] || null; } };
+  const approvalBody = {
+    rows: [],
+    querySelector: () => null,
+    removeChild(r) { const idx = this.rows.indexOf(r); if (idx >= 0) this.rows.splice(idx, 1); },
+    insertRow(i) {
+      const r = this.rows.length === 0 && !approvalRow._used
+        ? (approvalRow._used = true, approvalRow)
+        : { style: {}, setAttribute(k, v) { this[k] = v; }, getAttribute(k) { return this[k] || null; } };
+      this.rows.splice(i, 0, r);
+      return r;
+    }
+  };
+  const injection = { document: { getElementById: () => approvalBody }, esc: escContext.esc, pendingUsersLoaded: false };
   vm.createContext(injection);
   vm.runInContext(admin.slice(admin.indexOf('function renderPendingUsers('), admin.indexOf('function refreshPendingUsers(')), injection);
   injection.renderPendingUsers([{ id: "123');globalThis.__reviewProbe=1;//", name: '<script>probe</script>' }]);
   const handler = approvalRow.innerHTML.match(/onclick="([^"]*)"/)[1];
   check('approval event contains only numeric id and escapes applicant name', handler === 'handleApproveUser(123)' && !approvalRow.innerHTML.includes('<script>'));
+  approvalBody.rows = [];
+  injection.renderPendingUsers([
+    { id: 201, name: '产品申请', role: 'editor' },
+    { id: 202, name: '越权探测', role: 'admin' }
+  ]);
+  const editorRowHtml = approvalBody.rows[0].innerHTML;
+  const clampedRowHtml = approvalBody.rows[1].innerHTML;
+  check('pending row preselects requested editor role and shows badge', editorRowHtml.includes('badge-role-editor') && editorRowHtml.includes('value="editor" selected'));
+  check('pending row clamps invalid role to viewer without exposing admin', clampedRowHtml.includes('badge-role-viewer') && clampedRowHtml.includes('value="viewer" selected') && !clampedRowHtml.includes('admin'));
   const share = fs.readFileSync(path.join(__dirname, '../../assets/js/share.js'), 'utf8');
   check('share URL is stored as data, not executable text', share.includes('data-copy-url=') && !share.includes('onclick="copySpecificShareUrl(\\\''));
   const elements = {

@@ -20,7 +20,7 @@ def test_webhook_payloads():
         ['event' => 'annotation_new', 'expected_title' => 'CRM系统 · 收到新批注', 'data' => ['item_name' => 'CRM系统', 'author' => '李总', 'content' => '这里的按钮不对', 'link' => 'https://example.com/p/2']],
         ['event' => 'annotation_reply', 'expected_title' => 'CRM系统 · 批注有新回复', 'data' => ['item_name' => 'CRM系统', 'author' => '王设计师', 'content' => '已修正', 'link' => 'https://example.com/p/2#reply']],
         ['event' => 'annotation_resolve', 'expected_title' => 'CRM系统 · 批注已解决', 'data' => ['item_name' => 'CRM系统', 'author' => '王设计师', 'content' => '原批注', 'link' => 'https://example.com/p/2']],
-        ['event' => 'user_apply', 'data' => ['title' => '新成员申请待审批', 'item_name' => '系统申请', 'author' => '赵六', 'content' => '申请加入', 'link' => 'https://example.com/admin']],
+        ['event' => 'user_apply', 'data' => ['title' => '新成员申请待审批', 'item_name' => '立象原型', 'author' => '赵六 (zhao@example.com)', 'fields' => ['申请角色' => '协作者', '部门或职务' => '产品部'], 'content' => '申请角色：协作者', 'link' => 'https://example.com/admin']],
         ['event' => 'custom_raw', 'data' => ['title' => '简单通知', 'item_name' => '测试', 'content' => 'Hello', 'link' => 'https://example.com']],
         ['event' => 'no_link_fallback', 'data' => ['title' => '无链接通知', 'item_name' => '测试', 'content' => '兜底测试', 'link' => '']]
     ];
@@ -81,6 +81,13 @@ def test_webhook_payloads():
         # 4. 通用断言
         gen = payloads['generic']
         assert brand in gen.get('title', '') or brand in gen.get('source', ''), f"通用载荷未包含品牌 (event: {ev})"
+
+        # 5. 结构化 user_apply 逐行平铺键值断言（不出现多余“内容”标签）
+        if ev == 'user_apply':
+            fs_body = fs.get('card', {}).get('elements', [{}])[0].get('text', {}).get('content', '')
+            assert '**内容**' not in fs_body and '**申请角色**：协作者' in fs_body and '**部门或职务**：产品部' in fs_body
+            assert '**内容**' not in dt.get('markdown', {}).get('text', '') and '**申请角色**：协作者' in dt.get('markdown', {}).get('text', '')
+            assert '**内容**' not in wc.get('markdown', {}).get('content', '') and '**申请角色**：协作者' in wc.get('markdown', {}).get('content', '')
 
     print("✅ 所有平台 Payload 均 100% 包含「立象原型」关键词！")
 

@@ -144,52 +144,71 @@ class Webhook {
             $content = mb_substr($content, 0, 400, 'utf-8') . '...';
         }
 
+        // 统一组装属性行 [标签, 值, 语义类型]；存在结构化 fields 时跳过“内容”标签，逐行平铺展示
+        $fieldRows = [];
+        if (!$isProjectEvent) {
+            $fieldRows[] = ['项目', $item . ($version ? " (`{$version}`)" : ''), 'info'];
+        } elseif ($version !== '') {
+            $fieldRows[] = ['版本', "`{$version}`", 'plain'];
+        }
+        if (!empty($page)) {
+            $fieldRows[] = ['页面', $page, 'plain'];
+        }
+        $fieldRows[] = [$authorLabel, $author, 'plain'];
+        if (!empty($data['fields']) && is_array($data['fields'])) {
+            foreach ($data['fields'] as $fk => $fv) {
+                $kText = self::mdEscape(trim((string)$fk), true);
+                $vText = self::mdEscape(trim((string)$fv), true);
+                if ($kText !== '' && $vText !== '') {
+                    if (mb_strlen($vText, 'utf-8') > 200) {
+                        $vText = mb_substr($vText, 0, 200, 'utf-8') . '...';
+                    }
+                    $fieldRows[] = [$kText, $vText, 'plain'];
+                }
+            }
+        } elseif (!empty($content)) {
+            $fieldRows[] = [$contentLabel, $content, 'content'];
+        }
+        $fieldRows[] = ['时间', $time, 'plain'];
+
         // 1. 企业微信 (WeCom)
         if ($platform === 'wecom') {
-            $md = "### {$title}\n";
-            if (!$isProjectEvent) {
-                $md .= "> **项目**：<font color=\"info\">{$item}</font>" . ($version ? " (`{$version}`)" : "") . "\n";
-            } elseif ($version !== '') {
-                $md .= "> **版本**：`{$version}`\n";
+            $md = "### **{$title}**\n\n";
+            foreach ($fieldRows as $row) {
+                $val = $row[1];
+                if ($row[2] === 'info') {
+                    $val = $item !== '' ? "<font color=\"info\">{$item}</font>" . ($version ? " (`{$version}`)" : "") : $val;
+                } elseif ($row[2] === 'content') {
+                    $val = str_replace("\n", "\n> ", $val);
+                }
+                $md .= "> **{$row[0]}**：{$val}\n";
             }
-            if (!empty($page)) {
-                $md .= "> **页面**：{$page}\n";
-            }
-            $md .= "> **{$authorLabel}**：{$author}\n";
-            if (!empty($content)) {
-                $md .= "> **{$contentLabel}**：{$content}\n";
-            }
-            $md .= "> **时间**：{$time}\n";
-            $md .= "\n来自 · 立象原型\n";
             if (!empty($link)) {
-                $md .= "\n[{$linkLabel}]({$link})";
+                $md .= "\n[{$linkLabel}]({$link})\n";
             }
+            $md .= "\n<font color=\"comment\">来自 · 立象原型</font>";
             return [
                 'msgtype' => 'markdown',
                 'markdown' => ['content' => $md]
             ];
         }
 
-        // 2. 钉钉 (DingTalk) - 纯粹原汁原味的 Markdown 聊天气泡
+        // 2. 钉钉 (DingTalk) - 紧致左对齐 Markdown 气泡（无圆点缩进）
         if ($platform === 'dingtalk') {
-            $md = "### {$title}\n\n";
-            if (!$isProjectEvent) {
-                $md .= "- **项目**：{$item}" . ($version ? " (`{$version}`)" : "") . "\n";
-            } elseif ($version !== '') {
-                $md .= "- **版本**：`{$version}`\n";
+            $lines = [];
+            foreach ($fieldRows as $row) {
+                $val = ($row[2] === 'content') ? str_replace("\n", "  \n", $row[1]) : $row[1];
+                $lines[] = "**{$row[0]}**：{$val}";
             }
-            if (!empty($page)) {
-                $md .= "- **页面**：{$page}\n";
-            }
-            $md .= "- **{$authorLabel}**：{$author}\n";
-            if (!empty($content)) {
-                $md .= "- **{$contentLabel}**：{$content}\n";
-            }
-            $md .= "- **时间**：{$time}\n";
-            $md .= "\n\n> *来自 · 立象原型*";
+
+            $md = "### **{$title}**\n\n" . implode("  \n", $lines);
+            $footer = [];
             if (!empty($link)) {
-                $md .= "\n\n[{$linkLabel}]({$link})";
+                $footer[] = "[{$linkLabel}]({$link})";
             }
+            $footer[] = "*来自 · 立象原型*";
+            $md .= "\n\n" . implode("  \n", $footer);
+
             return [
                 'msgtype' => 'markdown',
                 'markdown' => [
@@ -202,21 +221,11 @@ class Webhook {
         // 3. 飞书 (Feishu) - 简单直观的纯净卡片
         if ($platform === 'feishu') {
             $elements = [];
-            $mdText = '';
-            if (!$isProjectEvent) {
-                $mdText .= "**项目**：{$item}" . ($version ? " (`{$version}`)" : "") . "\n";
-            } elseif ($version !== '') {
-                $mdText .= "**版本**：`{$version}`\n";
+            $lines = [];
+            foreach ($fieldRows as $row) {
+                $lines[] = "**{$row[0]}**：{$row[1]}";
             }
-            if (!empty($page)) {
-                $mdText .= "**页面**：{$page}\n";
-            }
-            $mdText .= "**{$authorLabel}**：{$author}\n";
-            if (!empty($content)) {
-                $mdText .= "**{$contentLabel}**：{$content}\n";
-            }
-            $mdText .= "**时间**：{$time}\n\n";
-            $mdText .= "来自 · 立象原型";
+            $mdText = implode("\n", $lines) . "\n\n来自 · 立象原型";
 
             $elements[] = [
                 'tag' => 'div',

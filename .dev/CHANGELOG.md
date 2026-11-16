@@ -7,6 +7,17 @@
 
 ## 发布前修复（全新版本，未发布）
 
+- 2026-11-16：优化群机器人通知排版，并重构新成员申请通知为结构化键值展示。
+  - 在 `includes/webhook.php` 提取统一属性行组装逻辑（`$fieldRows`）：钉钉端去除 `- ` 列表圆点与右缩进、加粗标题（`### **...**`）并改用 `  \n` 紧致左对齐换行，移除底部 `> ` 引用竖线；企业微信端同步加粗标题、修复多行内容引用前缀并弱化底部来源；飞书端沿用交互卡片并共用结构化属性行。
+  - 当通知数据传入结构化 `fields`（如 `includes/actions/auth.php` 的 `user_apply` 传递「申请角色」「部门或职务」且不再重复邮箱行）时，三端均自动跳过多余的 `**内容**：` 前缀，直接逐行平铺为 `**标题**：内容`。
+  - 在 `.dev/tests/notification_copy_regression.py` 与 `.dev/tests/webhook_keyword_regression.py` 更新钉钉无圆点左对齐与结构化 `user_apply` 断言；已通过 `php -l`、`python3 -B .dev/tests/run_all_tests.py`（PHP 8.3.20 下 23/23 套通过，可识别 1,024 项断言 100% PASS），并经用户提供的钉钉/飞书/企微测试机器人验证投递成功与渲染验收。
+
+- 2026-11-16：新增成员申请加入协作时的角色选择与审批预选。
+  - 在独立登录页（`index.php`）与工作台登录弹窗（`includes/login_modal.php`）同步接入双栏角色单选卡（样式收口至 `assets/css/app.css` `.reg-role-grid`），默认选中「审阅人（查看与批注 · 研发/测试）」，可选「协作者（上传与管理 · 产品/交互）」，绝不暴露管理员选项。
+  - 在 `includes/actions/auth.php` 的 `register_visitor` 对入参 `role` 做 `['viewer', 'editor']` 严格白名单收口后写入待审批记录（`status = 0`），并在 `user_apply` 通知中携带申请角色。
+  - 在控制中心待审批列表（`includes/modals.php`、`assets/js/admin.js` `renderPendingUsers`）新增「申请角色」徽标列（`colspan` 同步更新为 `5`），并按申请意向自动预选右侧审批下拉框；管理员仍可按需调整角色后批准。
+  - 在 `.dev/tests/visitor_flow_frontend_regression.js`、`.dev/tests/security_frontend_regression.js` 与 `.dev/tests/comprehensive_e2e_regression.py` 补充角色选择契约、越权参数（`admin`）收口及预选渲染断言；已通过 `php -l` 与 `python3 -B .dev/tests/run_all_tests.py`（23/23 套通过），并增量同步至 FTP 根目录与回读校验 SHA-256 一致（线上表单待浏览器实际注册流验收）。
+
 - 2026-11-16：优化控制中心「查阅走势」堆叠面积图视觉层次与 `0` 值压线问题。
   - 在 `assets/js/admin.js` 将堆叠顺序调整为自下而上「外发访客（底层）→ 内部审阅人（中层）→ 管理与协作者（顶层）」，加深各层 `areaStyle` 渐变透明度（`opacity: 1`、`0.46 → 0.20`），使蓝/绿堆叠空隙清晰可辨。
   - 全周期总量为 `0` 的角色隐藏描边与填充、单日 `0` 值不渲染高亮圆点（仅保留 Tooltip 明细），避免 `0` 值线与圆点覆盖有数据的曲线；Tooltip 增加 `confine: true` 防止遮挡 `7天 / 30天` 按钮，并按图例一致顺序（`内部审阅人 → 管理与协作者 → 外发访客`）排序渲染。

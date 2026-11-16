@@ -74,9 +74,10 @@ def main():
                     check(prefix + '入口文案与链接正确', button['text']['content'] == link_label and button['url'] == data['link'])
                 else:
                     body = payload['markdown']['content' if platform == 'wecom' else 'text']
-                    check(prefix + '标题包含项目名与具体事件', body.startswith('### ' + title + '\n'))
+                    check(prefix + '标题包含项目名与具体事件', body.startswith('### **' + title + '**\n'))
                     if platform == 'dingtalk':
                         check(prefix + '群聊摘要标题同步', payload['markdown']['title'] == title)
+                        check(prefix + '钉钉正文采用无圆点紧致左对齐', '\n- **' not in body)
                     check(prefix + '入口文案与链接正确', '[' + link_label + '](' + data['link'] + ')' in body)
                 check(prefix + '来源完整且只出现一次', body.count('来自 · 立象原型') == 1)
                 check(prefix + '正文不重复项目字段', '**项目**' not in body)

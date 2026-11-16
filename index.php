@@ -115,6 +115,25 @@ if (!$isSiteAuthorized) {
                         <i class="ri-eye-line"></i>
                     </button>
                 </div>
+                <div class="m-label">申请角色 <span class="req-star">*</span></div>
+                <div class="reg-role-grid" style="margin-bottom: 10px;">
+                    <label class="reg-role-card" for="lockRegRoleViewer">
+                        <input type="radio" id="lockRegRoleViewer" name="lock_reg_role" value="viewer" checked>
+                        <div class="reg-role-head">
+                            <span class="reg-role-title">审阅人</span>
+                            <span class="reg-role-check" aria-hidden="true"></span>
+                        </div>
+                        <div class="reg-role-desc">查看与批注 · 研发/测试</div>
+                    </label>
+                    <label class="reg-role-card" for="lockRegRoleEditor">
+                        <input type="radio" id="lockRegRoleEditor" name="lock_reg_role" value="editor">
+                        <div class="reg-role-head">
+                            <span class="reg-role-title">协作者</span>
+                            <span class="reg-role-check" aria-hidden="true"></span>
+                        </div>
+                        <div class="reg-role-desc">上传与管理 · 产品/交互</div>
+                    </label>
+                </div>
                 <label class="m-label" for="regRemarkInput">部门或职务 <span class="opt-tag">选填</span></label>
                 <div style="margin-bottom: 14px;">
                     <input type="text" id="regRemarkInput" class="form-control" placeholder="如：研发部 · 前端工程师" maxlength="30">
@@ -240,6 +259,8 @@ if (!$isSiteAuthorized) {
                 var email = getLockResolvedEmail('regEmailInput');
                 var name = document.getElementById('regName').value.trim();
                 var p = document.getElementById('regPwdInput').value;
+                var roleEl = document.querySelector('input[name="lock_reg_role"]:checked');
+                var role = roleEl ? roleEl.value : 'viewer';
                 var remark = document.getElementById('regRemarkInput').value.trim();
 
                 var btn = document.getElementById('btnVisitorReg');
@@ -262,6 +283,7 @@ if (!$isSiteAuthorized) {
                 fd.append('email', email);
                 fd.append('name', name);
                 fd.append('password', p);
+                fd.append('role', role);
                 fd.append('department', remark);
 
                 postLockApi(fd)

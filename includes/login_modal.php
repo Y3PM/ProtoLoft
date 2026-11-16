@@ -85,6 +85,27 @@ if (!empty(trim($allowedDomainsSetting))) {
                     </div>
                 </div>
                 <div class="m-form-group">
+                    <div class="m-label">申请角色 <span class="req-star">*</span></div>
+                    <div class="reg-role-grid">
+                        <label class="reg-role-card" for="regRoleViewer">
+                            <input type="radio" id="regRoleViewer" name="reg_role" value="viewer" checked>
+                            <div class="reg-role-head">
+                                <span class="reg-role-title">审阅人</span>
+                                <span class="reg-role-check" aria-hidden="true"></span>
+                            </div>
+                            <div class="reg-role-desc">查看与批注 · 研发/测试</div>
+                        </label>
+                        <label class="reg-role-card" for="regRoleEditor">
+                            <input type="radio" id="regRoleEditor" name="reg_role" value="editor">
+                            <div class="reg-role-head">
+                                <span class="reg-role-title">协作者</span>
+                                <span class="reg-role-check" aria-hidden="true"></span>
+                            </div>
+                            <div class="reg-role-desc">上传与管理 · 产品/交互</div>
+                        </label>
+                    </div>
+                </div>
+                <div class="m-form-group">
                     <label class="m-label" for="regDepartment">部门或职务 <span class="opt-tag">选填</span></label>
                     <input type="text" id="regDepartment" class="m-input" placeholder="例如：研发部 · 前端开发" maxlength="30">
                 </div>
@@ -254,6 +275,8 @@ if (!empty(trim($allowedDomainsSetting))) {
         var email = getResolvedEmail('regEmail');
         var name = document.getElementById('regName').value.trim();
         var p = document.getElementById('regPassword').value;
+        var roleEl = document.querySelector('input[name="reg_role"]:checked');
+        var role = roleEl ? roleEl.value : 'viewer';
         var dept = document.getElementById('regDepartment').value.trim();
 
         var err = document.getElementById('regError');
@@ -276,6 +299,7 @@ if (!empty(trim($allowedDomainsSetting))) {
         fd.append('email', email);
         fd.append('name', name);
         fd.append('password', p);
+        fd.append('role', role);
         fd.append('department', dept);
 
         fetch('api.php', { method: 'POST', body: fd })

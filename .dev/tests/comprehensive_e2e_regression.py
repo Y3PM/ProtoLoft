@@ -303,18 +303,34 @@ def run_comprehensive_suite(php_bin, keep_fixture=False):
             'email': 'applicant@protoloft.local',
             'name': '待审新成员',
             'password': PASS_WORD,
-            'reason': '申请原型审阅权限'
+            'role': 'editor',
+            'reason': '申请原型协作权限'
         })
-        check("TC-ROL-07: 访客成功提交注册申请", reg_res.get('success'))
+        check("TC-ROL-07: 访客成功提交协作者角色申请", reg_res.get('success'))
+
+        # 验证非法角色参数 (如 admin) 在申请阶段被安全收口为 viewer
+        tampered_applicant = TestClient(base_url)
+        tampered_res = tampered_applicant.api('register_visitor', {
+            'email': 'tampered@protoloft.local',
+            'name': '越权探测者',
+            'password': PASS_WORD,
+            'role': 'admin'
+        })
+        check("TC-ROL-07: 申请传参 admin 不报错且被收口", tampered_res.get('success'))
 
         # TC-AUT-02: 待审核状态账号登录拦截
         unapproved_login = guest_applicant.login('applicant@protoloft.local', PASS_WORD)
         check("TC-AUT-02: 待审核账号登录被明确拦截", not unapproved_login.get('success') and '审核' in unapproved_login.get('message', ''))
 
-        # 超管审批并分配为 Editor
+        # 超管审批列表查看申请角色，并分别按意向批准与驳回越权探测账号
         pending_list = owner.api('pending_user_list')
-        check("TC-ROL-07: 超管可在待审批列表查看新申请", any(u['email'] == 'applicant@protoloft.local' for u in pending_list.get('data', [])))
-        applicant_id = [u['id'] for u in pending_list.get('data', []) if u['email'] == 'applicant@protoloft.local'][0]
+        pending_rows = pending_list.get('data', [])
+        applicant_row = next((u for u in pending_rows if u['email'] == 'applicant@protoloft.local'), None)
+        tampered_row = next((u for u in pending_rows if u['email'] == 'tampered@protoloft.local'), None)
+        check("TC-ROL-07: 超管可在待审批列表查看新申请及意向角色", applicant_row is not None and applicant_row.get('role') == 'editor')
+        check("TC-ROL-07: 非法角色申请在待审批列表安全收口为 viewer", tampered_row is not None and tampered_row.get('role') == 'viewer')
+        applicant_id = applicant_row['id']
+        owner.api('reject_user', {'id': tampered_row['id']})
         approve_res = owner.api('approve_user', {'id': applicant_id, 'role': 'editor'})
         check("TC-ROL-07: 超管成功审批并赋予 Editor 权限", approve_res.get('success'))
 

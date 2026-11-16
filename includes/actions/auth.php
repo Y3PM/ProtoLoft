@@ -89,6 +89,11 @@ switch ($action) {
         $name = trim($_POST['name'] ?? ($_POST['display_name'] ?? ''));
         $p = $_POST['password'] ?? '';
         $department = trim($_POST['department'] ?? ($_POST['apply_remark'] ?? ''));
+        $requestedRole = trim((string)($_POST['role'] ?? 'viewer'));
+        if (!in_array($requestedRole, ['viewer', 'editor'], true)) {
+            $requestedRole = 'viewer';
+        }
+        $requestedRoleLabel = ($requestedRole === 'editor') ? '协作者' : '审阅人';
 
         if (strpos($email, '@') === false && !empty($email)) {
             $allowedDomains = Auth::getSetting('allowed_email_domains', '');
@@ -142,8 +147,8 @@ switch ($action) {
         }
 
         $pHash = password_hash($p, PASSWORD_DEFAULT);
-        $stmt = $db->prepare("INSERT INTO users (email, name, password_hash, role, is_owner, status, department) VALUES (?, ?, ?, 'viewer', 0, 0, ?)");
-        $stmt->execute([$email, $name, $pHash, $department]);
+        $stmt = $db->prepare("INSERT INTO users (email, name, password_hash, role, is_owner, status, department) VALUES (?, ?, ?, ?, 0, 0, ?)");
+        $stmt->execute([$email, $name, $pHash, $requestedRole, $department]);
         $newId = (int)$db->lastInsertId();
         Auth::hitThrottle('register_visitor', 900);
 
@@ -166,6 +171,13 @@ switch ($action) {
                     $targetHooks = $adminStmt->fetchAll(PDO::FETCH_COLUMN);
                 }
             }
+            $applyFields = [
+                '申请角色' => $requestedRoleLabel,
+            ];
+            if ($department !== '') {
+                $applyFields['部门或职务'] = $department;
+            }
+            $applyContent = "申请角色：{$requestedRoleLabel}" . ($department ? "\n部门或职务：{$department}" : "");
             foreach ($targetHooks as $wb) {
                 $wb = trim((string)$wb);
                 if (!empty($wb)) {
@@ -173,7 +185,8 @@ switch ($action) {
                         'title' => '新成员申请待审批',
                         'item_name' => '立象原型',
                         'author' => $name . " ({$email})",
-                        'content' => "企业邮箱: {$email}" . ($department ? "\n部门或职务: {$department}" : ""),
+                        'fields' => $applyFields,
+                        'content' => $applyContent,
                         'link' => ''
                     ]);
                 }

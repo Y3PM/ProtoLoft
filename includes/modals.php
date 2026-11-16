@@ -1495,12 +1495,13 @@ $allUsers = $db->query("SELECT id, email, name, role FROM users WHERE status = 1
                                 <tr style="background:var(--canvas);text-align:left;color:var(--text-2);border-bottom:1px solid var(--border);">
                                     <th style="padding:9px 12px;">姓名 / 申请邮箱</th>
                                     <th style="padding:9px 12px;">所属部门 / 说明</th>
+                                    <th style="padding:9px 12px;">申请角色</th>
                                     <th style="padding:9px 12px;">申请时间</th>
                                     <th style="padding:9px 12px;text-align:right;">审批操作</th>
                                 </tr>
                             </thead>
                             <tbody id="pendingUsersTbody">
-                                <tr><td colspan="4" style="padding:24px;text-align:center;color:var(--text-3);">正在加载待审批申请...</td></tr>
+                                <tr><td colspan="5" style="padding:24px;text-align:center;color:var(--text-3);">正在加载待审批申请...</td></tr>
                             </tbody>
                         </table>
                     </div>

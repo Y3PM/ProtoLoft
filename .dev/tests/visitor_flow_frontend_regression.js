@@ -7,6 +7,7 @@ const root = path.resolve(__dirname, '../..');
 const indexPhp = fs.readFileSync(path.join(root, 'index.php'), 'utf8');
 const loginModalPhp = fs.readFileSync(path.join(root, 'includes/login_modal.php'), 'utf8');
 const authPhp = fs.readFileSync(path.join(root, 'includes/actions/auth.php'), 'utf8');
+const modalsPhp = fs.readFileSync(path.join(root, 'includes/modals.php'), 'utf8');
 
 let passed = 0;
 const check = (name, condition) => {
@@ -33,7 +34,11 @@ check('handleDoRegister 自动回填邮箱并更新域名徽标', loginModalPhp.
 check('handleDoRegister 重置表单后主动恢复注册徽标', loginModalPhp.includes("regBadge.style.display = 'inline-block'"));
 check('handleDoRegister 移除多余的 DOM value 篡改', !/if\s*\(\s*emailInput\s*&&\s*email\s*\)\s*\{\s*emailInput\.value\s*=\s*email;\s*var\s+badge\s*=\s*document\.getElementById\('regDomainBadge'\);/.test(loginModalPhp));
 
-// 3. 后端文案统一契约
+// 3. 申请角色双栏单选与后端白名单收口契约
+check('独立登录页包含申请角色单选且默认审阅人，不包含 admin', indexPhp.includes('name="lock_reg_role" value="viewer" checked') && indexPhp.includes('name="lock_reg_role" value="editor"') && !indexPhp.includes('name="lock_reg_role" value="admin"') && indexPhp.includes("fd.append('role', role)"));
+check('工作台登录弹窗包含申请角色单选且默认审阅人，不包含 admin', loginModalPhp.includes('name="reg_role" value="viewer" checked') && loginModalPhp.includes('name="reg_role" value="editor"') && !loginModalPhp.includes('name="reg_role" value="admin"') && loginModalPhp.includes("fd.append('role', role)"));
 check('auth.php register_visitor 成功文案明确自明', authPhp.includes("jsonResponse(true, ['id' => $newId], '申请已提交，等待管理员审核后即可登录');"));
+check('auth.php register_visitor 对申请角色做白名单收口并透传通知', authPhp.includes("in_array($requestedRole, ['viewer', 'editor'], true)") && authPhp.includes("'申请角色' => $requestedRoleLabel"));
+check('modals.php 待审批表头包含申请角色列并同步 colspan=5', modalsPhp.includes('<th style="padding:9px 12px;">申请角色</th>') && modalsPhp.includes('id="pendingUsersTbody"') && modalsPhp.includes('<td colspan="5"'));
 
 console.log(JSON.stringify({ passed, scope: 'visitor registration flow contract validation' }));
