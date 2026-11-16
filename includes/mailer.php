@@ -252,8 +252,12 @@ class Mailer {
         $maxBytes = (int)floor((76 - $indent - 12) / 4) * 3;
         while ($clean !== '') {
             $chunk = mb_strcut($clean, 0, $maxBytes, 'UTF-8');
+            if ($chunk === '' || $chunk === false) {
+                break;
+            }
             $lines[] = '=?UTF-8?B?' . base64_encode($chunk) . '?=';
-            $clean = substr($clean, strlen($chunk));
+            $rest = substr($clean, strlen($chunk));
+            $clean = ($rest === false) ? '' : $rest;
             $maxBytes = 45;
         }
         return implode("\r\n ", $lines);

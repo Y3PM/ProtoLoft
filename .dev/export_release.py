@@ -74,6 +74,7 @@ APPROVED_CORE_FILES = [
     'includes/config.php',
     'includes/db.php',
     'includes/login_modal.php',
+    'includes/mailer.php',
     'includes/mcp_access.php',
     'includes/mcp_service.php',
     'includes/modals.php',

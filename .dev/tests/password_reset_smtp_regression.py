@@ -470,6 +470,10 @@ def main():
         smtp_server.shutdown()
         smtp_server.server_close()
 
+    export_src = (ROOT / ".dev/export_release.py").read_text(encoding="utf-8")
+    check("export_release.py includes includes/mailer.php in APPROVED_CORE_FILES",
+          "'includes/mailer.php'" in export_src)
+
     print(f"\nALL PASSED ({len(checks)} assertions)")
 
 
