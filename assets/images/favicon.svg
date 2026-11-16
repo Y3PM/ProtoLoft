@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128">
+  <title>立象原型</title>
+  <!-- Approved full-elephant concept, optically enlarged by 8% for small tabs. -->
+  <path fill="#0076de" d="M28 0h72c17 0 28 11 28 28v72c0 17-11 28-28 28H28C11 128 0 117 0 100V28C0 11 11 0 28 0Z"/>
+  <g transform="matrix(.12233 0 0 .12343 -12.704 -13.883)">
+    <!-- Body, tail and rear leg. -->
+    <path fill="#fff" d="m567 423-80 132c-10 17-5 29 9 40l115 88-15 171H380c-15 0-25 10-26 25l-7 83c-1 12-9 19-22 19H224c-15 0-22-9-18-24l56-185c2-7 3-15 2-23l-13-93-12 61c-2 9-5 15-12 20l-51 36c-5 3-8 1-6-5l40-126c2-8 6-15 12-21l129-140c7-8 15-12 25-15Z"/>
+    <!-- One broad folded plane, with no fine facets. -->
+    <path fill="#b3cffd" d="m611 683-15 171H378Z"/>
+    <!-- Front leg. -->
+    <path fill="#fff" d="m611 683 110 82c11 8 18 19 22 33l45 160c5 15-3 23-18 23H648c-14 0-21-6-25-19l-27-108Z"/>
+    <!-- Ear, head and raised trunk form a single continuous silhouette. -->
+    <path fill="#fff" d="m634 354-129 204c-6 10-3 19 6 25l219 164c6 5 12 4 14-4l26-117 51 19 121 27c11 3 18 1 25-8l93-112c8-10 9-19 4-30l-41-85 48-47c5-5 4-8-3-7l-85 9c-19 2-29 15-25 35l22 100-71 33-66-145c-4-9-11-14-21-18l-160-54c-12-4-20-1-28 11Z"/>
+    <circle cx="1026" cy="310" r="59" fill="#fc5d48"/>
+  </g>
+</svg>

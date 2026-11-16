@@ -1,0 +1,10 @@
+AcceptPathInfo On
+<IfModule mod_rewrite.c>
+RewriteEngine On
+RewriteRule ^(?:data|includes|\.dev|\.git)(?:/|$) - [F,L]
+RewriteRule ^s/([a-zA-Z0-9_\-]+)$ share.php?s=$1 [L,QSA]
+</IfModule>
+
+<IfModule mod_setenvif.c>
+SetEnvIfNoCase Authorization "^(.*)$" HTTP_AUTHORIZATION=$1
+</IfModule>

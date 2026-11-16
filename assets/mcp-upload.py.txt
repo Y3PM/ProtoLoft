@@ -1,0 +1,105 @@
+#!/usr/bin/env python3
+"""Optional local upload helper, Python 3 stdlib only. No file data enters model context.
+python3 protoloft-mcp-upload.py --url https://site/mcp.php --project-id 1 --name 'Second review' --zip prototype.zip
+Read the personal credential from PROTOLOFT_MCP_TOKEN (or --token-env). Add --replace only when replacement was requested.
+"""
+import argparse
+import json
+import math
+import os
+from pathlib import Path
+import re
+import sys
+import urllib.error
+import urllib.parse
+import urllib.request
+import uuid
+import base64
+
+
+class NoRedirect(urllib.request.HTTPRedirectHandler):
+    def redirect_request(self, request, response, code, message, headers, new_url):
+        return None
+
+
+class Mcp:
+    def __init__(self, url, token):
+        self.url, self.token, self.counter = url, token, 0
+        self.opener = urllib.request.build_opener(NoRedirect())
+    def request(self, method, params, notification=False):
+        self.counter += 1
+        body = {'jsonrpc':'2.0','method':method,'params':params}
+        if not notification: body['id'] = self.counter
+        request = urllib.request.Request(self.url, data=json.dumps(body).encode(), headers={
+            'Authorization':'Bearer '+self.token, 'Content-Type':'application/json',
+            'Accept':'application/json, text/event-stream','MCP-Protocol-Version':'2025-11-25'})
+        try:
+            with self.opener.open(request, timeout=330) as response:
+                raw = response.read(2 * 1024 * 1024 + 1)
+                if len(raw) > 2 * 1024 * 1024: raise RuntimeError('MCP 响应超过2MB，操作结果需另行确认')
+        except urllib.error.HTTPError as error:
+            raise RuntimeError('MCP HTTP '+str(error.code)+'；请核对服务地址、凭据和权限') from None
+        if notification: return None
+        result = json.loads(raw)
+        if result.get('error'): raise RuntimeError(str(result['error'].get('message','MCP request failed')))
+        return result['result']
+    def call(self, name, arguments):
+        result = self.request('tools/call', {'name':name,'arguments':arguments})
+        if result.get('isError'):
+            raise RuntimeError(result.get('content',[{}])[0].get('text','Tool failed'))
+        return result.get('structuredContent') or json.loads(result['content'][0]['text'])
+    def upload(self, item, path, kind):
+        upload_id = uuid.uuid4().hex
+        chunk_size = 512 * 1024
+        total = math.ceil(path.stat().st_size / chunk_size)
+        with path.open('rb') as source:
+            for index in range(total):
+                block = source.read(chunk_size)
+                self.call('upload_chunk', {'item_id':item,'upload_id':upload_id,'file_type':kind,
+                    'chunk_index':index,'chunk_total':total,'data_base64':base64.b64encode(block).decode()})
+        return upload_id
+
+
+def main():
+    parser = argparse.ArgumentParser(description='Local ZIP/RP upload over ProtoLoft MCP; no third-party dependencies')
+    parser.add_argument('--url', required=True)
+    parser.add_argument('--project-id', type=int, required=True)
+    parser.add_argument('--name', required=True)
+    parser.add_argument('--zip', dest='zip_path', type=Path, required=True)
+    parser.add_argument('--rp', type=Path)
+    parser.add_argument('--changelog', default='')
+    parser.add_argument('--notify', action='store_true')
+    parser.add_argument('--replace', action='store_true')
+    parser.add_argument('--token-env', default='PROTOLOFT_MCP_TOKEN')
+    args = parser.parse_args()
+    token = os.environ.get(args.token_env, '')
+    try:
+        parsed = urllib.parse.urlparse(args.url)
+        if parsed.scheme not in ('http','https') or not parsed.netloc or parsed.username or parsed.password or parsed.fragment or parsed.query:
+            raise RuntimeError('请填写完整的 MCP 服务地址，不要在地址中放入凭据')
+        if not re.fullmatch(r'plmcp_[a-f0-9]{64}', token): raise RuntimeError('请先在环境变量 '+args.token_env+' 中设置个人 MCP 凭据')
+        if args.project_id < 1: raise RuntimeError('项目ID必须为正整数')
+        if args.notify and not args.changelog.strip(): raise RuntimeError('发送通知需填写更新日志')
+        for path in (args.zip_path,args.rp):
+            if path is not None and (not path.is_file() or not 0 < path.stat().st_size <= 500*1024*1024):
+                raise RuntimeError('文件不存在、为空或超过500MB：'+str(path))
+        client = Mcp(args.url, token)
+        client.request('initialize',{'protocolVersion':'2025-11-25','capabilities':{},'clientInfo':{'name':'protoloft-local-uploader','version':'1.0.0'}})
+        client.request('notifications/initialized',{},True)
+        prepared = client.call('prepare_publish',{'item_id':args.project_id,'version_name':args.name})
+        if prepared['exists'] and not args.replace: raise RuntimeError('同名版本已存在；仅在明确要求替换后添加 --replace')
+        upload_id = client.upload(args.project_id,args.zip_path,'zip')
+        fields = {'item_id':args.project_id,'version_name':prepared['version_name'],'zip_upload_id':upload_id,
+            'changelog':args.changelog,'notify_webhook':args.notify,'replace_existing':args.replace,
+            'overwrite_token':prepared['overwrite_token'] if args.replace else ''}
+        if args.rp: fields['rp_upload_id'] = client.upload(args.project_id,args.rp,'rp')
+        result = client.call('publish_version',fields)
+        print(json.dumps(result,ensure_ascii=False))
+        return 0
+    except (RuntimeError, OSError, ValueError, KeyError) as error:
+        message = str(error).replace(token,'[REDACTED]') if token else str(error)
+        print('上传未完成：'+message, file=sys.stderr)
+        return 2
+
+
+if __name__ == '__main__': sys.exit(main())

@@ -1,0 +1,70 @@
+/* Execute personal navigation and MCP UI logic with controlled HTTP/clipboard outcomes. */
+const fs=require('fs'),vm=require('vm'),assert=require('assert'),path=require('path');
+const root=path.join(__dirname,'../..');
+const app=fs.readFileSync(path.join(root,'assets/js/app.js'),'utf8');
+const mcp=fs.readFileSync(path.join(root,'assets/js/mcp.js'),'utf8');
+let passed=0;const check=(name,value)=>{assert(value,name);passed++;console.log('PASS '+name)};
+function node(){const cls=new Set();return {hidden:false,disabled:false,value:'',textContent:'',checked:false,children:[],appendChild(n){this.children.push(n);if(!this.value)this.value=n.value;},setAttribute(k,v){this[k]=v},focus(){this.focused=true},classList:{add(c){cls.add(c)},remove(c){cls.delete(c)},contains(c){return cls.has(c)},toggle(c){cls.has(c)?cls.delete(c):cls.add(c)}},style:{display:''}};}
+const nodes={};for(const id of ['profileTabData','profileTabPassword','profileTabMcp','profilePageData','profilePagePassword','profilePageMcp','profileModal','mcpControls','mcpLoadRetry','mcpSecret','mcpNewCredential','mcpEndpoint','mcpProjectScope','mcpPublishPermission','mcpReadOnlyHint','mcpSavePermissions','mcpCreateButton','mcpRevokeButton','mcpCredentialStatus','mcpCopyAiButton','mcpConfigSecretHint','mcpClientFormat','mcpConfig','mcpConfigFilePath','mcpScopeModeAll','mcpScopeModeCustom','mcpCustomProjectsWrap','mcpProjectSelectTrigger','mcpProjectSelectTags','mcpProjectSelectMenu','mcpProjectOptions','mcpManualBody','mcpManualToggleBtn','mcpManualToggleText'])nodes[id]=node();
+nodes.profileModal.querySelector=()=>({scrollTop:0});nodes.mcpClientFormat.value='json';nodes.mcpProjectSelectMenu.style.display='none';
+const pages=['data','password','mcp'].map(name=>nodes['profilePage'+name[0].toUpperCase()+name.slice(1)]);
+let loads=0,pending=[],notices=[],confirmed=0;
+const c={window:{isSecureContext:true},FormData,Promise,Error,JSON,String,parseInt,Date,navigator:{clipboard:{writeText:()=>Promise.resolve()}},document:{getElementById:id=>nodes[id]||null,querySelectorAll:()=>pages,createElement:()=>node()},loadMcpSettings:()=>loads++,showToast:(message,type)=>notices.push({message,type}),showConfirm:()=>{confirmed++;return Promise.resolve(false)},apiFetch:(action,fd)=>new Promise((resolve,reject)=>pending.push({action,fd,resolve,reject}))};
+vm.createContext(c);vm.runInContext(app.slice(app.indexOf("var currentProfilePage"),app.indexOf('function initProfileForms()')),c);
+(async()=>{
+ c.showProfilePage('mcp');check('MCP tab shows only MCP panel and loads settings',pages.every((p,i)=>p.hidden===(i!==2))&&loads===1&&nodes.profileTabMcp['aria-selected']==='true');
+ c.showProfilePage('data');check('tabs update selection and keyboard focus without a return page',nodes.profileTabData.focused&&nodes.profileTabData.tabIndex===0&&nodes.profileTabMcp.tabIndex===-1&&!pages[0].hidden);
+ c.switchProfileTab('security');check('password deep link selects password tab',!pages[1].hidden&&pages[0].hidden);
+ c.handleProfileTabKey({key:'End',preventDefault(){}});check('End selects last tab',c.currentProfilePage==='mcp');
+ c.handleProfileTabKey({key:'ArrowRight',preventDefault(){}});check('arrow navigation wraps to first tab',c.currentProfilePage==='data');
+ c.handleProfileTabKey({key:'ArrowLeft',preventDefault(){}});check('left arrow wraps to last tab',c.currentProfilePage==='mcp');
+ c.handleProfileTabKey({key:'Home',preventDefault(){}});check('Home selects first tab',c.currentProfilePage==='data');
+ check('switching back to MCP preserves draft instead of reloading settings',loads===1);
+ let responses=[];c.fetch=()=>new Promise((resolve,reject)=>responses.push({resolve,reject}));vm.runInContext(mcp,c);
+ const settings=(extra={})=>({endpoint:'http://fixture/mcp.php',projects:[{id:7,name:'Project'}],can_publish:true,token:null,...extra});
+ const finish=(index,data)=>responses[index].resolve({json:()=>Promise.resolve({success:true,data})});
+ let loading=c.loadMcpSettings();check('loading blocks credential actions',nodes.mcpControls.disabled);finish(0,settings());await loading;
+ check('new account exposes generation and hides unavailable token actions',!nodes.mcpControls.disabled&&nodes.mcpRevokeButton.hidden&&nodes.mcpSavePermissions.hidden&&nodes.mcpCopyAiButton.textContent==='生成凭据并复制 AI 指令');
+ loading=c.loadMcpSettings();finish(1,settings({can_publish:false}));await loading;check('viewer publish checkbox is disabled with read-only hint',nodes.mcpPublishPermission.disabled&&!nodes.mcpReadOnlyHint.hidden);
+ loading=c.loadMcpSettings();const newer=c.loadMcpSettings();finish(3,settings({endpoint:'http://new/mcp.php'}));await newer;finish(2,settings({endpoint:'http://old/mcp.php'}));await loading;check('late settings response cannot replace newer state',nodes.mcpEndpoint.value==='http://new/mcp.php');
+ loading=c.loadMcpSettings();responses[4].reject(new Error('offline'));await loading;check('failed load disables actions and offers retry',nodes.mcpControls.disabled&&!nodes.mcpLoadRetry.hidden);
+ loading=c.loadMcpSettings();finish(5,settings({token:{project_id:7,can_publish:0,token_prefix:'plmcp_test',is_valid:true,expires_at:2000000000}}));await loading;
+ check('existing token exposes revoke button',!nodes.mcpRevokeButton.hidden);
+ await c.copyMcpAiPrompt();check('copy with existing token directly reuses token without regeneration confirmation',confirmed===0&&pending.length===0&&notices.at(-1).type==='success');
+ nodes.mcpManualBody.style.display='none';
+ c.toggleMcpManualConfig();
+ check('toggle manual config expands body and updates text',nodes.mcpManualBody.style.display==='block'&&nodes.mcpManualToggleText.textContent==='收起');
+ c.toggleMcpManualConfig();
+ check('toggle manual config collapses body and updates text',nodes.mcpManualBody.style.display==='none'&&nodes.mcpManualToggleText.textContent==='展开');
+ nodes.mcpProjectScope.value='7';nodes.mcpPublishPermission.checked=true;
+ let saving=c.handleMcpPermissionChange({preventDefault(){}});c.handleMcpPermissionChange();check('pending permissions save blocks duplicate submit',pending.length===1&&nodes.mcpControls.disabled);
+ nodes.mcpProjectScope.value='99';pending[0].resolve({success:true});await saving;check('acknowledgement records submitted scope rather than later draft',c.mcpSettings.token.project_id===7&&!nodes.mcpControls.disabled);
+ saving=c.handleMcpPermissionChange();pending[1].reject(new Error('offline'));await saving;check('failed permissions save releases controls and preserves retry draft',!nodes.mcpControls.disabled&&nodes.mcpProjectScope.value==='99'&&notices.at(-1).type==='error');
+ c.setMcpScopeMode('all',true);check('all mode hides custom projects container',nodes.mcpCustomProjectsWrap.hidden&&c.mcpScopeMode==='all');
+ c.setMcpScopeMode('custom',true);check('custom mode exposes custom projects container',!nodes.mcpCustomProjectsWrap.hidden&&c.mcpScopeMode==='custom');
+ nodes.mcpProjectScope.value='7';c.toggleMcpProjectDropdown();const pendingBefore=pending.length;c.selectAllMcpProjects(true);
+ check('batch select while dropdown open does not immediately send network request',pending.length===pendingBefore);
+ nodes.mcpProjectScope.value='8';c.closeMcpProjectDropdown();
+ check('dropdown close detects scope change and auto saves on blur',pending.length===pendingBefore+1);
+ pending[pendingBefore].resolve({success:true});await new Promise(r=>setImmediate(r));
+ c.mcpSecretValue='fixture-secret';c.renderMcpViews();check('new secret fills config and hides placeholder warning',nodes.mcpConfig.textContent.includes('Bearer fixture-secret')&&nodes.mcpConfigSecretHint.hidden);
+ nodes.mcpClientFormat.value='codex';c.renderMcpConfig();check('TOML config preserves endpoint and authorization',nodes.mcpConfig.textContent.includes('[mcp_servers.protoloft]')&&nodes.mcpConfig.textContent.includes('http_headers'));
+ // Generation is a locked two-request flow: mutation, then refreshed metadata.
+ c.mcpSettings=settings();c.mcpSecretValue='';const requestStart=pending.length,responseStart=responses.length;
+ let creating=c.doCreateMcpToken(false);c.createMcpCredential();check('credential generation blocks duplicate actions',pending.length===requestStart+1&&nodes.mcpControls.disabled);
+ pending[requestStart].resolve({success:true,data:{secret:'plmcp_fixture_generated'}});await new Promise(resolve=>setImmediate(resolve));
+ finish(responseStart,settings({token:{project_id:0,can_publish:0,token_prefix:'plmcp_fixture',is_valid:true,expires_at:2000000000}}));await creating;
+ check('generated secret is available for copying without persistence',nodes.mcpSecret.value==='plmcp_fixture_generated'&&!nodes.mcpNewCredential.hidden&&!nodes.mcpControls.disabled);
+ let refreshed=c.loadMcpSettings();finish(responseStart+1,settings({token:{project_id:0,can_publish:0,token_prefix:'plmcp_other',is_valid:true,expires_at:2000000000}}));await refreshed;
+ check('external rotation clears stale plaintext and copied config',c.mcpSecretValue===''&&nodes.mcpNewCredential.hidden&&nodes.mcpConfig.textContent.includes('YOUR_PERSONAL_TOKEN'));
+ c.showConfirm=()=>Promise.resolve(true);const revokeStart=pending.length;let revoking=c.revokeMcpCredential();await Promise.resolve();
+ check('revocation locks credential actions until completion',nodes.mcpControls.disabled&&pending[revokeStart].action==='mcp_token_revoke');
+ pending[revokeStart].reject(Error('offline'));await revoking;check('failed revocation preserves token and releases retry',!!c.mcpSettings.token&&!nodes.mcpControls.disabled);
+ for(const mode of ['success','denied','fallback']){
+   notices=[];let removed=0;c.document.createElement=()=>({select(){},remove(){removed++}});c.document.body={appendChild(){}};c.document.execCommand=()=>{if(mode==='denied')throw Error('denied');return true};
+   c.navigator.clipboard=mode==='fallback'?null:{writeText:()=>mode==='success'?Promise.resolve():Promise.reject(Error('denied'))};
+   const copied=await c.copyMcpText('fixture');check('clipboard '+mode+' reports one actual outcome',copied===(mode!=='denied')&&notices.length===1&&notices[0].type===(copied?'success':'error'));
+   check('clipboard '+mode+' cleans fallback element',removed===(mode==='success'?0:1));
+ }
+ console.log(JSON.stringify({passed,scope:'production profile/MCP JS with controlled DOM, HTTP and clipboard'}));
+})().catch(e=>{console.error(e);process.exitCode=1});

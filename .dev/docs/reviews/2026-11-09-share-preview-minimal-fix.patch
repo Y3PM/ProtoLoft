@@ -1,0 +1,13 @@
+--- a/share.php
++++ b/share.php
+@@ -297,7 +297,9 @@
+     $vStmt->execute([$item['id']]);
+     $rawVersions = $vStmt->fetchAll();
+     foreach ($rawVersions as $v) {
+-        $versions[] = Auth::versionForClient($v);
++        $v['created_at'] = Auth::toLocalTime($v['created_at']);
++        $v['updated_at'] = Auth::toLocalTime($v['updated_at']);
++        $versions[] = $v;
+     }
+ }
+ 
