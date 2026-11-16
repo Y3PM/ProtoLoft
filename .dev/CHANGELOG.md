@@ -7,6 +7,11 @@
 
 ## 发布前修复（全新版本，未发布）
 
+- 2026-11-16：优化控制中心「查阅走势」堆叠面积图视觉层次与 `0` 值压线问题。
+  - 在 `assets/js/admin.js` 将堆叠顺序调整为自下而上「外发访客（底层）→ 内部审阅人（中层）→ 管理与协作者（顶层）」，加深各层 `areaStyle` 渐变透明度（`opacity: 1`、`0.46 → 0.20`），使蓝/绿堆叠空隙清晰可辨。
+  - 全周期总量为 `0` 的角色隐藏描边与填充、单日 `0` 值不渲染高亮圆点（仅保留 Tooltip 明细），避免 `0` 值线与圆点覆盖有数据的曲线；Tooltip 增加 `confine: true` 防止遮挡 `7天 / 30天` 按钮，并按图例一致顺序（`内部审阅人 → 管理与协作者 → 外发访客`）排序渲染。
+  - 在 `.dev/tests/copy_consistency_frontend.js` 更新堆叠顺序并增补 Tooltip 排序断言；已通过 `node -c assets/js/admin.js`、`node .dev/tests/copy_consistency_frontend.js`（45 项）、`node .dev/tests/security_frontend_regression.js`（79 项）及 `python3 -B .dev/tests/dashboard_regression.py --php /Users/yyy/.local/bin/php`（14 项）；已增量上传 `/assets/js/admin.js` 至 FTP 并回读校验 SHA-256 一致（尚未完成浏览器视觉截图验收）。
+
 - 2026-11-16：发布版本弹窗「更新日志」新增 `+ 上版日志` 快捷按钮（无需键盘快捷键）。
   - 在 `includes/modals.php`「更新日志」标签行右侧增加对称操作按钮 `#uploadLastLogBtn`（`+ 上版日志`），在 `assets/css/app.css` 补充 `.upload-label-row` 与 `.upload-last-log-btn` 样式及 `[hidden]` 隐藏守卫。
   - 在 `assets/js/admin.js` 提取 `getLatestItemVersion()`，随项目选中及切换自动刷新按钮显隐（仅在上一版本含非空日志时展示），点击 `appendUploadLastChangelog()` 自动将上一版日志换行追加至输入框末尾并支持 3000 字上限截断提示。

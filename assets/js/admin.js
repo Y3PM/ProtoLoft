@@ -4271,9 +4271,68 @@ function renderDashboardCharts(range) {
         var valsShare = trendData.values_share || [];
         var valsTotal = trendData.values_total || trendData.values || [];
 
+        var hasPositiveVal = function(arr) {
+            for (var i = 0; i < arr.length; i++) {
+                if (Number(arr[i]) > 0) return true;
+            }
+            return false;
+        };
+
+        var trendRoleDefs = [
+            {
+                name: '外发访客',
+                data: valsShare,
+                color: '#f59e0b',
+                areaTop: 'rgba(245, 158, 11, 0.46)',
+                areaBottom: 'rgba(245, 158, 11, 0.20)'
+            },
+            {
+                name: '内部审阅人',
+                data: valsViewer,
+                color: '#10b981',
+                areaTop: 'rgba(16, 185, 129, 0.46)',
+                areaBottom: 'rgba(16, 185, 129, 0.20)'
+            },
+            {
+                name: '管理与协作者',
+                data: valsEditor,
+                color: '#0076de',
+                areaTop: 'rgba(0, 118, 222, 0.46)',
+                areaBottom: 'rgba(0, 118, 222, 0.20)'
+            }
+        ];
+
+        var trendSeries = [];
+        for (var r = 0; r < trendRoleDefs.length; r++) {
+            var def = trendRoleDefs[r];
+            var isRoleActive = hasPositiveVal(def.data);
+            trendSeries.push({
+                name: def.name,
+                type: 'line',
+                stack: 'pv_stack',
+                smooth: true,
+                showSymbol: false,
+                symbolSize: isRoleActive ? function(val) { return Number(val) > 0 ? 6 : 0; } : 0,
+                data: def.data,
+                lineStyle: { width: isRoleActive ? 1.8 : 0, opacity: isRoleActive ? 1 : 0, color: def.color },
+                itemStyle: { color: def.color },
+                emphasis: { disabled: !isRoleActive },
+                areaStyle: isRoleActive ? {
+                    opacity: 1,
+                    color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+                        { offset: 0, color: def.areaTop },
+                        { offset: 1, color: def.areaBottom }
+                    ])
+                } : { opacity: 0 }
+            });
+        }
+
+        var tooltipOrder = { '内部审阅人': 0, '管理与协作者': 1, '外发访客': 2 };
+
         chartTrend.setOption({
             tooltip: {
                 trigger: 'axis',
+                confine: true,
                 backgroundColor: 'rgba(15, 23, 42, 0.9)',
                 borderColor: 'transparent',
                 textStyle: { color: '#fff', fontSize: 12 },
@@ -4282,10 +4341,15 @@ function renderDashboardCharts(range) {
                     var idx = params[0].dataIndex;
                     var dateStr = dates[idx] || params[0].name;
                     var total = (valsTotal && typeof valsTotal[idx] !== 'undefined') ? valsTotal[idx] : 0;
+                    var ordered = params.slice().sort(function(a, b) {
+                        var oa = typeof tooltipOrder[a.seriesName] === 'number' ? tooltipOrder[a.seriesName] : 99;
+                        var ob = typeof tooltipOrder[b.seriesName] === 'number' ? tooltipOrder[b.seriesName] : 99;
+                        return oa - ob;
+                    });
                     var html = '<div style="font-size:11.5px;color:#94a3b8;margin-bottom:4px;">' + esc(dateStr) + '</div>';
                     html += '<div style="font-size:12.5px;font-weight:700;color:#fff;margin-bottom:4px;padding-bottom:4px;border-bottom:1px solid rgba(255,255,255,0.12);">累计查阅: ' + total + ' 次</div>';
-                    for (var p = 0; p < params.length; p++) {
-                        var item = params[p];
+                    for (var p = 0; p < ordered.length; p++) {
+                        var item = ordered[p];
                         html += '<div style="display:flex;align-items:center;justify-content:space-between;gap:12px;font-size:11.5px;color:#cbd5e1;margin-top:2px;">' +
                                '<span>' + item.marker + ' ' + esc(item.seriesName) + '</span>' +
                                '<span style="font-weight:600;color:#fff;">' + item.value + ' 次</span>' +
@@ -4308,59 +4372,7 @@ function renderDashboardCharts(range) {
                 splitLine: { lineStyle: { color: '#f1f5f9', type: 'dashed' } },
                 axisLabel: { color: '#94a3b8', fontSize: 10 }
             },
-            series: [
-                {
-                    name: '内部审阅人',
-                    type: 'line',
-                    stack: 'pv_stack',
-                    smooth: true,
-                    showSymbol: false,
-                    symbolSize: 6,
-                    data: valsViewer,
-                    lineStyle: { width: 1.8, color: '#10b981' },
-                    itemStyle: { color: '#10b981' },
-                    areaStyle: {
-                        color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-                            { offset: 0, color: 'rgba(16, 185, 129, 0.28)' },
-                            { offset: 1, color: 'rgba(16, 185, 129, 0.01)' }
-                        ])
-                    }
-                },
-                {
-                    name: '管理与协作者',
-                    type: 'line',
-                    stack: 'pv_stack',
-                    smooth: true,
-                    showSymbol: false,
-                    symbolSize: 6,
-                    data: valsEditor,
-                    lineStyle: { width: 1.8, color: '#0076de' },
-                    itemStyle: { color: '#0076de' },
-                    areaStyle: {
-                        color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-                            { offset: 0, color: 'rgba(0, 118, 222, 0.28)' },
-                            { offset: 1, color: 'rgba(0, 118, 222, 0.01)' }
-                        ])
-                    }
-                },
-                {
-                    name: '外发访客',
-                    type: 'line',
-                    stack: 'pv_stack',
-                    smooth: true,
-                    showSymbol: false,
-                    symbolSize: 6,
-                    data: valsShare,
-                    lineStyle: { width: 1.8, color: '#f59e0b' },
-                    itemStyle: { color: '#f59e0b' },
-                    areaStyle: {
-                        color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-                            { offset: 0, color: 'rgba(245, 158, 11, 0.28)' },
-                            { offset: 1, color: 'rgba(245, 158, 11, 0.01)' }
-                        ])
-                    }
-                }
-            ]
+            series: trendSeries
         }, true);
     }
 }

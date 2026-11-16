@@ -134,7 +134,13 @@ const check = (name, condition) => { assert(condition, name); passed++; console.
   for(const name of ['renderAnnotationDashboard','renderDashboardCharts','resizeDashboardCharts']) vm.runInContext(extract(admin,name),chartCtx);
   chartCtx.renderDashboardCharts();
   check('review dashboard counts pending and resolved annotations',annoOptions.series[0].data[0].value===1 && annoOptions.series[0].data[1].value===2 && detailDom.innerHTML.includes('3 条'));
-  check('role trend uses separate viewer, manager/editor and share series',JSON.stringify(trendOptions.series.map(x=>x.data))===JSON.stringify([[1],[2],[3]]));
+  check('role trend stacks share at bottom beneath viewer and manager/editor',JSON.stringify(trendOptions.series.map(x=>({name:x.name,data:x.data})))===JSON.stringify([{name:'外发访客',data:[3]},{name:'内部审阅人',data:[1]},{name:'管理与协作者',data:[2]}]));
+  const tooltipHtml = trendOptions.tooltip.formatter([
+    { dataIndex: 0, name: '今日', seriesName: '外发访客', marker: '[o]', value: 3 },
+    { dataIndex: 0, name: '今日', seriesName: '内部审阅人', marker: '[g]', value: 1 },
+    { dataIndex: 0, name: '今日', seriesName: '管理与协作者', marker: '[b]', value: 2 }
+  ]);
+  check('role trend tooltip preserves legend order', tooltipHtml.indexOf('内部审阅人') < tooltipHtml.indexOf('管理与协作者') && tooltipHtml.indexOf('管理与协作者') < tooltipHtml.indexOf('外发访客'));
   chartCtx.currentAnnoProjFilter=1;chartCtx.currentAnnoVerFilter=2;chartCtx.renderAnnotationDashboard();
   check('project and version filters narrow the review dashboard',annoOptions.series[0].data.length===1 && annoOptions.series[0].data[0].value===1 && detailDom.innerHTML.includes('1 条'));
   chartCtx.resizeDashboardCharts();
