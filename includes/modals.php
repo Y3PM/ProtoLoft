@@ -1731,7 +1731,7 @@ $allUsers = $db->query("SELECT id, email, name, role FROM users WHERE status = 1
                             <div class="m-form-group" style="margin-bottom:0;margin-top:14px;padding-top:14px;border-top:1px solid var(--border-light, #f1f5f9);">
                                 <label class="m-label" for="settingSiteBaseUrl">
                                     <span>站点访问地址</span>
-                                    <span class="opt-tag">选填 · 反代环境校准分享与 MCP 链接，留空自动识别</span>
+                                    <span class="opt-tag">邮件找回密码需填写完整 HTTPS 地址</span>
                                 </label>
                                 <input type="text" id="settingSiteBaseUrl" name="site_base_url" class="m-input" value="<?php echo htmlspecialchars(Auth::getSetting('site_base_url', '')); ?>" placeholder="例如：https://proto.company.com" maxlength="200">
                             </div>
@@ -1866,7 +1866,7 @@ $allUsers = $db->query("SELECT id, email, name, role FROM users WHERE status = 1
 
                             <div class="settings-grid-2">
                                 <div class="m-form-group" style="margin-bottom:0;">
-                                    <label class="m-label" for="settingSmtpPreset">服务商预设</label>
+                                    <label class="m-label" for="settingSmtpPreset">服务商预设 <span class="opt-tag">自动填入服务器、端口和加密方式</span></label>
                                     <select id="settingSmtpPreset" name="smtp_preset" class="m-select-md" style="width:100%;" onchange="onSmtpPresetChange(this.value)">
                                         <?php foreach ($smtpPresets as $pKey => $pInfo): ?>
                                             <option value="<?php echo htmlspecialchars($pKey); ?>"
@@ -1896,7 +1896,7 @@ $allUsers = $db->query("SELECT id, email, name, role FROM users WHERE status = 1
                                 </div>
                                 <div class="m-form-group" style="margin-bottom:0;">
                                     <label class="m-label" for="settingSmtpPort">端口</label>
-                                    <input type="number" id="settingSmtpPort" name="smtp_port" class="m-input" min="1" max="65535" value="<?php echo (int)$smtpCfg['port']; ?>" placeholder="465">
+                                    <input type="number" id="settingSmtpPort" name="smtp_port" class="m-input" min="1" max="65535" value="<?php echo (int)$smtpCfg['port']; ?>" placeholder="465" oninput="syncSmtpPresetFromManual()">
                                 </div>
                             </div>
 

@@ -3,11 +3,13 @@
 import argparse
 import base64
 import hashlib
+import json
 import re
 import socketserver
 import sqlite3
 import subprocess
 import threading
+import time
 from pathlib import Path
 
 from guest_permissions_regression import ROOT, PASS_WORD, TestClient, sandbox_server
@@ -21,12 +23,15 @@ class MockSmtpServer(socketserver.ThreadingTCPServer):
         self.expected_user = expected_user
         self.expected_pass = expected_pass
         self.messages = []
+        self.greeting_gate = None
         self.lock = threading.Lock()
         super().__init__(server_address, MockSmtpHandler)
 
 
 class MockSmtpHandler(socketserver.StreamRequestHandler):
     def handle(self):
+        if self.server.greeting_gate is not None:
+            self.server.greeting_gate.wait(5)
         self.wfile.write(b"220 mock.smtp.local ESMTP ready\r\n")
         self.wfile.flush()
         auth_user = None
@@ -122,6 +127,13 @@ def decode_mime_message(raw):
     else:
         html = msg.get_payload(decode=True).decode("utf-8", errors="replace")
     return subject, html, cids
+
+
+def wait_for_email(server, count):
+    deadline = time.monotonic() + 5
+    while len(server.messages) < count and time.monotonic() < deadline:
+        time.sleep(0.02)
+    return len(server.messages) == count
 
 
 def main():
@@ -241,7 +253,7 @@ def main():
             check("test_smtp surfaces clear auth failure diagnostic on wrong auth code",
                   not bad_test["success"] and "授权码校验失败" in bad_test["message"])
 
-            save_ok = owner.api("save_settings", {
+            smtp_config = {
                 "site_title": "星辰科技",
                 "smtp_enabled": "1",
                 "smtp_preset": "custom",
@@ -250,8 +262,12 @@ def main():
                 "smtp_encryption": "none",
                 "smtp_user": smtp_user,
                 "smtp_pass": smtp_pass,
-                "smtp_from_name": "星辰科技原型平台",
-            })
+                "smtp_from_name": "星辰科技原型平台" * 4,
+            }
+            missing_base = owner.api("save_settings", smtp_config)
+            check("recovery cannot be enabled without an explicit trusted URL",
+                  not missing_base["success"] and "HTTPS" in missing_base["message"])
+            save_ok = owner.api("save_settings", dict(smtp_config, site_base_url=base))
             check("admin saves complete SMTP configuration",
                   save_ok["success"]
                   and save_ok["data"]["smtp_has_pass"] is True
@@ -269,7 +285,8 @@ def main():
                   smtp_pass not in admin_html_str and 'data-has-pass="1"' in admin_html_str)
 
             # Updating unrelated setting without smtp_pass preserves saved secret
-            save_other = owner.api("save_settings", {"site_title": "星辰研发"})
+            company = "星辰研发" * 5
+            save_other = owner.api("save_settings", {"site_title": company})
             check("saving unrelated settings without smtp_pass preserves existing encrypted password",
                   save_other["success"] and save_other["data"]["smtp_has_pass"] is True)
 
@@ -284,10 +301,14 @@ def main():
             })
             check("test_smtp succeeds using stored encrypted secret", test_ok["success"])
             check("mock SMTP received 1 branded test email", len(smtp_server.messages) == 1)
+            wrong_sender = owner.api("test_smtp", {"to_email": "editor@example.com",
+                                                    "smtp_user": "other@example.com"})
+            check("saved authorization cannot be reused by a different sender",
+                  not wrong_sender["success"] and "授权码" in wrong_sender["message"])
 
             test_subj, test_html, test_cids = decode_mime_message(smtp_server.messages[0]["raw"])
             check("test email contains brand identity, company name, and inline PNG icon",
-                  "星辰研发" in test_subj
+                  company in test_subj
                   and "立象原型" in test_html
                   and "ProtoLoft" in test_html
                   and "立象以尽意 · 披图而同心" in test_html
@@ -295,9 +316,13 @@ def main():
                   and 'src="cid:protoloft-brand-icon"' in test_html
                   and "protoloft-brand-icon" in test_cids
                   and test_cids["protoloft-brand-icon"].startswith(b"\x89PNG"))
+            mime_headers = smtp_server.messages[0]["raw"].split("\r\n\r\n", 1)[0]
+            words = re.findall(r"=\?UTF-8\?B\?[^?]+\?=", mime_headers)
+            check("UTF-8 mail headers fold and round-trip within RFC 2047 limits",
+                  len(words) > 2 and all(len(word) <= 75 for word in words))
 
             # 7. Anti-enumeration on request_password_reset
-            neutral_expected = "如果该邮箱已注册且状态正常，重置链接已发送，请查收邮件"
+            neutral_expected = "如果该邮箱已注册且状态正常，你将收到密码重置邮件"
             r_nonexist = guest.api("request_password_reset", {"email": "nobody@example.com"})
             r_pending = guest.api("request_password_reset", {"email": "pending@example.com"})
             r_disabled = guest.api("request_password_reset", {"email": "disabled@example.com"})
@@ -312,38 +337,42 @@ def main():
             check("old editor session is active before reset",
                   old_editor.api("get_session")["data"]["user"] is not None)
 
-            r_req = guest.api("request_password_reset", {"email": "editor@example.com"})
+            r_req = guest.api("request_password_reset", {"email": "editor@example.com"},
+                              headers={"Host": "untrusted.example.invalid"})
             check("active user password reset request returns neutral message",
                   r_req["success"] and r_req["message"] == neutral_expected)
-            check("mock SMTP delivered password reset email", len(smtp_server.messages) == 2)
+            check("mock SMTP delivered password reset email", wait_for_email(smtp_server, 2))
 
             # Rate limit check on immediate repeat request
             r_repeat = guest.api("request_password_reset", {"email": "editor@example.com"})
             check("repeat reset request within 60s is throttled", not r_repeat["success"])
 
             reset_subj, reset_html, reset_cids = decode_mime_message(smtp_server.messages[1]["raw"])
-            m_tok = re.search(r"reset_token=([a-f0-9]{64})", reset_html)
-            check("reset email contains brand identity, inline PNG icon, and valid 64-hex token URL",
+            m_tok = re.search(r"reset_token=([1-9][0-9]*\.[a-f0-9]{64})", reset_html)
+            check("reset email contains brand identity, inline PNG icon, and a valid token URL",
                   "重置登录密码" in reset_subj
                   and "立象原型" in reset_html
                   and "星辰研发" in reset_html
                   and 'src="cid:protoloft-brand-icon"' in reset_html
                   and "protoloft-brand-icon" in reset_cids
                   and m_tok is not None)
+            check("reset email uses the configured base despite spoofed Host",
+                  base + "/index.php?reset_token=" in reset_html and "untrusted.example.invalid" not in reset_html)
             raw_token = m_tok.group(1)
 
             # DB stores only sha256 hash, not raw token
-            pr_rows = conn.execute("SELECT token_hash, used_at FROM password_resets").fetchall()
+            row = conn.execute("SELECT value FROM settings WHERE key = ?",
+                               ("password_reset_" + str(r_add["data"]),)).fetchone()[0]
             expected_hash = hashlib.sha256(raw_token.encode("utf-8")).hexdigest()
-            check("password_resets stores SHA-256 hash only, never raw token",
-                  len(pr_rows) == 1 and pr_rows[0][0] == expected_hash and pr_rows[0][1] is None)
-            conn.close()
+            check("SQLite stores SHA-256 hash only, never raw token",
+                  json.loads(row)["token_hash"] == expected_hash and raw_token not in row)
 
             # Visiting reset link renders set-new-password card even if old session exists
-            st_reset, reset_page, _ = old_editor.request(f"/index.php?reset_token={raw_token}")
+            st_reset, reset_page, reset_headers = old_editor.request(f"/index.php?reset_token={raw_token}")
             reset_page_str = reset_page.decode("utf-8", errors="replace")
             check("visiting reset_token link renders 设置新密码 panel with masked email",
                   st_reset == 200 and "设置新密码" in reset_page_str and "ed***@example.com" in reset_page_str)
+            check("reset page suppresses Referer for token-bearing URL", reset_headers.get("Referrer-Policy") == "no-referrer")
 
             # Tampered token check
             st_bad, bad_page, _ = guest.request("/index.php?reset_token=" + ("0" * 64))
@@ -393,6 +422,50 @@ def main():
 
             new_login = TestClient(base).api("login", {"email": "editor@example.com", "password": new_pass})
             check("new password succeeds after reset", new_login["success"])
+
+            for index, change in enumerate(("email", "password", "self"), start=3):
+                address = change + "@example.com"
+                account = owner.api("user_add", {"email": address, "name": "待验证成员",
+                                                  "password": PASS_WORD, "role": "viewer"})
+                assert account["success"], account
+                assert guest.api("request_password_reset", {"email": address})["success"]
+                assert wait_for_email(smtp_server, index)
+                _, html, _ = decode_mime_message(smtp_server.messages[-1]["raw"])
+                stale = re.search(r"reset_token=([1-9][0-9]*\.[a-f0-9]{64})", html).group(1)
+                if change == "self":
+                    member = TestClient(base).login(address, PASS_WORD)
+                    updated = member.api("change_my_password", {"old_password": PASS_WORD, "new_password": new_pass,
+                                                               "confirm_password": new_pass})
+                else:
+                    fields = {"email": "updated@example.com"} if change == "email" else {"new_password": new_pass}
+                    updated = owner.api("user_update", dict(fields, id=account["data"]))
+                assert updated["success"], updated
+                check("old link is invalidated after " + change + " change",
+                      not guest.api("reset_password", {"token": stale, "new_password": new_pass,
+                                                       "confirm_password": new_pass})["success"])
+
+            changed_secret = owner.api("save_settings", {"smtp_pass": "wrong_code"})
+            assert changed_secret["success"], changed_secret
+            with conn:
+                conn.execute("DELETE FROM settings WHERE key GLOB 'throttle_*'")
+            smtp_server.greeting_gate = threading.Event()
+            try:
+                started = time.monotonic()
+                failing_delivery = guest.api("request_password_reset", {"email": "editor@example.com"})
+                elapsed = time.monotonic() - started
+            finally:
+                smtp_server.greeting_gate.set()
+            unknown = guest.api("request_password_reset", {"email": "unknown@example.com"})
+            check("public HTTP acknowledgement arrives without waiting for SMTP",
+                  elapsed < 3 and failing_delivery == unknown and unknown["success"])
+            check("SMTP failure leaves no usable token",
+                  conn.execute("SELECT value FROM settings WHERE key = ?",
+                               ("password_reset_" + str(r_add["data"]),)).fetchone() is None)
+            changed_host = owner.api("save_settings", {"smtp_host": "smtp.example.test"})
+            check("switching SMTP host clears the previous saved authorization and disables recovery",
+                  changed_host["success"] and not changed_host["data"]["smtp_has_pass"]
+                  and not changed_host["data"]["mail_reset_enabled"])
+            conn.close()
     finally:
         smtp_server.shutdown()
         smtp_server.server_close()

@@ -157,16 +157,6 @@ if (!empty(trim($allowedDomainsSetting))) {
 </div>
 
 <script>
-    function openLoginModal(pane) {
-        openModal('loginModal');
-        var succLogin = document.getElementById('loginSuccessNotice');
-        if (succLogin) succLogin.style.display = 'none';
-        toggleLoginRegPane(pane || 'login');
-    }
-    function closeLoginModal() {
-        closeModal('loginModal');
-    }
-
     function togglePasswordVisibility(inputId, btnEl) {
         var input = document.getElementById(inputId);
         if (!input) return;
@@ -446,18 +436,16 @@ if (!empty(trim($allowedDomainsSetting))) {
         if (succ) succ.style.display = 'none';
 
         var fd = new FormData();
-        fd.append('action', 'request_password_reset');
         fd.append('email', email);
 
-        fetch('api.php', { method: 'POST', body: fd })
-        .then(function(r) { return r.json(); })
+        apiFetch('request_password_reset', fd, false)
         .then(function(res) {
             btn.disabled = false;
             btn.innerText = '发送重置邮件';
             if (res.success) {
                 if (succ) {
                     var tipSpan = succ.querySelector('span');
-                    if (tipSpan) tipSpan.innerText = res.message || '如果该邮箱已注册且状态正常，重置链接已发送，请查收邮件';
+                    if (tipSpan) tipSpan.innerText = res.message || '如果该邮箱已注册且状态正常，你将收到密码重置邮件';
                     succ.style.display = 'flex';
                 }
             } else {

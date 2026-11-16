@@ -193,10 +193,22 @@ switch ($action) {
                 jsonResponse(false, null, $e->getMessage());
             }
         }
+        $savedSmtpHost = Auth::getSetting('smtp_host', '');
+        $savedSmtpUser = Auth::getSetting('smtp_user', '');
+        $smtpIdentityChanged = strcasecmp($updates['smtp_host'] ?? $savedSmtpHost, $savedSmtpHost) !== 0
+            || strcasecmp($updates['smtp_user'] ?? $savedSmtpUser, $savedSmtpUser) !== 0;
+        if ($smtpIdentityChanged && !isset($updates['smtp_pass_enc']) && Auth::getSetting('smtp_pass_enc', '') !== '') {
+            $updates['smtp_pass_enc'] = '';
+            $updates['smtp_enabled'] = '0';
+        }
         $effectiveSmtpEnabled = array_key_exists('smtp_enabled', $updates)
             ? $updates['smtp_enabled']
             : Auth::getSetting('smtp_enabled', '0');
-        if ($effectiveSmtpEnabled === '1') {
+        $smtpChanged = array_key_exists('smtp_enabled', $updates) || array_key_exists('site_base_url', $updates);
+        foreach (array_keys($updates) as $key) {
+            if (strpos($key, 'smtp_') === 0) $smtpChanged = true;
+        }
+        if ($effectiveSmtpEnabled === '1' && $smtpChanged) {
             $effHost = array_key_exists('smtp_host', $updates) ? $updates['smtp_host'] : Auth::getSetting('smtp_host', '');
             $effPort = (int)(array_key_exists('smtp_port', $updates) ? $updates['smtp_port'] : Auth::getSetting('smtp_port', '465'));
             $effUser = array_key_exists('smtp_user', $updates) ? $updates['smtp_user'] : Auth::getSetting('smtp_user', '');
@@ -206,6 +218,9 @@ switch ($action) {
             }
             if ($effPassEnc === '' || Mailer::decryptSecret($effPassEnc) === '') {
                 jsonResponse(false, null, '请填写邮箱客户端授权码');
+            }
+            if (Mailer::passwordResetBaseUrl($updates['site_base_url'] ?? null) === '') {
+                jsonResponse(false, null, '请先填写 HTTPS 站点访问地址，再启用邮件找回密码');
             }
         }
         if (!empty($_POST['reset_logo'])) {
@@ -284,7 +299,11 @@ switch ($action) {
         $fromName = trim((string)($_POST['smtp_from_name'] ?? Auth::getSetting('smtp_from_name', '')));
         $pass = (string)($_POST['smtp_pass'] ?? '');
         if ($pass === '') {
-            $pass = Mailer::decryptSecret(Auth::getSetting('smtp_pass_enc', ''));
+            $storedSmtp = Mailer::getRuntimeConfig();
+            if ($storedSmtp && strcasecmp($host, $storedSmtp['host']) === 0
+                && strcasecmp($user, $storedSmtp['user']) === 0) {
+                $pass = $storedSmtp['pass'];
+            }
         }
         if (!Mailer::isValidHost($host) || $port < 1 || $port > 65535) {
             jsonResponse(false, null, '请先填写正确的 SMTP 服务器与端口');

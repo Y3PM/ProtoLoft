@@ -944,9 +944,9 @@ class Auth {
     /**
      * 简易失败限速: 按 场景+IP 独立计数, 窗口过后自动重置
      */
-    public static function checkThrottle($scope, $maxAttempts, $windowSeconds) {
+    public static function checkThrottle($scope, $maxAttempts, $windowSeconds, $byIp = true) {
         $db = DB::getInstance();
-        $key = 'throttle_' . hash('sha256', $scope . '|' . self::getClientIp());
+        $key = 'throttle_' . hash('sha256', $scope . '|' . ($byIp ? self::getClientIp() : ''));
         $stmt = $db->prepare("SELECT value FROM settings WHERE key = ?");
         $stmt->execute([$key]);
         $row = $stmt->fetch();
@@ -957,9 +957,9 @@ class Auth {
         return (int)$data['c'] < $maxAttempts;
     }
 
-    public static function recordThrottleFailure($scope, $windowSeconds = 900) {
+    public static function recordThrottleFailure($scope, $windowSeconds = 900, $byIp = true) {
         $db = DB::getInstance();
-        $key = 'throttle_' . hash('sha256', $scope . '|' . self::getClientIp());
+        $key = 'throttle_' . hash('sha256', $scope . '|' . ($byIp ? self::getClientIp() : ''));
         $stmt = $db->prepare("SELECT value FROM settings WHERE key = ?");
         $stmt->execute([$key]);
         $row = $stmt->fetch();
@@ -973,8 +973,8 @@ class Auth {
         self::setSetting($key, json_encode($data));
     }
 
-    public static function hitThrottle($scope, $windowSeconds = 60) {
-        self::recordThrottleFailure($scope, $windowSeconds);
+    public static function hitThrottle($scope, $windowSeconds = 60, $byIp = true) {
+        self::recordThrottleFailure($scope, $windowSeconds, $byIp);
     }
 
     public static function clearThrottle($scope) {
@@ -1171,9 +1171,20 @@ class Auth {
 
         $params[] = (int)$id;
         $sql = "UPDATE users SET " . implode(', ', $fields) . ", updated_at = CURRENT_TIMESTAMP WHERE id = ?";
-        $stmt = $db->prepare($sql);
-        $stmt->execute($params);
-        if (!empty($newPassword)) self::saveUserAuthTokens((int)$id, []);
+        $db->beginTransaction();
+        try {
+            $stmt = $db->prepare($sql);
+            $stmt->execute($params);
+            if (!empty($newPassword)) self::saveUserAuthTokens((int)$id, []);
+            if (!empty($newPassword) || (!empty($cleanEmail) && $cleanEmail !== $targetUser['email'])
+                || ($status !== null && $stFinal !== (int)$targetUser['status'])) {
+                self::deletePasswordReset($db, $id);
+            }
+            $db->commit();
+        } catch (Throwable $e) {
+            if ($db->inTransaction()) $db->rollBack();
+            throw $e;
+        }
 
         // 如果修改的对象是当前登录用户自己，即时同步当前内存缓存与 Session
         if ($currUser && (int)$currUser['id'] === (int)$id) {
@@ -1249,6 +1260,7 @@ class Auth {
         $db->prepare('DELETE FROM mcp_tokens WHERE user_id = ?')->execute([$id]);
         $stmtDel = $db->prepare("DELETE FROM users WHERE id = ?");
         $stmtDel->execute([$id]);
+        self::deletePasswordReset($db, $id);
         return ['success' => true];
     }
 
@@ -1500,9 +1512,21 @@ class Auth {
 
         $newHash = password_hash($newPassword, PASSWORD_DEFAULT);
         // 更新密码并将 is_first_login 置为 0 (完成首次改密)
-        $updateStmt = $db->prepare("UPDATE users SET password_hash = ?, is_first_login = 0, auth_version = auth_version + 1 WHERE id = ?");
-        $updateStmt->execute([$newHash, (int)$currUser['id']]);
-        self::saveUserAuthTokens((int)$currUser['id'], []);
+        $db->beginTransaction();
+        try {
+            $updateStmt = $db->prepare("UPDATE users SET password_hash = ?, is_first_login = 0, auth_version = auth_version + 1 WHERE id = ? AND password_hash = ?");
+            $updateStmt->execute([$newHash, (int)$currUser['id'], $userRow['password_hash']]);
+            if ($updateStmt->rowCount() !== 1) {
+                $db->rollBack();
+                return ['success' => false, 'message' => '密码已变更，请重新登录'];
+            }
+            self::deletePasswordReset($db, $currUser['id']);
+            self::saveUserAuthTokens((int)$currUser['id'], []);
+            $db->commit();
+        } catch (Throwable $e) {
+            if ($db->inTransaction()) $db->rollBack();
+            throw $e;
+        }
         app_regenerate_session(!empty($_SESSION['remember_me']));
         $_SESSION['auth_version'] = (int)$currUser['auth_version'] + 1;
 
@@ -1517,28 +1541,6 @@ class Auth {
         self::recordLoginLog($userRow['email'], 1, '个人自主修改登录密码成功');
 
         return ['success' => true, 'message' => '密码修改成功'];
-    }
-
-    /**
-     * 确保密码重置表存在（兼容全新安装与已有本地数据库）
-     */
-    private static function ensurePasswordResetsTable($db) {
-        static $ready = false;
-        if ($ready) {
-            return;
-        }
-        $db->exec("
-            CREATE TABLE IF NOT EXISTS password_resets (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                user_id INTEGER NOT NULL,
-                token_hash TEXT UNIQUE NOT NULL,
-                expires_at INTEGER NOT NULL,
-                used_at INTEGER DEFAULT NULL,
-                created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-            );
-        ");
-        $db->exec("CREATE INDEX IF NOT EXISTS idx_password_resets_user ON password_resets(user_id);");
-        $ready = true;
     }
 
     /**
@@ -1571,204 +1573,184 @@ class Auth {
         return $masked . '@' . $domain;
     }
 
-    /**
-     * 申请发送密码重置邮件（防枚举 + 频控 + 15 分钟单次令牌）
-     */
-    public static function requestPasswordReset($emailInput) {
-        if (!class_exists('Mailer')) {
-            require_once __DIR__ . '/mailer.php';
-        }
-        if (!Mailer::isConfiguredAndEnabled()) {
+    /** 验证并限流，返回公开响应后才查询账号或连接 SMTP。 */
+    public static function preparePasswordReset($emailInput) {
+        $base = Mailer::passwordResetBaseUrl();
+        if ($base === '' || !Mailer::isConfiguredAndEnabled()) {
             return ['success' => false, 'message' => '暂未启用邮件找回，请联系管理员重置密码'];
         }
 
-        $email = trim(strtolower((string)$emailInput));
+        $email = trim(strtolower($emailInput));
         if ($email !== '' && strpos($email, '@') === false) {
-            $allowedDomains = self::getSetting('allowed_email_domains', '');
-            if (trim($allowedDomains) !== '') {
-                $domains = array_filter(array_map('trim', explode(',', strtolower($allowedDomains))));
-                if (count($domains) === 1) {
-                    $email = $email . '@' . reset($domains);
-                }
+            $domains = array_filter(array_map('trim', explode(',', strtolower(self::getSetting('allowed_email_domains', '')))));
+            if (count($domains) === 1) {
+                $email .= '@' . reset($domains);
             }
         }
-        if ($email === '' || strlen($email) > 100 || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        if (strlen($email) > 100 || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
             return ['success' => false, 'message' => '请输入有效的工作邮箱地址'];
         }
 
-        if (!self::checkThrottle('forgot_pwd_ip', 8, 900)) {
-            return ['success' => false, 'message' => '请求过于频繁，请稍后再试'];
-        }
-        $emailScope = 'forgot_pwd_mail_' . hash('sha256', $email);
-        if (!self::checkThrottle($emailScope, 1, 60) || !self::checkThrottle($emailScope . '_win', 5, 900)) {
-            return ['success' => false, 'message' => '发送过于频繁，请稍后再试'];
-        }
-
-        self::hitThrottle('forgot_pwd_ip', 900);
-        self::hitThrottle($emailScope, 60);
-        self::hitThrottle($emailScope . '_win', 900);
-
-        $neutralMsg = '如果该邮箱已注册且状态正常，重置链接已发送，请查收邮件';
         $db = DB::getInstance();
-        self::ensurePasswordResetsTable($db);
-
-        $stmt = $db->prepare("SELECT id, email, name, status FROM users WHERE email = ? LIMIT 1");
-        $stmt->execute([$email]);
-        $user = $stmt->fetch();
-
-        if (!$user || (int)$user['status'] !== 1) {
-            return ['success' => true, 'message' => $neutralMsg];
-        }
-
-        $now = time();
-        $rawToken = bin2hex(random_bytes(32));
-        $tokenHash = hash('sha256', $rawToken);
-        $expiresAt = $now + 900;
-
+        $db->beginTransaction();
         try {
-            $db->beginTransaction();
-            $db->prepare("UPDATE password_resets SET used_at = ? WHERE user_id = ? AND used_at IS NULL")
-                ->execute([$now, (int)$user['id']]);
-            $db->prepare("INSERT INTO password_resets (user_id, token_hash, expires_at) VALUES (?, ?, ?)")
-                ->execute([(int)$user['id'], $tokenHash, $expiresAt]);
-            $db->prepare("DELETE FROM password_resets WHERE expires_at < ?")
-                ->execute([$now - 86400]);
+            // 先取得写锁，使多进程检查和计数成为同一个操作。
+            $db->exec('UPDATE settings SET key = key WHERE 0');
+            $emailScope = 'forgot_pwd_mail_' . hash('sha256', $email);
+            if (!self::checkThrottle('forgot_pwd_ip', 8, 900)
+                || !self::checkThrottle($emailScope, 1, 60, false)
+                || !self::checkThrottle($emailScope . '_win', 5, 900, false)) {
+                $db->rollBack();
+                return ['success' => false, 'message' => '发送过于频繁，请稍后再试'];
+            }
+            self::hitThrottle('forgot_pwd_ip', 900);
+            self::hitThrottle($emailScope, 60, false);
+            self::hitThrottle($emailScope . '_win', 900, false);
             $db->commit();
         } catch (Throwable $e) {
-            if ($db->inTransaction()) {
-                $db->rollBack();
-            }
-            error_log('[protoloft] 创建密码重置令牌失败: ' . $e->getMessage());
-            return ['success' => false, 'message' => '服务异常，请稍后重试'];
+            if ($db->inTransaction()) $db->rollBack();
+            throw $e;
         }
 
-        $resetUrl = app_url('index.php?reset_token=' . $rawToken);
-        $sendRes = Mailer::sendPasswordReset(
-            $user['email'],
-            (string)($user['name'] ?? ''),
-            $resetUrl,
-            self::getCompanyDisplayName()
-        );
-        if (empty($sendRes['success'])) {
-            // 发信失败时作废刚生成的未使用令牌并记录日志
-            $db->prepare("UPDATE password_resets SET used_at = ? WHERE token_hash = ? AND used_at IS NULL")
-                ->execute([time(), $tokenHash]);
-            error_log('[protoloft] 找回密码邮件发送失败 (' . $user['email'] . '): ' . ($sendRes['message'] ?? 'unknown'));
-            return ['success' => false, 'message' => '邮件发送失败，请稍后重试或联系管理员'];
-        }
-
-        self::recordLoginLog($user['email'], 1, '发起邮箱找回密码请求');
-        return ['success' => true, 'message' => $neutralMsg];
-    }
-
-    /**
-     * 校验密码重置令牌有效性（仅返回脱敏邮箱与有效状态）
-     */
-    public static function verifyPasswordResetToken($rawToken) {
-        $rawToken = trim((string)$rawToken);
-        if (!preg_match('/^[a-f0-9]{64}$/D', $rawToken)) {
-            return ['valid' => false, 'message' => '重置链接无效或已过期，请重新申请'];
-        }
-        $db = DB::getInstance();
-        self::ensurePasswordResetsTable($db);
-        $tokenHash = hash('sha256', $rawToken);
-        $stmt = $db->prepare("
-            SELECT pr.id, pr.user_id, pr.expires_at, pr.used_at, u.email, u.status
-            FROM password_resets pr
-            JOIN users u ON u.id = pr.user_id
-            WHERE pr.token_hash = ?
-            LIMIT 1
-        ");
-        $stmt->execute([$tokenHash]);
-        $row = $stmt->fetch();
-        if (!$row || (int)$row['status'] !== 1 || $row['used_at'] !== null || (int)$row['expires_at'] <= time()) {
-            return ['valid' => false, 'message' => '重置链接无效或已过期，请重新申请'];
-        }
         return [
-            'valid' => true,
-            'masked_email' => self::maskEmail($row['email']),
-            'email' => $row['email'],
+            'success' => true,
+            'message' => '如果该邮箱已注册且状态正常，你将收到密码重置邮件',
+            'send' => function () use ($email, $base) {
+                self::deliverPasswordReset($email, $base);
+            },
         ];
     }
 
-    /**
-     * 通过一次性重置令牌重设登录密码
-     */
+    private static function deletePasswordReset($db, $userId) {
+        $db->prepare('DELETE FROM settings WHERE key = ?')->execute(['password_reset_' . (int)$userId]);
+    }
+
+    private static function deliverPasswordReset($email, $base) {
+        $db = DB::getInstance();
+        $db->beginTransaction();
+        try {
+            $db->exec('UPDATE settings SET key = key WHERE 0');
+            $stmt = $db->prepare("SELECT id, email, name, auth_version FROM users WHERE email = ? AND status = 1");
+            $stmt->execute([$email]);
+            $user = $stmt->fetch();
+            if (!$user) {
+                $db->rollBack();
+                return;
+            }
+
+            // 账号 ID 只用于定位，能改密的是后面的 256 位随机数。
+            $token = $user['id'] . '.' . bin2hex(random_bytes(32));
+            $key = 'password_reset_' . (int)$user['id'];
+            $previous = self::getSetting($key, '');
+            $record = json_encode([
+                'token_hash' => hash('sha256', $token),
+                'expires_at' => time() + 900,
+                'email' => $user['email'],
+                'auth_version' => (int)$user['auth_version'],
+            ]);
+            self::setSetting($key, $record);
+            $db->commit();
+        } catch (Throwable $e) {
+            if ($db->inTransaction()) $db->rollBack();
+            throw $e;
+        }
+
+        try {
+            $result = Mailer::sendPasswordReset(
+                $user['email'],
+                $user['name'],
+                $base . '/index.php?reset_token=' . $token,
+                self::getCompanyDisplayName()
+            );
+        } finally {
+            if (empty($result['success'])) {
+                // 只有当前记录仍是本次请求时才恢复。避免覆盖改密、换邮箱或更新的请求。
+                if ($previous === '') {
+                    $db->prepare('DELETE FROM settings WHERE key = ? AND value = ?')->execute([$key, $record]);
+                } else {
+                    $db->prepare('UPDATE settings SET value = ? WHERE key = ? AND value = ?')->execute([$previous, $key, $record]);
+                }
+            }
+        }
+        if (empty($result['success'])) {
+            error_log('[protoloft] 找回密码邮件发送失败: ' . ($result['message'] ?? 'unknown'));
+        } else {
+            self::recordLoginLog($user['email'], 1, '发起邮箱找回密码请求');
+        }
+    }
+
+    private static function findPasswordReset($rawToken) {
+        if (!preg_match('/^([1-9][0-9]{0,18})\.[a-f0-9]{64}$/D', $rawToken, $match)) {
+            return null;
+        }
+        $stmt = DB::getInstance()->prepare("
+            SELECT u.id, u.email, u.auth_version, s.value
+            FROM users u JOIN settings s ON s.key = ?
+            WHERE u.id = ? AND u.status = 1
+        ");
+        $stmt->execute(['password_reset_' . $match[1], $match[1]]);
+        $user = $stmt->fetch();
+        $record = $user ? json_decode($user['value'], true) : null;
+        if (!is_array($record) || (int)$record['expires_at'] <= time()
+            || $record['email'] !== $user['email'] || (int)$record['auth_version'] !== (int)$user['auth_version']
+            || !hash_equals($record['token_hash'], hash('sha256', $rawToken))) {
+            return null;
+        }
+        return $user;
+    }
+
+    /** 校验链接并只向页面提供脱敏账号。 */
+    public static function verifyPasswordResetToken($rawToken) {
+        $user = self::findPasswordReset($rawToken);
+        if (!$user) {
+            return ['valid' => false, 'message' => '重置链接无效或已过期，请重新申请'];
+        }
+        return ['valid' => true, 'masked_email' => self::maskEmail($user['email'])];
+    }
+
+    /** 通过一次性重置令牌重设登录密码。 */
     public static function resetPasswordByToken($rawToken, $newPassword) {
         if (!self::checkThrottle('reset_pwd_confirm', 10, 900)) {
             return ['success' => false, 'message' => '操作过于频繁，请稍后再试'];
         }
-        $rawToken = trim((string)$rawToken);
-        if (!preg_match('/^[a-f0-9]{64}$/D', $rawToken)) {
+        $invalid = ['success' => false, 'message' => '重置链接无效或已过期，请重新申请'];
+        if (!self::findPasswordReset($rawToken)) {
             self::recordThrottleFailure('reset_pwd_confirm', 900);
-            return ['success' => false, 'message' => '重置链接无效或已过期，请重新申请'];
+            return $invalid;
         }
-        $newPassword = (string)$newPassword;
         if (strlen($newPassword) < 6) {
             return ['success' => false, 'message' => '新密码长度至少需要 6 位'];
         }
-        if (strlen($newPassword) > 64) {
-            return ['success' => false, 'message' => '新密码长度不能超过 64 位'];
+        if (strlen($newPassword) > 64 || strpos($newPassword, "\0") !== false) {
+            return ['success' => false, 'message' => '新密码不能超过 64 字节或包含空字符'];
         }
 
         $db = DB::getInstance();
-        self::ensurePasswordResetsTable($db);
-        $tokenHash = hash('sha256', $rawToken);
-        $now = time();
         $newHash = password_hash($newPassword, PASSWORD_DEFAULT);
-
+        $db->beginTransaction();
         try {
-            $db->beginTransaction();
-            $stmt = $db->prepare("
-                SELECT pr.id, pr.user_id, u.email, u.status
-                FROM password_resets pr
-                JOIN users u ON u.id = pr.user_id
-                WHERE pr.token_hash = ?
-                LIMIT 1
-            ");
-            $stmt->execute([$tokenHash]);
-            $row = $stmt->fetch();
-            if (!$row || (int)$row['status'] !== 1) {
+            $db->exec('UPDATE settings SET key = key WHERE 0');
+            $user = self::findPasswordReset($rawToken);
+            if (!$user) {
                 $db->rollBack();
                 self::recordThrottleFailure('reset_pwd_confirm', 900);
-                return ['success' => false, 'message' => '重置链接无效或已过期，请重新申请'];
+                return $invalid;
             }
 
-            $consumeStmt = $db->prepare("UPDATE password_resets SET used_at = ? WHERE id = ? AND used_at IS NULL AND expires_at > ?");
-            $consumeStmt->execute([$now, (int)$row['id'], $now]);
-            if ($consumeStmt->rowCount() !== 1) {
-                $db->rollBack();
-                self::recordThrottleFailure('reset_pwd_confirm', 900);
-                return ['success' => false, 'message' => '重置链接无效或已过期，请重新申请'];
-            }
-
-            $userStmt = $db->prepare("UPDATE users SET password_hash = ?, is_first_login = 0, auth_version = auth_version + 1, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND status = 1");
-            $userStmt->execute([$newHash, (int)$row['user_id']]);
-            if ($userStmt->rowCount() !== 1) {
-                $db->rollBack();
-                return ['success' => false, 'message' => '账号状态异常，无法重置密码'];
-            }
-
-            $db->prepare("UPDATE password_resets SET used_at = ? WHERE user_id = ? AND used_at IS NULL")
-                ->execute([$now, (int)$row['user_id']]);
+            $stmt = $db->prepare("UPDATE users SET password_hash = ?, is_first_login = 0, auth_version = auth_version + 1, updated_at = CURRENT_TIMESTAMP WHERE id = ?");
+            $stmt->execute([$newHash, (int)$user['id']]);
+            self::deletePasswordReset($db, $user['id']);
+            self::saveUserAuthTokens((int)$user['id'], []);
             $db->commit();
         } catch (Throwable $e) {
-            if ($db->inTransaction()) {
-                $db->rollBack();
-            }
+            if ($db->inTransaction()) $db->rollBack();
             error_log('[protoloft] 邮箱重置密码失败: ' . $e->getMessage());
             return ['success' => false, 'message' => '密码重置失败，请稍后重试'];
         }
 
-        self::saveUserAuthTokens((int)$row['user_id'], []);
         self::clearThrottle('reset_pwd_confirm');
-        self::recordLoginLog($row['email'], 1, '通过邮箱重置登录密码');
-
-        return [
-            'success' => true,
-            'email' => $row['email'],
-            'message' => '密码已重置，请使用新密码登录',
-        ];
+        self::recordLoginLog($user['email'], 1, '通过邮箱重置登录密码');
+        return ['success' => true, 'email' => $user['email'], 'message' => '密码已重置，请使用新密码登录'];
     }
 
     /**

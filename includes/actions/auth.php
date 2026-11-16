@@ -200,18 +200,18 @@ switch ($action) {
         break;
 
     case 'request_password_reset':
-        $email = trim($_POST['email'] ?? '');
-        $res = Auth::requestPasswordReset($email);
-        jsonResponse($res['success'], null, $res['message'] ?? '');
+        $email = $_POST['email'] ?? '';
+        $res = Auth::preparePasswordReset(is_string($email) ? $email : '');
+        jsonResponse($res['success'], null, $res['message'], $res['send'] ?? null);
         break;
 
     case 'reset_password':
-        $token = trim($_POST['token'] ?? '');
+        $token = $_POST['token'] ?? '';
         $new = $_POST['new_password'] ?? '';
         $confirm = $_POST['confirm_password'] ?? '';
-        if ($new === '') jsonResponse(false, null, '请输入新密码');
+        if (!is_string($new) || $new === '') jsonResponse(false, null, '请输入新密码');
         if ($new !== $confirm) jsonResponse(false, null, '两次输入的新密码不一致');
-        $res = Auth::resetPasswordByToken($token, $new);
+        $res = Auth::resetPasswordByToken(is_string($token) ? trim($token) : '', $new);
         if (!empty($res['success']) && Auth::getCurrentUser()) {
             Auth::logout();
         }

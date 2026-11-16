@@ -18,6 +18,9 @@ $isAdmin = Auth::isAdmin();
 // 未登录人员严禁进入工作台内部界面，一律拦截在专门的独立登录页面；携带重置令牌时优先展示重设密码卡片
 $resetTokenParam = trim((string)($_GET['reset_token'] ?? ''));
 $hasResetToken = ($resetTokenParam !== '');
+if ($hasResetToken) {
+    header('Referrer-Policy: no-referrer');
+}
 $isSiteAuthorized = !empty($currentUser) && !$hasResetToken;
 
 // 系统品牌固化 (立象原型 · 立象以尽意 · 披图而同心)
@@ -512,7 +515,7 @@ if (!$isSiteAuthorized) {
                     if (res.success) {
                         if (succ) {
                             var tipSpan = succ.querySelector('span');
-                            if (tipSpan) tipSpan.innerText = res.message || '如果该邮箱已注册且状态正常，重置链接已发送，请查收邮件';
+                            if (tipSpan) tipSpan.innerText = res.message || '如果该邮箱已注册且状态正常，你将收到密码重置邮件';
                             succ.style.display = 'flex';
                         }
                     } else {

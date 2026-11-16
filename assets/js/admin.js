@@ -3936,7 +3936,11 @@ function executeAutoSaveSettings() {
 
         // 同步邮件授权码脱敏占位，防止明文滞留 DOM
         if (respData && typeof respData.smtp_has_pass === 'boolean') {
-            syncSmtpPassUi(respData.smtp_has_pass);
+            syncSmtpPassUi(respData.smtp_has_pass, saved.get('smtp_pass'));
+            if (smtpSwitch && !respData.smtp_has_pass && saved.get('smtp_enabled') === '1') {
+                smtpSwitch.checked = false;
+                showToast('发信服务器或邮箱已更换，请重新填写授权码', 'info');
+            }
         }
         if (respData && typeof respData.mail_reset_enabled === 'boolean') {
             window.SYS_MAIL_RESET_ENABLED = respData.mail_reset_enabled;
@@ -3994,13 +3998,15 @@ function handleSaveSettings(e) {
 }
 window.handleSaveSettings = handleSaveSettings;
 
-function syncSmtpPassUi(hasPass) {
+function syncSmtpPassUi(hasPass, savedPassword) {
     var passEl = document.getElementById('settingSmtpPass');
     var badge = document.getElementById('smtpPassBadge');
     var clearBtn = document.getElementById('btnClearSmtpPass');
     if (passEl) {
-        passEl.value = '';
-        passEl._initVal = '';
+        if (savedPassword && passEl.value === savedPassword) {
+            passEl.value = '';
+            passEl._initVal = '';
+        }
         passEl.setAttribute('data-has-pass', hasPass ? '1' : '0');
         passEl.placeholder = hasPass ? '已配置，留空保持不变' : '输入客户端授权码';
     }
@@ -4040,43 +4046,44 @@ function onSmtpEncryptionChange(enc) {
         else if (enc === 'tls') portEl.value = '587';
         else if (enc === 'none') portEl.value = '25';
     }
+    syncSmtpPresetFromManual();
 }
 window.onSmtpEncryptionChange = onSmtpEncryptionChange;
 
 function syncSmtpPresetFromManual() {
     var hostEl = document.getElementById('settingSmtpHost');
+    var portEl = document.getElementById('settingSmtpPort');
+    var encryptionEl = document.getElementById('settingSmtpEncryption');
     var sel = document.getElementById('settingSmtpPreset');
-    if (!hostEl || !sel) return;
+    if (!hostEl || !portEl || !encryptionEl || !sel || sel.value === 'custom') return;
     var cur = hostEl.value.trim().toLowerCase();
-    var matched = 'custom';
-    for (var i = 0; i < sel.options.length; i++) {
-        var optHost = (sel.options[i].getAttribute('data-host') || '').toLowerCase();
-        if (optHost && optHost === cur) {
-            matched = sel.options[i].value;
-            break;
-        }
+    var opt = sel.options[sel.selectedIndex];
+    if (opt && (opt.getAttribute('data-host').toLowerCase() !== cur
+        || opt.getAttribute('data-port') !== portEl.value || opt.getAttribute('data-enc') !== encryptionEl.value)) {
+        sel.value = 'custom';
     }
-    sel.value = matched;
 }
 window.syncSmtpPresetFromManual = syncSmtpPresetFromManual;
 
 function clearSavedSmtpPass() {
     var fd = new FormData();
     fd.append('smtp_pass_clear', '1');
+    fd.append('smtp_enabled', '0');
+    var passEl = document.getElementById('settingSmtpPass');
+    var draft = passEl ? passEl.value : '';
     var smtpSwitch = document.getElementById('settingSmtpEnabled');
-    if (smtpSwitch && smtpSwitch.checked) {
-        smtpSwitch.checked = false;
-        fd.append('smtp_enabled', '0');
-    }
     adminFetch('save_settings', fd).then(function(res) {
         if (res.success) {
-            syncSmtpPassUi(false);
+            if (smtpSwitch) smtpSwitch.checked = false;
+            syncSmtpPassUi(false, draft);
             window.SYS_MAIL_RESET_ENABLED = false;
             setAutoSaveStatus('save_settings', '已保存', false);
             showToast('已清除邮箱授权码', 'success');
         } else {
             showToast(res.message || '操作失败', 'error');
         }
+    }).catch(function() {
+        showToast('网络请求异常', 'error');
     });
 }
 window.clearSavedSmtpPass = clearSavedSmtpPass;

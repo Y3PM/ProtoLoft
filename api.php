@@ -30,12 +30,38 @@ require_once __DIR__ . '/includes/mailer.php';
 require_once __DIR__ . '/includes/storage.php';
 require_once __DIR__ . '/includes/collaboration.php';
 
-function jsonResponse($success, $data = null, $message = '') {
-    echo json_encode([
+function jsonResponse($success, $data = null, $message = '', $afterResponse = null) {
+    $body = json_encode([
         'success' => $success,
         'data' => $data,
         'message' => $message
     ], JSON_UNESCAPED_UNICODE);
+    if (!$afterResponse) {
+        echo $body;
+        exit;
+    }
+
+    // Flush before the account lookup and SMTP so neither influences the public response.
+    session_write_close();
+    ignore_user_abort(true);
+    ini_set('zlib.output_compression', '0');
+    if (function_exists('apache_setenv')) apache_setenv('no-gzip', '1');
+    header('X-Accel-Buffering: no');
+    header('Content-Length: ' . strlen($body));
+    echo $body;
+    if (function_exists('fastcgi_finish_request')) {
+        fastcgi_finish_request();
+    } elseif (function_exists('litespeed_finish_request')) {
+        litespeed_finish_request();
+    } else {
+        while (ob_get_level() > 0 && @ob_end_flush()) {}
+        flush();
+    }
+    try {
+        $afterResponse();
+    } catch (Throwable $e) {
+        error_log('[protoloft] 找回密码邮件处理失败: ' . $e->getMessage());
+    }
     exit;
 }
 

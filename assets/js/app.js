@@ -135,6 +135,8 @@ function apiFetch(action, formData, btnEl) {
         objectId = (formData.get('item_id') || '') + ':' + (formData.get('version_name') || '');
     } else if (action === 'share_code_revoke') {
         objectId = (formData.get('item_id') || '') + ':' + (formData.get('code') || '');
+    } else if (action === 'request_password_reset') {
+        objectId = (formData.get('email') || '').trim().toLowerCase();
     } else {
         objectId = formData.get('id') || formData.get('item_id') || formData.get('annotation_id') || formData.get('ids') || formData.get('code') || '';
     }
@@ -1351,10 +1353,16 @@ function modalKeyboardBoundary(e) {
 }
 if (typeof document !== 'undefined' && document.addEventListener) document.addEventListener('keydown', modalKeyboardBoundary, true);
 
-function openLoginModal() {
+function openLoginModal(pane) {
     var el = document.getElementById('loginModal');
     if (el) {
         openModal('loginModal');
+        if (typeof toggleLoginRegPane === 'function') {
+            var success = document.getElementById('loginSuccessNotice');
+            if (success) success.style.display = 'none';
+            toggleLoginRegPane(pane || 'login');
+            return;
+        }
         var userInput = document.getElementById('loginEmail');
         if (userInput) userInput.focus();
     }

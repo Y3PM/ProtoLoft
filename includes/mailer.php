@@ -27,7 +27,7 @@ class Mailer {
             ],
             'ali_mail' => [
                 'label' => '阿里企业邮箱',
-                'host' => 'smtp.mxhichina.com',
+                'host' => 'smtp.qiye.aliyun.com',
                 'port' => 465,
                 'encryption' => 'ssl',
             ],
@@ -131,18 +131,23 @@ class Mailer {
      * 读取脱敏后的邮件配置（供控制中心视图渲染，绝不返回明文密码）
      */
     public static function getPublicSettings() {
-        $preset = Auth::getSetting('smtp_preset', '163_qiye');
+        $preset = Auth::getSetting('smtp_preset', 'custom');
         $presets = self::presets();
-        if (!isset($presets[$preset])) {
+        $host = Auth::getSetting('smtp_host', '');
+        $port = (int)Auth::getSetting('smtp_port', '465') ?: 465;
+        $encryption = Auth::getSetting('smtp_encryption', 'ssl');
+        $knownLegacyHost = $preset === 'ali_mail' && strcasecmp($host, 'smtp.mxhichina.com') === 0;
+        if (!isset($presets[$preset]) || (!$knownLegacyHost && strcasecmp($presets[$preset]['host'], $host) !== 0)
+            || $presets[$preset]['port'] !== $port || $presets[$preset]['encryption'] !== $encryption) {
             $preset = 'custom';
         }
         $passRaw = Auth::getSetting('smtp_pass_enc', '');
         return [
-            'enabled' => Auth::getSetting('smtp_enabled', '0') === '1',
+            'enabled' => self::isConfiguredAndEnabled(),
             'preset' => $preset,
-            'host' => Auth::getSetting('smtp_host', ''),
-            'port' => (int)Auth::getSetting('smtp_port', '465') ?: 465,
-            'encryption' => Auth::getSetting('smtp_encryption', 'ssl'),
+            'host' => $host,
+            'port' => $port,
+            'encryption' => $encryption,
             'user' => Auth::getSetting('smtp_user', ''),
             'from_name' => Auth::getSetting('smtp_from_name', ''),
             'has_pass' => ($passRaw !== '' && self::decryptSecret($passRaw) !== ''),
@@ -153,23 +158,43 @@ class Mailer {
      * 判断当前是否已启用且具备完整有效的 SMTP 配置
      */
     public static function isConfiguredAndEnabled() {
-        if (Auth::getSetting('smtp_enabled', '0') !== '1') {
+        if (Auth::getSetting('smtp_enabled', '0') !== '1' || self::passwordResetBaseUrl() === '') {
             return false;
         }
         $cfg = self::getRuntimeConfig();
         return $cfg !== null;
     }
 
+    /** 重置邮件只使用管理员配置的完整地址，HTTP 仅用于本机开发。 */
+    public static function passwordResetBaseUrl($siteBase = null) {
+        try {
+            $base = $siteBase === null || trim((string)getenv('PROTOLOFT_BASE_URL')) !== ''
+                ? app_configured_base_url() : app_normalize_base_url($siteBase);
+        } catch (RuntimeException $e) {
+            return '';
+        }
+        $parts = parse_url($base);
+        $scheme = strtolower($parts['scheme'] ?? '');
+        $host = strtolower($parts['host'] ?? '');
+        if ($scheme === 'https' || ($scheme === 'http' && in_array($host, ['localhost', '127.0.0.1', '[::1]'], true))) {
+            return $base;
+        }
+        return '';
+    }
+
     /**
      * 获取运行时完整配置（含解密授权码），无效则返回 null
      */
     public static function getRuntimeConfig() {
-        $host = trim(Auth::getSetting('smtp_host', ''));
-        $port = (int)Auth::getSetting('smtp_port', '465');
-        $enc = strtolower(trim(Auth::getSetting('smtp_encryption', 'ssl')));
-        $user = trim(Auth::getSetting('smtp_user', ''));
-        $pass = self::decryptSecret(Auth::getSetting('smtp_pass_enc', ''));
-        $fromName = trim(Auth::getSetting('smtp_from_name', ''));
+        $values = DB::getInstance()->query("SELECT key, value FROM settings WHERE key IN
+            ('smtp_host', 'smtp_port', 'smtp_encryption', 'smtp_user', 'smtp_pass_enc', 'smtp_from_name')")
+            ->fetchAll(PDO::FETCH_KEY_PAIR);
+        $host = trim($values['smtp_host'] ?? '');
+        $port = (int)($values['smtp_port'] ?? '465');
+        $enc = strtolower(trim($values['smtp_encryption'] ?? 'ssl'));
+        $user = trim($values['smtp_user'] ?? '');
+        $pass = self::decryptSecret($values['smtp_pass_enc'] ?? '');
+        $fromName = trim($values['smtp_from_name'] ?? '');
 
         if (!self::isValidHost($host) || $port < 1 || $port > 65535) {
             return null;
@@ -217,12 +242,21 @@ class Mailer {
     /**
      * RFC 2047 UTF-8 Base64 头字段编码
      */
-    private static function encodeHeader($text) {
-        $clean = self::cleanHeaderText($text);
+    private static function encodeHeader($text, $indent) {
+        $clean = mb_convert_encoding(self::cleanHeaderText($text), 'UTF-8', 'UTF-8');
         if ($clean === '') {
             return '';
         }
-        return '=?UTF-8?B?' . base64_encode($clean) . '?=';
+        // 每行分别编码完整的 UTF-8 字符，并给首行的字段名留出空间。
+        $lines = [];
+        $maxBytes = (int)floor((76 - $indent - 12) / 4) * 3;
+        while ($clean !== '') {
+            $chunk = mb_strcut($clean, 0, $maxBytes, 'UTF-8');
+            $lines[] = '=?UTF-8?B?' . base64_encode($chunk) . '?=';
+            $clean = substr($clean, strlen($chunk));
+            $maxBytes = 45;
+        }
+        return implode("\r\n ", $lines);
     }
 
     /**
@@ -418,8 +452,8 @@ class Mailer {
                 return ['success' => false, 'message' => self::formatSmtpError('data', $res[1], $res[2])];
             }
 
-            $encodedFrom = self::encodeHeader($fromName) . ' <' . $user . '>';
-            $encodedSubject = self::encodeHeader($subject);
+            $encodedFrom = self::encodeHeader($fromName, strlen('From: ')) . "\r\n <" . $user . '>';
+            $encodedSubject = self::encodeHeader($subject, strlen('Subject: '));
             $domain = substr(strrchr($user, '@'), 1) ?: 'localhost';
             $messageId = '<' . bin2hex(random_bytes(12)) . '@' . $domain . '>';
 
