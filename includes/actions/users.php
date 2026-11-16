@@ -79,6 +79,10 @@ switch ($action) {
 
     case 'pending_user_list':
         if (!Auth::isAdmin()) jsonResponse(false, null, '无管理员权限');
+        if (($_POST['count_only'] ?? $_GET['count_only'] ?? '') === '1') {
+            $count = (int)$db->query('SELECT COUNT(*) FROM users WHERE status = 0')->fetchColumn();
+            jsonResponse(true, ['count' => $count]);
+        }
         $stmt = $db->query("SELECT id, email, name, email as username, name as display_name, department as apply_remark, department, role, status, created_at FROM users WHERE status = 0 ORDER BY id DESC");
         jsonResponse(true, $stmt->fetchAll());
         break;

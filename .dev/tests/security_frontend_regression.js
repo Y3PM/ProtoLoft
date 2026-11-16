@@ -68,16 +68,17 @@ const turn = () => new Promise(resolve => setImmediate(resolve));
   anno.window.loadAnnotations();
   check('stale annotation response cannot change current version', requests[2].url === 'api.php?action=list_annotations&item_id=2&ver_id=22');
 
-  const injection = {u:{id:123}, parseInt};
-  vm.createContext(injection);
-  injection.nameText = "');globalThis.__reviewProbe=1;//";
-  const template = admin.split('\n').find(line => line.includes('onclick="handleApproveUser('));
-  const html = vm.runInContext('`'+template+'`', injection);
-  const handler = html.match(/onclick="([^"]*)"/)[1];
-  check('approval event contains only numeric id', handler === 'handleApproveUser(123)' && !handler.includes('__reviewProbe'));
   const escContext = {}; vm.createContext(escContext);
   vm.runInContext(app.slice(app.indexOf('function esc(s)'), app.indexOf('function getCsrfToken')), escContext);
   check('HTML attribute encoder covers both quote characters', escContext.esc('"\'<>') === '&quot;&#39;&lt;&gt;');
+  const approvalRow = { style: {}, setAttribute() {} };
+  const approvalBody = { rows: [], insertRow: () => approvalRow };
+  const injection = { document: { getElementById: () => approvalBody }, esc: escContext.esc };
+  vm.createContext(injection);
+  vm.runInContext(admin.slice(admin.indexOf('function renderPendingUsers('), admin.indexOf('function refreshPendingUsers(')), injection);
+  injection.renderPendingUsers([{ id: "123');globalThis.__reviewProbe=1;//", name: '<script>probe</script>' }]);
+  const handler = approvalRow.innerHTML.match(/onclick="([^"]*)"/)[1];
+  check('approval event contains only numeric id and escapes applicant name', handler === 'handleApproveUser(123)' && !approvalRow.innerHTML.includes('<script>'));
   const share = fs.readFileSync(path.join(__dirname, '../../assets/js/share.js'), 'utf8');
   check('share URL is stored as data, not executable text', share.includes('data-copy-url=') && !share.includes('onclick="copySpecificShareUrl(\\\''));
   const elements = {

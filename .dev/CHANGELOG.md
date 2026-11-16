@@ -7,6 +7,21 @@
 
 ## 发布前修复（全新版本，未发布）
 
+- 2026-11-16：管理员登录后自动同步入驻申请状态。工作台可见时每 15 秒检查，切回可见页面或重新获得焦点时立即检查。控制中心红点、团队成员角标及入驻申请角标同步更新。打开申请列表时同步新申请，保留已选角色和焦点。
+  - 后台检查复用管理员待审批接口，仅查询数量。批准或驳回后重新请求，忽略操作前启动的旧响应，读取失败时沿用最近确认的状态。
+  - 本机 Playwright 与 Chrome 157 专项 12 项通过。验证从零到有申请、批准或驳回清零、后台暂停和切回补查、角色草稿保留、慢响应和协作者不轮询。浏览器计时使用加速时钟，请求走临时 PHP 站点。截图位于 `.dev/tmp/pending-approval-refresh/two-pending-applications.png`，已观察。生产环境待验证。
+  - `node --check assets/js/admin.js`、`php -l includes/actions/users.php`、`git diff --check` 通过。`python3 -B .dev/tests/run_all_tests.py` 在 PHP 8.3.20 下通过 23 套、1,000 项可识别断言，新增覆盖主管理员及管理员的数量查询、其他角色拒绝访问、审批后数量回落。
+
+- 2026-11-16：修复代理剥离协议头时的分享会话恢复。
+  - 分享持久 Cookie 的签名绑定链接、口令和签发时的传输状态。输入口令与凭据恢复共用会话轮换，轮换成功后才授予预览权限。HTTPS 凭据恢复的会话带 `Secure`，普通 HTTP 仍可恢复。旧格式持久 Cookie 在仅凭它恢复时需重新输入口令，已建立的会话继续有效。
+  - `php -l` 与 `git diff --check` 通过。`python3 -B .dev/tests/run_all_tests.py` 在 PHP 8.3.20 下通过 23 套、994 项可识别断言。公开分享与专属分享口令专项另通过 9 项。
+
+- 2026-11-16：闭环根提交 `e52b389` 复核发现的两处会话细节（[部署兼容与界面更新审查](docs/reviews/2026-11-16-deployment-update-review.md)）。
+  - **分享解锁强制轮换旧会话（P2）**：`share.php` 在访客提交正确访问口令后，改为无条件调用 `app_regenerate_session(!empty($_SESSION['remember_me']))` 强制废除解锁前的旧 `PHPSESSID` 并下发匹配当前安全上下文的新 `PHPSESSID`，解决先 GET 口令页再 POST 提交时旧非 `Secure` 会话仍可用于访问受保护原型的问题。
+  - **消除活动会话调整 Cookie 参数警告（P3）**：移除 `includes/config.php` 中 `app_regenerate_session()` 在活动会话期间调用 `session_set_cookie_params()` 的代码，并在每次 `session_regenerate_id(true)` 后统一通过 `app_strip_session_set_cookie_headers()` + `set_session_persistence()` 下发唯一会话 Cookie，彻底消除 PHP 8 警告日志。
+  - **回归测试补强**：在 `.dev/tests/security_regression.py` 增补分享解锁前旧 `PHPSESSID` 失效断言与服务端零 `PHP Warning` 日志校验。
+  - 实测命令：`git diff --check`、`php -l includes/config.php`、`php -l share.php`、`python3 -B .dev/tests/run_all_tests.py`（23/23 套通过，可识别 989 项断言 100% PASS）。
+
 - 2026-11-16：彻底闭环 [部署兼容与界面更新审查](docs/reviews/2026-11-16-deployment-update-review.md) 复核阶段仍可复现的 3 个问题。
   - **API 预期 Origin 与公开地址完全解耦（P1 登录锁死）**：在 `includes/config.php` 抽取纯传输层判定 `app_transport_is_https()` 供 `app_request_origin_url()` 与无配置回退的 `app_url()` 使用，彻底剥离对 `site_base_url` 与 `PROTOLOFT_BASE_URL` 的依赖；同时通过 `app_client_explicit_http_request()`、`app_base_matches_request_host()` 端口校验及非 80 直连保护，避免 HTTP 入口误保存同主机同端口 `https://` 公开地址后锁死清空设置、回退或新窗口登录。
   - **反代剥离协议头下全链路 Cookie `Secure` 延续（P2 Cookie）**：提取公共函数 `app_is_proxy_https_origin_candidate()` 与 `app_regenerate_session()`（精确剔除早期 `session_start()` 预置的非 `Secure` 同名会话响应头后重发）；在 `Auth::sendAdminAuthCookie()` 为持久设备 Token 记录 `secure` 标记，`Auth::getCurrentUser()` 通过 `ue_admin_auth` 恢复会话时按需激活 HTTPS 标记并重发带 `Secure` 的 `PHPSESSID`；在 `share.php` 访客验证口令通过后复用 `app_is_proxy_https_origin_candidate()` 确保签发的 `ue_item_auth_*` 严格携带 `Secure`。

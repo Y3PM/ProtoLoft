@@ -43,3 +43,24 @@
 - `main` 与本地追踪的 `origin/main` 指向无父提交的 `4100c4c`，可达提交数为 1。`git ls-tree -r --name-only HEAD -- .dev/docs/deployments` 无输出，旧部署记录所在提交仅能从本地内部备份分支到达。本轮核对范围为本地 Git 引用与可达历史。
 - `git diff --name-status backup/internal-history-20261116 HEAD` 无输出，新根提交的文件内容与备份顶端 `733f3af` 一致。`git diff --check c769fe2`、变更文件的 PHP 与 JS 语法检查通过。
 - 在该根提交重跑 `python3 -B .dev/tmp/review-c769fe2-recheck/probe.py "$(command -v php)" "$PLAYWRIGHT_MODULE"`。PHP 8.3.20 与 Chrome 157 再次复现协议误填后无法回退或登录、反代无协议头时恢复会话及访客分享授权 Cookie 缺少 `Secure`、同名文件夹发版分组及评审看板顺序跳变。生产环境仍待验证。
+
+## 2026-11-16 根提交 e52b389 复核
+
+- **协议误填通过。** Chrome 在 HTTP 入口把公开地址改为同主机、同端口的 HTTPS 后，能清空配置，也能在该配置生效时用新浏览器上下文登录。错误端口仍被拦截。
+- **项目分组和排序通过。** 异名文件夹的新项目在控制中心、发版下拉及评审看板的顺序与刷新后一致。同名文件夹的项目刷新前后均在正确组。已选的评审项目移入另一文件夹后，下拉与看板继续选中同一项目。
+- **P2 · 访客输对分享口令后，旧的非 `Secure` 会话仍获得预览权限。** 模拟反代剥离协议头时，首次登录、记住登录恢复和新签发的 `ue_item_auth_*` 都带 `Secure`。但分享页初次 GET 发出的 `PHPSESSID` 缺少 `Secure`。后续带该会话的正确口令 POST 没有重新签发会话 Cookie，因为 `share.php:489–496` 仅在本次响应已有 `Set-Cookie: PHPSESSID` 时轮换。另一个客户端仅携带输口令前的会话 ID，即可打开保护分享页并读取原型 HTML。应在授予受保护分享权限时轮换会话并使旧 ID 失效，覆盖先 GET 口令页再提交的实际路径。
+- **P3 · 提升会话安全标记时触发 PHP 警告。** `includes/config.php:305–308` 在会话活动期间调用 `session_set_cookie_params()`。PHP 8.3.20 的本机服务日志在无协议头登录与恢复环节各记录一条警告。最终显式签发的两条会话 Cookie 均有 `Secure`。
+- `git diff --check 4100c4c`、相关 PHP/JS 语法检查及 `python3 -B .dev/tests/run_all_tests.py` 均通过。全量共 23 套、987 项可识别断言。HTTP 与 Chrome 专项命令为 `python3 -B .dev/tmp/review-e52b389/probe.py "$(command -v php)" "$PLAYWRIGHT_MODULE"`，使用 PHP 8.3.20 与 Chrome 157，浏览器页面无脚本错误。生产 OpenResty、FTP 用户权限、PHP 7.0 与用户验收尚未验证。
+
+## 2026-11-16 分享会话轮换复核
+
+- **上轮两项通过。** 模拟 HTTPS 反代剥离协议头，访客先 GET 口令页，再提交正确口令。响应轮换 `PHPSESSID`，新会话和分享授权 Cookie 均带 `Secure`。另一个客户端仅带旧会话访问时仍需输入口令，原型资源返回 403。新会话可加载原型，首次登录和记住登录恢复也正常。专项 PHP 日志无 `PHP Warning`。
+- **仍有一处 P2 · 从持久分享 Cookie 恢复时，新会话缺少 `Secure`。** 同样的反代条件下，浏览器只剩带 `Secure` 的 `ue_item_auth_*` 时，`share.php:473–475` 在 GET 恢复预览授权。该响应发出的新 `PHPSESSID` 缺少 `Secure`，独立客户端仅凭这个新会话就能读取受保护原型。应覆盖持久分享凭据恢复路径，使恢复后的会话沿用签发时的安全状态。
+- `git diff --check`、`php -l includes/config.php`、`php -l share.php` 和 `python3 -B .dev/tests/run_all_tests.py` 均通过。PHP 8.3.20 下全量 23 套、989 项可识别断言通过。补充复现为 `python3 -B .dev/tmp/review-share-session-rotation/probe.py "$(command -v php)"`，使用临时安装与真实 HTTP。生产反代及 PHP 7.0 尚未验证。
+
+## 2026-11-16 持久分享凭据恢复修复
+
+- `share.php` 将链接、当前口令和传输状态绑定到新版持久凭据的签名。输入口令和恢复持久授权在同一入口轮换会话，`app_regenerate_session()` 失败时预览返回 503。旧格式单独用于恢复时要求重新输入口令，原有会话内已建立的授权继续按现有规则校验。
+- 修复前新增的反代恢复断言复现缺少 `Secure`。修复后 HTTP 回归确认恢复会话签发 `Secure`、旧匿名会话不可读取原型、普通 HTTP 能恢复、篡改传输标记无效、旧格式重新要求口令。独立复跑原复现脚本，新会话正常加载原型，旧会话返回 403，PHP 日志零警告。
+- `php -l includes/config.php`、`php -l share.php`、`git diff --check` 和 `python3 -B .dev/tests/run_all_tests.py` 通过，PHP 8.3.20 下全量 23 套、994 项可识别断言。补齐口令专项缺失的 `os` 导入后，`python3 -B .dev/tests/share_password_verification.py --php /path/to/php` 的公开分享与专属分享共 9 项通过。真实生产反代与 PHP 7.0 尚未验证。
+- 用户确认安装密钥是既定产品决策。沿用 FTP 安装流程，安装完成后删除一次性密钥。

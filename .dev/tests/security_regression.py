@@ -4,6 +4,8 @@ Usage: python3 .dev/tests/security_regression.py --php /path/to/php [--keep]
 """
 import argparse
 import contextlib
+import hashlib
+import hmac
 import http.cookiejar
 import io
 import json
@@ -79,6 +81,14 @@ def zipped(text='original', nested=False):
         z.writestr(prefix + 'index.html', '<html><head><title>Synthetic</title></head><body>' + text + '<script src="resources/app.js"></script></body></html>')
         z.writestr(prefix + 'resources/app.js', 'window.fixture = "' + text + '";')
     return stream.getvalue()
+
+
+def response_cookie(headers, prefix):
+    for header in headers.get_all('Set-Cookie', []):
+        pair, *attributes = (part.strip() for part in header.split(';'))
+        if pair.startswith(prefix):
+            return pair, {attribute.lower() for attribute in attributes}
+    return '', set()
 
 
 def main():
@@ -327,10 +337,53 @@ def main():
             def redirect_request(self, req, fp, code, msg, headers, newurl): return None
         proxy_share = Client(base)
         proxy_share.opener = urllib.request.build_opener(NoRedirectHandler(), urllib.request.HTTPCookieProcessor(proxy_share.jar))
-        proxy_share.request(share_path, headers={'Host':'proxy.example.com'})
+        _, _, ps_get_hdrs = proxy_share.request(share_path, headers={'Host':'proxy.example.com'})
+        old_share_sid = next(v.split(';', 1)[0] for k, v in ps_get_hdrs.items() if k.lower() == 'set-cookie' and v.lower().startswith('phpsessid='))
         ps_code, _, ps_hdrs = proxy_share.request(share_path, {'project_password':'secret1'}, headers={'Host':'proxy.example.com','Origin':'https://proxy.example.com'})
         ps_cookies = [v.lower() for k, v in ps_hdrs.items() if k.lower() == 'set-cookie']
-        check('proxy headerless share password grant issues Secure ue_item_auth cookie', ps_code == 302 and any('ue_item_auth_' in c and 'secure' in c for c in ps_cookies))
+        check('proxy headerless share password grant issues Secure PHPSESSID and ue_item_auth cookies', ps_code == 302 and any('phpsessid=' in c and 'secure' in c for c in ps_cookies) and any('ue_item_auth_' in c and 'secure' in c for c in ps_cookies) and all('secure' in c for c in ps_cookies))
+        stale_client = Client(base)
+        _, stale_page, _ = stale_client.request(share_path, headers={'Host':'proxy.example.com','Cookie':old_share_sid})
+        stale_asset_code = stale_client.request(asset1, headers={'Cookie':old_share_sid})[0]
+        check('pre-unlock PHPSESSID invalidated after share password grant', b'id="shareFrame"' not in stale_page and stale_asset_code == 403)
+
+        proxy_host = {'Host': 'proxy.example.com'}
+        secure_grant, _ = response_cookie(ps_hdrs, 'ue_item_auth_')
+        _, recovered_page, recovered_headers = Client(base).request(share_path, headers={**proxy_host, 'Cookie': secure_grant})
+        recovered_sid, recovered_attrs = response_cookie(recovered_headers, 'PHPSESSID=')
+        check('headerless share recovery from a Secure grant issues a Secure session',
+              b'id="shareFrame"' in recovered_page and 'secure' in recovered_attrs and
+              Client(base).request(asset1, headers={**proxy_host, 'Cookie': recovered_sid})[0] == 200)
+
+        _, _, anonymous_headers = Client(base).request(share_path, headers=proxy_host)
+        anonymous_sid, _ = response_cookie(anonymous_headers, 'PHPSESSID=')
+        _, recovered_page, recovered_headers = Client(base).request(
+            share_path, headers={**proxy_host, 'Cookie': anonymous_sid + '; ' + secure_grant})
+        recovered_sid, recovered_attrs = response_cookie(recovered_headers, 'PHPSESSID=')
+        check('restoring share authorization also rotates an existing anonymous session',
+              b'id="shareFrame"' in recovered_page and recovered_sid != anonymous_sid and 'secure' in recovered_attrs and
+              Client(base).request(asset1, headers={**proxy_host, 'Cookie': anonymous_sid})[0] == 403)
+
+        plain_grant = next(cookie.name + '=' + cookie.value for cookie in ext.jar if cookie.name.startswith('ue_item_auth_'))
+        _, plain_page, plain_headers = Client(base).request(share_path, headers={'Cookie': plain_grant})
+        plain_sid, plain_attrs = response_cookie(plain_headers, 'PHPSESSID=')
+        check('ordinary HTTP can still restore a password-protected share',
+              b'id="shareFrame"' in plain_page and plain_sid and 'secure' not in plain_attrs and
+              Client(base).request(asset1, headers={'Cookie': plain_sid})[0] == 200)
+
+        grant_name, secure_value = secure_grant.split('=', 1)
+        tampered_value = secure_value.replace('v1.s.', 'v1.h.', 1)
+        _, tampered_page, _ = Client(base).request(share_path, headers={**proxy_host, 'Cookie': grant_name + '=' + tampered_value})
+        check('a share grant cannot be downgraded by changing its transport flag',
+              tampered_value != secure_value and b'id="shareFrame"' not in tampered_page)
+
+        legacy_secret = db.execute("SELECT value FROM settings WHERE key = 'share_cookie_secret'").fetchone()[0]
+        share_suffix = hashlib.md5(data['share_code'].encode()).hexdigest()[:8]
+        legacy_value = hmac.new(legacy_secret.encode(), f'item_{item}_secret1_{share_suffix}'.encode(), hashlib.sha256).hexdigest()
+        _, legacy_page, _ = Client(base).request(share_path, headers={**proxy_host, 'Cookie': grant_name + '=' + legacy_value})
+        check('legacy share cookie without signed transport state requires the password again',
+              b'id="shareProjPwdInput"' in legacy_page and b'id="shareFrame"' not in legacy_page)
+
         check('share grant does not expose other version', ext.request('/asset.php/v%d/index.html' % v2)[0] == 403)
         ok(editor,'item_save_share', {'id':item,'access_password':'secret2','share_enabled':1})
         check('password change revokes existing preview grant', ext.request(asset1)[0] == 403)
@@ -385,7 +438,16 @@ def main():
         check('new visitor request enters approval flow', pending_response['success'])
         pending_rows=owner.api('pending_user_list')['data']
         pending_id=next(u['id'] for u in pending_rows if u['email']=='pending@example.com')
+        for label, client in [('owner', owner), ('administrator', admin)]:
+            count_only = client.api('pending_user_list', {'count_only': '1'})
+            check(label + ' can fetch the live approval count without applicant details',
+                  count_only['success'] and count_only['data'] == {'count': len(pending_rows)})
+        for label, client in [('anonymous', guest), ('viewer', viewer), ('editor', other)]:
+            _, count_reply, _ = client.request('/api.php?action=pending_user_list&count_only=1')
+            check(label + ' cannot fetch the approval count', not json.loads(count_reply)['success'])
         check('approval can assign editor role', owner.api('approve_user',{'id':pending_id,'role':'editor'})['success'])
+        check('live approval count drops after approval',
+              owner.api('pending_user_list', {'count_only': '1'})['data'] == {'count': len(pending_rows) - 1})
         check('already approved member cannot be rejected as an application', not owner.api('reject_user',{'id':pending_id})['success'])
         ok(owner,'user_update',{'id':user_ids['stranger'],'new_password':PASS+'reset'})
         check('admin password reset revokes old active session', clients['stranger'].api('get_session')['data']['user'] is None)
@@ -423,6 +485,9 @@ def main():
         case1=publish(owner,name_item,'review',zipped('lower'));case2=publish(owner,name_item,'Review',zipped('upper'))
         check('free-form names preserve case instead of rewriting it',case1['success'] and case2['success'] and case1['data']['id']!=case2['data']['id'])
         ok(owner,'item_delete',{'id':name_item})
+        log.flush()
+        php_log_text = (temp / 'php-server.log').read_text(encoding='utf-8', errors='replace')
+        check('php server log emits zero PHP Warning or session cookie param warnings', 'PHP Warning' not in php_log_text and 'session_set_cookie_params()' not in php_log_text)
         db.close()
         print(json.dumps({'passed':len(checks),'scope':'disposable PHP HTTP installation','php':subprocess.check_output([args.php,'-r','echo PHP_VERSION;'],text=True),'fixture':str(temp)},ensure_ascii=False),flush=True)
     finally:

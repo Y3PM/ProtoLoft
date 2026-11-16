@@ -3305,46 +3305,56 @@ function switchUserSubTab(tab) {
     }
 }
 
-function loadPendingUsers() {
-    var isCurAdmin = (typeof CURRENT_USER !== 'undefined' && CURRENT_USER && CURRENT_USER.role === 'admin');
-    if (!isCurAdmin) return;
-    var tbody = document.getElementById('pendingUsersTbody');
-    fetch('api.php?action=pending_user_list')
-    .then(function(r) { return r.json(); })
-    .then(function(res) {
-        var count = (res.data && res.data.length) ? res.data.length : 0;
-        window.PENDING_USER_COUNT = count;
-        var badgeNav = document.getElementById('pendingUserBadge');
-        var badgeSubTab = document.getElementById('pendingSubTabCount');
-        var dot = document.getElementById('adminSettingsDot');
-        if (badgeNav) {
-            badgeNav.textContent = count;
-            badgeNav.style.display = count > 0 ? 'inline-block' : 'none';
-        }
-        if (badgeSubTab) {
-            badgeSubTab.textContent = count;
-            badgeSubTab.style.display = count > 0 ? 'inline-block' : 'none';
-        }
-        if (dot) {
-            dot.style.display = count > 0 ? 'inline-block' : 'none';
-        }
+var pendingUsersRequest = null;
+var pendingUsersRevision = 0;
+var pendingUsersLoaded = false;
 
-        if (!tbody) return;
-        if (!res.success) {
-            tbody.innerHTML = '<tr><td colspan="4" style="padding:24px;text-align:center;color:var(--danger);">' + esc(res.message || '加载待审批列表失败') + '</td></tr>';
-            return;
+function setPendingUserCount(count) {
+    window.PENDING_USER_COUNT = count;
+    var display = count > 0 ? 'inline-block' : 'none';
+    ['pendingUserBadge', 'pendingSubTabCount'].forEach(function(id) {
+        var badge = document.getElementById(id);
+        if (badge) {
+            badge.textContent = count;
+            badge.style.display = display;
         }
-        if (!res.data || res.data.length === 0) {
+    });
+    var dot = document.getElementById('adminSettingsDot');
+    if (dot) dot.style.display = display;
+}
+
+function renderPendingUsers(users) {
+    var tbody = document.getElementById('pendingUsersTbody');
+    if (!tbody) return;
+    if (users.length === 0) {
+        if (!pendingUsersLoaded || tbody.querySelector('[data-pending-id]')) {
             tbody.innerHTML = '<tr><td colspan="4" style="padding:32px;text-align:center;color:var(--text-3);"><i class="ri-checkbox-circle-line" style="font-size:18px;vertical-align:middle;margin-right:4px;color:var(--success);"></i> 无待审批的加入申请</td></tr>';
+        }
+        return;
+    }
+
+    // 保留仍待审批的行及角色下拉，更新列表时维持管理员当前的选择。
+    var ids = new Set(users.map(function(user) { return String(user.id); }));
+    var existing = new Map();
+    Array.prototype.slice.call(tbody.rows).forEach(function(row) {
+        var id = row.getAttribute('data-pending-id');
+        if (ids.has(id)) existing.set(id, row);
+        else tbody.removeChild(row);
+    });
+    users.forEach(function(u, i) {
+        var id = parseInt(u.id, 10);
+        var row = existing.get(String(id));
+        if (row) {
+            if (row !== tbody.rows[i]) tbody.insertBefore(row, tbody.rows[i] || null);
             return;
         }
-        var html = '';
-        res.data.forEach(function(u) {
-            var nameText = esc(u.name || u.display_name || '未命名');
-            var emailText = esc(u.email || u.username || '-');
-            var deptText = esc(u.department || u.apply_remark || '-');
-            html += `
-                <tr style="border-bottom:1px solid var(--border);">
+        row = tbody.insertRow(i);
+        row.setAttribute('data-pending-id', id);
+        row.style.borderBottom = '1px solid var(--border)';
+        var nameText = esc(u.name || u.display_name || '未命名');
+        var emailText = esc(u.email || u.username || '-');
+        var deptText = esc(u.department || u.apply_remark || '-');
+        row.innerHTML = `
                     <td style="padding:10px 12px;">
                         <div style="font-weight:600;font-size:13.5px;color:var(--text-1);">${nameText}</div>
                         <div style="font-size:11.5px;color:var(--text-3);margin-top:2px;font-family:monospace;">${emailText}</div>
@@ -3352,21 +3362,58 @@ function loadPendingUsers() {
                     <td style="padding:10px 12px;color:var(--text-2);font-size:12.5px;">${deptText}</td>
                     <td style="padding:10px 12px;color:var(--text-3);font-size:12px;">${esc(u.created_at || '-')}</td>
                     <td style="padding:10px 12px;text-align:right;white-space:nowrap;">
-                        <select id="pendingRole_${parseInt(u.id, 10)}" class="m-select-sm" style="margin-right:6px;">
+                        <select id="pendingRole_${id}" class="m-select-sm" style="margin-right:6px;">
                             <option value="viewer" selected>审阅人</option>
                             <option value="editor">协作者</option>
                         </select>
-                        <button type="button" class="btn-primary btn-sm" style="margin-right:6px;" onclick="handleApproveUser(${parseInt(u.id, 10)})"><i class="ri-check-line"></i> 批准</button>
-                        <button type="button" class="btn-cancel btn-sm btn-danger-sm" onclick="handleRejectUser(${parseInt(u.id, 10)})"><i class="ri-close-line"></i> 驳回</button>
+                        <button type="button" class="btn-primary btn-sm" style="margin-right:6px;" onclick="handleApproveUser(${id})"><i class="ri-check-line"></i> 批准</button>
+                        <button type="button" class="btn-cancel btn-sm btn-danger-sm" onclick="handleRejectUser(${id})"><i class="ri-close-line"></i> 驳回</button>
                     </td>
-                </tr>
-            `;
-        });
-        tbody.innerHTML = html;
-    })
-    .catch(function() {
-        if (tbody) tbody.innerHTML = '<tr><td colspan="4" style="padding:24px;text-align:center;color:var(--danger);">网络异常，加载失败</td></tr>';
+        `;
     });
+}
+
+function refreshPendingUsers(includeList) {
+    if (typeof CURRENT_USER === 'undefined' || !CURRENT_USER || CURRENT_USER.role !== 'admin') return;
+    var revision = pendingUsersRevision;
+    if (pendingUsersRequest) {
+        if (pendingUsersRequest.revision !== revision || (includeList && !pendingUsersRequest.includeList)) {
+            return pendingUsersRequest.promise.then(function() { return refreshPendingUsers(includeList); });
+        }
+        return pendingUsersRequest.promise;
+    }
+
+    var fd = new FormData();
+    if (!includeList) fd.set('count_only', '1');
+    var request = { revision: revision, includeList: includeList };
+    pendingUsersRequest = request;
+    request.promise = adminFetch('pending_user_list', fd, false).then(function(res) {
+        if (revision !== pendingUsersRevision) return;
+        if (!res.success) throw new Error(res.message || '加载待审批列表失败');
+        var count = includeList ? res.data.length : res.data.count;
+        setPendingUserCount(count);
+        if (includeList) {
+            renderPendingUsers(res.data);
+            pendingUsersLoaded = true;
+        }
+    }).catch(function(error) {
+        if (!includeList || pendingUsersLoaded || revision !== pendingUsersRevision) return;
+        var tbody = document.getElementById('pendingUsersTbody');
+        if (tbody) tbody.innerHTML = '<tr><td colspan="4" style="padding:24px;text-align:center;color:var(--danger);">' + esc(error.message || '加载待审批列表失败') + '</td></tr>';
+    }).then(function() {
+        pendingUsersRequest = null;
+    });
+    return request.promise;
+}
+
+function loadPendingUsers() {
+    return refreshPendingUsers(true);
+}
+
+function refreshPendingUsersWhenVisible() {
+    if (document.hidden) return;
+    var showingList = isAdminConsoleOpen() && !!document.querySelector('#panel-users.active #subtab-btn-pending-users.active');
+    refreshPendingUsers(showingList);
 }
 
 function handleApproveUser(id) {
@@ -3381,6 +3428,7 @@ function handleApproveUser(id) {
             if (isAdminConsoleOpen()) {
                 markAdminConsoleChanged();
             }
+            pendingUsersRevision++;
             loadPendingUsers();
             loadUserList();
         } else {
@@ -3404,6 +3452,7 @@ function handleRejectUser(id) {
                     if (isAdminConsoleOpen()) {
                         markAdminConsoleChanged();
                     }
+                    pendingUsersRevision++;
                     loadPendingUsers();
                 } else {
                     showToast(res.message || '操作失败', 'error');
@@ -5104,7 +5153,10 @@ $(function() {
     initProtoDropZone();
     initRpDropZone();
     if (typeof CURRENT_USER !== 'undefined' && CURRENT_USER && CURRENT_USER.role === 'admin') {
-        loadPendingUsers();
+        refreshPendingUsersWhenVisible();
+        setInterval(refreshPendingUsersWhenVisible, 15000);
+        document.addEventListener('visibilitychange', refreshPendingUsersWhenVisible);
+        window.addEventListener('focus', refreshPendingUsersWhenVisible);
     }
     onAdminSelectChange(true);
 });

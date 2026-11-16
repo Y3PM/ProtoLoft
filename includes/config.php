@@ -300,19 +300,12 @@ function app_strip_session_set_cookie_headers() {
  * 统一轮换 Session ID 并按当前真实安全上下文同步签发 PHPSESSID Cookie
  */
 function app_regenerate_session($remember) {
-    $params = session_get_cookie_params();
-    $needHttpsUpgrade = app_is_https() && empty($params['secure']);
-    if ($needHttpsUpgrade) {
-        app_strip_session_set_cookie_headers();
-        if (!headers_sent()) {
-            app_apply_session_cookie_params(true);
-        }
+    if (!session_regenerate_id(true)) {
+        return false;
     }
-    session_regenerate_id(true);
-    if ($needHttpsUpgrade || app_is_https()) {
-        app_strip_session_set_cookie_headers();
-    }
+    app_strip_session_set_cookie_headers();
     set_session_persistence($remember);
+    return true;
 }
 
 /**

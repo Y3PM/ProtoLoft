@@ -451,7 +451,6 @@ if ($isCustomShare) {
     $projectPwd = trim($item['access_password'] ?? '');
 }
 
-$isProjectAuthPassed = false;
 $codeSuffix = ($isShortCodeMode && !empty($shareCode)) ? '_' . substr(md5($shareCode), 0, 8) : '';
 $sessionKey = 'item_auth_' . (int)$item['id'] . $codeSuffix;
 $cookieName = 'ue_item_auth_' . (int)$item['id'] . $codeSuffix;
@@ -464,66 +463,67 @@ if (empty($shareCookieSecret)) {
     }
     Auth::setSetting('share_cookie_secret', $shareCookieSecret);
 }
-$expectedCookieToken = ($projectPwd !== '') ? hash_hmac('sha256', 'item_' . (int)$item['id'] . '_' . $projectPwd . $codeSuffix, $shareCookieSecret) : '';
+$expectedSessionToken = ($projectPwd !== '') ? hash_hmac('sha256', 'item_' . (int)$item['id'] . '_' . $projectPwd . $codeSuffix, $shareCookieSecret) : '';
+$isProjectAuthPassed = $projectPwd === '' || $canManage
+    || (is_string($_SESSION[$sessionKey] ?? null) && hash_equals($expectedSessionToken, $_SESSION[$sessionKey]));
 
-if ($projectPwd === '' || $canManage) {
-    $isProjectAuthPassed = true;
-} elseif (is_string($_SESSION[$sessionKey] ?? null) && hash_equals($expectedCookieToken, $_SESSION[$sessionKey])) {
-    $isProjectAuthPassed = true;
-} elseif (!empty($_COOKIE[$cookieName]) && !empty($expectedCookieToken) && hash_equals($expectedCookieToken, $_COOKIE[$cookieName])) {
-    $_SESSION[$sessionKey] = $expectedCookieToken;
-    $isProjectAuthPassed = true;
-} elseif ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['project_password'])) {
+// 持久凭据同时签名链接和传输状态。旧格式缺少传输状态，只继续认可已建立的会话。
+$shareCookieContext = 'share-cookie-v1:' . $shareCode . ':' . $expectedSessionToken;
+$secureShareCookie = 'v1.s.' . hash_hmac('sha256', $shareCookieContext . ':https', $shareCookieSecret);
+$httpShareCookie = 'v1.h.' . hash_hmac('sha256', $shareCookieContext . ':http', $shareCookieSecret);
+$receivedShareCookie = $_COOKIE[$cookieName] ?? null;
+$restoreSecureShare = is_string($receivedShareCookie) && hash_equals($secureShareCookie, $receivedShareCookie);
+$restoreShare = $restoreSecureShare || (is_string($receivedShareCookie) && hash_equals($httpShareCookie, $receivedShareCookie));
+
+$passwordVerified = false;
+if (!$isProjectAuthPassed && !$restoreShare && $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['project_password'])) {
     if (!Auth::checkThrottle('share_pwd_' . $sessionKey, 10, 900)) {
         http_response_code(429); exit('尝试过多，请稍后重试');
     }
-    if (hash_equals($projectPwd, (string)$_POST['project_password'])) {
+    $passwordVerified = is_string($_POST['project_password']) && hash_equals($projectPwd, $_POST['project_password']);
+    if ($passwordVerified) {
         Auth::clearThrottle('share_pwd_' . $sessionKey);
-        $_SESSION[$sessionKey] = $expectedCookieToken;
-
-        // 兼容 HTTPS 反代转 HTTP(80) 回源且剥离协议头：口令已核验通过，按同域 HTTPS Origin 升级本响应 Cookie 为 Secure
-        if (app_is_proxy_https_origin_candidate()) {
-            $GLOBALS['app_force_https'] = true;
-        }
-        $isHttps = app_is_https();
-        if ($isHttps && empty(session_get_cookie_params()['secure']) && !headers_sent()) {
-            $sessionCookiePrefix = 'Set-Cookie: ' . session_name() . '=';
-            foreach (headers_list() as $hdr) {
-                if (stripos($hdr, $sessionCookiePrefix) === 0) {
-                    app_regenerate_session(false);
-                    break;
-                }
-            }
-        }
-
-        // 写入 30 天专属凭据 Cookie，即使 Session 偶发断连也能顺畅通行
-        $expire = time() + 30 * 86400;
-        if (PHP_VERSION_ID >= 70300) {
-            setcookie($cookieName, $expectedCookieToken, [
-                'expires' => $expire,
-                'path' => '/',
-                'httponly' => true,
-                'samesite' => 'Lax',
-                'secure' => $isHttps,
-            ]);
-        } else {
-            setcookie($cookieName, $expectedCookieToken, $expire, '/', '', $isHttps, true);
-        }
-        $_COOKIE[$cookieName] = $expectedCookieToken;
-
-        // 关键步骤：显式持久化 Session 数据落盘，杜绝 exit 导致会话丢失
-        if (session_status() === PHP_SESSION_ACTIVE) {
-            session_write_close();
-        }
-
-        // 精准重定向回用户当前访问的原始 URL
-        $redirectUrl = !empty($_SERVER['REQUEST_URI']) ? $_SERVER['REQUEST_URI'] : ('share.php?s=' . urlencode($shareCode));
-        header("Location: " . $redirectUrl);
-        exit;
     } else {
         Auth::recordThrottleFailure('share_pwd_' . $sessionKey);
         $projectPwdError = '密码错误，请重新输入';
     }
+}
+
+if (!$isProjectAuthPassed && ($restoreShare || $passwordVerified)) {
+    if ($restoreSecureShare || ($passwordVerified && app_is_proxy_https_origin_candidate())) {
+        $GLOBALS['app_force_https'] = true;
+    }
+    // 解锁和恢复都是授予访问权限，先轮换会话，避免把权限留给旧会话 ID。
+    if (!app_regenerate_session(!empty($_SESSION['remember_me']))) {
+        http_response_code(503);
+        exit('暂时无法建立预览会话，请刷新后重试');
+    }
+    $_SESSION[$sessionKey] = $expectedSessionToken;
+    $isProjectAuthPassed = true;
+}
+
+if ($passwordVerified) {
+    $isHttps = app_is_https();
+    $shareCookie = $isHttps ? $secureShareCookie : $httpShareCookie;
+    $expire = time() + 30 * 86400;
+    if (PHP_VERSION_ID >= 70300) {
+        setcookie($cookieName, $shareCookie, [
+            'expires' => $expire,
+            'path' => '/',
+            'httponly' => true,
+            'samesite' => 'Lax',
+            'secure' => $isHttps,
+        ]);
+    } else {
+        setcookie($cookieName, $shareCookie, $expire, '/', '', $isHttps, true);
+    }
+
+    if (session_status() === PHP_SESSION_ACTIVE) {
+        session_write_close();
+    }
+    $redirectUrl = !empty($_SERVER['REQUEST_URI']) ? $_SERVER['REQUEST_URI'] : ('share.php?s=' . urlencode($shareCode));
+    header('Location: ' . $redirectUrl);
+    exit;
 }
 
 if (!$isProjectAuthPassed) {
