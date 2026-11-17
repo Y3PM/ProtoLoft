@@ -9,6 +9,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const vm = require('vm');
 const { execSync } = require('child_process');
 
 let passCount = 0;
@@ -192,36 +193,81 @@ print("OK")
     assert(false, 'Python 解压校验失败: ' + e.message);
 }
 
-// ===================== 2. 测试垃圾文件过滤与 HTML 拦截 =====================
-console.log('\n\x1b[1m[测试套件 2] 系统垃圾文件净化与入口预检\x1b[0m');
+// ===================== 2. 测试垃圾文件过滤、隐藏目录过滤与服务端脚本拦截（加载真实 admin.js） =====================
+console.log('\n\x1b[1m[测试套件 2] 系统垃圾文件净化、隐藏目录过滤与入口预检\x1b[0m');
 
-function filterPrototypeFiles(filePaths) {
-    return filePaths.filter(p => {
-        const parts = p.replace(/\\/g, '/').split('/');
-        for (let i = 0; i < parts.length; i++) {
-            const part = parts[i];
-            if (part === '__MACOSX' || part === 'Thumbs.db' || part === 'desktop.ini' || part.startsWith('._')) {
-                return false;
-            }
-        }
-        const fileName = parts[parts.length - 1];
-        if (fileName === '.DS_Store' || fileName.startsWith('.')) return false;
-        return true;
-    });
-}
+const adminJs = fs.readFileSync(path.join(__dirname, '../../assets/js/admin.js'), 'utf8');
+const toastLogs = [];
+const mockBadgeText = { textContent: '' };
+const mockBadge = { style: { display: 'none' } };
+const mockUploadZipName = { textContent: '', classList: { add() {}, remove() {} } };
+const adminContext = {
+    currentProtoSource: null,
+    document: {
+        getElementById: (id) => ({
+            protoFileBadge: mockBadge,
+            protoFileBadgeIcon: { className: '' },
+            protoFileBadgeText: mockBadgeText,
+            protoDropActions: { style: { display: 'flex' } },
+            uploadZipName: mockUploadZipName
+        }[id] || null)
+    },
+    showToast: (msg, type) => toastLogs.push({ msg, type }),
+    clearSelectedProtoSource: () => { adminContext.currentProtoSource = null; },
+    formatProtoBytes: (b) => b + ' B'
+};
+vm.createContext(adminContext);
+vm.runInContext(
+    adminJs.slice(adminJs.indexOf('function setProtoSourceFolder('), adminJs.indexOf('function initProtoDropZone()')),
+    adminContext
+);
 
+const mockFiles = (paths) => paths.map(p => ({ webkitRelativePath: p, name: p.split('/').pop(), size: 128 }));
 const dirtyPaths = [
-    'MyProject/.DS_Store',
-    'MyProject/__MACOSX/._index.html',
-    'MyProject/Thumbs.db',
-    'MyProject/index.html',
-    'MyProject/files/page.html'
+    '机柜配置器/.DS_Store',
+    '机柜配置器/__MACOSX/._index.html',
+    '机柜配置器/Thumbs.db',
+    '机柜配置器/desktop.ini',
+    '机柜配置器/.mimosa/hook-state/sess.json',
+    '机柜配置器/.mimosa/reports/task-review.json',
+    '机柜配置器/.git/config',
+    '机柜配置器/v1.0/dir.with.dot/page.html',
+    '机柜配置器/index.html',
+    '机柜配置器/remixicon/remixicon.css'
 ];
-const cleaned = filterPrototypeFiles(dirtyPaths);
-assert(cleaned.length === 2 && cleaned.includes('MyProject/index.html') && cleaned.includes('MyProject/files/page.html'),
-    '成功过滤 .DS_Store, __MACOSX, Thumbs.db, ._*，保留纯净原型文件');
+const cleaned = adminContext.filterPrototypeFiles(mockFiles(dirtyPaths)).map(f => f.webkitRelativePath);
+assert(
+    cleaned.length === 3
+        && cleaned.includes('机柜配置器/index.html')
+        && cleaned.includes('机柜配置器/remixicon/remixicon.css')
+        && cleaned.includes('机柜配置器/v1.0/dir.with.dot/page.html'),
+    '真实 admin.js 过滤 .DS_Store, __MACOSX, Thumbs.db, desktop.ini, .mimosa/, .git/ 并保留含正常点号的目录'
+);
 
-const nonHtmlPaths = filterPrototypeFiles(['MyProject/readme.txt', 'MyProject/image.png']);
+toastLogs.length = 0;
+badgeRendered = null;
+adminContext.setProtoSourceFolder('机柜配置器', mockFiles([
+    '机柜配置器/.mimosa/hook-state/sess.json',
+    '机柜配置器/.DS_Store'
+]));
+assert(adminContext.currentProtoSource === null && toastLogs.some(t => t.msg === '选中的文件夹内没有有效文件'),
+    '仅含隐藏目录/文件时清空选中源并提示无有效文件');
+
+toastLogs.length = 0;
+adminContext.setProtoSourceFolder('机柜配置器', mockFiles([
+    '机柜配置器/index.html',
+    '机柜配置器/scripts/build.sh'
+]));
+assert(adminContext.currentProtoSource === null && toastLogs.some(t => t.msg.includes('build.sh') && t.msg.includes('不允许的服务端脚本文件')),
+    '文件夹内含服务端脚本（如 .sh/.php）时提前拦截并明确提示文件名');
+
+toastLogs.length = 0;
+mockBadgeText.textContent = '';
+adminContext.setProtoSourceFolder('机柜配置器', mockFiles(dirtyPaths));
+assert(adminContext.currentProtoSource && adminContext.currentProtoSource.files.length === 3 && mockBadgeText.textContent.includes('3 个文件'),
+    '过滤隐藏目录后正确识别有效原型文件数（3 个文件）');
+
+const nonHtmlPaths = adminContext.filterPrototypeFiles(mockFiles(['MyProject/readme.txt', 'MyProject/image.png'])).map(f => f.webkitRelativePath);
 const hasHtml = nonHtmlPaths.some(p => /\.html?$/i.test(p));
 assert(!hasHtml, '准确探测无 HTML 文件夹并拦截');
 

@@ -7,6 +7,11 @@
 
 ## 发布前修复（全新版本，未发布）
 
+- 2026-11-17：修复文件夹上传漏过隐藏目录（如 `.mimosa/`、`.git/`）导致服务端安全拦截报错，并精细化 ZIP 安全报错提示。
+  - 在 `assets/js/admin.js` 提取 `getPrototypeFilePath()` 与 `findBlockedPrototypeFile()`，升级 `filterPrototypeFiles()`：将路径每一段中以 `.` 开头的隐藏目录与隐藏文件（如 `.mimosa/`、`.git/`、`.DS_Store`、`._*`）以及 `__MACOSX`、`Thumbs.db`、`desktop.ini` 一并自动跳过，并在 `setProtoSourceFolder()` 阶段预检服务端禁止扩展名（如 `.php`、`.sh`），发现时立即提示具体文件路径。
+  - 在 `includes/zip_handler.php` 新增 `formatZipEntryLabel()` 与 `inspectZipEntryName()`，保持全部既有安全规则不放宽的同时，区分绝对路径、路径穿越、隐藏文件/目录、服务端脚本四类拦截场景并附带脱敏截断后的条目路径提示。
+  - 在 `.dev/tests/folder_upload_and_changelog_regression.js`（改为 `vm` 加载真实 `assets/js/admin.js` 校验）及 `.dev/tests/security_regression.py` 增补 `.mimosa/` 隐藏目录过滤、脚本拦截与服务端精准报错回归断言；已通过 `php -l includes/zip_handler.php`、`node --check assets/js/admin.js`、`git diff --check`、`node .dev/tests/folder_upload_and_changelog_regression.js`（35/35）与 `python3 -B .dev/tests/run_all_tests.py`（PHP 8.3.20 下 25/25 套通过，可识别 1,105 项断言 100% PASS）；已执行 `python3 .dev/export_release.py`（67 个文件纯净导出）并增量同步 `/assets/js/admin.js`、`/includes/zip_handler.php` 至 FTP 根目录，FTP 回读与线上 HTTPS `/assets/js/admin.js` 回读 SHA-256 校验一致（线上浏览器选目录上传及 PHP 7.0 实机执行待用户实测验收）。
+
 - 2026-11-16：优化群机器人通知排版，并重构新成员申请通知为结构化键值展示。
   - 在 `includes/webhook.php` 提取统一属性行组装逻辑（`$fieldRows`）：钉钉端去除 `- ` 列表圆点与右缩进、加粗标题（`### **...**`）并改用 `  \n` 紧致左对齐换行，移除底部 `> ` 引用竖线；企业微信端同步加粗标题、修复多行内容引用前缀并弱化底部来源；飞书端沿用交互卡片并共用结构化属性行。
   - 当通知数据传入结构化 `fields`（如 `includes/actions/auth.php` 的 `user_apply` 传递「申请角色」「部门或职务」且不再重复邮箱行）时，三端均自动跳过多余的 `**内容**：` 前缀，直接逐行平铺为 `**标题**：内容`。

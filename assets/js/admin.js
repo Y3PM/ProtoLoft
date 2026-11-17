@@ -647,6 +647,12 @@ function setProtoSourceFolder(folderName, filesList) {
         clearSelectedProtoSource();
         return;
     }
+    var blockedPath = findBlockedPrototypeFile(validFiles);
+    if (blockedPath) {
+        showToast('文件夹内包含不允许的服务端脚本文件「' + blockedPath + '」', 'warning');
+        clearSelectedProtoSource();
+        return;
+    }
     var totalBytes = 0;
     for (var i = 0; i < validFiles.length; i++) {
         totalBytes += (validFiles[i].size || 0);
@@ -675,23 +681,49 @@ function renderProtoSourceBadge(iconClass, text) {
     if (zn) { zn.textContent = text; zn.classList.add('has-file'); }
 }
 
+var PROTO_BLOCKED_EXTENSIONS = {
+    php: true, phtml: true, php3: true, php4: true, php5: true, php7: true, php8: true, pht: true, phar: true,
+    cgi: true, pl: true, py: true, sh: true, asp: true, aspx: true, jsp: true, jspx: true, shtml: true,
+    htaccess: true, htpasswd: true, ini: true
+};
+
+function getPrototypeFilePath(file) {
+    return String((file && (file.webkitRelativePath || file.relativePath || file.name)) || '')
+        .replace(/\\/g, '/')
+        .replace(/^\/+|\/+$/g, '');
+}
+
+function findBlockedPrototypeFile(files) {
+    for (var i = 0; i < files.length; i++) {
+        var path = getPrototypeFilePath(files[i]);
+        var fileName = path.split('/').pop() || '';
+        var dotIdx = fileName.lastIndexOf('.');
+        if (dotIdx > 0 && dotIdx < fileName.length - 1) {
+            var ext = fileName.slice(dotIdx + 1).toLowerCase();
+            if (PROTO_BLOCKED_EXTENSIONS[ext]) {
+                return path;
+            }
+        }
+    }
+    return '';
+}
+
 function filterPrototypeFiles(files) {
     var res = [];
     for (var i = 0; i < files.length; i++) {
         var f = files[i];
-        var path = (f.webkitRelativePath || f.relativePath || f.name).replace(/\\/g, '/');
+        var path = getPrototypeFilePath(f);
+        if (!path) continue;
         var parts = path.split('/');
         var hasJunk = false;
         for (var j = 0; j < parts.length; j++) {
             var p = parts[j];
-            if (p === '__MACOSX' || p === 'Thumbs.db' || p === 'desktop.ini' || p.indexOf('._') === 0) {
+            if (!p || p === '__MACOSX' || p === 'Thumbs.db' || p === 'desktop.ini' || p.indexOf('.') === 0) {
                 hasJunk = true;
                 break;
             }
         }
         if (hasJunk) continue;
-        var fileName = parts[parts.length - 1];
-        if (fileName === '.DS_Store' || fileName.indexOf('.') === 0) continue;
         res.push(f);
     }
     return res;
@@ -808,8 +840,11 @@ function createZipBlobFromFolder(files, defaultName, onProgress) {
         var fileList = [];
         for (var i = 0; i < files.length; i++) {
             var f = files[i];
-            var p = (f.webkitRelativePath || f.relativePath || f.name).replace(/\\/g, '/').replace(/^\/+/, '');
-            fileList.push({ file: f, path: p });
+            var p = getPrototypeFilePath(f);
+            if (p) fileList.push({ file: f, path: p });
+        }
+        if (fileList.length === 0) {
+            return reject(new Error('文件夹中没有有效文件'));
         }
 
         // 计算公共父目录前缀并智能剥离

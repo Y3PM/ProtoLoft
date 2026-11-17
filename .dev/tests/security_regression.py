@@ -290,6 +290,18 @@ def main():
         check('co-manager cannot overwrite other author', not publish(other,item,'V1',zipped('forbidden'))['success'])
         check('rejected overwrite keeps old assets', row(v1)['storage_dir'] == initial['storage_dir'] and b'original' in editor.request(asset1)[1])
         check('invalid ZIP rejected', not publish(editor,item,'V1',b'not a zip')['success'])
+        def unsafe_zip(entry_name, entry_data='x'):
+            s = io.BytesIO()
+            with zipfile.ZipFile(s, 'w') as z:
+                z.writestr('index.html', '<html><body>safe</body></html>')
+                z.writestr(entry_name, entry_data)
+            return s.getvalue()
+        hidden_res = publish(editor, item, 'V1', unsafe_zip('.mimosa/hook-state/sess.json', '{}'))
+        check('ZIP with hidden directory rejected with explicit path', not hidden_res['success'] and '隐藏文件或目录' in hidden_res['message'] and '.mimosa/hook-state/sess.json' in hidden_res['message'])
+        trav_res = publish(editor, item, 'V1', unsafe_zip('../evil.html', '<h1>x</h1>'))
+        check('ZIP with path traversal rejected with explicit path', not trav_res['success'] and '路径穿越' in trav_res['message'] and '../evil.html' in trav_res['message'])
+        script_res = publish(editor, item, 'V1', unsafe_zip('scripts/shell.php', '<?php echo 1;'))
+        check('ZIP with server script rejected with explicit path', not script_res['success'] and '服务端脚本' in script_res['message'] and 'scripts/shell.php' in script_res['message'])
         check('failed ZIP keeps default and original files', row(v1)['is_default'] == 1 and row(v1)['storage_dir'] == initial['storage_dir'] and b'original' in editor.request(asset1)[1])
         incomplete = upload(editor, zipped(), total=2)
         check('missing chunks rejected', not editor.api('version_publish', {'item_id':item,'version_name':'V1','zip_upload_id':incomplete,'overwrite_token':editor.api('version_check_name',{'item_id':item,'version_name':'V1'})['data']['overwrite_token']})['success'])

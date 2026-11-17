@@ -15,23 +15,60 @@ class ZipHandler {
     ];
 
     /**
-     * 校验 ZIP 条目名: 拒绝绝对路径、路径穿越 (..)、隐藏文件与可执行脚本
+     * 格式化 ZIP 条目名用于安全提示（去除控制字符并限制长度）
+     */
+    private static function formatZipEntryLabel($name) {
+        $norm = str_replace('\\', '/', (string)$name);
+        $clean = @preg_replace('/[\x00-\x1F\x7F]+/u', '', $norm);
+        if ($clean === null) {
+            $clean = preg_replace('/[\x00-\x1F\x7F]+/', '', $norm);
+        }
+        $clean = trim((string)$clean);
+        if ($clean === '') return '(空路径)';
+        if (function_exists('mb_strimwidth')) {
+            return mb_strimwidth($clean, 0, 80, '...', 'UTF-8');
+        }
+        return strlen($clean) > 80 ? substr($clean, 0, 77) . '...' : $clean;
+    }
+
+    /**
+     * 校验 ZIP 条目名: 拒绝绝对路径、路径穿越 (..)、隐藏文件/目录与可执行脚本
+     * 合法返回 null，否则返回明确的安全拦截提示文案
+     */
+    private static function inspectZipEntryName($name) {
+        $raw = (string)$name;
+        $norm = str_replace('\\', '/', $raw);
+        $label = self::formatZipEntryLabel($raw);
+        if ($norm === '') {
+            return '压缩包内包含非法空路径条目，解压已中止';
+        }
+        $isDir = substr($norm, -1) === '/';
+        if ($isDir) $norm = rtrim($norm, '/');
+        if ($norm === '') {
+            return '压缩包内包含非法空路径条目，解压已中止';
+        }
+        if ($norm[0] === '/' || preg_match('#^[a-zA-Z]:/#', $norm)) {
+            return '压缩包内包含绝对路径「' . $label . '」，解压已中止';
+        }
+        foreach (explode('/', $norm) as $seg) {
+            if ($seg === '' || $seg === '.' || $seg === '..') {
+                return '压缩包内包含非法路径或路径穿越风险「' . $label . '」，解压已中止';
+            }
+            if ($seg[0] === '.') {
+                return '压缩包内包含隐藏文件或目录「' . $label . '」（请移除 .git / .DS_Store / .mimosa 等隐藏内容后重试），解压已中止';
+            }
+        }
+        if (!$isDir && in_array(strtolower(pathinfo($norm, PATHINFO_EXTENSION)), self::$blockedExtensions, true)) {
+            return '压缩包内包含不允许的服务端脚本文件「' . $label . '」，解压已中止';
+        }
+        return null;
+    }
+
+    /**
+     * 校验 ZIP 条目名是否安全
      */
     private static function isSafeZipEntryName($name) {
-        $name = str_replace('\\', '/', (string)$name);
-        if ($name === '') return false;
-        $isDir = substr($name, -1) === '/';
-        if ($isDir) $name = rtrim($name, '/');
-        if ($name === '') return false;
-        if ($name[0] === '/' || preg_match('#^[a-zA-Z]:/#', $name)) return false;
-        foreach (explode('/', $name) as $seg) {
-            if ($seg === '' || $seg === '.' || $seg === '..') return false;
-            if ($seg[0] === '.') return false;
-        }
-        if (!$isDir && in_array(strtolower(pathinfo($name, PATHINFO_EXTENSION)), self::$blockedExtensions, true)) {
-            return false;
-        }
-        return true;
+        return self::inspectZipEntryName($name) === null;
     }
 
     /**
@@ -456,9 +493,10 @@ EOD;
         $safeNames = [];
         for ($i = 0; $i < $zip->numFiles; $i++) {
             $name = $zip->getNameIndex($i);
-            if (!self::isSafeZipEntryName($name)) {
+            $unsafeMsg = self::inspectZipEntryName($name);
+            if ($unsafeMsg !== null) {
                 $zip->close();
-                return ['success' => false, 'message' => '压缩包内包含不允许的文件 (路径穿越 / 隐藏文件 / 服务端脚本类型)，解压已中止'];
+                return ['success' => false, 'message' => $unsafeMsg];
             }
 
             $stat = $zip->statIndex($i);
