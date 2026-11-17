@@ -176,6 +176,13 @@ SUITES = [
         "cmd": ["python3", "-B", str(TESTS_DIR / "password_reset_smtp_regression.py")],
         "needs_php": True,
         "type": "python"
+    },
+    {
+        "id": "password_policy",
+        "name": "账号密码长度、弱密码保存与存量登录",
+        "cmd": ["python3", "-B", str(TESTS_DIR / "password_policy_regression.py")],
+        "needs_php": True,
+        "type": "python"
     }
 ]
 

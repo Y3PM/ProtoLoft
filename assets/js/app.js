@@ -1309,6 +1309,7 @@ function closeModal(id, force) {
     var index = modalStack.findIndex(function(entry) { return entry.node === modal; });
     var entry = index >= 0 ? modalStack.splice(index, 1)[0] : null;
     modal.style.display = 'none';
+    if (typeof clearPasswordStrength === 'function') clearPasswordStrength(modal);
     syncModalBackground();
     var top = modalStack.length ? modalStack[modalStack.length - 1].node : null;
     var opener = entry && entry.opener;
@@ -1717,15 +1718,18 @@ window.handleSaveProfile = handleSaveProfile;
 function handleChangeMyPassword(e) {
     if (e) e.preventDefault();
     var oldPwd = document.getElementById('myOldPassword').value;
-    var newPwd = document.getElementById('myNewPassword').value;
+    var passwordInput = document.getElementById('myNewPassword');
+    var newPwd = passwordInput.value;
     var confirmPwd = document.getElementById('myConfirmPassword').value;
 
     if (!oldPwd) {
         showToast('请输入当前密码', 'warning');
         return;
     }
-    if (!newPwd || newPwd.length < 6) {
-        showToast('新密码长度至少需要 6 位', 'warning');
+    var passwordError = typeof passwordLengthError === 'function' ? passwordLengthError(newPwd) : '';
+    if (passwordError) {
+        showToast(passwordError, 'warning');
+        passwordInput.focus();
         return;
     }
     if (newPwd !== confirmPwd) {

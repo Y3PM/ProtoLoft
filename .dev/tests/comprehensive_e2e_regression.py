@@ -238,16 +238,17 @@ def run_comprehensive_suite(php_bin, keep_fixture=False):
         })
         check("TC-INS-02: 正确密钥解锁后展示运行环境检测步骤", '步骤 02 / 04'.encode('utf-8') in body and 'pdo_sqlite'.encode('utf-8') in body)
 
-        # 测试弱口令 (<6 位)
-        code, body, _ = guest.request('/install.php', {
-            'csrf_token': install_csrf,
-            'site_title': '立象测试团队',
-            'admin_email': 'admin@example.com',
-            'admin_name': '测试超管',
-            'admin_password': '123',
-            'admin_password_confirm': '123'
-        })
-        check("TC-INS-03: 密码少于6位被安装向导拦截", '密码长度不能少于 6 位'.encode('utf-8') in body)
+        for password, message in [('字' * 5, '至少需要 6 个字符'), ('字' * 21 + 'aa', '不能超过 64 字节')]:
+            code, body, _ = guest.request('/install.php', {
+                'csrf_token': install_csrf,
+                'site_title': '立象测试团队',
+                'admin_email': 'admin@example.com',
+                'admin_name': '测试超管',
+                'admin_password': password,
+                'admin_password_confirm': password
+            })
+            check("TC-INS-03: 安装密码长度校验 " + message,
+                  message.encode('utf-8') in body and not (temp / 'data/install.lock').is_file())
 
         # 测试非法邮箱格式
         code, body, _ = guest.request('/install.php', {

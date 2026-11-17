@@ -65,7 +65,7 @@ switch ($action) {
         $old = $_POST['old_password'] ?? '';
         $new = $_POST['new_password'] ?? '';
         $confirm = $_POST['confirm_password'] ?? '';
-        if (empty($old)) jsonResponse(false, null, '请输入当前密码');
+        if (!is_string($old) || $old === '') jsonResponse(false, null, '请输入当前密码');
         if (empty($new)) jsonResponse(false, null, '请输入新密码');
         if ($new !== $confirm) jsonResponse(false, null, '两次输入的新密码不一致');
         $res = Auth::changeMyPassword($old, $new);
@@ -118,11 +118,9 @@ switch ($action) {
         if (mb_strlen($name, 'UTF-8') > 20) {
             jsonResponse(false, null, '姓名不能超过 20 个字符');
         }
-        if (empty($p) || strlen($p) < 6) {
-            jsonResponse(false, null, '登录密码长度至少为 6 位');
-        }
-        if (strlen($p) > 64) {
-            jsonResponse(false, null, '登录密码长度不能超过 64 位');
+        $passwordError = app_password_length_error($p);
+        if ($passwordError !== '') {
+            jsonResponse(false, null, $passwordError);
         }
         if (mb_strlen($department, 'UTF-8') > 30) {
             jsonResponse(false, null, '部门/备注不能超过 30 个字符');

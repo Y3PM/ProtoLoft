@@ -3,6 +3,7 @@
  * 原型托管中心 - 现代化分步安装向导 (Step-by-Step Wizard)
  */
 require_once __DIR__ . '/includes/config.php';
+require_once __DIR__ . '/includes/password_policy.php';
 
 // 检查是否已安装
 if (is_installed()) {
@@ -272,6 +273,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $adminName = $formAdminName;
                 $adminPass = $_POST['admin_password'] ?? '';
                 $adminPassConfirm = $_POST['admin_password_confirm'] ?? '';
+                $passwordError = app_password_length_error($adminPass);
 
                 // 若只输入了前缀且配置了企业域名白名单，自动补齐后缀
                 if (strpos($adminEmail, '@') === false && !empty($adminEmail) && !empty($allowedDomains)) {
@@ -297,12 +299,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $error = '管理员工作邮箱格式不正确，请输入有效的邮箱地址';
                 } elseif (empty($adminName) || mb_strlen($adminName, 'utf-8') < 2 || mb_strlen($adminName, 'utf-8') > 20) {
                     $error = '请输入管理员真实姓名（2~20 个字符）';
-                } elseif (strlen($adminPass) < 6) {
-                    $error = '管理员密码长度不能少于 6 位';
-                } elseif (strlen($adminPass) > 64) {
-                    $error = '管理员密码长度不能超过 64 位';
-                } elseif (trim($adminPass) === '') {
-                    $error = '管理员密码不能全部为空白字符';
+                } elseif ($passwordError !== '') {
+                    $error = $passwordError;
                 } elseif ($adminPassConfirm !== $adminPass) {
                     $error = '两次输入的管理员密码不一致';
                 } else {
@@ -356,7 +354,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <link rel="alternate icon" href="assets/images/favicon.png?v=<?php echo substr(sha1_file(ROOT_PATH . '/assets/images/favicon.png'), 0, 12); ?>" type="image/png">
     <link rel="stylesheet" href="assets/css/bootstrap.min.css">
     <link rel="stylesheet" href="assets/css/remixicon.css">
-    <link rel="stylesheet" href="assets/css/app.css?v=<?php echo APP_VERSION; ?>">
+    <link rel="stylesheet" href="assets/css/app.css?v=<?php echo APP_VERSION . '.' . filemtime(__DIR__ . '/assets/css/app.css'); ?>">
     <style>
         .installer-container {
             width: 100%;
@@ -949,13 +947,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     </div>
 
                     <div class="form-group">
-                        <label class="form-label">管理员密码 <span class="req-star">*</span></label>
-                        <input type="password" name="admin_password" id="adminPassInput" class="form-control" placeholder="至少 6 位密码" required maxlength="64">
+                        <label class="form-label" for="adminPassInput">管理员密码 <span class="req-star">*</span></label>
+                        <input type="password" name="admin_password" id="adminPassInput" class="form-control" placeholder="至少 6 个字符" autocomplete="new-password" required data-password-strength="adminPassStrength" aria-describedby="adminPassStrength">
+                        <div class="password-strength" id="adminPassStrength" role="status"></div>
                     </div>
 
                     <div class="form-group">
-                        <label class="form-label">确认密码 <span class="req-star">*</span></label>
-                        <input type="password" name="admin_password_confirm" id="adminPassConfirmInput" class="form-control" placeholder="再次输入密码" required maxlength="64">
+                        <label class="form-label" for="adminPassConfirmInput">确认密码 <span class="req-star">*</span></label>
+                        <input type="password" name="admin_password_confirm" id="adminPassConfirmInput" class="form-control" placeholder="再次输入密码" autocomplete="new-password" required>
                     </div>
 
                     <div class="wizard-footer">
@@ -973,6 +972,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     </div> <!-- .wizard-card -->
 </div> <!-- .installer-container -->
 
+<script src="assets/js/password-strength.js?v=<?php echo filemtime(__DIR__ . '/assets/js/password-strength.js'); ?>" defer></script>
 <script>
     var currentStep = <?php echo $isTokenVerified ? (int)$initialStep : 1; ?>;
     var stepMeta = [
@@ -1242,13 +1242,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             nameInput.focus();
             return;
         }
-        if (!pass || pass.length < 6) {
-            showToast('管理员密码长度不能少于 6 位', 'warning');
-            passInput.focus();
-            return;
-        }
-        if (pass.trim() === '') {
-            showToast('密码不能全部为空白字符', 'warning');
+        var passwordError = typeof passwordLengthError === 'function' ? passwordLengthError(pass) : '';
+        if (passwordError) {
+            showToast(passwordError, 'warning');
             passInput.focus();
             return;
         }

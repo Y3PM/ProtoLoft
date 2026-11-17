@@ -128,11 +128,12 @@ if (!$isSiteAuthorized) {
                 </div>
                 <label class="m-label" for="regPwdInput">登录密码 <span class="req-star">*</span></label>
                 <div style="margin-bottom: 10px; position:relative; display:flex; align-items:center;">
-                    <input type="password" id="regPwdInput" class="form-control" placeholder="至少 6 位密码" autocomplete="new-password" required maxlength="64" style="padding-right:36px;">
+                    <input type="password" id="regPwdInput" class="form-control" placeholder="至少 6 个字符" autocomplete="new-password" required data-password-strength="regPwdStrength" aria-describedby="regPwdStrength" style="padding-right:36px;">
                     <button type="button" onclick="toggleLockPwd('regPwdInput', this)" style="position:absolute;right:8px;background:none;border:none;color:var(--text-3);cursor:pointer;padding:4px 6px;font-size:15px;display:flex;align-items:center;" title="显示/隐藏密码">
                         <i class="ri-eye-line"></i>
                     </button>
                 </div>
+                <div class="password-strength" id="regPwdStrength" role="status"></div>
                 <div class="m-label">申请角色 <span class="req-star">*</span></div>
                 <div class="reg-role-grid" style="margin-bottom: 10px;">
                     <label class="reg-role-card" for="lockRegRoleViewer">
@@ -196,14 +197,15 @@ if (!$isSiteAuthorized) {
                     <div class="auth-sub-note">账号：<strong><?php echo htmlspecialchars($resetTokenInfo['masked_email']); ?></strong></div>
                     <label class="m-label" for="resetNewPwdInput">新密码 <span class="req-star">*</span></label>
                     <div style="margin-bottom: 12px; position:relative; display:flex; align-items:center;">
-                        <input type="password" id="resetNewPwdInput" class="form-control" placeholder="至少 6 位密码" autocomplete="new-password" required maxlength="64" style="padding-right:36px;">
+                        <input type="password" id="resetNewPwdInput" class="form-control" placeholder="至少 6 个字符" autocomplete="new-password" required data-password-strength="resetPwdStrength" aria-describedby="resetPwdStrength" style="padding-right:36px;">
                         <button type="button" onclick="toggleLockPwd('resetNewPwdInput', this)" style="position:absolute;right:8px;background:none;border:none;color:var(--text-3);cursor:pointer;padding:4px 6px;font-size:15px;display:flex;align-items:center;" title="显示/隐藏密码">
                             <i class="ri-eye-line"></i>
                         </button>
                     </div>
+                    <div class="password-strength" id="resetPwdStrength" role="status"></div>
                     <label class="m-label" for="resetConfirmPwdInput">确认新密码 <span class="req-star">*</span></label>
                     <div style="margin-bottom: 18px; position:relative; display:flex; align-items:center;">
-                        <input type="password" id="resetConfirmPwdInput" class="form-control" placeholder="再次输入新密码" autocomplete="new-password" required maxlength="64" style="padding-right:36px;">
+                        <input type="password" id="resetConfirmPwdInput" class="form-control" placeholder="再次输入新密码" autocomplete="new-password" required style="padding-right:36px;">
                         <button type="button" onclick="toggleLockPwd('resetConfirmPwdInput', this)" style="position:absolute;right:8px;background:none;border:none;color:var(--text-3);cursor:pointer;padding:4px 6px;font-size:15px;display:flex;align-items:center;" title="显示/隐藏密码">
                             <i class="ri-eye-line"></i>
                         </button>
@@ -228,6 +230,7 @@ if (!$isSiteAuthorized) {
             <div class="standalone-footer"><?php echo htmlspecialchars($siteFooter); ?></div>
         <?php endif; ?>
 
+        <script src="assets/js/password-strength.js?v=<?php echo filemtime(__DIR__ . '/assets/js/password-strength.js'); ?>" defer></script>
         <script>
             var authPane = <?php echo json_encode($initialAuthPane); ?>;
             var visitorRegAllowed = <?php echo $visitorRegEnabled ? 'true' : 'false'; ?>;
@@ -351,7 +354,8 @@ if (!$isSiteAuthorized) {
                 var rawEmailVal = emailInput ? emailInput.value.trim() : '';
                 var email = getLockResolvedEmail('regEmailInput');
                 var name = document.getElementById('regName').value.trim();
-                var p = document.getElementById('regPwdInput').value;
+                var passwordInput = document.getElementById('regPwdInput');
+                var p = passwordInput.value;
                 var roleEl = document.querySelector('input[name="lock_reg_role"]:checked');
                 var role = roleEl ? roleEl.value : 'viewer';
                 var remark = document.getElementById('regRemarkInput').value.trim();
@@ -366,6 +370,8 @@ if (!$isSiteAuthorized) {
                     emailInput.focus();
                     return;
                 }
+
+                if (typeof showPasswordLengthError === 'function' && showPasswordLengthError(passwordInput, err)) return;
 
                 btn.disabled = true;
                 btn.innerText = '正在提交...';
@@ -542,12 +548,7 @@ if (!$isSiteAuthorized) {
 
                 var newPwd = newEl.value;
                 var confirmPwd = confirmEl.value;
-                if (newPwd.length < 6) {
-                    err.innerText = '新密码长度至少需要 6 位';
-                    err.style.display = 'block';
-                    newEl.focus();
-                    return;
-                }
+                if (typeof showPasswordLengthError === 'function' && showPasswordLengthError(newEl, err)) return;
                 if (newPwd !== confirmPwd) {
                     err.innerText = '两次输入的新密码不一致';
                     err.style.display = 'block';
@@ -571,6 +572,9 @@ if (!$isSiteAuthorized) {
                     btn.disabled = false;
                     btn.innerText = '保存新密码';
                     if (res.success) {
+                        newEl.value = '';
+                        confirmEl.value = '';
+                        if (typeof clearPasswordStrength === 'function') clearPasswordStrength(newEl.form);
                         toggleAuthPane('login');
                         var loginUserInput = document.getElementById('adminLoginUser');
                         var returnedEmail = (res.data && res.data.email) ? res.data.email : '';
@@ -1150,6 +1154,7 @@ $verSuffix = function($relPath) {
 ?>
 <script src="assets/js/mcp.js?v=<?php echo $verSuffix('assets/js/mcp.js'); ?>"></script>
 <script src="assets/js/watermark.js?v=<?php echo $verSuffix('assets/js/watermark.js'); ?>"></script>
+<script src="assets/js/password-strength.js?v=<?php echo $verSuffix('assets/js/password-strength.js'); ?>" defer></script>
 <script src="assets/js/app.js?v=<?php echo $verSuffix('assets/js/app.js'); ?>"></script>
 <?php if (Auth::canAnnotate()): ?>
 <script src="assets/js/annotation.js?v=<?php echo $verSuffix('assets/js/annotation.js'); ?>"></script>

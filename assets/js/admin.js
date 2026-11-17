@@ -2990,8 +2990,15 @@ function handleUpdateUser(e) {
     if (wbEl) {
         fd.append('webhook_url', wb);
     }
-    var newPwd = document.getElementById('editUserPassword').value;
+    var passwordInput = document.getElementById('editUserPassword');
+    var newPwd = passwordInput.value;
     if (newPwd) {
+        var passwordError = typeof passwordLengthError === 'function' ? passwordLengthError(newPwd) : '';
+        if (passwordError) {
+            showToast(passwordError, 'warning');
+            passwordInput.focus();
+            return;
+        }
         fd.append('new_password', newPwd);
     }
 
@@ -3058,8 +3065,9 @@ function handleCreateUser(e) {
         document.getElementById('newName').focus();
         return;
     }
-    if (!password || password.length < 6) {
-        showToast('初始密码长度不能少于 6 位', 'warning');
+    var passwordError = typeof passwordLengthError === 'function' ? passwordLengthError(password) : '';
+    if (passwordError) {
+        showToast(passwordError, 'warning');
         document.getElementById('newPassword').focus();
         return;
     }

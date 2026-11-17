@@ -114,11 +114,12 @@ if (!empty(trim($allowedDomainsSetting))) {
                 <div class="m-form-group">
                     <label class="m-label" for="regPassword">登录密码 <span class="req-star">*</span></label>
                     <div style="position:relative;display:flex;align-items:center;">
-                        <input type="password" id="regPassword" class="m-input" placeholder="至少 6 位密码" autocomplete="new-password" required maxlength="64" style="flex:1;padding-right:36px;">
+                        <input type="password" id="regPassword" class="m-input" placeholder="至少 6 个字符" autocomplete="new-password" required data-password-strength="regPasswordStrength" aria-describedby="regPasswordStrength" style="flex:1;padding-right:36px;">
                         <button type="button" class="btn-eye-toggle" onclick="togglePasswordVisibility('regPassword', this)" style="position:absolute;right:8px;background:none;border:none;color:var(--text-3);cursor:pointer;padding:4px 6px;font-size:15px;display:flex;align-items:center;" title="显示/隐藏密码">
                             <i class="ri-eye-line"></i>
                         </button>
                     </div>
+                    <div class="password-strength" id="regPasswordStrength" role="status"></div>
                 </div>
                 <div class="m-form-group">
                     <div class="m-label">申请角色 <span class="req-star">*</span></div>
@@ -334,7 +335,8 @@ if (!empty(trim($allowedDomainsSetting))) {
         var rawEmailVal = emailInput ? emailInput.value.trim() : '';
         var email = getResolvedEmail('regEmail');
         var name = document.getElementById('regName').value.trim();
-        var p = document.getElementById('regPassword').value;
+        var passwordInput = document.getElementById('regPassword');
+        var p = passwordInput.value;
         var roleEl = document.querySelector('input[name="reg_role"]:checked');
         var role = roleEl ? roleEl.value : 'viewer';
         var dept = document.getElementById('regDepartment').value.trim();
@@ -349,6 +351,8 @@ if (!empty(trim($allowedDomainsSetting))) {
             emailInput.focus();
             return;
         }
+
+        if (typeof showPasswordLengthError === 'function' && showPasswordLengthError(passwordInput, err)) return;
 
         btn.disabled = true;
         btn.innerText = '正在提交...';

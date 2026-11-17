@@ -251,6 +251,33 @@ body.page-standalone {
 .auth-footer-links .auth-link-muted:hover {
     color: var(--primary);
 }
+.password-strength {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin: 4px 0 8px;
+    font-size: 12px;
+    color: var(--text-2);
+}
+
+.password-strength:empty {
+    display: none;
+}
+
+.password-strength::before {
+    content: '';
+    flex: 0 0 36px;
+    height: 4px;
+    border-radius: 2px;
+    background-image: linear-gradient(to right, var(--meter-color) var(--meter-fill), var(--border) var(--meter-fill));
+}
+
+.password-strength[data-score="0"] { --meter-fill: 20%; --meter-color: var(--warning); }
+.password-strength[data-score="1"] { --meter-fill: 40%; --meter-color: var(--warning); }
+.password-strength[data-score="2"] { --meter-fill: 60%; --meter-color: var(--primary); }
+.password-strength[data-score="3"] { --meter-fill: 80%; --meter-color: var(--success); }
+.password-strength[data-score="4"] { --meter-fill: 100%; --meter-color: var(--success); }
+
 .auth-sub-note {
     padding: 12px 14px;
     background: var(--canvas);

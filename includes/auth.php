@@ -3,6 +3,7 @@
  * 用户体系、权限控制与会话管理
  */
 require_once __DIR__ . '/db.php';
+require_once __DIR__ . '/password_policy.php';
 
 class Auth {
     /**
@@ -1018,11 +1019,9 @@ class Auth {
         if (mb_strlen($name, 'UTF-8') > 20) {
             return ['success' => false, 'message' => '姓名不能超过 20 个字符'];
         }
-        if (strlen($password) < 6) {
-            return ['success' => false, 'message' => '密码长度至少需要 6 位'];
-        }
-        if (strlen($password) > 64) {
-            return ['success' => false, 'message' => '密码长度不能超过 64 位'];
+        $passwordError = app_password_length_error($password);
+        if ($passwordError !== '') {
+            return ['success' => false, 'message' => $passwordError];
         }
         if (mb_strlen($department, 'UTF-8') > 30) {
             return ['success' => false, 'message' => '部门/备注不能超过 30 个字符'];
@@ -1153,12 +1152,11 @@ class Auth {
             $fields[] = "webhook_url = ?";
             $params[] = $trimmedWb;
         }
-        if (!empty($newPassword)) {
-            if (strlen($newPassword) < 6) {
-                return ['success' => false, 'message' => '新密码长度至少需要 6 位'];
-            }
-            if (strlen($newPassword) > 64) {
-                return ['success' => false, 'message' => '新密码长度不能超过 64 位'];
+        $changingPassword = $newPassword !== null && $newPassword !== '';
+        if ($changingPassword) {
+            $passwordError = app_password_length_error($newPassword);
+            if ($passwordError !== '') {
+                return ['success' => false, 'message' => $passwordError];
             }
             $fields[] = "auth_version = auth_version + 1";
             $fields[] = "password_hash = ?";
@@ -1175,8 +1173,8 @@ class Auth {
         try {
             $stmt = $db->prepare($sql);
             $stmt->execute($params);
-            if (!empty($newPassword)) self::saveUserAuthTokens((int)$id, []);
-            if (!empty($newPassword) || (!empty($cleanEmail) && $cleanEmail !== $targetUser['email'])
+            if ($changingPassword) self::saveUserAuthTokens((int)$id, []);
+            if ($changingPassword || (!empty($cleanEmail) && $cleanEmail !== $targetUser['email'])
                 || ($status !== null && $stFinal !== (int)$targetUser['status'])) {
                 self::deletePasswordReset($db, $id);
             }
@@ -1503,11 +1501,9 @@ class Auth {
         }
 
         // 校验新密码长度
-        if (strlen($newPassword) < 6) {
-            return ['success' => false, 'message' => '新密码长度至少需要 6 位'];
-        }
-        if (strlen($newPassword) > 64) {
-            return ['success' => false, 'message' => '新密码长度不能超过 64 位'];
+        $passwordError = app_password_length_error($newPassword);
+        if ($passwordError !== '') {
+            return ['success' => false, 'message' => $passwordError];
         }
 
         $newHash = password_hash($newPassword, PASSWORD_DEFAULT);
@@ -1718,11 +1714,9 @@ class Auth {
             self::recordThrottleFailure('reset_pwd_confirm', 900);
             return $invalid;
         }
-        if (strlen($newPassword) < 6) {
-            return ['success' => false, 'message' => '新密码长度至少需要 6 位'];
-        }
-        if (strlen($newPassword) > 64 || strpos($newPassword, "\0") !== false) {
-            return ['success' => false, 'message' => '新密码不能超过 64 字节或包含空字符'];
+        $passwordError = app_password_length_error($newPassword);
+        if ($passwordError !== '') {
+            return ['success' => false, 'message' => $passwordError];
         }
 
         $db = DB::getInstance();

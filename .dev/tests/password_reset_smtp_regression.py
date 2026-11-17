@@ -389,12 +389,16 @@ def main():
             check("reset_password rejects short password",
                   not guest.api("reset_password", {
                       "token": raw_token,
-                      "new_password": "123",
-                      "confirm_password": "123",
+                      "new_password": "字" * 5,
+                      "confirm_password": "字" * 5,
                   })["success"])
+            oversized = "😀" * 16 + "a"
+            result = guest.api("reset_password", {"token": raw_token, "new_password": oversized,
+                                                   "confirm_password": oversized})
+            check("reset_password rejects 65 UTF-8 bytes", not result["success"] and "64 字节" in result["message"])
 
             # Valid reset
-            new_pass = "NewStrong#2026"
+            new_pass = "123456"
             res_reset = guest.api("reset_password", {
                 "token": raw_token,
                 "new_password": new_pass,

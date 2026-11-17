@@ -44,7 +44,7 @@ switch ($action) {
         $id = (int)($_POST['id'] ?? 0);
         $role = $_POST['role'] ?? null;
         $status = isset($_POST['status']) ? (int)$_POST['status'] : null;
-        $newPwd = !empty($_POST['new_password']) ? $_POST['new_password'] : null;
+        $newPwd = $_POST['new_password'] ?? null;
         $name = isset($_POST['name']) ? trim($_POST['name']) : (isset($_POST['display_name']) ? trim($_POST['display_name']) : null);
         $email = isset($_POST['email']) ? trim($_POST['email']) : null;
         $department = isset($_POST['department']) ? trim($_POST['department']) : null;

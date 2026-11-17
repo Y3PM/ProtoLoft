@@ -2143,7 +2143,8 @@ $allUsers = $db->query("SELECT id, email, name, role FROM users WHERE status = 1
                 </div>
                 <div>
                     <label class="m-label" for="newPassword">初始密码 <span class="req-star">*</span></label>
-                    <input type="password" id="newPassword" class="m-input" placeholder="至少 6 位密码" autocomplete="new-password" data-lpignore="true" required maxlength="64">
+                    <input type="password" id="newPassword" class="m-input" placeholder="至少 6 个字符" autocomplete="new-password" required data-password-strength="newPasswordStrength" aria-describedby="newPasswordStrength">
+                    <div class="password-strength" id="newPasswordStrength" role="status"></div>
                 </div>
                 <div>
                     <label class="m-label" for="newRole">角色</label>
@@ -2202,7 +2203,8 @@ $allUsers = $db->query("SELECT id, email, name, role FROM users WHERE status = 1
                 </div>
                 <div>
                     <label class="m-label" for="editUserPassword">新密码 <span class="opt-tag">选填</span></label>
-                    <input type="password" id="editUserPassword" class="m-input" placeholder="留空则不修改密码" autocomplete="new-password" data-lpignore="true" maxlength="64">
+                    <input type="password" id="editUserPassword" class="m-input" placeholder="留空则不修改密码" autocomplete="new-password" data-password-strength="editUserPasswordStrength" aria-describedby="editUserPasswordStrength">
+                    <div class="password-strength" id="editUserPasswordStrength" role="status"></div>
                 </div>
                 <div>
                     <label class="m-label" for="editUserRole">角色</label>
@@ -2300,15 +2302,16 @@ $allUsers = $db->query("SELECT id, email, name, role FROM users WHERE status = 1
             <form id="changePasswordForm" onsubmit="handleChangeMyPassword(event)">
                 <div class="m-form-group" style="margin-bottom:10px;">
                     <label class="m-label" for="myOldPassword">当前密码 <span class="req-star">*</span></label>
-                    <input type="password" id="myOldPassword" class="m-input" placeholder="输入当前密码" autocomplete="current-password" data-lpignore="true" required maxlength="64">
+                    <input type="password" id="myOldPassword" class="m-input" placeholder="输入当前密码" autocomplete="current-password" required maxlength="64">
                 </div>
                 <div class="m-form-group" style="margin-bottom:10px;">
                     <label class="m-label" for="myNewPassword">新密码 <span class="req-star">*</span></label>
-                    <input type="password" id="myNewPassword" class="m-input" placeholder="输入新密码 (至少 6 位)" autocomplete="new-password" data-lpignore="true" required maxlength="64">
+                    <input type="password" id="myNewPassword" class="m-input" placeholder="至少 6 个字符" autocomplete="new-password" required data-password-strength="myPasswordStrength" aria-describedby="myPasswordStrength">
+                    <div class="password-strength" id="myPasswordStrength" role="status"></div>
                 </div>
                 <div class="m-form-group" style="margin-bottom:12px;">
                     <label class="m-label" for="myConfirmPassword">确认新密码 <span class="req-star">*</span></label>
-                    <input type="password" id="myConfirmPassword" class="m-input" placeholder="再次确认新密码" autocomplete="new-password" data-lpignore="true" required maxlength="64">
+                    <input type="password" id="myConfirmPassword" class="m-input" placeholder="再次确认新密码" autocomplete="new-password" required>
                 </div>
                 <div class="profile-form-actions">
                     <button type="submit" class="btn-primary btn-standard">更新密码</button>
