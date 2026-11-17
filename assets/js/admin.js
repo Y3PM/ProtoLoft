@@ -1513,7 +1513,8 @@ function openCategoryModal(id, name) {
     document.getElementById('catId').value = id || '0';
     document.getElementById('catName').value = name || '';
     document.getElementById('catModalTitle').innerText = id ? '编辑文件夹' : '新建文件夹';
-    openModal('categoryModal');
+    if (typeof clearPasswordStrength === 'function') clearPasswordStrength(document.getElementById('categoryModal'));
+    openModal('categoryModal', 'catName');
 }
 
 function editCategory(id, name) {
@@ -1528,7 +1529,8 @@ function handleCategorySave(e) {
     var catId = parseInt(idInput ? idInput.value : '0', 10) || 0;
     var catName = nameInput ? nameInput.value.trim() : '';
     if (!catName) {
-        if (typeof showToast === 'function') showToast('请输入文件夹名称', 'warning');
+        if (typeof setFieldError === 'function' && nameInput) setFieldError(nameInput, null, '请输入文件夹名称');
+        else if (typeof showToast === 'function') showToast('请输入文件夹名称', 'warning');
         return;
     }
     var capturedFlowId = (typeof getQuickCreateFlowId === 'function') ? getQuickCreateFlowId() : 0;
@@ -2926,6 +2928,7 @@ function openAddUserModal() {
     if (wbEl) wbEl.value = '';
     var roleEl = document.getElementById('newRole');
     if (roleEl) roleEl.value = 'editor';
+    if (typeof clearPasswordStrength === 'function') clearPasswordStrength(document.getElementById('addUserModal'));
     openModal('addUserModal', 'newName');
 }
 
@@ -2962,6 +2965,7 @@ function openEditUserModal(userId) {
         document.getElementById('editUserWebhook').value = u.webhook_url || '';
     }
 
+    if (typeof clearPasswordStrength === 'function') clearPasswordStrength(document.getElementById('editUserModal'));
     openModal('editUserModal', 'editUserName');
 }
 
@@ -2974,11 +2978,25 @@ window.openEditUserBox = openEditUserBox;
 function handleUpdateUser(e) {
     e.preventDefault();
     var uid = parseInt(document.getElementById('editUserId').value, 10);
-    var name = document.getElementById('editUserName').value.trim();
-    var email = document.getElementById('editUserEmail').value.trim();
+    var nameInput = document.getElementById('editUserName');
+    var name = nameInput ? nameInput.value.trim() : '';
+    var emailInput = document.getElementById('editUserEmail');
+    var email = emailInput ? emailInput.value.trim() : '';
     var dept = document.getElementById('editUserDepartment').value.trim();
     var wbEl = document.getElementById('editUserWebhook');
     var wb = wbEl ? wbEl.value.trim() : '';
+
+    if (!name || name.length < 2) {
+        if (typeof setFieldError === 'function' && nameInput) setFieldError(nameInput, null, '请输入真实姓名（至少 2 个字符）');
+        else { showToast('请输入真实姓名（至少 2 个字符）', 'warning'); if (nameInput) nameInput.focus(); }
+        return;
+    }
+    var emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+    if (!email || !emailRegex.test(email)) {
+        if (typeof setFieldError === 'function' && emailInput) setFieldError(emailInput, null, '工作邮箱格式不正确，请输入有效的邮箱地址');
+        else { showToast('工作邮箱格式不正确，请输入有效的邮箱地址', 'warning'); if (emailInput) emailInput.focus(); }
+        return;
+    }
 
     var fd = new FormData();
     fd.append('id', uid);
@@ -2993,10 +3011,13 @@ function handleUpdateUser(e) {
     var passwordInput = document.getElementById('editUserPassword');
     var newPwd = passwordInput.value;
     if (newPwd) {
-        var passwordError = typeof passwordLengthError === 'function' ? passwordLengthError(newPwd) : '';
-        if (passwordError) {
-            showToast(passwordError, 'warning');
-            passwordInput.focus();
+        if (typeof showPasswordLengthError === 'function'
+            ? showPasswordLengthError(passwordInput)
+            : (typeof passwordLengthError === 'function' && passwordLengthError(newPwd))) {
+            if (typeof showPasswordLengthError !== 'function') {
+                showToast(passwordLengthError(newPwd), 'warning');
+                passwordInput.focus();
+            }
             return;
         }
         fd.append('new_password', newPwd);
@@ -3041,8 +3062,10 @@ function handleCreateUser(e) {
     e.preventDefault();
     var emailInput = document.getElementById('newEmail');
     var email = (typeof getResolvedEmail === 'function') ? getResolvedEmail('newEmail') : (emailInput ? emailInput.value.trim() : '');
-    var name = document.getElementById('newName').value.trim();
-    var password = document.getElementById('newPassword').value;
+    var nameInput = document.getElementById('newName');
+    var name = nameInput ? nameInput.value.trim() : '';
+    var passwordInput = document.getElementById('newPassword');
+    var password = passwordInput.value;
     var role = document.getElementById('newRole').value;
     var dept = document.getElementById('newDepartment').value.trim();
     var wbEl = document.getElementById('newWebhookUrl');
@@ -3050,25 +3073,28 @@ function handleCreateUser(e) {
 
     var fixedDomain = emailInput ? (emailInput.getAttribute('data-fixed-domain') || '') : '';
     var emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+    if (!name || name.length < 2) {
+        if (typeof setFieldError === 'function' && nameInput) setFieldError(nameInput, null, '请输入真实姓名（至少 2 个字符）');
+        else { showToast('请输入真实姓名（至少 2 个字符）', 'warning'); if (nameInput) nameInput.focus(); }
+        return;
+    }
     if (!fixedDomain && email.indexOf('@') === -1) {
-        showToast('请输入完整工作邮箱，如 name@company.com', 'warning');
-        if (emailInput) emailInput.focus();
+        if (typeof setFieldError === 'function' && emailInput) setFieldError(emailInput, null, '请输入完整工作邮箱，如 name@company.com');
+        else { showToast('请输入完整工作邮箱，如 name@company.com', 'warning'); if (emailInput) emailInput.focus(); }
         return;
     }
     if (!emailRegex.test(email)) {
-        showToast('工作邮箱格式不正确，请输入有效的邮箱地址', 'warning');
-        if (emailInput) emailInput.focus();
+        if (typeof setFieldError === 'function' && emailInput) setFieldError(emailInput, null, '工作邮箱格式不正确，请输入有效的邮箱地址');
+        else { showToast('工作邮箱格式不正确，请输入有效的邮箱地址', 'warning'); if (emailInput) emailInput.focus(); }
         return;
     }
-    if (!name || name.length < 2) {
-        showToast('请输入真实姓名（至少 2 个字符）', 'warning');
-        document.getElementById('newName').focus();
-        return;
-    }
-    var passwordError = typeof passwordLengthError === 'function' ? passwordLengthError(password) : '';
-    if (passwordError) {
-        showToast(passwordError, 'warning');
-        document.getElementById('newPassword').focus();
+    if (typeof showPasswordLengthError === 'function'
+        ? showPasswordLengthError(passwordInput)
+        : (typeof passwordLengthError === 'function' && passwordLengthError(password))) {
+        if (typeof showPasswordLengthError !== 'function') {
+            showToast(passwordLengthError(password), 'warning');
+            passwordInput.focus();
+        }
         return;
     }
 
@@ -3106,6 +3132,7 @@ function openTransferOwnerModal(targetUserId) {
     document.getElementById('transferTargetUserId').value = targetUserId;
     document.getElementById('transferTargetUserName').textContent = targetName;
     document.getElementById('transferConfirmPwd').value = '';
+    if (typeof clearPasswordStrength === 'function') clearPasswordStrength(document.getElementById('transferOwnerModal'));
     openModal('transferOwnerModal');
     setTimeout(function() {
         document.getElementById('transferConfirmPwd').focus();
@@ -3115,10 +3142,12 @@ function openTransferOwnerModal(targetUserId) {
 function handleDoTransferOwner(e) {
     e.preventDefault();
     var targetId = parseInt(document.getElementById('transferTargetUserId').value, 10);
-    var pwd = document.getElementById('transferConfirmPwd').value;
+    var pwdInput = document.getElementById('transferConfirmPwd');
+    var pwd = pwdInput ? pwdInput.value : '';
     var btn = document.getElementById('btnTransferSubmit');
     if (!pwd) {
-        showToast('请输入当前密码以确认移交', 'warning');
+        if (typeof setFieldError === 'function' && pwdInput) setFieldError(pwdInput, null, '请输入当前密码以确认移交');
+        else { showToast('请输入当前密码以确认移交', 'warning'); if (pwdInput) pwdInput.focus(); }
         return;
     }
     btn.disabled = true;
@@ -3814,6 +3843,7 @@ function executeAutoSaveSettings() {
         if (!check.valid) {
             domainsInput.setAttribute('aria-invalid', 'true');
             domainsInput.setAttribute('aria-describedby', 'settingsSaveStatus');
+            if (domainsInput.classList) domainsInput.classList.add('m-input-error');
             blockAutoSave('save_settings', '邮箱域名格式有误');
             showToast('邮箱域名请填写 company.com 格式，不含 @', 'warning');
             return Promise.resolve(false);
@@ -3824,6 +3854,7 @@ function executeAutoSaveSettings() {
     if (domainsInput) {
         domainsInput.removeAttribute('aria-invalid');
         domainsInput.removeAttribute('aria-describedby');
+        if (domainsInput.classList) domainsInput.classList.remove('m-input-error');
     }
 
     var baseUrlInput = form.querySelector('input[name="site_base_url"]');
@@ -3834,6 +3865,7 @@ function executeAutoSaveSettings() {
             if (!baseUrlOk) {
                 baseUrlInput.setAttribute('aria-invalid', 'true');
                 baseUrlInput.setAttribute('aria-describedby', 'settingsSaveStatus');
+                if (baseUrlInput.classList) baseUrlInput.classList.add('m-input-error');
                 blockAutoSave('save_settings', '站点地址格式有误');
                 showToast('站点访问地址格式不正确，例如 https://proto.company.com', 'warning');
                 return Promise.resolve(false);
@@ -3844,6 +3876,7 @@ function executeAutoSaveSettings() {
                     if (parsedBase.hostname.toLowerCase() !== window.location.hostname.toLowerCase()) {
                         baseUrlInput.setAttribute('aria-invalid', 'true');
                         baseUrlInput.setAttribute('aria-describedby', 'settingsSaveStatus');
+                        if (baseUrlInput.classList) baseUrlInput.classList.add('m-input-error');
                         blockAutoSave('save_settings', '站点域名与当前访问不符');
                         showToast('站点访问地址的域名需与当前访问域名一致', 'warning');
                         return Promise.resolve(false);
@@ -3857,6 +3890,7 @@ function executeAutoSaveSettings() {
                     if (portMismatch) {
                         baseUrlInput.setAttribute('aria-invalid', 'true');
                         baseUrlInput.setAttribute('aria-describedby', 'settingsSaveStatus');
+                        if (baseUrlInput.classList) baseUrlInput.classList.add('m-input-error');
                         blockAutoSave('save_settings', '站点端口与当前访问不符');
                         showToast('站点访问地址的端口需与当前访问端口一致', 'warning');
                         return Promise.resolve(false);
@@ -3864,6 +3898,7 @@ function executeAutoSaveSettings() {
                 } catch (err) {
                     baseUrlInput.setAttribute('aria-invalid', 'true');
                     baseUrlInput.setAttribute('aria-describedby', 'settingsSaveStatus');
+                    if (baseUrlInput.classList) baseUrlInput.classList.add('m-input-error');
                     blockAutoSave('save_settings', '站点地址格式有误');
                     showToast('站点访问地址格式不正确，例如 https://proto.company.com', 'warning');
                     return Promise.resolve(false);
@@ -3873,6 +3908,7 @@ function executeAutoSaveSettings() {
         }
         baseUrlInput.removeAttribute('aria-invalid');
         baseUrlInput.removeAttribute('aria-describedby');
+        if (baseUrlInput.classList) baseUrlInput.classList.remove('m-input-error');
     }
     var fd = new FormData(form);
 
@@ -4100,8 +4136,8 @@ function handleTestSmtp(btnEl) {
     var toEl = document.getElementById('smtpTestEmail');
     var toEmail = toEl ? toEl.value.trim() : '';
     if (!toEmail) {
-        showToast('请输入测试收件邮箱', 'warning');
-        if (toEl) toEl.focus();
+        if (typeof setFieldError === 'function' && toEl) setFieldError(toEl, null, '请输入测试收件邮箱');
+        else { showToast('请输入测试收件邮箱', 'warning'); if (toEl) toEl.focus(); }
         return;
     }
     var hostEl = document.getElementById('settingSmtpHost');

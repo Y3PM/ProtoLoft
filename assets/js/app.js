@@ -1553,6 +1553,9 @@ function showProfilePage(page, focus) {
     });
     var modal = document.getElementById('profileModal');
     if (modal) modal.querySelector('.modal-dialog-box').scrollTop = 0;
+    if (page !== 'password' && typeof clearPasswordStrength === 'function') {
+        clearPasswordStrength(document.getElementById('profilePagePassword'));
+    }
     if (page === 'mcp' && !profileMcpLoaded && typeof loadMcpSettings === 'function') {
         profileMcpLoaded = true;
         loadMcpSettings();
@@ -1717,23 +1720,38 @@ window.handleSaveProfile = handleSaveProfile;
 
 function handleChangeMyPassword(e) {
     if (e) e.preventDefault();
-    var oldPwd = document.getElementById('myOldPassword').value;
+    var oldPwdInput = document.getElementById('myOldPassword');
+    var oldPwd = oldPwdInput.value;
     var passwordInput = document.getElementById('myNewPassword');
     var newPwd = passwordInput.value;
-    var confirmPwd = document.getElementById('myConfirmPassword').value;
+    var confirmInput = document.getElementById('myConfirmPassword');
+    var confirmPwd = confirmInput.value;
 
     if (!oldPwd) {
-        showToast('请输入当前密码', 'warning');
+        if (typeof setFieldError === 'function') {
+            setFieldError(oldPwdInput, null, '请输入当前密码');
+        } else {
+            showToast('请输入当前密码', 'warning');
+            oldPwdInput.focus();
+        }
         return;
     }
-    var passwordError = typeof passwordLengthError === 'function' ? passwordLengthError(newPwd) : '';
-    if (passwordError) {
-        showToast(passwordError, 'warning');
-        passwordInput.focus();
+    if (typeof showPasswordLengthError === 'function'
+        ? showPasswordLengthError(passwordInput)
+        : (typeof passwordLengthError === 'function' && passwordLengthError(newPwd))) {
+        if (typeof showPasswordLengthError !== 'function') {
+            showToast(passwordLengthError(newPwd), 'warning');
+            passwordInput.focus();
+        }
         return;
     }
-    if (newPwd !== confirmPwd) {
-        showToast('两次输入的新密码不一致', 'warning');
+    if (typeof showPasswordMismatchError === 'function'
+        ? showPasswordMismatchError(passwordInput, confirmInput, null, '两次输入的新密码不一致')
+        : (newPwd !== confirmPwd)) {
+        if (typeof showPasswordMismatchError !== 'function') {
+            showToast('两次输入的新密码不一致', 'warning');
+            confirmInput.focus();
+        }
         return;
     }
 
@@ -1749,9 +1767,12 @@ function handleChangeMyPassword(e) {
             return;
         }
         showToast('密码已成功修改', 'success');
-        document.getElementById('myOldPassword').value = '';
-        document.getElementById('myNewPassword').value = '';
-        document.getElementById('myConfirmPassword').value = '';
+        oldPwdInput.value = '';
+        passwordInput.value = '';
+        confirmInput.value = '';
+        if (typeof clearPasswordStrength === 'function') {
+            clearPasswordStrength(document.getElementById('changePasswordForm'));
+        }
         if (typeof CURRENT_USER !== 'undefined' && CURRENT_USER) {
             CURRENT_USER.is_first_login = 0;
         }

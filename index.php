@@ -96,7 +96,7 @@ if (!$isSiteAuthorized) {
                 </div>
                 <div style="margin-bottom: 18px; position:relative; display:flex; align-items:center;">
                     <input type="password" id="adminLoginPwd" name="password" class="form-control" placeholder="登录密码" autocomplete="current-password" required maxlength="64" style="padding-right:36px;">
-                    <button type="button" onclick="toggleLockPwd('adminLoginPwd', this)" style="position:absolute;right:8px;background:none;border:none;color:var(--text-3);cursor:pointer;padding:4px 6px;font-size:16px;display:flex;align-items:center;" title="显示/隐藏密码">
+                    <button type="button" class="btn-eye-toggle" onclick="toggleLockPwd('adminLoginPwd', this)" title="显示/隐藏密码">
                         <i class="ri-eye-line"></i>
                     </button>
                 </div>
@@ -114,26 +114,35 @@ if (!$isSiteAuthorized) {
 
             <?php if ($visitorRegEnabled): ?>
             <!-- 访客申请加入面板 (3+1 项极简模型) -->
-            <form id="visitorRegForm" onsubmit="submitVisitorReg(event)" style="display:none;">
+            <form id="visitorRegForm" onsubmit="submitVisitorReg(event)" style="display:none;" novalidate>
                 <label class="m-label" for="regEmailInput">工作邮箱 <span class="req-star">*</span></label>
-                <div style="margin-bottom: 10px; position:relative; display:flex; align-items:center;">
-                    <input type="text" id="regEmailInput" class="form-control" data-fixed-domain="<?php echo htmlspecialchars($fixedEmailDomain); ?>" placeholder="<?php echo $fixedEmailDomain ? '邮箱名' : '如：name@company.com'; ?>" autocomplete="email" required maxlength="100" style="<?php echo $fixedEmailDomain ? ('padding-right:' . (mb_strlen($fixedEmailDomain)*8 + 32) . 'px;') : ''; ?>" oninput="handleLockEmailInput(this, 'regLockDomainBadge')">
-                    <?php if ($fixedEmailDomain): ?>
-                        <span id="regLockDomainBadge" style="position:absolute;right:8px;font-size:12px;color:var(--text-3);background:var(--bg-tag,#f1f5f9);border:1px solid var(--border-light,#e2e8f0);padding:2px 7px;border-radius:4px;pointer-events:none;user-select:none;">@<?php echo htmlspecialchars($fixedEmailDomain); ?></span>
-                    <?php endif; ?>
+                <div style="margin-bottom: 10px;">
+                    <div style="position:relative; display:flex; align-items:center;">
+                        <input type="text" id="regEmailInput" class="form-control" data-fixed-domain="<?php echo htmlspecialchars($fixedEmailDomain); ?>" placeholder="<?php echo $fixedEmailDomain ? '邮箱名' : '如：name@company.com'; ?>" autocomplete="email" required maxlength="100" data-error-target="regEmailError" aria-errormessage="regEmailError" style="<?php echo $fixedEmailDomain ? ('padding-right:' . (mb_strlen($fixedEmailDomain)*8 + 32) . 'px;') : ''; ?>" oninput="handleLockEmailInput(this, 'regLockDomainBadge')">
+                        <?php if ($fixedEmailDomain): ?>
+                            <span id="regLockDomainBadge" style="position:absolute;right:8px;font-size:12px;color:var(--text-3);background:var(--bg-tag,#f1f5f9);border:1px solid var(--border-light,#e2e8f0);padding:2px 7px;border-radius:4px;pointer-events:none;user-select:none;">@<?php echo htmlspecialchars($fixedEmailDomain); ?></span>
+                        <?php endif; ?>
+                    </div>
+                    <div class="field-error-tip" id="regEmailError" role="alert"></div>
                 </div>
                 <label class="m-label" for="regName">真实姓名 <span class="req-star">*</span></label>
                 <div style="margin-bottom: 10px;">
-                    <input type="text" id="regName" class="form-control" placeholder="如：李明" required maxlength="20">
+                    <input type="text" id="regName" class="form-control" placeholder="如：李明" required maxlength="20" data-error-target="regNameError" aria-errormessage="regNameError">
+                    <div class="field-error-tip" id="regNameError" role="alert"></div>
                 </div>
-                <label class="m-label" for="regPwdInput">登录密码 <span class="req-star">*</span></label>
-                <div style="margin-bottom: 10px; position:relative; display:flex; align-items:center;">
-                    <input type="password" id="regPwdInput" class="form-control" placeholder="至少 6 个字符" autocomplete="new-password" required data-password-strength="regPwdStrength" aria-describedby="regPwdStrength" style="padding-right:36px;">
-                    <button type="button" onclick="toggleLockPwd('regPwdInput', this)" style="position:absolute;right:8px;background:none;border:none;color:var(--text-3);cursor:pointer;padding:4px 6px;font-size:15px;display:flex;align-items:center;" title="显示/隐藏密码">
-                        <i class="ri-eye-line"></i>
-                    </button>
+                <div class="field-label-row">
+                    <label class="m-label" for="regPwdInput">登录密码 <span class="req-star">*</span></label>
+                    <span class="password-strength" id="regPwdStrength" role="status"></span>
                 </div>
-                <div class="password-strength" id="regPwdStrength" role="status"></div>
+                <div style="margin-bottom: 10px;">
+                    <div style="position:relative; display:flex; align-items:center;">
+                        <input type="password" id="regPwdInput" class="form-control" placeholder="至少 6 个字符" autocomplete="new-password" required data-password-strength="regPwdStrength" data-error-target="regPwdError" aria-describedby="regPwdStrength" aria-errormessage="regPwdError" style="padding-right:36px;">
+                        <button type="button" class="btn-eye-toggle" onclick="toggleLockPwd('regPwdInput', this)" title="显示/隐藏密码">
+                            <i class="ri-eye-line"></i>
+                        </button>
+                    </div>
+                    <div class="field-error-tip" id="regPwdError" role="alert"></div>
+                </div>
                 <div class="m-label">申请角色 <span class="req-star">*</span></div>
                 <div class="reg-role-grid" style="margin-bottom: 10px;">
                     <label class="reg-role-card" for="lockRegRoleViewer">
@@ -191,24 +200,32 @@ if (!$isSiteAuthorized) {
             </form>
 
             <!-- 设置新密码面板（邮件链接回调） -->
-            <form id="resetPwdForm" onsubmit="submitResetPwd(event)" style="<?php echo $initialAuthPane === 'reset' ? '' : 'display:none;'; ?>">
+            <form id="resetPwdForm" onsubmit="submitResetPwd(event)" style="<?php echo $initialAuthPane === 'reset' ? '' : 'display:none;'; ?>" novalidate>
                 <?php if (!empty($resetTokenInfo['valid'])): ?>
                     <input type="hidden" id="resetTokenInput" value="<?php echo htmlspecialchars($resetTokenParam); ?>">
                     <div class="auth-sub-note">账号：<strong><?php echo htmlspecialchars($resetTokenInfo['masked_email']); ?></strong></div>
-                    <label class="m-label" for="resetNewPwdInput">新密码 <span class="req-star">*</span></label>
-                    <div style="margin-bottom: 12px; position:relative; display:flex; align-items:center;">
-                        <input type="password" id="resetNewPwdInput" class="form-control" placeholder="至少 6 个字符" autocomplete="new-password" required data-password-strength="resetPwdStrength" aria-describedby="resetPwdStrength" style="padding-right:36px;">
-                        <button type="button" onclick="toggleLockPwd('resetNewPwdInput', this)" style="position:absolute;right:8px;background:none;border:none;color:var(--text-3);cursor:pointer;padding:4px 6px;font-size:15px;display:flex;align-items:center;" title="显示/隐藏密码">
-                            <i class="ri-eye-line"></i>
-                        </button>
+                    <div class="field-label-row">
+                        <label class="m-label" for="resetNewPwdInput">新密码 <span class="req-star">*</span></label>
+                        <span class="password-strength" id="resetPwdStrength" role="status"></span>
                     </div>
-                    <div class="password-strength" id="resetPwdStrength" role="status"></div>
+                    <div style="margin-bottom: 12px;">
+                        <div style="position:relative; display:flex; align-items:center;">
+                            <input type="password" id="resetNewPwdInput" class="form-control" placeholder="至少 6 个字符" autocomplete="new-password" required data-password-strength="resetPwdStrength" data-error-target="resetNewPwdError" aria-describedby="resetPwdStrength" aria-errormessage="resetNewPwdError" style="padding-right:36px;">
+                            <button type="button" class="btn-eye-toggle" onclick="toggleLockPwd('resetNewPwdInput', this)" title="显示/隐藏密码">
+                                <i class="ri-eye-line"></i>
+                            </button>
+                        </div>
+                        <div class="field-error-tip" id="resetNewPwdError" role="alert"></div>
+                    </div>
                     <label class="m-label" for="resetConfirmPwdInput">确认新密码 <span class="req-star">*</span></label>
-                    <div style="margin-bottom: 18px; position:relative; display:flex; align-items:center;">
-                        <input type="password" id="resetConfirmPwdInput" class="form-control" placeholder="再次输入新密码" autocomplete="new-password" required style="padding-right:36px;">
-                        <button type="button" onclick="toggleLockPwd('resetConfirmPwdInput', this)" style="position:absolute;right:8px;background:none;border:none;color:var(--text-3);cursor:pointer;padding:4px 6px;font-size:15px;display:flex;align-items:center;" title="显示/隐藏密码">
-                            <i class="ri-eye-line"></i>
-                        </button>
+                    <div style="margin-bottom: 18px;">
+                        <div style="position:relative; display:flex; align-items:center;">
+                            <input type="password" id="resetConfirmPwdInput" class="form-control" placeholder="再次输入新密码" autocomplete="new-password" required data-error-target="resetConfirmPwdError" aria-describedby="resetConfirmPwdError" style="padding-right:36px;">
+                            <button type="button" class="btn-eye-toggle" onclick="toggleLockPwd('resetConfirmPwdInput', this)" title="显示/隐藏密码">
+                                <i class="ri-eye-line"></i>
+                            </button>
+                        </div>
+                        <div class="field-error-tip" id="resetConfirmPwdError" role="alert"></div>
                     </div>
                     <button type="submit" class="btn-submit" id="btnResetSubmit">保存新密码</button>
                     <div class="error-tip" id="resetErrorTip"></div>
@@ -269,6 +286,9 @@ if (!$isSiteAuthorized) {
                     var el = document.getElementById(id);
                     if (el) el.style.display = 'none';
                 });
+                if (typeof clearPasswordStrength === 'function') {
+                    [regForm, resetForm].forEach(function(f) { if (f) clearPasswordStrength(f); });
+                }
 
                 if (authPane === 'login') {
                     if (window.location.search && window.location.search.indexOf('reset_token=') !== -1 && window.history && window.history.replaceState) {
@@ -353,7 +373,8 @@ if (!$isSiteAuthorized) {
                 var emailInput = document.getElementById('regEmailInput');
                 var rawEmailVal = emailInput ? emailInput.value.trim() : '';
                 var email = getLockResolvedEmail('regEmailInput');
-                var name = document.getElementById('regName').value.trim();
+                var nameInput = document.getElementById('regName');
+                var name = nameInput ? nameInput.value.trim() : '';
                 var passwordInput = document.getElementById('regPwdInput');
                 var p = passwordInput.value;
                 var roleEl = document.querySelector('input[name="lock_reg_role"]:checked');
@@ -364,14 +385,26 @@ if (!$isSiteAuthorized) {
                 var err = document.getElementById('regErrorTip');
 
                 var fixedDomain = emailInput ? (emailInput.getAttribute('data-fixed-domain') || '') : '';
+                if (!rawEmailVal) {
+                    if (typeof setFieldError === 'function') setFieldError(emailInput, null, '请输入工作邮箱');
+                    else { err.innerText = '请输入工作邮箱'; err.style.display = 'block'; if (emailInput) emailInput.focus(); }
+                    return;
+                }
                 if (!fixedDomain && email.indexOf('@') === -1) {
-                    err.innerText = '请输入完整工作邮箱，如 name@company.com';
-                    err.style.display = 'block';
-                    emailInput.focus();
+                    if (typeof setFieldError === 'function') setFieldError(emailInput, null, '请输入完整工作邮箱，如 name@company.com');
+                    else { err.innerText = '请输入完整工作邮箱，如 name@company.com'; err.style.display = 'block'; emailInput.focus(); }
+                    return;
+                }
+                if (!name) {
+                    if (typeof setFieldError === 'function') setFieldError(nameInput, null, '请输入真实姓名');
+                    else { err.innerText = '请输入真实姓名'; err.style.display = 'block'; if (nameInput) nameInput.focus(); }
                     return;
                 }
 
-                if (typeof showPasswordLengthError === 'function' && showPasswordLengthError(passwordInput, err)) return;
+                if (typeof showPasswordLengthError === 'function' && showPasswordLengthError(passwordInput)) {
+                    err.style.display = 'none';
+                    return;
+                }
 
                 btn.disabled = true;
                 btn.innerText = '正在提交...';
@@ -548,11 +581,20 @@ if (!$isSiteAuthorized) {
 
                 var newPwd = newEl.value;
                 var confirmPwd = confirmEl.value;
-                if (typeof showPasswordLengthError === 'function' && showPasswordLengthError(newEl, err)) return;
-                if (newPwd !== confirmPwd) {
-                    err.innerText = '两次输入的新密码不一致';
-                    err.style.display = 'block';
-                    confirmEl.focus();
+                if (typeof showPasswordLengthError === 'function' && showPasswordLengthError(newEl)) {
+                    err.style.display = 'none';
+                    return;
+                }
+                if (typeof showPasswordMismatchError === 'function'
+                    ? showPasswordMismatchError(newEl, confirmEl, null, '两次输入的新密码不一致')
+                    : (newPwd !== confirmPwd)) {
+                    if (typeof showPasswordMismatchError !== 'function') {
+                        err.innerText = '两次输入的新密码不一致';
+                        err.style.display = 'block';
+                        confirmEl.focus();
+                    } else {
+                        err.style.display = 'none';
+                    }
                     return;
                 }
 

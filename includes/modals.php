@@ -240,8 +240,9 @@ $allUsers = $db->query("SELECT id, email, name, role FROM users WHERE status = 1
         <form onsubmit="handleCategorySave(event)" novalidate>
             <input type="hidden" id="catId" value="0">
             <div class="m-form-group">
-                <label class="m-label">文件夹名称 <span class="req-star">*</span></label>
-                <input type="text" id="catName" class="m-input" placeholder="输入文件夹名称" required maxlength="20">
+                <label class="m-label" for="catName">文件夹名称 <span class="req-star">*</span></label>
+                <input type="text" id="catName" class="m-input" placeholder="输入文件夹名称" required maxlength="20" data-error-target="catNameError" aria-errormessage="catNameError">
+                <div class="field-error-tip" id="catNameError" role="alert"></div>
             </div>
             <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:20px;">
                 <button type="button" class="btn-cancel btn-standard" onclick="closeModal('categoryModal')">取消</button>
@@ -1910,9 +1911,9 @@ $allUsers = $db->query("SELECT id, email, name, role FROM users WHERE status = 1
                                         <span>授权码 / 密码 <span class="opt-tag" id="smtpPassBadge"><?php echo $smtpCfg['has_pass'] ? '已配置' : '请使用客户端授权码'; ?></span></span>
                                         <a href="javascript:void(0)" id="btnClearSmtpPass" onclick="clearSavedSmtpPass()" style="font-size:11.5px;color:var(--text-3);font-weight:400;text-decoration:none;<?php echo $smtpCfg['has_pass'] ? '' : 'display:none;'; ?>">清除</a>
                                     </label>
-                                    <div style="position:relative;display:flex;align-items:center;">
-                                        <input type="password" id="settingSmtpPass" name="smtp_pass" class="m-input" value="" data-has-pass="<?php echo $smtpCfg['has_pass'] ? '1' : '0'; ?>" placeholder="<?php echo $smtpCfg['has_pass'] ? '已配置，留空保持不变' : '输入客户端授权码'; ?>" maxlength="128" autocomplete="new-password" style="flex:1;padding-right:36px;">
-                                        <button type="button" class="btn-eye-toggle" onclick="togglePasswordVisibility('settingSmtpPass', this)" style="position:absolute;right:8px;background:none;border:none;color:var(--text-3);cursor:pointer;padding:4px 6px;font-size:15px;display:flex;align-items:center;" title="显示/隐藏授权码">
+                                    <div class="pwd-input-wrap">
+                                        <input type="password" id="settingSmtpPass" name="smtp_pass" class="m-input" value="" data-has-pass="<?php echo $smtpCfg['has_pass'] ? '1' : '0'; ?>" placeholder="<?php echo $smtpCfg['has_pass'] ? '已配置，留空保持不变' : '输入客户端授权码'; ?>" maxlength="128" autocomplete="new-password">
+                                        <button type="button" class="btn-eye-toggle" onclick="togglePasswordVisibility('settingSmtpPass', this)" title="显示/隐藏授权码">
                                             <i class="ri-eye-line"></i>
                                         </button>
                                     </div>
@@ -1933,11 +1934,12 @@ $allUsers = $db->query("SELECT id, email, name, role FROM users WHERE status = 1
                                     <span class="opt-tag">填写收件邮箱验证配置</span>
                                 </label>
                                 <div class="m-form-row">
-                                    <input type="email" id="smtpTestEmail" class="m-input" value="<?php echo $curAdminEmail; ?>" placeholder="收件测试邮箱" maxlength="100">
+                                    <input type="email" id="smtpTestEmail" class="m-input" value="<?php echo $curAdminEmail; ?>" placeholder="收件测试邮箱" maxlength="100" data-error-target="smtpTestEmailError" aria-errormessage="smtpTestEmailError">
                                     <button type="button" class="btn-cancel btn-standard" onclick="handleTestSmtp(this)">
                                         <i class="ri-send-plane-line"></i> 发送测试
                                     </button>
                                 </div>
+                                <div class="field-error-tip" id="smtpTestEmailError" role="alert"></div>
                             </div>
                         </div>
                     </form>
@@ -2063,7 +2065,7 @@ $allUsers = $db->query("SELECT id, email, name, role FROM users WHERE status = 1
         <div style="font-size:12.5px;color:var(--text-2);line-height:1.6;background:#fef3c7;color:#92400e;padding:10px 12px;border-radius:6px;border:1px solid #fde68a;margin-bottom:14px;">
             <i class="ri-alert-line" style="vertical-align:middle;margin-right:2px;"></i> 移交后，接收人将成为主管理员，您将转为管理员。
         </div>
-        <form onsubmit="handleDoTransferOwner(event)">
+        <form onsubmit="handleDoTransferOwner(event)" novalidate>
             <input type="hidden" id="transferTargetUserId" value="0">
             <div class="m-form-group">
                 <label class="m-label">接收人</label>
@@ -2071,16 +2073,17 @@ $allUsers = $db->query("SELECT id, email, name, role FROM users WHERE status = 1
             </div>
             <div class="m-form-group">
                 <label class="m-label" for="transferConfirmPwd">当前密码 <span class="req-star">*</span></label>
-                <div style="position:relative;display:flex;align-items:center;">
-                    <input type="password" id="transferConfirmPwd" class="m-input" placeholder="输入您当前的登录密码以确认移交" required maxlength="64" style="flex:1;padding-right:36px">
-                    <button type="button" onclick="togglePasswordVisibility('transferConfirmPwd', this)" style="position:absolute;right:8px;background:none;border:none;color:var(--text-3);cursor:pointer;padding:4px 6px;font-size:15px;display:flex;align-items:center;" title="显示/隐藏密码">
+                <div class="pwd-input-wrap">
+                    <input type="password" id="transferConfirmPwd" class="m-input" placeholder="输入您当前的登录密码以确认移交" required maxlength="64" data-error-target="transferConfirmPwdError" aria-errormessage="transferConfirmPwdError">
+                    <button type="button" class="btn-eye-toggle" onclick="togglePasswordVisibility('transferConfirmPwd', this)" title="显示/隐藏密码">
                         <i class="ri-eye-line"></i>
                     </button>
                 </div>
+                <div class="field-error-tip" id="transferConfirmPwdError" role="alert"></div>
             </div>
             <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:18px;">
                 <button type="button" class="btn-cancel btn-standard" onclick="closeModal('transferOwnerModal')">取消</button>
-                <button type="submit" class="btn-primary btn-standard" id="btnTransferSubmit" style="background:#dc2626;border-color:#dc2626">确认移交</button>
+                <button type="submit" class="btn-danger btn-standard" id="btnTransferSubmit">确认移交</button>
             </div>
         </form>
     </div>
@@ -2119,9 +2122,9 @@ $allUsers = $db->query("SELECT id, email, name, role FROM users WHERE status = 1
 </div>
 
 <?php if ($isAdmin): ?>
-<!-- 添加成员弹窗 (标准 M 档 540px) -->
+<!-- 添加成员弹窗 (标准 L 档 640px 双列表单) -->
 <div id="addUserModal" class="custom-modal" style="display:none;" role="dialog" aria-modal="true" aria-labelledby="addUserModalTitle">
-    <div class="modal-dialog-box modal-md">
+    <div class="modal-dialog-box modal-lg">
         <div class="modal-head">
             <h4 id="addUserModalTitle">添加成员</h4>
             <button type="button" class="close-x" onclick="closeModal('addUserModal')" title="关闭"><i class="ri-close-line"></i></button>
@@ -2130,21 +2133,26 @@ $allUsers = $db->query("SELECT id, email, name, role FROM users WHERE status = 1
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px 14px;">
                 <div>
                     <label class="m-label" for="newName">真实姓名 <span class="req-star">*</span></label>
-                    <input type="text" id="newName" class="m-input" placeholder="例如：李明" required autocomplete="off" maxlength="20">
+                    <input type="text" id="newName" class="m-input" placeholder="例如：李明" required autocomplete="off" maxlength="20" data-error-target="newNameError" aria-errormessage="newNameError">
+                    <div class="field-error-tip" id="newNameError" role="alert"></div>
                 </div>
                 <div>
                     <label class="m-label" for="newEmail">工作邮箱 <span class="req-star">*</span></label>
                     <div style="position:relative;display:flex;align-items:center;">
-                        <input type="text" id="newEmail" class="m-input" data-fixed-domain="<?php echo htmlspecialchars($fixedEmailDomain); ?>" placeholder="<?php echo $fixedEmailDomain ? '邮箱名' : '如：name@company.com'; ?>" required maxlength="100" style="flex:1;<?php echo $fixedEmailDomain ? ('padding-right:' . (mb_strlen($fixedEmailDomain)*8 + 32) . 'px;') : ''; ?>" oninput="handleEmailInputWithDomain(this, 'newUserDomainBadge')" autocomplete="off">
+                        <input type="text" id="newEmail" class="m-input" data-fixed-domain="<?php echo htmlspecialchars($fixedEmailDomain); ?>" placeholder="<?php echo $fixedEmailDomain ? '邮箱名' : '如：name@company.com'; ?>" required maxlength="100" data-error-target="newEmailError" aria-errormessage="newEmailError" style="flex:1;<?php echo $fixedEmailDomain ? ('padding-right:' . (mb_strlen($fixedEmailDomain)*8 + 32) . 'px;') : ''; ?>" oninput="handleEmailInputWithDomain(this, 'newUserDomainBadge')" autocomplete="off">
                         <?php if ($fixedEmailDomain): ?>
                             <span id="newUserDomainBadge" style="position:absolute;right:8px;font-size:12px;color:var(--text-3);background:var(--bg-tag,#f1f5f9);border:1px solid var(--border-light,#e2e8f0);padding:2px 7px;border-radius:4px;pointer-events:none;user-select:none;">@<?php echo htmlspecialchars($fixedEmailDomain); ?></span>
                         <?php endif; ?>
                     </div>
+                    <div class="field-error-tip" id="newEmailError" role="alert"></div>
                 </div>
                 <div>
-                    <label class="m-label" for="newPassword">初始密码 <span class="req-star">*</span></label>
-                    <input type="password" id="newPassword" class="m-input" placeholder="至少 6 个字符" autocomplete="new-password" required data-password-strength="newPasswordStrength" aria-describedby="newPasswordStrength">
-                    <div class="password-strength" id="newPasswordStrength" role="status"></div>
+                    <div class="field-label-row">
+                        <label class="m-label" for="newPassword">初始密码 <span class="req-star">*</span></label>
+                        <span class="password-strength" id="newPasswordStrength" role="status"></span>
+                    </div>
+                    <input type="password" id="newPassword" class="m-input" placeholder="至少 6 个字符" autocomplete="new-password" required data-password-strength="newPasswordStrength" data-error-target="newPasswordError" aria-describedby="newPasswordStrength" aria-errormessage="newPasswordError">
+                    <div class="field-error-tip" id="newPasswordError" role="alert"></div>
                 </div>
                 <div>
                     <label class="m-label" for="newRole">角色</label>
@@ -2180,9 +2188,9 @@ $allUsers = $db->query("SELECT id, email, name, role FROM users WHERE status = 1
     </div>
 </div>
 
-<!-- 编辑成员信息弹窗 (标准 M 档 540px) -->
+<!-- 编辑成员信息弹窗 (标准 L 档 640px 双列表单) -->
 <div id="editUserModal" class="custom-modal" style="display:none;" role="dialog" aria-modal="true" aria-labelledby="editUserModalTitle">
-    <div class="modal-dialog-box modal-md">
+    <div class="modal-dialog-box modal-lg">
         <div class="modal-head">
             <div style="display:flex;align-items:center;min-width:0;">
                 <h4 id="editUserModalTitle" style="margin:0;">编辑成员</h4>
@@ -2195,16 +2203,21 @@ $allUsers = $db->query("SELECT id, email, name, role FROM users WHERE status = 1
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px 14px;">
                 <div>
                     <label class="m-label" for="editUserName">真实姓名 <span class="req-star">*</span></label>
-                    <input type="text" id="editUserName" class="m-input" placeholder="输入真实姓名" required autocomplete="off" maxlength="20">
+                    <input type="text" id="editUserName" class="m-input" placeholder="输入真实姓名" required autocomplete="off" maxlength="20" data-error-target="editUserNameError" aria-errormessage="editUserNameError">
+                    <div class="field-error-tip" id="editUserNameError" role="alert"></div>
                 </div>
                 <div>
                     <label class="m-label" for="editUserEmail">工作邮箱 <span class="req-star">*</span></label>
-                    <input type="email" id="editUserEmail" class="m-input" placeholder="输入工作邮箱" required autocomplete="off" maxlength="100">
+                    <input type="email" id="editUserEmail" class="m-input" placeholder="输入工作邮箱" required autocomplete="off" maxlength="100" data-error-target="editUserEmailError" aria-errormessage="editUserEmailError">
+                    <div class="field-error-tip" id="editUserEmailError" role="alert"></div>
                 </div>
                 <div>
-                    <label class="m-label" for="editUserPassword">新密码 <span class="opt-tag">选填</span></label>
-                    <input type="password" id="editUserPassword" class="m-input" placeholder="留空则不修改密码" autocomplete="new-password" data-password-strength="editUserPasswordStrength" aria-describedby="editUserPasswordStrength">
-                    <div class="password-strength" id="editUserPasswordStrength" role="status"></div>
+                    <div class="field-label-row">
+                        <label class="m-label" for="editUserPassword">新密码 <span class="opt-tag">选填</span></label>
+                        <span class="password-strength" id="editUserPasswordStrength" role="status"></span>
+                    </div>
+                    <input type="password" id="editUserPassword" class="m-input" placeholder="留空则不修改密码" autocomplete="new-password" data-password-strength="editUserPasswordStrength" data-error-target="editUserPasswordError" aria-describedby="editUserPasswordStrength" aria-errormessage="editUserPasswordError">
+                    <div class="field-error-tip" id="editUserPasswordError" role="alert"></div>
                 </div>
                 <div>
                     <label class="m-label" for="editUserRole">角色</label>
@@ -2299,19 +2312,24 @@ $allUsers = $db->query("SELECT id, email, name, role FROM users WHERE status = 1
         </div>
         </div>
         <div id="profilePagePassword" data-profile-page="password" role="tabpanel" aria-labelledby="profileTabPassword" hidden>
-            <form id="changePasswordForm" onsubmit="handleChangeMyPassword(event)">
+            <form id="changePasswordForm" onsubmit="handleChangeMyPassword(event)" novalidate>
                 <div class="m-form-group" style="margin-bottom:10px;">
                     <label class="m-label" for="myOldPassword">当前密码 <span class="req-star">*</span></label>
-                    <input type="password" id="myOldPassword" class="m-input" placeholder="输入当前密码" autocomplete="current-password" required maxlength="64">
+                    <input type="password" id="myOldPassword" class="m-input" placeholder="输入当前密码" autocomplete="current-password" required maxlength="64" data-error-target="myOldPasswordError" aria-describedby="myOldPasswordError">
+                    <div class="field-error-tip" id="myOldPasswordError" role="alert"></div>
                 </div>
                 <div class="m-form-group" style="margin-bottom:10px;">
-                    <label class="m-label" for="myNewPassword">新密码 <span class="req-star">*</span></label>
-                    <input type="password" id="myNewPassword" class="m-input" placeholder="至少 6 个字符" autocomplete="new-password" required data-password-strength="myPasswordStrength" aria-describedby="myPasswordStrength">
-                    <div class="password-strength" id="myPasswordStrength" role="status"></div>
+                    <div class="field-label-row">
+                        <label class="m-label" for="myNewPassword">新密码 <span class="req-star">*</span></label>
+                        <span class="password-strength" id="myPasswordStrength" role="status"></span>
+                    </div>
+                    <input type="password" id="myNewPassword" class="m-input" placeholder="至少 6 个字符" autocomplete="new-password" required data-password-strength="myPasswordStrength" data-error-target="myNewPasswordError" aria-describedby="myPasswordStrength" aria-errormessage="myNewPasswordError">
+                    <div class="field-error-tip" id="myNewPasswordError" role="alert"></div>
                 </div>
                 <div class="m-form-group" style="margin-bottom:12px;">
                     <label class="m-label" for="myConfirmPassword">确认新密码 <span class="req-star">*</span></label>
-                    <input type="password" id="myConfirmPassword" class="m-input" placeholder="再次确认新密码" autocomplete="new-password" required>
+                    <input type="password" id="myConfirmPassword" class="m-input" placeholder="再次确认新密码" autocomplete="new-password" required data-error-target="myConfirmPasswordError" aria-describedby="myConfirmPasswordError">
+                    <div class="field-error-tip" id="myConfirmPasswordError" role="alert"></div>
                 </div>
                 <div class="profile-form-actions">
                     <button type="submit" class="btn-primary btn-standard">更新密码</button>

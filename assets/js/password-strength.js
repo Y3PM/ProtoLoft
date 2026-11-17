@@ -5,8 +5,17 @@
     var fieldSelector = 'input[data-password-strength]';
     var labels = ['很弱', '较弱', '一般', '较强', '很强'];
     var pending = new WeakMap();
-    var lengthErrors = new WeakMap();
+    var fieldErrors = new WeakMap();
+    var confirmPairs = new WeakMap();
     var estimator;
+
+    function resolveErrorOutput(field, output) {
+        if (output) return output;
+        if (field && field.dataset && field.dataset.errorTarget) {
+            return document.getElementById(field.dataset.errorTarget);
+        }
+        return null;
+    }
 
     function exceedsLimit(password) {
         return password.length > 64 || (typeof TextEncoder === 'function' && new TextEncoder().encode(password).length > 64);
@@ -18,24 +27,69 @@
         return '';
     };
 
-    window.showPasswordLengthError = function (field, output) {
-        var message = window.passwordLengthError(field.value);
-        if (!message) return false;
-        lengthErrors.set(field, { output: output, message: message });
-        output.textContent = message;
-        output.style.display = 'block';
-        field.focus();
+    window.setFieldError = function (field, output, message, shouldFocus) {
+        if (!field || !message) return false;
+        var errorEl = resolveErrorOutput(field, output);
+        if (field.classList) field.classList.add('m-input-error');
+        field.setAttribute('aria-invalid', 'true');
+        if (errorEl) {
+            fieldErrors.set(field, { output: errorEl, message: message });
+            errorEl.textContent = message;
+            if (errorEl.classList && errorEl.classList.contains('error-tip')) {
+                errorEl.style.display = 'block';
+            }
+        }
+        if (shouldFocus !== false && typeof field.focus === 'function') {
+            field.focus();
+        }
         return true;
     };
 
-    function clearLengthError(field) {
-        var error = lengthErrors.get(field);
-        if (error && error.output.textContent === error.message) {
-            error.output.textContent = '';
-            error.output.style.display = 'none';
+    window.clearFieldError = function (field) {
+        if (!field) return;
+        if (field.classList) field.classList.remove('m-input-error');
+        field.removeAttribute('aria-invalid');
+        var record = fieldErrors.get(field);
+        var errorEl = record ? record.output : resolveErrorOutput(field, null);
+        if (errorEl) {
+            if (!record || errorEl.textContent === record.message) {
+                errorEl.textContent = '';
+                if (errorEl.classList && errorEl.classList.contains('error-tip')) {
+                    errorEl.style.display = 'none';
+                }
+            }
         }
-        lengthErrors.delete(field);
-    }
+        fieldErrors.delete(field);
+
+        var confirmField = confirmPairs.get(field);
+        if (confirmField && field.value === confirmField.value) {
+            window.clearFieldError(confirmField);
+        }
+    };
+
+    window.showPasswordLengthError = function (field, output) {
+        var message = window.passwordLengthError(field.value);
+        if (!message) {
+            window.clearFieldError(field);
+            return false;
+        }
+        return window.setFieldError(field, output, message, true);
+    };
+
+    window.showPasswordMismatchError = function (newField, confirmField, confirmOutput, message) {
+        if (!newField || !confirmField) return false;
+        confirmPairs.set(newField, confirmField);
+        if (newField.value !== confirmField.value) {
+            return window.setFieldError(
+                confirmField,
+                confirmOutput,
+                message || '两次输入的新密码不一致',
+                true
+            );
+        }
+        window.clearFieldError(confirmField);
+        return false;
+    };
 
     function loadEstimator() {
         if (!estimator) {
@@ -73,7 +127,18 @@
         if (output) {
             output.textContent = '';
             output.removeAttribute('data-score');
+            output.removeAttribute('title');
         }
+    }
+
+    function clearContainerErrors(container) {
+        if (!container) return;
+        container.querySelectorAll('.m-input-error, [data-error-target]').forEach(function (el) {
+            window.clearFieldError(el);
+        });
+        container.querySelectorAll('.field-error-tip').forEach(function (tip) {
+            tip.textContent = '';
+        });
     }
 
     function queue(field) {
@@ -92,8 +157,13 @@
                 try {
                     var score = estimate(field.value).score;
                     var output = document.getElementById(field.dataset.passwordStrength);
-                    var message = '密码强度' + labels[score] + (score < 3 ? '，可试试更长的短语' : '');
+                    var message = labels[score];
                     output.dataset.score = score;
+                    if (score < 3) {
+                        output.title = '建议 12 位以上或使用随机短语';
+                    } else {
+                        output.removeAttribute('title');
+                    }
                     if (output.textContent !== message) output.textContent = message;
                 } catch (error) {
                     clear(field);
@@ -105,22 +175,30 @@
 
     ['input', 'change', 'focusin', 'compositionend'].forEach(function (type) {
         document.addEventListener(type, function (event) {
-            if (event.target.matches(fieldSelector) && !event.isComposing) {
-                if (type !== 'focusin') clearLengthError(event.target);
-                queue(event.target);
+            var target = event.target;
+            if (!target) return;
+            if (type !== 'focusin' && (fieldErrors.has(target) || (target.dataset && target.dataset.errorTarget) || (target.classList && target.classList.contains('m-input-error')))) {
+                window.clearFieldError(target);
+            }
+            if (target.matches && target.matches(fieldSelector) && !event.isComposing) {
+                queue(target);
             }
         });
     });
 
     document.addEventListener('compositionstart', function (event) {
-        if (event.target.matches(fieldSelector)) clear(event.target);
+        if (event.target && event.target.matches && event.target.matches(fieldSelector)) clear(event.target);
     });
 
     document.addEventListener('reset', function (event) {
+        if (!event.target) return;
         event.target.querySelectorAll(fieldSelector).forEach(clear);
+        clearContainerErrors(event.target);
     });
 
     window.clearPasswordStrength = function (container) {
+        if (!container) return;
         container.querySelectorAll(fieldSelector).forEach(clear);
+        clearContainerErrors(container);
     };
 })();

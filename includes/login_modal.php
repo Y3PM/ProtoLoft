@@ -94,32 +94,37 @@ if (!empty(trim($allowedDomainsSetting))) {
 
         <!-- 2. 访客申请注册面板 (极致收敛为 3+1 项) -->
         <div id="paneDoRegister" style="display:none;">
-            <form id="registerForm" onsubmit="handleDoRegister(event)">
+            <form id="registerForm" onsubmit="handleDoRegister(event)" novalidate>
                 <div class="m-form-group">
                     <label class="m-label" for="regEmail">工作邮箱 <span class="req-star">*</span></label>
                     <div style="position:relative;display:flex;align-items:center;">
-                        <input type="text" id="regEmail" class="m-input" data-fixed-domain="<?php echo htmlspecialchars($fixedEmailDomain); ?>" placeholder="<?php echo $fixedEmailDomain ? '输入邮箱名' : '例如：admin@company.com'; ?>" autocomplete="email" required maxlength="100" style="flex:1;<?php echo $fixedEmailDomain ? ('padding-right:' . (mb_strlen($fixedEmailDomain)*8 + 34) . 'px;') : ''; ?>" oninput="handleEmailInputWithDomain(this, 'regDomainBadge')">
+                        <input type="text" id="regEmail" class="m-input" data-fixed-domain="<?php echo htmlspecialchars($fixedEmailDomain); ?>" placeholder="<?php echo $fixedEmailDomain ? '输入邮箱名' : '例如：admin@company.com'; ?>" autocomplete="email" required maxlength="100" data-error-target="regEmailFieldError" aria-errormessage="regEmailFieldError" style="flex:1;<?php echo $fixedEmailDomain ? ('padding-right:' . (mb_strlen($fixedEmailDomain)*8 + 34) . 'px;') : ''; ?>" oninput="handleEmailInputWithDomain(this, 'regDomainBadge')">
                         <?php if ($fixedEmailDomain): ?>
                             <span id="regDomainBadge" class="email-fixed-badge" style="position:absolute;right:8px;font-size:12px;color:var(--text-3);background:var(--bg-tag, #f1f5f9);border:1px solid var(--border-light, #e2e8f0);padding:2px 7px;border-radius:4px;pointer-events:none;user-select:none;">@<?php echo htmlspecialchars($fixedEmailDomain); ?></span>
                         <?php endif; ?>
                     </div>
+                    <div class="field-error-tip" id="regEmailFieldError" role="alert"></div>
                     <?php if ($fixedEmailDomain): ?>
                         <div style="font-size:11px;color:var(--text-3);margin-top:4px;">可输入邮箱名或完整工作邮箱</div>
                     <?php endif; ?>
                 </div>
                 <div class="m-form-group">
                     <label class="m-label" for="regName">真实姓名 <span class="req-star">*</span></label>
-                    <input type="text" id="regName" class="m-input" placeholder="例如：李明" required maxlength="20">
+                    <input type="text" id="regName" class="m-input" placeholder="例如：李明" required maxlength="20" data-error-target="regNameFieldError" aria-errormessage="regNameFieldError">
+                    <div class="field-error-tip" id="regNameFieldError" role="alert"></div>
                 </div>
                 <div class="m-form-group">
-                    <label class="m-label" for="regPassword">登录密码 <span class="req-star">*</span></label>
+                    <div class="field-label-row">
+                        <label class="m-label" for="regPassword">登录密码 <span class="req-star">*</span></label>
+                        <span class="password-strength" id="regPasswordStrength" role="status"></span>
+                    </div>
                     <div style="position:relative;display:flex;align-items:center;">
-                        <input type="password" id="regPassword" class="m-input" placeholder="至少 6 个字符" autocomplete="new-password" required data-password-strength="regPasswordStrength" aria-describedby="regPasswordStrength" style="flex:1;padding-right:36px;">
-                        <button type="button" class="btn-eye-toggle" onclick="togglePasswordVisibility('regPassword', this)" style="position:absolute;right:8px;background:none;border:none;color:var(--text-3);cursor:pointer;padding:4px 6px;font-size:15px;display:flex;align-items:center;" title="显示/隐藏密码">
+                        <input type="password" id="regPassword" class="m-input" placeholder="至少 6 个字符" autocomplete="new-password" required data-password-strength="regPasswordStrength" data-error-target="regPasswordError" aria-describedby="regPasswordStrength" aria-errormessage="regPasswordError" style="flex:1;padding-right:36px;">
+                        <button type="button" class="btn-eye-toggle" onclick="togglePasswordVisibility('regPassword', this)" title="显示/隐藏密码">
                             <i class="ri-eye-line"></i>
                         </button>
                     </div>
-                    <div class="password-strength" id="regPasswordStrength" role="status"></div>
+                    <div class="field-error-tip" id="regPasswordError" role="alert"></div>
                 </div>
                 <div class="m-form-group">
                     <div class="m-label">申请角色 <span class="req-star">*</span></div>
@@ -217,6 +222,7 @@ if (!empty(trim($allowedDomainsSetting))) {
         if (errForgot) errForgot.style.display = 'none';
         if (succReg) succReg.style.display = 'none';
         if (succForgot) succForgot.style.display = 'none';
+        if (typeof clearPasswordStrength === 'function' && paneReg) clearPasswordStrength(paneReg);
 
         var regEnabled = <?php echo $visitorRegEnabled ? 'true' : 'false'; ?>;
         if (target === 'reg' && !regEnabled) {
@@ -334,7 +340,8 @@ if (!empty(trim($allowedDomainsSetting))) {
         var emailInput = document.getElementById('regEmail');
         var rawEmailVal = emailInput ? emailInput.value.trim() : '';
         var email = getResolvedEmail('regEmail');
-        var name = document.getElementById('regName').value.trim();
+        var nameInput = document.getElementById('regName');
+        var name = nameInput ? nameInput.value.trim() : '';
         var passwordInput = document.getElementById('regPassword');
         var p = passwordInput.value;
         var roleEl = document.querySelector('input[name="reg_role"]:checked');
@@ -345,14 +352,26 @@ if (!empty(trim($allowedDomainsSetting))) {
         var btn = document.getElementById('btnRegSubmit');
 
         var fixedDomain = emailInput ? (emailInput.getAttribute('data-fixed-domain') || '') : '';
+        if (!rawEmailVal) {
+            if (typeof setFieldError === 'function') setFieldError(emailInput, null, '请输入工作邮箱');
+            else { err.innerText = '请输入工作邮箱'; err.style.display = 'block'; if (emailInput) emailInput.focus(); }
+            return;
+        }
         if (!fixedDomain && email.indexOf('@') === -1) {
-            err.innerText = '请输入完整工作邮箱，如 name@company.com';
-            err.style.display = 'block';
-            emailInput.focus();
+            if (typeof setFieldError === 'function') setFieldError(emailInput, null, '请输入完整工作邮箱，如 name@company.com');
+            else { err.innerText = '请输入完整工作邮箱，如 name@company.com'; err.style.display = 'block'; emailInput.focus(); }
+            return;
+        }
+        if (!name) {
+            if (typeof setFieldError === 'function') setFieldError(nameInput, null, '请输入真实姓名');
+            else { err.innerText = '请输入真实姓名'; err.style.display = 'block'; if (nameInput) nameInput.focus(); }
             return;
         }
 
-        if (typeof showPasswordLengthError === 'function' && showPasswordLengthError(passwordInput, err)) return;
+        if (typeof showPasswordLengthError === 'function' && showPasswordLengthError(passwordInput)) {
+            err.style.display = 'none';
+            return;
+        }
 
         btn.disabled = true;
         btn.innerText = '正在提交...';

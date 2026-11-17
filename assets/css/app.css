@@ -49,9 +49,12 @@
     --success-subtle: #f0fdf4;
     --success-border: #bbf7d0;
     --danger: #dc2626;
+    --danger-text: #b91c1c;
     --danger-subtle: #fef2f2;
+    --danger-hover-bg: #fee2e2;
     --danger-border: #fecaca;
     --warning: #d97706;
+    --warning-text: #92400e;
     --warning-subtle: #fffbeb;
     --warning-border: #fde68a;
 
@@ -252,12 +255,16 @@ body.page-standalone {
     color: var(--primary);
 }
 .password-strength {
-    display: flex;
+    display: inline-flex;
     align-items: center;
     gap: 6px;
-    margin: 4px 0 8px;
+    margin: 0;
     font-size: 12px;
+    font-weight: 500;
+    line-height: 1;
     color: var(--text-2);
+    white-space: nowrap;
+    flex-shrink: 0;
 }
 
 .password-strength:empty {
@@ -277,6 +284,48 @@ body.page-standalone {
 .password-strength[data-score="2"] { --meter-fill: 60%; --meter-color: var(--primary); }
 .password-strength[data-score="3"] { --meter-fill: 80%; --meter-color: var(--success); }
 .password-strength[data-score="4"] { --meter-fill: 100%; --meter-color: var(--success); }
+
+.field-error-tip {
+    margin-top: 5px;
+    font-size: 12px;
+    line-height: 1.4;
+    color: var(--danger);
+}
+
+.field-error-tip:empty {
+    display: none;
+}
+
+.pwd-input-wrap {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.pwd-input-wrap > input {
+    flex: 1;
+    padding-right: 36px;
+}
+
+.btn-eye-toggle {
+    position: absolute;
+    right: 8px;
+    background: none;
+    border: none;
+    color: var(--text-3);
+    cursor: pointer;
+    padding: 4px 6px;
+    font-size: 15px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--radius-sm);
+    transition: color 0.15s ease;
+}
+
+.btn-eye-toggle:hover {
+    color: var(--text-1);
+}
 
 .auth-sub-note {
     padding: 12px 14px;
@@ -810,8 +859,8 @@ body, html {
 }
 
 .tree-more-item.is-danger:hover {
-    background: #fef2f2;
-    color: #b91c1c;
+    background-color: var(--danger-subtle);
+    color: var(--danger-text);
 }
 
 .btn-act {
@@ -865,7 +914,7 @@ body, html {
 
 .btn-act.is-danger:hover {
     color: var(--danger) !important;
-    background: #fee2e2 !important;
+    background-color: var(--danger-hover-bg) !important;
 }
 
 .btn-act:focus-visible {
@@ -1030,25 +1079,25 @@ body, html {
 }
 
 .m-badge-success, .badge-success {
-    background: #f0fdf4;
+    background-color: var(--success-subtle);
     color: var(--success);
-    border-color: #bbf7d0;
+    border-color: var(--success-border);
 }
 
 .m-badge-danger, .badge-danger {
-    background: #fef2f2;
+    background-color: var(--danger-subtle);
     color: var(--danger);
-    border-color: #fecaca;
+    border-color: var(--danger-border);
 }
 
 .m-badge-warning, .badge-warning {
-    background: #fef3c7;
-    color: #92400e;
-    border-color: #fde68a;
+    background-color: var(--warning-subtle);
+    color: var(--warning-text);
+    border-color: var(--warning-border);
 }
 
 .m-badge-neutral, .badge-neutral {
-    background: var(--surface-hover, #f8fafc);
+    background-color: var(--surface-hover);
     color: var(--text-2);
     border-color: var(--border);
 }
@@ -1056,31 +1105,31 @@ body, html {
 /* 角色专属语义标签 */
 /* 主超级管理员：尊贵琥珀金软底 */
 .badge-role-owner, .m-badge-role-owner {
-    background: #fef3c7;
-    color: #b45309;
-    border-color: #fde68a;
+    background-color: var(--warning-subtle);
+    color: var(--warning);
+    border-color: var(--warning-border);
     font-weight: 600;
 }
 
 /* 超级管理员：雅致低饱和赭红软底 */
 .badge-role-admin, .m-badge-role-admin {
-    background: #fef2f2;
-    color: #b91c1c;
-    border-color: #fecaca;
+    background-color: var(--danger-subtle);
+    color: var(--danger-text);
+    border-color: var(--danger-border);
 }
 
 /* 协作者：沉稳淡灰蓝软底 */
 .badge-role-editor, .m-badge-role-editor {
-    background: #f1f5f9;
-    color: #475569;
-    border-color: #e2e8f0;
+    background-color: var(--surface-hover);
+    color: var(--text-2);
+    border-color: var(--border);
 }
 
 /* 审阅人：干净极简浅灰软底 */
 .badge-role-viewer, .m-badge-role-viewer {
-    background: #f8fafc;
-    color: #64748b;
-    border-color: #cbd5e1;
+    background-color: var(--canvas);
+    color: var(--text-3);
+    border-color: var(--border-strong);
 }
 
 /* 核心内置属性：品牌晴空蓝软底 */
@@ -1978,24 +2027,6 @@ body, html {
     height: 38px;
 }
 
-.m-input:focus, .m-select:focus {
-    outline: none;
-    border-color: var(--primary);
-    box-shadow: 0 0 0 2px rgba(2, 132, 199, 0.15);
-}
-
-/* 统一字段级错误高亮规范 (Linear 浅色微红晕，告别割裂原生弹层) */
-.m-input.m-input-error, textarea.m-input.m-input-error, .m-input-error {
-    border-color: var(--danger) !important;
-    background-color: rgba(239, 68, 68, 0.02) !important;
-}
-
-.m-input.m-input-error:focus, textarea.m-input.m-input-error:focus {
-    outline: none;
-    border-color: var(--danger) !important;
-    box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.15) !important;
-}
-
 .m-input.m-input-sm {
     height: 28px;
     padding: 0 8px;
@@ -2146,6 +2177,25 @@ select.m-input, select.m-select {
     border-color: var(--primary) !important;
     outline: none;
     box-shadow: 0 0 0 3px var(--primary-ring);
+}
+
+/* 统一字段级错误高亮规范 (置于所有 focus 规则之后，确保红框与微红晕优先级) */
+.standalone-card .form-control.m-input-error,
+.standalone-form-control.m-input-error,
+.m-input.m-input-error,
+textarea.m-input.m-input-error,
+.m-input-error {
+    border-color: var(--danger) !important;
+    background-color: rgba(220, 38, 38, 0.02) !important;
+}
+
+.standalone-card .form-control.m-input-error:focus,
+.standalone-form-control.m-input-error:focus,
+.m-input.m-input-error:focus,
+textarea.m-input.m-input-error:focus {
+    outline: none;
+    border-color: var(--danger) !important;
+    box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.14) !important;
 }
 
 .m-help {
@@ -2783,7 +2833,10 @@ select.m-input, select.m-select {
 .btn-ver-edit:hover { color: var(--primary); border-color: var(--border-strong); background-color: var(--surface-hover); }
 .upload-last-ver-hint { font-size: 11.5px; color: var(--text-3); user-select: none; }
 .upload-last-ver-hint strong:hover { color: var(--primary) !important; text-decoration: underline; }
-.upload-label-row { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 6px; }
+.field-label-row,
+.upload-label-row { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 7px; }
+.field-label-row .m-label,
+.field-label-row .form-label,
 .upload-label-row .m-label { margin-bottom: 0; }
 .upload-last-log-btn {
     background-color: transparent;
@@ -4182,7 +4235,7 @@ select.m-input, select.m-select {
 }
 .stepper-btn {
     width: 28px;
-    height: 30px;
+    height: 100%;
     border: none;
     background-color: transparent;
     color: var(--text-2, #475569);

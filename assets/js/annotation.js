@@ -42,21 +42,146 @@
         };
     }
 
-    function getOrPromptGuestName() {
+    function readSavedGuestName() {
         var name = '';
         try {
             name = (localStorage.getItem('protoloft_guest_name') || '').trim();
         } catch(e) {}
-        if (!name) {
-            name = (window.prompt('请留下您的称呼，方便团队辨识（例如：客户李总、前端小王）：') || '').trim();
-            if (!name) name = '外部访客';
-            if (name.length > 20) name = name.substring(0, 20);
-            try {
-                localStorage.setItem('protoloft_guest_name', name);
-            } catch(e) {}
-        }
         if (name.length > 20) name = name.substring(0, 20);
         return name;
+    }
+
+    function saveGuestName(name) {
+        var clean = (name || '').trim() || '外部访客';
+        if (clean.length > 20) clean = clean.substring(0, 20);
+        try {
+            localStorage.setItem('protoloft_guest_name', clean);
+        } catch(e) {}
+        return clean;
+    }
+
+    function resolveGuestName(onConfirm) {
+        var saved = readSavedGuestName();
+        if (saved) {
+            onConfirm(saved);
+            return;
+        }
+        if (typeof document === 'undefined' || typeof document.createElement !== 'function' || !document.body) {
+            onConfirm(saveGuestName('外部访客'));
+            return;
+        }
+
+        var modal = document.getElementById('annoGuestNameModal');
+        if (!modal) {
+            modal = document.createElement('div');
+            modal.id = 'annoGuestNameModal';
+            modal.className = 'custom-modal';
+            modal.style.display = 'none';
+            modal.setAttribute('role', 'dialog');
+            modal.setAttribute('aria-modal', 'true');
+            modal.setAttribute('aria-labelledby', 'annoGuestNameTitle');
+
+            var box = document.createElement('div');
+            box.className = 'modal-dialog-box modal-sm';
+
+            var head = document.createElement('div');
+            head.className = 'modal-head';
+            var title = document.createElement('h4');
+            title.id = 'annoGuestNameTitle';
+            title.textContent = '请留下您的称呼';
+            var closeBtn = document.createElement('button');
+            closeBtn.type = 'button';
+            closeBtn.className = 'close-x';
+            closeBtn.title = '关闭';
+            closeBtn.innerHTML = '<i class="ri-close-line"></i>';
+            head.appendChild(title);
+            head.appendChild(closeBtn);
+
+            var form = document.createElement('form');
+            form.setAttribute('novalidate', 'novalidate');
+            var group = document.createElement('div');
+            group.className = 'm-form-group';
+            var label = document.createElement('label');
+            label.className = 'm-label';
+            label.setAttribute('for', 'annoGuestNameInput');
+            label.textContent = '团队辨识称呼 ';
+            var opt = document.createElement('span');
+            opt.className = 'opt-tag';
+            opt.textContent = '选填';
+            label.appendChild(opt);
+
+            var input = document.createElement('input');
+            input.type = 'text';
+            input.id = 'annoGuestNameInput';
+            input.className = 'm-input';
+            input.maxLength = 20;
+            input.placeholder = '例如：客户李总、前端小王';
+            input.autocomplete = 'nickname';
+            group.appendChild(label);
+            group.appendChild(input);
+
+            var footer = document.createElement('div');
+            footer.style.cssText = 'display:flex;justify-content:flex-end;gap:8px;margin-top:18px;';
+            var skipBtn = document.createElement('button');
+            skipBtn.type = 'button';
+            skipBtn.id = 'annoGuestNameSkip';
+            skipBtn.className = 'btn-cancel btn-standard';
+            skipBtn.textContent = '匿名发布';
+            var submitBtn = document.createElement('button');
+            submitBtn.type = 'submit';
+            submitBtn.className = 'btn-primary btn-standard';
+            submitBtn.textContent = '确定并发布';
+            footer.appendChild(skipBtn);
+            footer.appendChild(submitBtn);
+
+            form.appendChild(group);
+            form.appendChild(footer);
+            box.appendChild(head);
+            box.appendChild(form);
+            modal.appendChild(box);
+            document.body.appendChild(modal);
+        }
+
+        var nameInput = document.getElementById('annoGuestNameInput');
+        var skipAction = document.getElementById('annoGuestNameSkip');
+        var closeAction = modal.querySelector('.close-x');
+        var guestForm = modal.querySelector('form');
+        var settled = false;
+
+        function closeDialog() {
+            modal.style.display = 'none';
+            document.removeEventListener('keydown', onKeyDown);
+        }
+        function finishWith(rawName) {
+            if (settled) return;
+            settled = true;
+            closeDialog();
+            onConfirm(saveGuestName(rawName));
+        }
+        function cancelDialog() {
+            if (settled) return;
+            settled = true;
+            closeDialog();
+        }
+        function onKeyDown(ev) {
+            if (ev.key === 'Escape') {
+                ev.preventDefault();
+                cancelDialog();
+            }
+        }
+
+        if (closeAction) closeAction.onclick = cancelDialog;
+        if (skipAction) skipAction.onclick = function() { finishWith('外部访客'); };
+        if (guestForm) {
+            guestForm.onsubmit = function(ev) {
+                ev.preventDefault();
+                finishWith(nameInput ? nameInput.value : '');
+            };
+        }
+        if (nameInput) nameInput.value = '';
+        modal.style.display = 'flex';
+        document.addEventListener('keydown', onKeyDown);
+        if (nameInput) setTimeout(function() { nameInput.focus(); }, 40);
     }
 
     var requestSequence = 0;
@@ -695,56 +820,59 @@
         var content = input ? input.value.trim() : '';
         if (!content) return;
 
-        var guestName = '';
+        var dispatchNewAnnotation = function(guestName) {
+            if (!AnnoState.ready || !AnnoState.itemId || (!AnnoState.verId && AnnoState.itemType !== 'link') || AnnoState.submitting) return;
+            AnnoState.submitting = true;
+            syncComposer();
+            var contextSnapshot = contextSequence;
+            var pageSnapshot = AnnoState.pagePath;
+
+            var fd = new FormData();
+            fd.append('action', 'add_annotation');
+            fd.append('item_id', AnnoState.itemId);
+            fd.append('ver_id', AnnoState.verId || 0);
+            fd.append('page_path', AnnoState.pagePath || 'link');
+            fd.append('page_title', AnnoState.pageTitle || '外部链接');
+            fd.append('content', content);
+            if (guestName) {
+                fd.append('guest_name', guestName);
+            }
+
+            apiFetch(fd.get('action'), fd)
+            .then(function(res) {
+                if (contextSnapshot !== contextSequence) return;
+                AnnoState.submitting = false;
+                syncComposer();
+                if (res.success && res.data) {
+                    if (pageSnapshot === AnnoState.pagePath) input.value = '';
+                    AnnoState.list.unshift(res.data);
+                    AnnoState.pendingCount++;
+                    updateHeaderBadge();
+                    renderAnnotationList();
+                    if (typeof showToast === 'function') {
+                        showToast('批注已发布', 'success');
+                    }
+                } else {
+                    if (typeof showToast === 'function') {
+                        showToast(res.message || '发布失败', 'error');
+                    }
+                }
+            })
+            .catch(function() {
+                if (contextSnapshot !== contextSequence) return;
+                AnnoState.submitting = false;
+                syncComposer();
+                if (typeof showToast === 'function') {
+                    showToast('网络异常，请重试', 'error');
+                }
+            });
+        };
+
         if (!isLogin) {
-            guestName = getOrPromptGuestName();
-            if (!guestName) return;
+            resolveGuestName(dispatchNewAnnotation);
+        } else {
+            dispatchNewAnnotation('');
         }
-
-        AnnoState.submitting = true;
-        syncComposer();
-        var contextSnapshot = contextSequence;
-        var pageSnapshot = AnnoState.pagePath;
-
-        var fd = new FormData();
-        fd.append('action', 'add_annotation');
-        fd.append('item_id', AnnoState.itemId);
-        fd.append('ver_id', AnnoState.verId || 0);
-        fd.append('page_path', AnnoState.pagePath || 'link');
-        fd.append('page_title', AnnoState.pageTitle || '外部链接');
-        fd.append('content', content);
-        if (guestName) {
-            fd.append('guest_name', guestName);
-        }
-
-        apiFetch(fd.get('action'), fd)
-        .then(function(res) {
-            if (contextSnapshot !== contextSequence) return;
-            AnnoState.submitting = false;
-            syncComposer();
-            if (res.success && res.data) {
-                if (pageSnapshot === AnnoState.pagePath) input.value = '';
-                AnnoState.list.unshift(res.data);
-                AnnoState.pendingCount++;
-                updateHeaderBadge();
-                renderAnnotationList();
-                if (typeof showToast === 'function') {
-                    showToast('批注已发布', 'success');
-                }
-            } else {
-                if (typeof showToast === 'function') {
-                    showToast(res.message || '发布失败', 'error');
-                }
-            }
-        })
-        .catch(function() {
-            if (contextSnapshot !== contextSequence) return;
-            AnnoState.submitting = false;
-            syncComposer();
-            if (typeof showToast === 'function') {
-                showToast('网络异常，请重试', 'error');
-            }
-        });
     };
 
     var replySubmitting = {};
@@ -762,50 +890,53 @@
         var content = input ? input.value.trim() : '';
         if (!content) return;
 
-        var guestName = '';
-        if (!isLogin) {
-            guestName = getOrPromptGuestName();
-            if (!guestName) return;
-        }
+        var dispatchReply = function(guestName) {
+            if (replySubmitting[annoId]) return;
+            replySubmitting[annoId] = true;
+            var btn = document.querySelector('#replyBox_' + annoId + ' button');
+            if (btn) btn.disabled = true;
 
-        replySubmitting[annoId] = true;
-        var btn = document.querySelector('#replyBox_' + annoId + ' button');
-        if (btn) btn.disabled = true;
+            var fd = new FormData();
+            fd.append('action', 'reply_annotation');
+            fd.append('annotation_id', annoId);
+            fd.append('content', content);
+            if (guestName) {
+                fd.append('guest_name', guestName);
+            }
 
-        var fd = new FormData();
-        fd.append('action', 'reply_annotation');
-        fd.append('annotation_id', annoId);
-        fd.append('content', content);
-        if (guestName) {
-            fd.append('guest_name', guestName);
-        }
-
-        apiFetch(fd.get('action'), fd)
-        .then(function(res) {
-            delete replySubmitting[annoId];
-            if (btn) btn.disabled = false;
-            if (res.success && res.data) {
-                input.value = '';
-                AnnoState.list.forEach(function(item) {
-                    if (item.id === annoId) {
-                        if (!item.replies) item.replies = [];
-                        item.replies.push(res.data);
+            apiFetch(fd.get('action'), fd)
+            .then(function(res) {
+                delete replySubmitting[annoId];
+                if (btn) btn.disabled = false;
+                if (res.success && res.data) {
+                    input.value = '';
+                    AnnoState.list.forEach(function(item) {
+                        if (item.id === annoId) {
+                            if (!item.replies) item.replies = [];
+                            item.replies.push(res.data);
+                        }
+                    });
+                    renderAnnotationList();
+                } else {
+                    if (typeof showToast === 'function') {
+                        showToast(res.message || '回复失败', 'error');
                     }
-                });
-                renderAnnotationList();
-            } else {
-                if (typeof showToast === 'function') {
-                    showToast(res.message || '回复失败', 'error');
                 }
-            }
-        })
-        .catch(function() {
-            delete replySubmitting[annoId];
-            if (btn) btn.disabled = false;
-            if (typeof showToast === 'function') {
-                showToast('网络异常，请重试', 'error');
-            }
-        });
+            })
+            .catch(function() {
+                delete replySubmitting[annoId];
+                if (btn) btn.disabled = false;
+                if (typeof showToast === 'function') {
+                    showToast('网络异常，请重试', 'error');
+                }
+            });
+        };
+
+        if (!isLogin) {
+            resolveGuestName(dispatchReply);
+        } else {
+            dispatchReply('');
+        }
     };
 
     window.toggleAnnoStatus = function(annoId) {
@@ -865,8 +996,8 @@
                 isDanger: true,
                 onConfirm: doDelete
             });
-        } else {
-            if (confirm('确定删除此批注及其全部回复？')) doDelete();
+        } else if (typeof showToast === 'function') {
+            showToast('确认组件未就绪，请刷新页面后重试', 'warning');
         }
     };
 

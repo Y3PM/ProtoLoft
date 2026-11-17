@@ -408,20 +408,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             padding: 0;
             margin: 0;
             width: 100%;
-            background: #f1f5f9;
+            background-color: var(--surface-hover);
             height: 3.5px;
         }
         .stepper-segment {
             flex: 1;
             height: 100%;
-            background: #e2e8f0;
+            background-color: var(--border);
             transition: background 0.3s ease;
         }
         .stepper-segment.active {
-            background: #0284c7;
+            background-color: var(--primary);
         }
         .stepper-segment.completed {
-            background: #16a34a;
+            background-color: var(--success);
         }
 
         /* 卡片内部步骤头部 */
@@ -430,23 +430,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             display: flex;
             align-items: center;
             justify-content: space-between;
-            border-bottom: 1px solid #f8fafc;
+            border-bottom: 1px solid var(--border);
         }
         .step-title-wrap h2 {
             font-size: 16px;
             font-weight: 700;
-            color: #0f172a;
+            color: var(--text-1);
             margin: 0 0 3px;
         }
         .step-title-wrap p {
             font-size: 12px;
-            color: #94a3b8;
+            color: var(--text-3);
             margin: 0;
         }
         .step-badge {
             font-size: 12px;
-            color: #0284c7;
-            background: #f0f9ff;
+            color: var(--primary);
+            background-color: var(--primary-subtle);
             padding: 3px 10px;
             border-radius: 12px;
             font-weight: 600;
@@ -460,9 +460,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         /* 真实专业技术信息检测列表 */
         .check-box {
-            background: #ffffff;
-            border: 1px solid #f1f5f9;
-            border-radius: 12px;
+            background-color: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
             padding: 2px 18px;
             margin-bottom: 22px;
         }
@@ -471,9 +471,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             align-items: center;
             justify-content: space-between;
             padding: 12px 0;
-            border-bottom: 1px solid #f8fafc;
+            border-bottom: 1px solid var(--border);
             font-size: 13.5px;
-            color: #334155;
+            color: var(--text-2);
             line-height: 1.5;
         }
         .check-row:last-child {
@@ -481,7 +481,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
         .check-name {
             font-weight: 600;
-            color: #1e293b;
+            color: var(--text-1);
             display: flex;
             align-items: center;
             gap: 6px;
@@ -489,37 +489,37 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         .check-code {
             font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
             font-size: 12px;
-            background: #f1f5f9;
-            color: #475569;
+            background-color: var(--surface-hover);
+            color: var(--text-2);
             padding: 1px 6px;
             border-radius: 4px;
             font-weight: 500;
         }
         .check-desc {
             font-size: 12px;
-            color: #94a3b8;
+            color: var(--text-3);
             margin-top: 3px;
         }
         .tag-pass {
-            color: #16a34a;
+            color: var(--success);
             font-weight: 600;
             font-size: 12px;
             display: inline-flex;
             align-items: center;
             gap: 4px;
-            background: #f0fdf4;
+            background-color: var(--success-subtle);
             padding: 2.5px 9px;
             border-radius: 20px;
             white-space: nowrap;
         }
         .tag-fail {
-            color: #dc2626;
+            color: var(--danger);
             font-weight: 600;
             font-size: 12px;
             display: inline-flex;
             align-items: center;
             gap: 4px;
-            background: #fef2f2;
+            background-color: var(--danger-subtle);
             padding: 2.5px 9px;
             border-radius: 20px;
             white-space: nowrap;
@@ -532,29 +532,34 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         .form-label {
             font-size: 13px;
             font-weight: 600;
-            color: #334155;
+            color: var(--text-1);
             margin-bottom: 7px;
             display: block;
         }
         .form-control {
             width: 100%;
-            border: 1px solid #d8dde6;
-            border-radius: 8px;
+            border: 1px solid var(--border-strong);
+            border-radius: var(--radius-md);
             padding: 10px 14px;
             font-size: 13.5px;
             box-sizing: border-box;
-            background: #ffffff;
-            color: #182230;
+            background-color: var(--surface);
+            color: var(--text-1);
             transition: border-color 0.15s ease, box-shadow 0.15s ease;
         }
         .form-control:focus {
-            border-color: #0284c7;
+            border-color: var(--primary);
             outline: none;
-            box-shadow: 0 0 0 3px rgba(2, 132, 199, 0.14);
+            box-shadow: 0 0 0 3px var(--primary-ring);
+        }
+        .form-control.m-input-error,
+        .form-control.m-input-error:focus {
+            border-color: var(--danger);
+            box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.14);
         }
         .form-help {
             font-size: 12px;
-            color: #94a3b8;
+            color: var(--text-3);
             margin-top: 5px;
             line-height: 1.5;
         }
@@ -566,11 +571,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             justify-content: space-between;
             margin-top: 28px;
             padding-top: 18px;
-            border-top: 1px solid #f8fafc;
+            border-top: 1px solid var(--border);
         }
         .btn-wizard {
             padding: 10px 22px;
-            border-radius: 8px;
+            border-radius: var(--radius-md);
             font-size: 13.5px;
             font-weight: 600;
             cursor: pointer;
@@ -581,40 +586,40 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             gap: 6px;
         }
         .btn-prev {
-            background: #f8fafc;
-            color: #64748b;
-            border: 1px solid #e2e8f0;
+            background-color: var(--canvas);
+            color: var(--text-2);
+            border: 1px solid var(--border);
         }
         .btn-prev:hover {
-            background: #f1f5f9;
-            color: #0f172a;
+            background-color: var(--surface-hover);
+            color: var(--text-1);
         }
         .btn-next {
-            background: #0284c7;
+            background-color: var(--primary);
             color: #ffffff;
         }
         .btn-next:hover {
-            background: #0369a1;
+            background-color: var(--primary-hover);
             color: #ffffff;
         }
         .btn-submit {
-            background: #0284c7;
+            background-color: var(--primary);
             color: #ffffff;
         }
         .btn-submit:hover {
-            background: #0369a1;
+            background-color: var(--primary-hover);
         }
         .btn-disabled {
-            background: #e2e8f0 !important;
-            color: #94a3b8 !important;
+            background-color: var(--surface-active) !important;
+            color: var(--text-3) !important;
             box-shadow: none !important;
             cursor: not-allowed !important;
         }
 
         .alert-box {
-            background: #fef2f2;
-            border: 1px solid #fee2e2;
-            color: #dc2626;
+            background-color: var(--danger-subtle);
+            border: 1px solid var(--danger-border);
+            color: var(--danger);
             padding: 12px 16px;
             border-radius: 10px;
             font-size: 13px;
@@ -758,7 +763,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                     <div class="form-group">
                         <label class="form-label" for="installTokenInput">安装密钥 <span class="req-star">*</span></label>
-                        <input type="text" name="install_token" id="installTokenInput" class="form-control" placeholder="输入 12 位安装密钥" autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false" maxlength="32" <?php echo (!$checkDataWritable || $expectedInstallToken === '') ? 'disabled' : 'autofocus'; ?>>
+                        <input type="text" name="install_token" id="installTokenInput" class="form-control" placeholder="输入 12 位安装密钥" autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false" maxlength="32" data-error-target="installTokenError" aria-errormessage="installTokenError" <?php echo (!$checkDataWritable || $expectedInstallToken === '') ? 'disabled' : 'autofocus'; ?>>
+                        <div class="field-error-tip" id="installTokenError" role="alert"></div>
                         <div class="form-help">请查看服务器 <code>data/install_token.php</code>（或环境变量 <code>PROTOLOFT_INSTALL_TOKEN</code>）</div>
                     </div>
 
@@ -906,17 +912,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 <!-- Step 3: 站点与团队 -->
                 <div class="step-pane" id="step-3" style="display: none;">
                     <div class="form-group">
-                        <label class="form-label">组织名称 <span class="opt-tag">选填</span></label>
-                        <input type="text" name="site_title" class="form-control" value="<?php echo htmlspecialchars($formSiteTitle, ENT_QUOTES, 'UTF-8'); ?>" placeholder="例如：某某科技" maxlength="20">
+                        <label class="form-label" for="installSiteTitleInput">组织名称 <span class="opt-tag">选填</span></label>
+                        <input type="text" name="site_title" id="installSiteTitleInput" class="form-control" value="<?php echo htmlspecialchars($formSiteTitle, ENT_QUOTES, 'UTF-8'); ?>" placeholder="例如：某某科技" maxlength="20" data-error-target="installSiteTitleError" aria-errormessage="installSiteTitleError">
+                        <div class="field-error-tip" id="installSiteTitleError" role="alert"></div>
                         <div class="form-help">展示在登录页与工作台左上角</div>
                     </div>
 
                     <div class="form-group">
-                        <label class="form-label">
+                        <label class="form-label" for="allowedEmailDomainsInput">
                             <span>允许注册的邮箱域名</span>
                             <span class="opt-tag">选填</span>
                         </label>
-                        <input type="text" name="allowed_email_domains" id="allowedEmailDomainsInput" class="form-control" value="<?php echo htmlspecialchars($formAllowedDomains, ENT_QUOTES, 'UTF-8'); ?>" placeholder="例如：company.com, group.cn" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-lpignore="true" data-form-type="other" maxlength="200" onblur="cleanEmailDomainsInput(this)">
+                        <input type="text" name="allowed_email_domains" id="allowedEmailDomainsInput" class="form-control" value="<?php echo htmlspecialchars($formAllowedDomains, ENT_QUOTES, 'UTF-8'); ?>" placeholder="例如：company.com, group.cn" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-lpignore="true" data-form-type="other" maxlength="200" data-error-target="allowedEmailDomainsError" aria-errormessage="allowedEmailDomainsError" onblur="cleanEmailDomainsInput(this)">
+                        <div class="field-error-tip" id="allowedEmailDomainsError" role="alert"></div>
                         <div class="form-help">多个域名用逗号分隔；留空不限制</div>
                     </div>
 
@@ -933,28 +941,34 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 <!-- Step 4: 管理员账号 (邮箱 + 真实姓名) -->
                 <div class="step-pane" id="step-4" style="display: none;">
                     <div class="form-group">
-                        <label class="form-label">管理员工作邮箱 <span class="req-star">*</span></label>
+                        <label class="form-label" for="adminEmailInput">管理员工作邮箱 <span class="req-star">*</span></label>
                         <div style="position:relative;display:flex;align-items:center;">
-                            <input type="text" name="admin_email" id="adminEmailInput" class="form-control" value="<?php echo htmlspecialchars($formAdminEmail, ENT_QUOTES, 'UTF-8'); ?>" placeholder="例如：admin@company.com" autocomplete="email" required maxlength="100" style="flex:1;">
+                            <input type="text" name="admin_email" id="adminEmailInput" class="form-control" value="<?php echo htmlspecialchars($formAdminEmail, ENT_QUOTES, 'UTF-8'); ?>" placeholder="例如：admin@company.com" autocomplete="email" required maxlength="100" data-error-target="adminEmailError" aria-errormessage="adminEmailError" style="flex:1;">
                             <span id="installDomainBadge" style="position:absolute;right:8px;font-size:12px;color:var(--text-3);background:var(--bg-tag,#f1f5f9);border:1px solid var(--border-light,#e2e8f0);padding:2px 7px;border-radius:4px;pointer-events:none;user-select:none;display:none;"></span>
                             <select id="installDomainSelect" style="position:absolute;right:6px;height:28px;line-height:28px;font-size:12px;color:var(--text-2,#334155);background-color:var(--bg-tag,#f8fafc);border:1px solid var(--border-light,#cbd5e1);border-radius:5px;padding:0 22px 0 8px;cursor:pointer;outline:none;display:none;-webkit-appearance:none;appearance:none;background-image:url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2212%22%20height%3D%2212%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%2364748b%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpolyline%20points%3D%226%209%2012%2015%2018%209%22%3E%3C%2Fpolyline%3E%3C%2Fsvg%3E');background-repeat:no-repeat;background-position:right 6px center;background-size:11px;"></select>
                         </div>
+                        <div class="field-error-tip" id="adminEmailError" role="alert"></div>
                     </div>
 
                     <div class="form-group">
-                        <label class="form-label">真实姓名 <span class="req-star">*</span></label>
-                        <input type="text" name="admin_name" id="adminNameInput" class="form-control" value="<?php echo htmlspecialchars($formAdminName, ENT_QUOTES, 'UTF-8'); ?>" placeholder="例如：李明" required maxlength="20">
+                        <label class="form-label" for="adminNameInput">真实姓名 <span class="req-star">*</span></label>
+                        <input type="text" name="admin_name" id="adminNameInput" class="form-control" value="<?php echo htmlspecialchars($formAdminName, ENT_QUOTES, 'UTF-8'); ?>" placeholder="例如：李明" required maxlength="20" data-error-target="adminNameError" aria-errormessage="adminNameError">
+                        <div class="field-error-tip" id="adminNameError" role="alert"></div>
                     </div>
 
                     <div class="form-group">
-                        <label class="form-label" for="adminPassInput">管理员密码 <span class="req-star">*</span></label>
-                        <input type="password" name="admin_password" id="adminPassInput" class="form-control" placeholder="至少 6 个字符" autocomplete="new-password" required data-password-strength="adminPassStrength" aria-describedby="adminPassStrength">
-                        <div class="password-strength" id="adminPassStrength" role="status"></div>
+                        <div class="field-label-row">
+                            <label class="form-label" for="adminPassInput">管理员密码 <span class="req-star">*</span></label>
+                            <span class="password-strength" id="adminPassStrength" role="status"></span>
+                        </div>
+                        <input type="password" name="admin_password" id="adminPassInput" class="form-control" placeholder="至少 6 个字符" autocomplete="new-password" required data-password-strength="adminPassStrength" data-error-target="adminPassError" aria-describedby="adminPassStrength" aria-errormessage="adminPassError">
+                        <div class="field-error-tip" id="adminPassError" role="alert"></div>
                     </div>
 
                     <div class="form-group">
                         <label class="form-label" for="adminPassConfirmInput">确认密码 <span class="req-star">*</span></label>
-                        <input type="password" name="admin_password_confirm" id="adminPassConfirmInput" class="form-control" placeholder="再次输入密码" autocomplete="new-password" required>
+                        <input type="password" name="admin_password_confirm" id="adminPassConfirmInput" class="form-control" placeholder="再次输入密码" autocomplete="new-password" required data-error-target="adminPassConfirmError" aria-describedby="adminPassConfirmError">
+                        <div class="field-error-tip" id="adminPassConfirmError" role="alert"></div>
                     </div>
 
                     <div class="wizard-footer">
@@ -982,12 +996,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         { title: '管理员账号设置', sub: '创建首位系统管理员', badge: '步骤 04 / 04' }
     ];
 
+    function reportInstallFieldError(input, message) {
+        if (typeof setFieldError === 'function' && input) {
+            return setFieldError(input, null, message);
+        }
+        showToast(message, 'warning');
+        if (input && typeof input.focus === 'function') input.focus();
+        return true;
+    }
+
     function validateVerifyStep() {
         var input = document.getElementById('installTokenInput');
         var val = input ? input.value.trim() : '';
         if (!val) {
-            showToast('请输入安装密钥', 'warning');
-            if (input) input.focus();
+            reportInstallFieldError(input, '请输入安装密钥');
             return false;
         }
         var btn = document.getElementById('btnVerifyToken');
@@ -1146,11 +1168,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     function validateStep3() {
-        var titleInput = document.querySelector('input[name="site_title"]');
+        var titleInput = document.getElementById('installSiteTitleInput') || document.querySelector('input[name="site_title"]');
         var title = titleInput ? titleInput.value.trim() : '';
         if (title.length > 20) {
-            showToast('组织名称长度不能超过 20 个字符', 'warning');
-            if (titleInput) titleInput.focus();
+            reportInstallFieldError(titleInput, '组织名称长度不能超过 20 个字符');
             return;
         }
 
@@ -1160,8 +1181,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if (rawDomains) {
             var checkRes = validateEmailDomains(rawDomains);
             if (!checkRes.valid) {
-                showToast('邮箱域名格式不正确，例如 company.com', 'warning');
-                domainsInput.focus();
+                reportInstallFieldError(domainsInput, '邮箱域名格式不正确，例如 company.com');
                 return;
             }
             domainsInput.value = checkRes.clean;
@@ -1191,8 +1211,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         var select = document.getElementById('installDomainSelect');
 
         if (!email) {
-            showToast('请输入管理员工作邮箱', 'warning');
-            emailInput.focus();
+            reportInstallFieldError(emailInput, '请输入管理员工作邮箱');
             return;
         }
 
@@ -1210,8 +1229,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } else {
             // 未配置企业邮箱域名：必须强制输入包含 @ 的完整邮箱
             if (finalEmail.indexOf('@') === -1) {
-                showToast('请输入完整邮箱（例如：admin@company.com）', 'warning');
-                emailInput.focus();
+                reportInstallFieldError(emailInput, '请输入完整邮箱（例如：admin@company.com）');
                 return;
             }
         }
@@ -1219,8 +1237,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         // 严格邮箱格式校验
         var emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
         if (!emailRegex.test(finalEmail)) {
-            showToast('邮箱格式不正确，请输入有效的邮箱地址', 'warning');
-            emailInput.focus();
+            reportInstallFieldError(emailInput, '邮箱格式不正确，请输入有效的邮箱地址');
             return;
         }
 
@@ -1228,8 +1245,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             var parts = finalEmail.toLowerCase().split('@');
             var inputDomain = parts[parts.length - 1];
             if (domainList.indexOf(inputDomain) === -1) {
-                showToast('管理员邮箱后缀必须属于所配置的白名单域名', 'warning');
-                emailInput.focus();
+                reportInstallFieldError(emailInput, '管理员邮箱后缀必须属于所配置的白名单域名');
                 return;
             }
         }
@@ -1238,19 +1254,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         emailInput.value = finalEmail;
 
         if (!name || name.length < 2 || name.length > 20) {
-            showToast('请输入管理员真实姓名（2~20 个字符）', 'warning');
-            nameInput.focus();
+            reportInstallFieldError(nameInput, '请输入管理员真实姓名（2~20 个字符）');
             return;
         }
-        var passwordError = typeof passwordLengthError === 'function' ? passwordLengthError(pass) : '';
-        if (passwordError) {
-            showToast(passwordError, 'warning');
-            passInput.focus();
+        if (typeof showPasswordLengthError === 'function' ? showPasswordLengthError(passInput) : (typeof passwordLengthError === 'function' && passwordLengthError(pass))) {
+            if (typeof showPasswordLengthError !== 'function') {
+                showToast(passwordLengthError(pass), 'warning');
+                passInput.focus();
+            }
             return;
         }
-        if (pass !== passConfirm) {
-            showToast('两次输入的管理员密码不一致', 'error');
-            passConfirmInput.focus();
+        if (typeof showPasswordMismatchError === 'function'
+            ? showPasswordMismatchError(passInput, passConfirmInput, null, '两次输入的管理员密码不一致')
+            : (pass !== passConfirm)) {
+            if (typeof showPasswordMismatchError !== 'function') {
+                showToast('两次输入的管理员密码不一致', 'error');
+                passConfirmInput.focus();
+            }
             return;
         }
 
