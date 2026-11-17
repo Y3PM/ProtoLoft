@@ -7,6 +7,10 @@
 
 ## 发布前修复（全新版本，未发布）
 
+- 2026-11-17：统一成员管理角色下拉为权限由低到高顺序（审阅人 → 协作者 → 管理员）。
+  - 在 `includes/modals.php` 将「添加成员（`#newRole`）」与「编辑成员（`#editUserRole`）」角色下拉选项顺序由旧序调整为 `viewer（审阅人）→ editor（协作者）→ admin（管理员）`（`openAddUserModal` 保持默认预选 `editor` 不变）；核查待审批入驻下拉（`#pendingRole_*`）与申请加入协作单选卡（`index.php`、`includes/login_modal.php`），二者已按 `viewer → editor` 递增排列。
+  - 在 `.dev/tests/copy_consistency_frontend.js` 增补成员弹窗角色升序断言；已通过 `php -l includes/modals.php`、`git diff --check`、`node .dev/tests/copy_consistency_frontend.js`（47/47）及 `python3 -B .dev/tests/run_all_tests.py`（PHP 8.3.20 下 25/25 套通过，可识别 1,111 项断言 100% PASS）；尚未提交 GitHub 与部署 FTP，真实浏览器效果待用户验收。
+
 - 2026-11-17：重构全站弹窗自动聚焦策略，解决控制中心误聚焦筛选下拉框及部分表单弹窗焦点错位问题。
   - 在 `assets/js/app.js` 优化 `openModal(id, preferredId)` 默认聚焦兜底逻辑：排除 `<select>`、`readonly` 输入框及非文本型 `input`（`checkbox` / `radio` / `file` / 按钮类），无有效可编辑输入时聚焦弹窗容器本身并保留 `Tab` 键循环；在 `assets/css/app.css` 为 `.custom-modal:focus, .admin-console-modal:focus` 隐藏外框轮廓。
   - 在 `assets/js/admin.js` 与 `assets/js/share.js` 为所有管理/录入弹窗显式指定合理焦点：控制中心（`adminConsoleModal`）、版本管理（`versionManageModal`）与分享设置（`shareManageModal`）聚焦容器本身，不再误抓「批注待办与闭环」项目筛选下拉、搜索框或只读短链框；发版（`uploadModal` → `uploadVerName`）、新建/编辑项目（`itemModal` → `itemName`）、编辑版本（`versionEditModal` → `editVerName`）、移交所有权（`transferOwnerModal` → `transferConfirmPwd`）直接聚焦核心输入，工作交接（`userHandoverModal` → `handoverToUserId`）聚焦唯一必选下拉框。

@@ -2157,9 +2157,9 @@ $allUsers = $db->query("SELECT id, email, name, role FROM users WHERE status = 1
                 <div>
                     <label class="m-label" for="newRole">角色</label>
                     <select id="newRole" class="m-input">
+                        <option value="viewer">审阅人</option>
                         <option value="editor">协作者</option>
                         <option value="admin">管理员</option>
-                        <option value="viewer">审阅人</option>
                     </select>
                 </div>
                 <div style="grid-column: span 2;">
@@ -2222,9 +2222,9 @@ $allUsers = $db->query("SELECT id, email, name, role FROM users WHERE status = 1
                 <div>
                     <label class="m-label" for="editUserRole">角色</label>
                     <select id="editUserRole" class="m-input">
+                        <option value="viewer">审阅人</option>
                         <option value="editor">协作者</option>
                         <option value="admin">管理员</option>
-                        <option value="viewer">审阅人</option>
                     </select>
                 </div>
                 <div>

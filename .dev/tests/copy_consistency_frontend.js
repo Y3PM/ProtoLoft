@@ -272,6 +272,17 @@ const check = (name, condition) => { assert(condition, name); passed++; console.
       && modalsPhp.includes('class="inline-action-btn is-primary" onclick="selectAllMcpProjects(true)"')
       && modalsPhp.includes('class="inline-action-btn is-primary" onclick="selectAllAdmins(true)"')
       && modalsPhp.includes('id="btnClearSmtpPass" class="inline-action-btn is-compact"'));
+
+    const hasAscendingRoleOptions = selectId => {
+      const m = modalsPhp.match(new RegExp(`<select id="${selectId}"[^>]*>([\\s\\S]*?)<\\/select>`));
+      if (!m) return false;
+      const vIdx = m[1].indexOf('value="viewer"');
+      const eIdx = m[1].indexOf('value="editor"');
+      const aIdx = m[1].indexOf('value="admin"');
+      return vIdx !== -1 && eIdx > vIdx && aIdx > eIdx;
+    };
+    check('member add and edit role selects list viewer -> editor -> admin in ascending privilege order',
+      hasAscendingRoleOptions('newRole') && hasAscendingRoleOptions('editUserRole'));
   }
 
   console.log(JSON.stringify({passed,scope:'production JS functions with mocked DOM and clipboard'}));
