@@ -7,6 +7,11 @@
 
 ## 发布前修复（全新版本，未发布）
 
+- 2026-11-17：重构全站弹窗自动聚焦策略，解决控制中心误聚焦筛选下拉框及部分表单弹窗焦点错位问题。
+  - 在 `assets/js/app.js` 优化 `openModal(id, preferredId)` 默认聚焦兜底逻辑：排除 `<select>`、`readonly` 输入框及非文本型 `input`（`checkbox` / `radio` / `file` / 按钮类），无有效可编辑输入时聚焦弹窗容器本身并保留 `Tab` 键循环；在 `assets/css/app.css` 为 `.custom-modal:focus, .admin-console-modal:focus` 隐藏外框轮廓。
+  - 在 `assets/js/admin.js` 与 `assets/js/share.js` 为所有管理/录入弹窗显式指定合理焦点：控制中心（`adminConsoleModal`）、版本管理（`versionManageModal`）与分享设置（`shareManageModal`）聚焦容器本身，不再误抓「批注待办与闭环」项目筛选下拉、搜索框或只读短链框；发版（`uploadModal` → `uploadVerName`）、新建/编辑项目（`itemModal` → `itemName`）、编辑版本（`versionEditModal` → `editVerName`）、移交所有权（`transferOwnerModal` → `transferConfirmPwd`）直接聚焦核心输入，工作交接（`userHandoverModal` → `handoverToUserId`）聚焦唯一必选下拉框。
+  - 在 `.dev/tests/interaction_no_reload_regression.js` 增补弹窗聚焦策略护栏断言；已通过 `node --check`、`git diff --check`、`node .dev/tests/interaction_no_reload_regression.js`（50/50）及 `python3 -B .dev/tests/run_all_tests.py`（PHP 8.3.20 下 25/25 套通过，可识别 1,110 项断言 100% PASS）；尚未提交 GitHub 与部署 FTP，真实浏览器交互手感待用户验收。
+
 - 2026-11-17：扩大全站轻量行内操作与多选下拉「全选 / 清空」点击热区。
   - 在 `assets/css/app.css` 新增通用行内操作类 `.inline-action-btn`（含 `.is-primary` 与 `.is-compact`，最小高 `26px` / `24px`、内边距 `4px 10px` / `3px 8px`、圆角悬停背景反馈），并同步放大 `.upload-last-log-btn`（`+ 上版日志`）、`.auth-footer-links a`（登录/注册/找回密码切换链接）与 `.anno-link-btn`（查看原批注）的交互热区且保持既有基线对齐。
   - 在 `includes/modals.php` 将 MCP 项目范围下拉与系统设置审批通知人下拉顶部的「全选 / 清空」及 SMTP 授权码「清除」统一收敛为 `<button type="button" class="inline-action-btn ...">`，消除纯文字热区过小与重复内联样式。

@@ -1286,8 +1286,11 @@ function openModal(id, preferredId) {
     syncModalBackground();
     var fields = modalFocusable(modal);
     var preferred = preferredId ? document.getElementById(preferredId) : null;
-    var firstInput = fields.find(function(el) { return /^(INPUT|SELECT|TEXTAREA)$/.test(el.tagName); });
-    var target = preferred || firstInput || fields[0] || modal;
+    var firstInput = fields.find(function(el) {
+        return el.tagName === 'TEXTAREA'
+            || (el.tagName === 'INPUT' && !el.readOnly && !/^(checkbox|radio|file|hidden|submit|button)$/i.test(el.type));
+    });
+    var target = preferred || firstInput || modal;
     if (target === modal) modal.tabIndex = -1;
     target.focus();
 }

@@ -45,7 +45,7 @@ function openShareModal(itemId) {
         toggleCustomSharePanel(false);
         renderActiveShareList(data.active_shares || [], data.max_custom_shares || 5, !!data.can_manage);
 
-        openModal('shareManageModal');
+        openModal('shareManageModal', 'shareManageModal');
     }).catch(function() {
         showToast('网络异常，获取分享信息失败', 'error');
     });

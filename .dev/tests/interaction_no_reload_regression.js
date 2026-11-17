@@ -493,6 +493,65 @@ const asyncGuard = setTimeout(() => {
             JSON.stringify(dataOrders) === JSON.stringify([201, 102, 101]));
     }
 
+    console.log('\n[*] 6. 弹窗合理聚焦策略护栏验证');
+    {
+        const appJs = fs.readFileSync(path.join(root, 'assets/js/app.js'), 'utf8');
+        const shareJs = fs.readFileSync(path.join(root, 'assets/js/share.js'), 'utf8');
+        let focusedEl = null;
+        const selectNode = { tagName: 'SELECT', type: 'select-one', readOnly: false, disabled: false, tabIndex: 0, getClientRects: () => [1], closest: () => null, focus() { focusedEl = this; } };
+        const readonlyNode = { tagName: 'INPUT', type: 'text', readOnly: true, disabled: false, tabIndex: 0, getClientRects: () => [1], closest: () => null, focus() { focusedEl = this; } };
+        const textNode = { tagName: 'INPUT', type: 'text', readOnly: false, disabled: false, tabIndex: 0, getClientRects: () => [1], closest: () => null, focus() { focusedEl = this; } };
+        const closeBtn = { tagName: 'BUTTON', type: 'button', readOnly: false, disabled: false, tabIndex: 0, getClientRects: () => [1], closest: () => null, focus() { focusedEl = this; } };
+        const makeModal = (id, children) => ({
+            id,
+            style: { display: 'none' },
+            tabIndex: -1,
+            attrs: {},
+            setAttribute(k, v) { this.attrs[k] = v; },
+            hasAttribute(k) { return k in this.attrs; },
+            querySelector() { return null; },
+            querySelectorAll() { return children; },
+            contains(el) { return el === this || children.includes(el); },
+            focus() { focusedEl = this; }
+        });
+        const dashboardModal = makeModal('adminConsoleModal', [closeBtn, selectNode]);
+        const formModal = makeModal('formModal', [selectNode, readonlyNode, textNode]);
+        const modalMap = {
+            adminConsoleModal: dashboardModal,
+            formModal: formModal,
+            textNode: textNode
+        };
+        const focusSandbox = {
+            modalStack: [],
+            modalInerted: [],
+            document: {
+                activeElement: null,
+                body: {},
+                getElementById: id => modalMap[id] || null
+            },
+            clearPasswordStrength() {}
+        };
+        vm.createContext(focusSandbox);
+        const start = appJs.indexOf('function modalFocusable(');
+        const end = appJs.indexOf('function closeModal(');
+        vm.runInContext(appJs.slice(start, end), focusSandbox);
+
+        focusSandbox.openModal('formModal');
+        check('未传 preferredId 时跳过 select 与 readonly 输入框，聚焦首个可编辑输入', focusedEl === textNode);
+
+        focusedEl = null;
+        focusSandbox.openModal('adminConsoleModal', 'adminConsoleModal');
+        check('控制中心传自身 ID 时聚焦容器本身而非筛选下拉框', focusedEl === dashboardModal);
+
+        check('控制中心/版本管理/分享弹窗不自动抢焦点至下拉或只读输入框',
+            adminJs.includes("openModal('adminConsoleModal', 'adminConsoleModal')")
+            && adminJs.includes("openModal('versionManageModal', 'versionManageModal')")
+            && shareJs.includes("openModal('shareManageModal', 'shareManageModal')"));
+        check('发版与新建项目弹窗跳过前置预选下拉框，直接聚焦名称输入框',
+            adminJs.includes("openModal('uploadModal', 'uploadVerName')")
+            && adminJs.includes("openModal('itemModal', 'itemName')"));
+    }
+
     console.log(`\n======================================================`);
     console.log(`  交互优化质量护栏测试通过: ${passed} 项断言全部合格！`);
     console.log(`======================================================\n`);

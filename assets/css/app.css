@@ -1894,6 +1894,10 @@ body, html {
     backdrop-filter: blur(2px);
     animation: modalFadeIn var(--duration-flow, 180ms) var(--ease-spring);
 }
+.custom-modal:focus,
+.admin-console-modal:focus {
+    outline: none;
+}
 
 .modal-dialog-box {
     background: var(--surface);

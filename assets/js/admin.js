@@ -489,7 +489,7 @@ function openUploadModal(itemId, projectName) {
     document.getElementById('uploadProgressWrap').style.display = 'none';
     initProtoDropZone();
     initRpDropZone();
-    openModal('uploadModal');
+    openModal('uploadModal', 'uploadVerName');
 }
 
 // RP 源文件管理：支持选择与拖拽
@@ -2163,7 +2163,7 @@ function openItemModal(arg1, arg2, arg3) {
     }
 
     toggleItemType(type);
-    openModal('itemModal');
+    openModal('itemModal', 'itemName');
 }
 
 // 全局成员负责人下拉选项热重绘 (保持 #itemCreatedBy 永远与当前成员数据最新一致)
@@ -2520,7 +2520,7 @@ function editItem(data) {
         if (titleEl) titleEl.textContent = '编辑项目属性';
         if (nameLabel) nameLabel.innerHTML = '项目名称 <span class="req-star">*</span>';
     }
-    openModal('itemModal');
+    openModal('itemModal', 'itemName');
 }
 
 function toggleItemType(type) {
@@ -3183,10 +3183,7 @@ function openTransferOwnerModal(targetUserId) {
     document.getElementById('transferTargetUserName').textContent = targetName;
     document.getElementById('transferConfirmPwd').value = '';
     if (typeof clearPasswordStrength === 'function') clearPasswordStrength(document.getElementById('transferOwnerModal'));
-    openModal('transferOwnerModal');
-    setTimeout(function() {
-        document.getElementById('transferConfirmPwd').focus();
-    }, 100);
+    openModal('transferOwnerModal', 'transferConfirmPwd');
 }
 
 function handleDoTransferOwner(e) {
@@ -3260,7 +3257,7 @@ function openHandoverModal(fromId) {
     var deactCb = document.getElementById('handoverDeactivateFrom');
     if (deactCb) deactCb.checked = false;
 
-    openModal('userHandoverModal');
+    openModal('userHandoverModal', 'handoverToUserId');
 }
 
 function handleUserHandover(e) {
@@ -4280,7 +4277,7 @@ function openAdminConsole(defaultTab, subTab) {
         }
     }
     switchAdminTab(defaultTab, subTab);
-    openModal('adminConsoleModal');
+    openModal('adminConsoleModal', 'adminConsoleModal');
 }
 
 function closeAdminConsole() {
@@ -4911,7 +4908,7 @@ function openVersionManageModal(itemId, keepPageState) {
     }
 
     renderVersionManageView();
-    openModal('versionManageModal');
+    openModal('versionManageModal', 'versionManageModal');
 }
 
 function handleVerManageSearch(val) {
@@ -5199,13 +5196,10 @@ function openEditVersionModal(verId) {
         saveBtn.innerHTML = '保存';
     }
 
-    openModal('versionEditModal');
-    setTimeout(function() {
-        if (nameInput) {
-            nameInput.focus();
-            if (typeof nameInput.select === 'function') nameInput.select();
-        }
-    }, 100);
+    openModal('versionEditModal', 'editVerName');
+    if (nameInput && typeof nameInput.select === 'function') {
+        nameInput.select();
+    }
 }
 
 function handleVersionEditSubmit(e) {
