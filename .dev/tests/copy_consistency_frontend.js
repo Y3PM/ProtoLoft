@@ -265,6 +265,13 @@ const check = (name, condition) => { assert(condition, name); passed++; console.
 
     appendCtx.updateUploadLastVersionHint(12);
     check('hides both hints when project has no versions', lastLogBtn.hidden && !lastVerHint.shown);
+
+    const appCss = fs.readFileSync(path.join(__dirname, '../../assets/css/app.css'), 'utf8');
+    check('dropdown tools and inline actions use expanded button hit targets',
+      appCss.includes('.inline-action-btn')
+      && modalsPhp.includes('class="inline-action-btn is-primary" onclick="selectAllMcpProjects(true)"')
+      && modalsPhp.includes('class="inline-action-btn is-primary" onclick="selectAllAdmins(true)"')
+      && modalsPhp.includes('id="btnClearSmtpPass" class="inline-action-btn is-compact"'));
   }
 
   console.log(JSON.stringify({passed,scope:'production JS functions with mocked DOM and clipboard'}));

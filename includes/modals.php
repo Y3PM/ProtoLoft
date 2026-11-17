@@ -1812,11 +1812,11 @@ $allUsers = $db->query("SELECT id, email, name, role FROM users WHERE status = 1
 
                                 <!-- 浮层下拉列表卡片 -->
                                 <div id="adminMultiSelectMenu" role="group" aria-labelledby="adminRecipientsLabel" style="display:none;position:absolute;left:0;right:0;top:calc(100% + 4px);z-index:120;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-md);box-shadow:0 6px 20px rgba(16,24,40,0.1);max-height:220px;overflow-y:auto;padding:6px;">
-                                    <div style="display:flex;justify-content:space-between;align-items:center;padding:4px 8px 8px;border-bottom:1px solid var(--border);font-size:11.5px;color:var(--text-3);">
+                                    <div class="mcp-dropdown-header">
                                         <span>选择审批通知管理员</span>
-                                        <div style="display:flex;gap:10px;">
-                                             <a href="javascript:void(0)" onclick="selectAllAdmins(true)" style="color:var(--primary);text-decoration:none;">全选</a>
-                                            <a href="javascript:void(0)" onclick="selectAllAdmins(false)" style="color:var(--text-3);text-decoration:none;">清空</a>
+                                        <div class="mcp-dropdown-tools">
+                                            <button type="button" class="inline-action-btn is-primary" onclick="selectAllAdmins(true)">全选</button>
+                                            <button type="button" class="inline-action-btn" onclick="selectAllAdmins(false)">清空</button>
                                         </div>
                                     </div>
                                     <div id="adminMultiSelectOptions" style="display:flex;flex-direction:column;gap:2px;padding-top:4px;">
@@ -1909,7 +1909,7 @@ $allUsers = $db->query("SELECT id, email, name, role FROM users WHERE status = 1
                                 <div class="m-form-group" style="margin-bottom:0;">
                                     <label class="m-label" for="settingSmtpPass" style="display:flex;align-items:center;justify-content:space-between;">
                                         <span>授权码 / 密码 <span class="opt-tag" id="smtpPassBadge"><?php echo $smtpCfg['has_pass'] ? '已配置' : '请使用客户端授权码'; ?></span></span>
-                                        <a href="javascript:void(0)" id="btnClearSmtpPass" onclick="clearSavedSmtpPass()" style="font-size:11.5px;color:var(--text-3);font-weight:400;text-decoration:none;<?php echo $smtpCfg['has_pass'] ? '' : 'display:none;'; ?>">清除</a>
+                                        <button type="button" id="btnClearSmtpPass" class="inline-action-btn is-compact" onclick="clearSavedSmtpPass()" style="<?php echo $smtpCfg['has_pass'] ? '' : 'display:none;'; ?>">清除</button>
                                     </label>
                                     <div class="pwd-input-wrap">
                                         <input type="password" id="settingSmtpPass" name="smtp_pass" class="m-input" value="" data-has-pass="<?php echo $smtpCfg['has_pass'] ? '1' : '0'; ?>" placeholder="<?php echo $smtpCfg['has_pass'] ? '已配置，留空保持不变' : '输入客户端授权码'; ?>" maxlength="128" autocomplete="new-password">
@@ -2367,8 +2367,8 @@ $allUsers = $db->query("SELECT id, email, name, role FROM users WHERE status = 1
                             <div class="mcp-dropdown-header">
                                 <span>授权项目</span>
                                 <div class="mcp-dropdown-tools">
-                                    <a href="javascript:void(0)" onclick="selectAllMcpProjects(true)">全选</a>
-                                    <a href="javascript:void(0)" onclick="selectAllMcpProjects(false)">清空</a>
+                                    <button type="button" class="inline-action-btn is-primary" onclick="selectAllMcpProjects(true)">全选</button>
+                                    <button type="button" class="inline-action-btn" onclick="selectAllMcpProjects(false)">清空</button>
                                 </div>
                             </div>
                             <div id="mcpProjectOptions" class="mcp-dropdown-options">

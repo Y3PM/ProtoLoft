@@ -240,18 +240,27 @@ body.page-standalone {
     color: var(--text-3);
 }
 .auth-footer-links a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 28px;
+    padding: 4px 8px;
+    margin: -4px -8px;
+    border-radius: 4px;
     color: var(--primary);
     text-decoration: none;
     font-weight: 500;
     cursor: pointer;
+    transition: background-color 0.15s ease, color 0.15s ease;
 }
 .auth-footer-links a:hover {
-    text-decoration: underline;
+    background-color: var(--primary-subtle);
+    text-decoration: none;
 }
 .auth-footer-links .auth-link-muted {
     color: var(--text-2);
 }
 .auth-footer-links .auth-link-muted:hover {
+    background-color: var(--canvas);
     color: var(--primary);
 }
 .password-strength {
@@ -2847,7 +2856,10 @@ textarea.m-input.m-input-error:focus {
 .upload-last-log-btn {
     background-color: transparent;
     border: none;
-    padding: 0;
+    min-height: 24px;
+    padding: 3px 8px;
+    margin: -3px -8px -3px 0;
+    border-radius: 4px;
     font-size: 12px;
     font-weight: 500;
     color: var(--text-3);
@@ -2857,9 +2869,9 @@ textarea.m-input.m-input-error:focus {
     gap: 2px;
     line-height: 1.4;
     white-space: nowrap;
-    transition: color 0.15s;
+    transition: background-color 0.15s ease, color 0.15s ease;
 }
-.upload-last-log-btn:hover { color: var(--primary); text-decoration: underline; }
+.upload-last-log-btn:hover { background-color: var(--primary-subtle); color: var(--primary); }
 .upload-last-log-btn[hidden] { display: none; }
 .btn-ver-default { height: 28px; padding: 0 10px; font-size: 12px; color: var(--text-2); }
 .btn-ver-default:hover { color: var(--primary); border-color: var(--border-strong); background-color: var(--surface-hover); }
@@ -4122,10 +4134,34 @@ textarea.m-input.m-input-error:focus {
 .mcp-scope-btn:hover { color:var(--text-1); }
 .mcp-scope-btn.active { background-color:var(--surface); color:var(--text-1); font-weight:600; box-shadow:0 1px 2px rgba(0,0,0,0.06); }
 .mcp-dropdown-menu { position:absolute; left:0; right:0; top:calc(100% + 4px); z-index:120; background-color:var(--surface); border:1px solid var(--border); border-radius:var(--radius-md); box-shadow:0 6px 20px rgba(16,24,40,0.1); max-height:220px; overflow-y:auto; padding:6px; }
-.mcp-dropdown-header { display:flex; justify-content:space-between; align-items:center; padding:4px 8px 8px; border-bottom:1px solid var(--border); font-size:11.5px; color:var(--text-3); }
-.mcp-dropdown-tools { display:flex; gap:10px; }
-.mcp-dropdown-tools a { color:var(--text-3); text-decoration:none; font-size:11.5px; }
-.mcp-dropdown-tools a:hover { color:var(--primary); }
+.inline-action-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    min-height: 26px;
+    padding: 4px 10px;
+    border: none;
+    border-radius: 4px;
+    background-color: transparent;
+    color: var(--text-3);
+    font-size: 12px;
+    font-weight: 500;
+    line-height: 1.25;
+    text-decoration: none;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background-color 0.15s ease, color 0.15s ease;
+}
+.inline-action-btn:hover { background-color: var(--canvas); color: var(--text-1); }
+.inline-action-btn.is-primary { color: var(--primary); }
+.inline-action-btn.is-primary:hover { background-color: var(--primary-subtle); color: var(--primary-hover); }
+.inline-action-btn.is-compact { min-height: 24px; padding: 3px 8px; margin: -3px -8px -3px 0; font-size: 11.5px; }
+.inline-action-btn:focus-visible { outline: 2px solid var(--primary); outline-offset: 1px; }
+.mcp-dropdown-header { display:flex; justify-content:space-between; align-items:center; padding:3px 4px 6px 8px; border-bottom:1px solid var(--border); font-size:11.5px; color:var(--text-3); }
+.mcp-dropdown-tools { display:flex; align-items:center; gap:4px; }
+.mcp-dropdown-tools a { display:inline-flex; align-items:center; min-height:26px; padding:4px 10px; border-radius:4px; color:var(--text-3); text-decoration:none; font-size:12px; font-weight:500; transition:background-color 0.15s ease, color 0.15s ease; }
+.mcp-dropdown-tools a:hover { background-color:var(--canvas); color:var(--primary); }
 .mcp-dropdown-options { display:flex; flex-direction:column; gap:2px; padding-top:4px; }
 .mcp-project-option { display:flex; align-items:center; gap:8px; padding:6px 8px; border-radius:4px; cursor:pointer; font-size:12.5px; transition:background-color 0.15s; user-select:none; }
 .mcp-project-option:hover { background-color:var(--canvas); }
@@ -4189,8 +4225,8 @@ textarea.m-input.m-input-error:focus {
     100% { box-shadow: 0 0 0 0 transparent; }
 }
 .anno-source-note { display:flex; align-items:baseline; flex-wrap:wrap; gap:8px; margin:0 0 6px; color:var(--text-3); font-size:12px; line-height:1.5; }
-.anno-link-btn { color:var(--primary); font-size:12px; font-weight:400; text-decoration:none; }
-.anno-link-btn:hover { color:var(--primary-hover); text-decoration:underline; text-underline-offset:2px; }
+.anno-link-btn { display:inline-flex; align-items:center; padding:2px 6px; margin:-2px -6px; border-radius:4px; color:var(--primary); font-size:12px; font-weight:400; text-decoration:none; transition:background-color 0.15s ease, color 0.15s ease; }
+.anno-link-btn:hover { background-color:var(--primary-subtle); color:var(--primary-hover); text-decoration:underline; text-underline-offset:2px; }
 .anno-link-btn:focus-visible { outline:2px solid var(--primary); outline-offset:2px; border-radius:2px; }
 .anno-page-link {
     color: var(--text-3);

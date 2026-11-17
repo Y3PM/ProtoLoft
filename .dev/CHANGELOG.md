@@ -7,6 +7,11 @@
 
 ## 发布前修复（全新版本，未发布）
 
+- 2026-11-17：扩大全站轻量行内操作与多选下拉「全选 / 清空」点击热区。
+  - 在 `assets/css/app.css` 新增通用行内操作类 `.inline-action-btn`（含 `.is-primary` 与 `.is-compact`，最小高 `26px` / `24px`、内边距 `4px 10px` / `3px 8px`、圆角悬停背景反馈），并同步放大 `.upload-last-log-btn`（`+ 上版日志`）、`.auth-footer-links a`（登录/注册/找回密码切换链接）与 `.anno-link-btn`（查看原批注）的交互热区且保持既有基线对齐。
+  - 在 `includes/modals.php` 将 MCP 项目范围下拉与系统设置审批通知人下拉顶部的「全选 / 清空」及 SMTP 授权码「清除」统一收敛为 `<button type="button" class="inline-action-btn ...">`，消除纯文字热区过小与重复内联样式。
+  - 在 `.dev/tests/copy_consistency_frontend.js` 增补热区按钮契约断言；已通过 `php -l includes/modals.php`、`git diff --check`、`node .dev/tests/copy_consistency_frontend.js`（46/46）及 `python3 -B .dev/tests/run_all_tests.py`（PHP 8.3.20 下 25/25 套通过，可识别 1,106 项断言 100% PASS）；尚未提交 GitHub 与部署 FTP，真实浏览器手感待用户验收。
+
 - 2026-11-17：隐藏审阅人 MCP 发布权限禁用开关，并统一控制中心角色权限表「管理员」称谓。
   - 在 `includes/modals.php`、`assets/js/mcp.js` 与 `assets/css/app.css` 为不可发布的审阅人隐藏 `#mcpPublishSwitchRow`（「允许发布和替换版本」开关行），首帧与接口返回双重同步隐藏并保留简短只读提示 `#mcpReadOnlyHint`（`审阅人仅可读取项目与批注。`），同时在提交凭据/权限参数时二次锁定 `mcpSettings.can_publish` 为真才允许 `can_publish=1`。
   - 在 `includes/modals.php` 将控制中心「角色权限」表头由旧称谓「超级管理员」统一为「管理员」，覆盖主管理员与普通管理员两类后台管理角色。
