@@ -538,14 +538,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
         .form-control {
             width: 100%;
+            height: 44px;
             border: 1px solid var(--border-strong);
             border-radius: var(--radius-md);
-            padding: 10px 14px;
+            padding: 0 14px;
             font-size: 13.5px;
             box-sizing: border-box;
             background-color: var(--surface);
             color: var(--text-1);
             transition: border-color 0.15s ease, box-shadow 0.15s ease;
+        }
+        .install-domain-select {
+            position: absolute;
+            right: 8px;
+            max-width: 180px;
         }
         .form-control:focus {
             border-color: var(--primary);
@@ -569,21 +575,40 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             display: flex;
             align-items: center;
             justify-content: space-between;
+            gap: 10px;
+            flex-wrap: wrap;
             margin-top: 28px;
             padding-top: 18px;
             border-top: 1px solid var(--border);
         }
         .btn-wizard {
-            padding: 10px 22px;
+            height: 38px;
+            padding: 0 20px;
             border-radius: var(--radius-md);
             font-size: 13.5px;
             font-weight: 600;
             cursor: pointer;
             border: none;
+            box-sizing: border-box;
+            white-space: nowrap;
+            flex-shrink: 0;
             transition: background 0.15s ease, color 0.15s ease;
             display: inline-flex;
             align-items: center;
+            justify-content: center;
             gap: 6px;
+        }
+        @media (max-width: 480px) {
+            .wizard-card-header {
+                padding: 20px 20px 14px;
+            }
+            .wizard-body {
+                padding: 16px 20px 24px;
+            }
+            .btn-wizard {
+                padding: 0 14px;
+                font-size: 13px;
+            }
         }
         .btn-prev {
             background-color: var(--canvas);
@@ -945,7 +970,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         <div style="position:relative;display:flex;align-items:center;">
                             <input type="text" name="admin_email" id="adminEmailInput" class="form-control" value="<?php echo htmlspecialchars($formAdminEmail, ENT_QUOTES, 'UTF-8'); ?>" placeholder="例如：admin@company.com" autocomplete="email" required maxlength="100" data-error-target="adminEmailError" aria-errormessage="adminEmailError" style="flex:1;">
                             <span id="installDomainBadge" style="position:absolute;right:8px;font-size:12px;color:var(--text-3);background:var(--bg-tag,#f1f5f9);border:1px solid var(--border-light,#e2e8f0);padding:2px 7px;border-radius:4px;pointer-events:none;user-select:none;display:none;"></span>
-                            <select id="installDomainSelect" style="position:absolute;right:6px;height:28px;line-height:28px;font-size:12px;color:var(--text-2,#334155);background-color:var(--bg-tag,#f8fafc);border:1px solid var(--border-light,#cbd5e1);border-radius:5px;padding:0 22px 0 8px;cursor:pointer;outline:none;display:none;-webkit-appearance:none;appearance:none;background-image:url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2212%22%20height%3D%2212%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%2364748b%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpolyline%20points%3D%226%209%2012%2015%2018%209%22%3E%3C%2Fpolyline%3E%3C%2Fsvg%3E');background-repeat:no-repeat;background-position:right 6px center;background-size:11px;"></select>
+                            <select id="installDomainSelect" class="m-select-sm install-domain-select" aria-label="选择邮箱域名" style="display:none;"></select>
                         </div>
                         <div class="field-error-tip" id="adminEmailError" role="alert"></div>
                     </div>
@@ -1235,7 +1260,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
 
         // 严格邮箱格式校验
-        var emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+        var emailRegex = /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@(?:[a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}$/;
         if (!emailRegex.test(finalEmail)) {
             reportInstallFieldError(emailInput, '邮箱格式不正确，请输入有效的邮箱地址');
             return;
@@ -1249,9 +1274,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 return;
             }
         }
-
-        // 统一回写完整邮箱，确保提交后进入数据库的数据完整合规
-        emailInput.value = finalEmail;
 
         if (!name || name.length < 2 || name.length > 20) {
             reportInstallFieldError(nameInput, '请输入管理员真实姓名（2~20 个字符）');
@@ -1274,15 +1296,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             return;
         }
 
-        // 提交前补全 DOM 真实邮箱，确保浏览器抓取的账号包含完整前缀与域名
-        if (domains && email.indexOf('@') === -1) {
-            var firstDomain = domains.split(',')[0].trim();
-            if (firstDomain) {
-                emailInput.value = email + '@' + firstDomain;
-                var badge = document.getElementById('installDomainBadge');
-                if (badge) badge.style.display = 'none';
-                emailInput.style.paddingRight = '12px';
-            }
+        // 所有校验通过后再回写完整邮箱（保留用户选择的域名后缀）并收起右侧后缀控件
+        emailInput.value = finalEmail;
+        if (domainList.length > 0) {
+            var badge = document.getElementById('installDomainBadge');
+            if (badge) badge.style.display = 'none';
+            if (select) select.style.display = 'none';
+            emailInput.style.paddingRight = '14px';
         }
 
         var btn = document.getElementById('btnSubmitInstall');

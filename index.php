@@ -94,8 +94,8 @@ if (!$isSiteAuthorized) {
                         <span id="adminDomainBadge" style="position:absolute;right:8px;font-size:12px;color:var(--text-3);background:var(--bg-tag,#f1f5f9);border:1px solid var(--border-light,#e2e8f0);padding:2px 7px;border-radius:4px;pointer-events:none;user-select:none;">@<?php echo htmlspecialchars($fixedEmailDomain); ?></span>
                     <?php endif; ?>
                 </div>
-                <div style="margin-bottom: 18px; position:relative; display:flex; align-items:center;">
-                    <input type="password" id="adminLoginPwd" name="password" class="form-control" placeholder="登录密码" autocomplete="current-password" required maxlength="64" style="padding-right:36px;">
+                <div class="pwd-input-wrap" style="margin-bottom: 18px;">
+                    <input type="password" id="adminLoginPwd" name="password" class="form-control" placeholder="登录密码" autocomplete="current-password" required maxlength="64">
                     <button type="button" class="btn-eye-toggle" onclick="toggleLockPwd('adminLoginPwd', this)" title="显示/隐藏密码">
                         <i class="ri-eye-line"></i>
                     </button>
@@ -135,8 +135,8 @@ if (!$isSiteAuthorized) {
                     <span class="password-strength" id="regPwdStrength" role="status"></span>
                 </div>
                 <div style="margin-bottom: 10px;">
-                    <div style="position:relative; display:flex; align-items:center;">
-                        <input type="password" id="regPwdInput" class="form-control" placeholder="至少 6 个字符" autocomplete="new-password" required data-password-strength="regPwdStrength" data-error-target="regPwdError" aria-describedby="regPwdStrength" aria-errormessage="regPwdError" style="padding-right:36px;">
+                    <div class="pwd-input-wrap">
+                        <input type="password" id="regPwdInput" class="form-control" placeholder="至少 6 个字符" autocomplete="new-password" required data-password-strength="regPwdStrength" data-error-target="regPwdError" aria-describedby="regPwdStrength" aria-errormessage="regPwdError">
                         <button type="button" class="btn-eye-toggle" onclick="toggleLockPwd('regPwdInput', this)" title="显示/隐藏密码">
                             <i class="ri-eye-line"></i>
                         </button>
@@ -209,8 +209,8 @@ if (!$isSiteAuthorized) {
                         <span class="password-strength" id="resetPwdStrength" role="status"></span>
                     </div>
                     <div style="margin-bottom: 12px;">
-                        <div style="position:relative; display:flex; align-items:center;">
-                            <input type="password" id="resetNewPwdInput" class="form-control" placeholder="至少 6 个字符" autocomplete="new-password" required data-password-strength="resetPwdStrength" data-error-target="resetNewPwdError" aria-describedby="resetPwdStrength" aria-errormessage="resetNewPwdError" style="padding-right:36px;">
+                        <div class="pwd-input-wrap">
+                            <input type="password" id="resetNewPwdInput" class="form-control" placeholder="至少 6 个字符" autocomplete="new-password" required data-password-strength="resetPwdStrength" data-error-target="resetNewPwdError" aria-describedby="resetPwdStrength" aria-errormessage="resetNewPwdError">
                             <button type="button" class="btn-eye-toggle" onclick="toggleLockPwd('resetNewPwdInput', this)" title="显示/隐藏密码">
                                 <i class="ri-eye-line"></i>
                             </button>
@@ -219,8 +219,8 @@ if (!$isSiteAuthorized) {
                     </div>
                     <label class="m-label" for="resetConfirmPwdInput">确认新密码 <span class="req-star">*</span></label>
                     <div style="margin-bottom: 18px;">
-                        <div style="position:relative; display:flex; align-items:center;">
-                            <input type="password" id="resetConfirmPwdInput" class="form-control" placeholder="再次输入新密码" autocomplete="new-password" required data-error-target="resetConfirmPwdError" aria-describedby="resetConfirmPwdError" style="padding-right:36px;">
+                        <div class="pwd-input-wrap">
+                            <input type="password" id="resetConfirmPwdInput" class="form-control" placeholder="再次输入新密码" autocomplete="new-password" required data-error-target="resetConfirmPwdError" aria-describedby="resetConfirmPwdError">
                             <button type="button" class="btn-eye-toggle" onclick="toggleLockPwd('resetConfirmPwdInput', this)" title="显示/隐藏密码">
                                 <i class="ri-eye-line"></i>
                             </button>

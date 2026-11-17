@@ -303,7 +303,13 @@ body.page-standalone {
 }
 
 .pwd-input-wrap > input {
+    width: 100%;
     flex: 1;
+    min-width: 0;
+    padding-right: 36px;
+}
+
+.standalone-card .pwd-input-wrap > .form-control {
     padding-right: 36px;
 }
 
@@ -1106,7 +1112,7 @@ body, html {
 /* 主超级管理员：尊贵琥珀金软底 */
 .badge-role-owner, .m-badge-role-owner {
     background-color: var(--warning-subtle);
-    color: var(--warning);
+    color: var(--warning-text);
     border-color: var(--warning-border);
     font-weight: 600;
 }

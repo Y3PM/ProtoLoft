@@ -77,6 +77,16 @@ def main():
         check('existing passwords still authenticate under the legacy length rules',
               TestClient(base).login(member['email'], legacy).user['role'] == 'editor')
 
+        # Single-character surname and apostrophe email remain editable (e.g., department-only updates).
+        special = owner.api('user_add', {'email': "o'connor@test.com", 'name': '王', 'role': 'viewer', 'password': weak})
+        check('single-character name and apostrophe email can be created', special['success'])
+        dept_only = owner.api('user_update', {'id': special['data'], 'name': '王', 'email': "o'connor@test.com",
+                                              'role': 'viewer', 'status': 1, 'department': '产品部'})
+        check('editing only department for single-char name and apostrophe email succeeds', dept_only['success'])
+        bad_email = owner.api('user_update', {'id': special['data'], 'email': 'account@example.123'})
+        check('editing a member rejects an invalid email instead of silently succeeding',
+              not bad_email['success'] and '邮箱' in bad_email['message'])
+
 
 if __name__ == '__main__':
     main()

@@ -36,9 +36,9 @@ if (!empty(trim($allowedDomainsSetting))) {
                 </div>
                 <div class="m-form-group">
                     <label class="m-label" for="loginPassword">密码</label>
-                    <div style="position:relative;display:flex;align-items:center;">
-                        <input type="password" id="loginPassword" name="password" class="m-input" placeholder="输入密码" autocomplete="current-password" required maxlength="64" style="flex:1;padding-right:36px;">
-                        <button type="button" class="btn-eye-toggle" onclick="togglePasswordVisibility('loginPassword', this)" style="position:absolute;right:8px;background:none;border:none;color:var(--text-3);cursor:pointer;padding:4px 6px;font-size:15px;display:flex;align-items:center;" title="显示/隐藏密码">
+                    <div class="pwd-input-wrap">
+                        <input type="password" id="loginPassword" name="password" class="m-input" placeholder="输入密码" autocomplete="current-password" required maxlength="64">
+                        <button type="button" class="btn-eye-toggle" onclick="togglePasswordVisibility('loginPassword', this)" title="显示/隐藏密码">
                             <i class="ri-eye-line"></i>
                         </button>
                     </div>
@@ -118,8 +118,8 @@ if (!empty(trim($allowedDomainsSetting))) {
                         <label class="m-label" for="regPassword">登录密码 <span class="req-star">*</span></label>
                         <span class="password-strength" id="regPasswordStrength" role="status"></span>
                     </div>
-                    <div style="position:relative;display:flex;align-items:center;">
-                        <input type="password" id="regPassword" class="m-input" placeholder="至少 6 个字符" autocomplete="new-password" required data-password-strength="regPasswordStrength" data-error-target="regPasswordError" aria-describedby="regPasswordStrength" aria-errormessage="regPasswordError" style="flex:1;padding-right:36px;">
+                    <div class="pwd-input-wrap">
+                        <input type="password" id="regPassword" class="m-input" placeholder="至少 6 个字符" autocomplete="new-password" required data-password-strength="regPasswordStrength" data-error-target="regPasswordError" aria-describedby="regPasswordStrength" aria-errormessage="regPasswordError">
                         <button type="button" class="btn-eye-toggle" onclick="togglePasswordVisibility('regPassword', this)" title="显示/隐藏密码">
                             <i class="ri-eye-line"></i>
                         </button>

@@ -1763,7 +1763,22 @@ function handleChangeMyPassword(e) {
     apiFetch('change_my_password', formData)
     .then(function(res) {
         if (!res.success) {
-            showToast(res.message || '修改密码失败', 'error');
+            var msg = res.message || '修改密码失败';
+            if (typeof setFieldError === 'function') {
+                if (msg.indexOf('当前密码') !== -1 || msg.indexOf('原密码') !== -1) {
+                    setFieldError(oldPwdInput, null, msg);
+                    return;
+                }
+                if (msg.indexOf('不一致') !== -1) {
+                    setFieldError(confirmInput, null, msg);
+                    return;
+                }
+                if (msg.indexOf('新密码') !== -1 || msg.indexOf('字符') !== -1 || msg.indexOf('字节') !== -1) {
+                    setFieldError(passwordInput, null, msg);
+                    return;
+                }
+            }
+            showToast(msg, 'error');
             return;
         }
         showToast('密码已成功修改', 'success');

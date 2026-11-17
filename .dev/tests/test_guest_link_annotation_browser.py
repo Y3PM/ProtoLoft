@@ -4,10 +4,13 @@ Verify that an unauthenticated guest on a link project's share page
 can open the annotation drawer, see enabled input controls, and successfully publish a note.
 """
 import argparse
+import io
 import json
 import os
 from pathlib import Path
 import subprocess
+import uuid
+import zipfile
 
 from guest_permissions_regression import sandbox_server, TestClient, PASS_WORD
 
@@ -37,11 +40,35 @@ def main():
         owner.api('item_save_share', {'id': link_item, 'share_enabled': '1'})
         share_code = owner.api('item_get_share', {'id': link_item})['data']['share_code']
 
+        # 4. 再准备一个多页原型，验证署名期间切换页面时的上下文防漂移拦截
+        proto_item = owner.api('item_save', {
+            'category_id': cat,
+            'type': 'project',
+            'name': '多页原型防串页验证'
+        })['data']['id']
+        buf = io.BytesIO()
+        with zipfile.ZipFile(buf, 'w') as zf:
+            zf.writestr('index.html', '<!DOCTYPE html><html><head><title>首页</title></head><body><h1>Page 1</h1></body></html>')
+            zf.writestr('page2.html', '<!DOCTYPE html><html><head><title>第二页</title></head><body><h1>Page 2</h1></body></html>')
+        uid = uuid.uuid4().hex
+        owner.api('upload_chunk', {'upload_id': uid, 'file_type': 'zip', 'chunk_index': 0, 'chunk_total': 1},
+                  files={'chunk_data': ('chunk_0', buf.getvalue())})
+        owner.api('version_publish', {
+            'item_id': proto_item,
+            'version_name': 'v1.0',
+            'zip_upload_id': uid,
+            'is_default': 1,
+            'changelog': 'test'
+        })
+        owner.api('item_save_share', {'id': proto_item, 'share_enabled': '1'})
+        proto_share_code = owner.api('item_get_share', {'id': proto_item})['data']['share_code']
+
         environment = dict(os.environ, PLAYWRIGHT_MODULE=args.playwright_module,
                            LINK_ANNO_FIXTURE=json.dumps({
                                'base': base,
                                'share_code': share_code,
-                               'link_item': link_item
+                               'link_item': link_item,
+                               'proto_share_code': proto_share_code
                            }))
         subprocess.run(['node', str(Path(__file__).with_name('test_guest_link_annotation_browser.js'))],
                        env=environment, check=True, timeout=120)

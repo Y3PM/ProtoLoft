@@ -51,13 +51,26 @@
         return name;
     }
 
-    function saveGuestName(name) {
-        var clean = (name || '').trim() || '外部访客';
+    function saveGuestName(name, persist) {
+        var trimmed = (name || '').trim();
+        var clean = trimmed || '外部访客';
         if (clean.length > 20) clean = clean.substring(0, 20);
-        try {
-            localStorage.setItem('protoloft_guest_name', clean);
-        } catch(e) {}
+        if (persist && trimmed) {
+            try {
+                localStorage.setItem('protoloft_guest_name', clean);
+            } catch(e) {}
+        }
         return clean;
+    }
+
+    function getDialogFocusable(modal) {
+        if (!modal || typeof modal.querySelectorAll !== 'function') return [];
+        return Array.prototype.filter.call(
+            modal.querySelectorAll('button, a[href], input, select, textarea, summary, [tabindex]'),
+            function(el) {
+                return !el.disabled && el.tabIndex >= 0 && (!el.getClientRects || el.getClientRects().length > 0);
+            }
+        );
     }
 
     function resolveGuestName(onConfirm) {
@@ -67,7 +80,7 @@
             return;
         }
         if (typeof document === 'undefined' || typeof document.createElement !== 'function' || !document.body) {
-            onConfirm(saveGuestName('外部访客'));
+            onConfirm('外部访客');
             return;
         }
 
@@ -146,42 +159,83 @@
         var skipAction = document.getElementById('annoGuestNameSkip');
         var closeAction = modal.querySelector('.close-x');
         var guestForm = modal.querySelector('form');
+        var opener = (document.activeElement && document.activeElement !== document.body && !modal.contains(document.activeElement))
+            ? document.activeElement
+            : null;
+        var inertRecords = [];
         var settled = false;
 
-        function closeDialog() {
-            modal.style.display = 'none';
-            document.removeEventListener('keydown', onKeyDown);
+        function lockBackground() {
+            if (!document.body || !document.body.children) return;
+            Array.prototype.forEach.call(document.body.children, function(sibling) {
+                if (sibling !== modal && !/^(SCRIPT|STYLE|LINK)$/.test(sibling.tagName)) {
+                    inertRecords.push({ node: sibling, previous: !!sibling.inert });
+                    sibling.inert = true;
+                }
+            });
         }
-        function finishWith(rawName) {
+        function unlockBackground() {
+            inertRecords.forEach(function(entry) {
+                entry.node.inert = entry.previous;
+            });
+            inertRecords = [];
+        }
+        function closeDialog(restoreFocus) {
+            modal.style.display = 'none';
+            document.removeEventListener('keydown', onKeyDown, true);
+            unlockBackground();
+            if (restoreFocus && opener && opener.isConnected && !opener.closest('[inert]') && typeof opener.focus === 'function') {
+                opener.focus();
+            }
+        }
+        function finishWith(rawName, shouldPersist) {
             if (settled) return;
             settled = true;
-            closeDialog();
-            onConfirm(saveGuestName(rawName));
+            closeDialog(true);
+            onConfirm(saveGuestName(rawName, shouldPersist));
         }
         function cancelDialog() {
             if (settled) return;
             settled = true;
-            closeDialog();
+            closeDialog(true);
         }
         function onKeyDown(ev) {
             if (ev.key === 'Escape') {
                 ev.preventDefault();
+                ev.stopImmediatePropagation();
                 cancelDialog();
+                return;
+            }
+            if (ev.key === 'Tab') {
+                var fields = getDialogFocusable(modal);
+                if (!fields.length) {
+                    ev.preventDefault();
+                    return;
+                }
+                var active = document.activeElement;
+                var idx = fields.indexOf(active);
+                if (idx < 0 || (!ev.shiftKey && idx === fields.length - 1) || (ev.shiftKey && idx === 0)) {
+                    ev.preventDefault();
+                    ev.stopImmediatePropagation();
+                    fields[ev.shiftKey ? fields.length - 1 : 0].focus();
+                }
             }
         }
 
         if (closeAction) closeAction.onclick = cancelDialog;
-        if (skipAction) skipAction.onclick = function() { finishWith('外部访客'); };
+        if (skipAction) skipAction.onclick = function() { finishWith('', false); };
         if (guestForm) {
             guestForm.onsubmit = function(ev) {
                 ev.preventDefault();
-                finishWith(nameInput ? nameInput.value : '');
+                var typed = nameInput ? nameInput.value : '';
+                finishWith(typed, Boolean(typed && typed.trim()));
             };
         }
         if (nameInput) nameInput.value = '';
         modal.style.display = 'flex';
-        document.addEventListener('keydown', onKeyDown);
-        if (nameInput) setTimeout(function() { nameInput.focus(); }, 40);
+        lockBackground();
+        document.addEventListener('keydown', onKeyDown, true);
+        if (nameInput) nameInput.focus();
     }
 
     var requestSequence = 0;
@@ -742,7 +796,7 @@
             var replyBoxHtml = `
                 <div id="replyBox_${a.id}" style="display:none;margin-top:8px;">
                     <div class="m-form-row">
-                        <input type="text" id="replyInput_${a.id}" class="m-input m-input-sm" placeholder="写回复..." maxlength="1000" onkeydown="if(event.keyCode===13){submitReply(${a.id});}">
+                        <input type="text" id="replyInput_${a.id}" class="m-input m-input-sm" placeholder="写回复..." maxlength="1000" onkeydown="if((event.key==='Enter'||event.keyCode===13)&&!event.isComposing){event.preventDefault();event.stopPropagation();submitReply(${a.id});}">
                         <button type="button" class="btn-primary btn-sm" onclick="submitReply(${a.id})">回复</button>
                     </div>
                 </div>
@@ -773,7 +827,7 @@
                     ${repliesHtml}
                     ${replyBoxHtml}
                     <div class="anno-card-actions">
-                        <button type="button" class="anno-act-btn" onclick="toggleReplyInput(${a.id})">
+                        <button type="button" class="anno-act-btn" data-anno-reply-toggle="${a.id}" onclick="toggleReplyInput(${a.id})">
                             <i class="ri-chat-1-line"></i> 回复 ${a.replies ? '(' + a.replies.length + ')' : ''}
                         </button>
                         <button type="button" class="anno-act-btn" onclick="copyAnnotationLink(${a.id})">复制链接</button>
@@ -820,31 +874,63 @@
         var content = input ? input.value.trim() : '';
         if (!content) return;
 
+        var snapshot = {
+            itemId: AnnoState.itemId,
+            verId: AnnoState.verId || 0,
+            itemType: AnnoState.itemType,
+            pagePath: AnnoState.pagePath || 'link',
+            pageTitle: AnnoState.pageTitle || '外部链接',
+            contextSequence: contextSequence,
+            content: content
+        };
+
         var dispatchNewAnnotation = function(guestName) {
             if (!AnnoState.ready || !AnnoState.itemId || (!AnnoState.verId && AnnoState.itemType !== 'link') || AnnoState.submitting) return;
+            var currentPath = AnnoState.pagePath || 'link';
+            var currentVerId = AnnoState.verId || 0;
+            if (snapshot.contextSequence !== contextSequence
+                || snapshot.itemId !== AnnoState.itemId
+                || snapshot.verId !== currentVerId
+                || snapshot.pagePath !== currentPath) {
+                if (typeof showToast === 'function') {
+                    showToast('页面已切换，请返回原页面「' + snapshot.pageTitle + '」或重新发送确认', 'warning');
+                }
+                if (input && typeof input.focus === 'function') input.focus();
+                return;
+            }
+            var focusTargetAfterSubmit = (typeof document !== 'undefined' && document.activeElement && document.activeElement !== document.body)
+                ? document.activeElement
+                : null;
+            var restoreDrawerFocus = function() {
+                if (!AnnoState.isOpen || typeof document === 'undefined') return;
+                if (document.activeElement && document.activeElement !== document.body) return;
+                if (focusTargetAfterSubmit && focusTargetAfterSubmit.isConnected && !focusTargetAfterSubmit.disabled && typeof focusTargetAfterSubmit.focus === 'function') {
+                    focusTargetAfterSubmit.focus();
+                } else if (input && input.isConnected && !input.disabled && typeof input.focus === 'function') {
+                    input.focus();
+                }
+            };
             AnnoState.submitting = true;
             syncComposer();
-            var contextSnapshot = contextSequence;
-            var pageSnapshot = AnnoState.pagePath;
 
             var fd = new FormData();
             fd.append('action', 'add_annotation');
-            fd.append('item_id', AnnoState.itemId);
-            fd.append('ver_id', AnnoState.verId || 0);
-            fd.append('page_path', AnnoState.pagePath || 'link');
-            fd.append('page_title', AnnoState.pageTitle || '外部链接');
-            fd.append('content', content);
+            fd.append('item_id', snapshot.itemId);
+            fd.append('ver_id', snapshot.verId);
+            fd.append('page_path', snapshot.pagePath);
+            fd.append('page_title', snapshot.pageTitle);
+            fd.append('content', snapshot.content);
             if (guestName) {
                 fd.append('guest_name', guestName);
             }
 
             apiFetch(fd.get('action'), fd)
             .then(function(res) {
-                if (contextSnapshot !== contextSequence) return;
+                if (snapshot.contextSequence !== contextSequence) return;
                 AnnoState.submitting = false;
                 syncComposer();
                 if (res.success && res.data) {
-                    if (pageSnapshot === AnnoState.pagePath) input.value = '';
+                    if (snapshot.pagePath === (AnnoState.pagePath || 'link') && input) input.value = '';
                     AnnoState.list.unshift(res.data);
                     AnnoState.pendingCount++;
                     updateHeaderBadge();
@@ -857,14 +943,16 @@
                         showToast(res.message || '发布失败', 'error');
                     }
                 }
+                restoreDrawerFocus();
             })
             .catch(function() {
-                if (contextSnapshot !== contextSequence) return;
+                if (snapshot.contextSequence !== contextSequence) return;
                 AnnoState.submitting = false;
                 syncComposer();
                 if (typeof showToast === 'function') {
                     showToast('网络异常，请重试', 'error');
                 }
+                restoreDrawerFocus();
             });
         };
 
@@ -890,16 +978,32 @@
         var content = input ? input.value.trim() : '';
         if (!content) return;
 
+        var replySnapshot = {
+            annoId: annoId,
+            contextSequence: contextSequence,
+            content: content
+        };
+
         var dispatchReply = function(guestName) {
             if (replySubmitting[annoId]) return;
+            if (replySnapshot.contextSequence !== contextSequence) {
+                if (typeof showToast === 'function') {
+                    showToast('上下文已切换，请重新点击回复确认', 'warning');
+                }
+                if (input && typeof input.focus === 'function') input.focus();
+                return;
+            }
             replySubmitting[annoId] = true;
             var btn = document.querySelector('#replyBox_' + annoId + ' button');
+            var replyFocusTarget = (typeof document !== 'undefined' && document.activeElement && document.activeElement !== document.body)
+                ? document.activeElement
+                : null;
             if (btn) btn.disabled = true;
 
             var fd = new FormData();
             fd.append('action', 'reply_annotation');
-            fd.append('annotation_id', annoId);
-            fd.append('content', content);
+            fd.append('annotation_id', replySnapshot.annoId);
+            fd.append('content', replySnapshot.content);
             if (guestName) {
                 fd.append('guest_name', guestName);
             }
@@ -909,7 +1013,7 @@
                 delete replySubmitting[annoId];
                 if (btn) btn.disabled = false;
                 if (res.success && res.data) {
-                    input.value = '';
+                    if (input) input.value = '';
                     AnnoState.list.forEach(function(item) {
                         if (item.id === annoId) {
                             if (!item.replies) item.replies = [];
@@ -922,12 +1026,27 @@
                         showToast(res.message || '回复失败', 'error');
                     }
                 }
+                if (AnnoState.isOpen && typeof document !== 'undefined' && (!document.activeElement || document.activeElement === document.body)) {
+                    var toggleReplyBtn = document.querySelector('#annoCard_' + annoId + ' [data-anno-reply-toggle="' + annoId + '"]');
+                    if (res.success && res.data && toggleReplyBtn && toggleReplyBtn.isConnected && (!toggleReplyBtn.getClientRects || toggleReplyBtn.getClientRects().length > 0)) {
+                        toggleReplyBtn.focus();
+                    } else if (replyFocusTarget && replyFocusTarget.isConnected && !replyFocusTarget.disabled && (!replyFocusTarget.getClientRects || replyFocusTarget.getClientRects().length > 0) && typeof replyFocusTarget.focus === 'function') {
+                        replyFocusTarget.focus();
+                    } else if (toggleReplyBtn && typeof toggleReplyBtn.focus === 'function') {
+                        toggleReplyBtn.focus();
+                    }
+                }
             })
             .catch(function() {
                 delete replySubmitting[annoId];
                 if (btn) btn.disabled = false;
                 if (typeof showToast === 'function') {
                     showToast('网络异常，请重试', 'error');
+                }
+                if (AnnoState.isOpen && typeof document !== 'undefined' && (!document.activeElement || document.activeElement === document.body)) {
+                    if (replyFocusTarget && replyFocusTarget.isConnected && !replyFocusTarget.disabled && typeof replyFocusTarget.focus === 'function') {
+                        replyFocusTarget.focus();
+                    }
                 }
             });
         };

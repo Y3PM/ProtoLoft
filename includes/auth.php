@@ -1112,6 +1112,9 @@ class Auth {
         }
         if ($name !== null) {
             $trimmedName = trim($name);
+            if ($trimmedName === '') {
+                return ['success' => false, 'message' => '请输入真实姓名'];
+            }
             if (mb_strlen($trimmedName, 'UTF-8') > 20) {
                 return ['success' => false, 'message' => '姓名不能超过 20 个字符'];
             }
@@ -1123,15 +1126,16 @@ class Auth {
             if (strlen($cleanEmail) > 100) {
                 return ['success' => false, 'message' => '邮箱不能超过 100 个字符'];
             }
-            if (!empty($cleanEmail) && filter_var($cleanEmail, FILTER_VALIDATE_EMAIL)) {
-                $chkEmail = $db->prepare("SELECT id FROM users WHERE email = ? AND id != ?");
-                $chkEmail->execute([$cleanEmail, (int)$id]);
-                if ($chkEmail->fetch()) {
-                    return ['success' => false, 'message' => '该邮箱已被其他账号使用'];
-                }
-                $fields[] = "email = ?";
-                $params[] = $cleanEmail;
+            if ($cleanEmail === '' || !filter_var($cleanEmail, FILTER_VALIDATE_EMAIL)) {
+                return ['success' => false, 'message' => '请输入有效的工作邮箱地址'];
             }
+            $chkEmail = $db->prepare("SELECT id FROM users WHERE email = ? AND id != ?");
+            $chkEmail->execute([$cleanEmail, (int)$id]);
+            if ($chkEmail->fetch()) {
+                return ['success' => false, 'message' => '该邮箱已被其他账号使用'];
+            }
+            $fields[] = "email = ?";
+            $params[] = $cleanEmail;
         }
         if ($department !== null) {
             $trimmedDept = trim($department);

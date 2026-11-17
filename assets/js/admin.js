@@ -2986,12 +2986,12 @@ function handleUpdateUser(e) {
     var wbEl = document.getElementById('editUserWebhook');
     var wb = wbEl ? wbEl.value.trim() : '';
 
-    if (!name || name.length < 2) {
-        if (typeof setFieldError === 'function' && nameInput) setFieldError(nameInput, null, '请输入真实姓名（至少 2 个字符）');
-        else { showToast('请输入真实姓名（至少 2 个字符）', 'warning'); if (nameInput) nameInput.focus(); }
+    if (!name || name.length > 20) {
+        if (typeof setFieldError === 'function' && nameInput) setFieldError(nameInput, null, '请输入真实姓名（1~20 个字符）');
+        else { showToast('请输入真实姓名（1~20 个字符）', 'warning'); if (nameInput) nameInput.focus(); }
         return;
     }
-    var emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+    var emailRegex = /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@(?:[a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}$/;
     if (!email || !emailRegex.test(email)) {
         if (typeof setFieldError === 'function' && emailInput) setFieldError(emailInput, null, '工作邮箱格式不正确，请输入有效的邮箱地址');
         else { showToast('工作邮箱格式不正确，请输入有效的邮箱地址', 'warning'); if (emailInput) emailInput.focus(); }
@@ -3053,7 +3053,22 @@ function handleUpdateUser(e) {
                 if (sidebarName) sidebarName.textContent = name;
             }
         } else {
-            showToast(res.message || '更新用户信息失败', 'error');
+            var errMsg = res.message || '更新用户信息失败';
+            if (typeof setFieldError === 'function') {
+                if (errMsg.indexOf('邮箱') !== -1 && emailInput) {
+                    setFieldError(emailInput, null, errMsg);
+                    return;
+                }
+                if (errMsg.indexOf('姓名') !== -1 && nameInput) {
+                    setFieldError(nameInput, null, errMsg);
+                    return;
+                }
+                if (newPwd && passwordInput && (errMsg.indexOf('密码') !== -1 || errMsg.indexOf('字符') !== -1 || errMsg.indexOf('字节') !== -1)) {
+                    setFieldError(passwordInput, null, errMsg);
+                    return;
+                }
+            }
+            showToast(errMsg, 'error');
         }
     });
 }
@@ -3072,10 +3087,10 @@ function handleCreateUser(e) {
     var wb = wbEl ? wbEl.value.trim() : '';
 
     var fixedDomain = emailInput ? (emailInput.getAttribute('data-fixed-domain') || '') : '';
-    var emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
-    if (!name || name.length < 2) {
-        if (typeof setFieldError === 'function' && nameInput) setFieldError(nameInput, null, '请输入真实姓名（至少 2 个字符）');
-        else { showToast('请输入真实姓名（至少 2 个字符）', 'warning'); if (nameInput) nameInput.focus(); }
+    var emailRegex = /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@(?:[a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}$/;
+    if (!name || name.length > 20) {
+        if (typeof setFieldError === 'function' && nameInput) setFieldError(nameInput, null, '请输入真实姓名（1~20 个字符）');
+        else { showToast('请输入真实姓名（1~20 个字符）', 'warning'); if (nameInput) nameInput.focus(); }
         return;
     }
     if (!fixedDomain && email.indexOf('@') === -1) {
@@ -3167,7 +3182,12 @@ function handleDoTransferOwner(e) {
                 window.location.reload();
             }, 1200);
         } else {
-            showToast(res.message || '移交失败', 'error');
+            var errMsg = res.message || '移交失败';
+            if (typeof setFieldError === 'function' && pwdInput && errMsg.indexOf('密码') !== -1) {
+                setFieldError(pwdInput, null, errMsg);
+            } else {
+                showToast(errMsg, 'error');
+            }
         }
     }).catch(function() {
         btn.disabled = false;
