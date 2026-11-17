@@ -1524,7 +1524,7 @@ $allUsers = $db->query("SELECT id, email, name, role FROM users WHERE status = 1
                                     <thead>
                                         <tr style="background:var(--canvas);text-align:left;color:var(--text-2);border-bottom:1px solid var(--border);">
                                             <th style="padding:10px 16px;width:28%;font-weight:600;">权限项</th>
-                                            <th style="padding:10px 12px;text-align:center;width:18%;font-weight:600;color:var(--text-1);">超级管理员</th>
+                                            <th style="padding:10px 12px;text-align:center;width:18%;font-weight:600;color:var(--text-1);">管理员</th>
                                             <th style="padding:10px 12px;text-align:center;width:18%;font-weight:600;color:var(--text-1);">协作者</th>
                                             <th style="padding:10px 12px;text-align:center;width:18%;font-weight:600;color:var(--text-1);">审阅人</th>
                                             <th style="padding:10px 12px;text-align:center;width:18%;font-weight:600;color:var(--text-1);">访客</th>
@@ -2378,14 +2378,14 @@ $allUsers = $db->query("SELECT id, email, name, role FROM users WHERE status = 1
                     </div>
                     <select id="mcpProjectScope" hidden><option value="0">全部项目</option></select>
                     <button type="submit" id="mcpSavePermissions" hidden></button>
-                    <div class="mcp-switch-row">
+                    <div id="mcpPublishSwitchRow" class="mcp-switch-row"<?php echo empty($canManage) ? ' hidden' : ''; ?>>
                         <label class="mcp-switch-label" for="mcpPublishPermission">允许发布和替换版本</label>
                         <label class="linear-switch">
                             <input type="checkbox" id="mcpPublishPermission" onchange="autoSaveMcpPermissions()">
                             <span class="linear-switch-slider"></span>
                         </label>
                     </div>
-                    <p id="mcpReadOnlyHint" class="mcp-tip-text" hidden>审阅人仅可读取项目与批注。</p>
+                    <p id="mcpReadOnlyHint" class="mcp-tip-text mcp-readonly-hint"<?php echo !empty($canManage) ? ' hidden' : ''; ?>>审阅人仅可读取项目与批注。</p>
                 </form>
                 <div id="mcpNewCredential" class="m-form-group" hidden>
                     <label class="m-label" for="mcpSecret">个人凭据</label>

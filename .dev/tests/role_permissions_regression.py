@@ -269,6 +269,7 @@ def run_tests(base_url, temp_dir):
     roles_panel = admin_page.split(b'id="panel-roles"', 1)[1].split(b'</form>', 1)[0]
     assert b'roleFeatureAnno' not in roles_panel and b'roleFeatureShare' not in roles_panel, "角色权限页面仍渲染总开关"
     assert roles_panel.count(b'type="checkbox"') == 5, "角色权限页面应仅包含五项可配置角色权限"
+    assert '>管理员</th>'.encode('utf-8') in roles_panel and '超级管理员'.encode('utf-8') not in roles_panel, "角色权限表头应使用统一的「管理员」称谓"
     # 仅在合成库留下旧值，后续多角色真实请求必须仍按角色矩阵决定，不能靠改回 1 自愈。
     conn.executemany('INSERT OR REPLACE INTO settings (key,value) VALUES (?,?)', [
         ('feature_annotation_enabled', '0'), ('feature_share_enabled', '0')])
@@ -298,6 +299,10 @@ def run_tests(base_url, temp_dir):
     editor_a = user_clients['editor_a@test.com']
     editor_b = user_clients['editor_b@test.com']
     viewer = user_clients['viewer_x@test.com']
+    _, editor_page, _ = editor_a.request('/index.php')
+    _, viewer_page, _ = viewer.request('/index.php')
+    assert b'id="mcpPublishSwitchRow" class="mcp-switch-row">' in editor_page and b'id="mcpReadOnlyHint" class="mcp-tip-text mcp-readonly-hint" hidden>' in editor_page, "协作者 MCP 首帧应显示发布开关并隐藏只读提示"
+    assert b'id="mcpPublishSwitchRow" class="mcp-switch-row" hidden>' in viewer_page and b'id="mcpReadOnlyHint" class="mcp-tip-text mcp-readonly-hint">' in viewer_page, "审阅人 MCP 首帧应隐藏发布开关并显示只读提示"
     print("  ✓ 多角色用户登录会话就绪")
 
     # ----------------------------------------------------

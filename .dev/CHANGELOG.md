@@ -7,6 +7,11 @@
 
 ## 发布前修复（全新版本，未发布）
 
+- 2026-11-17：隐藏审阅人 MCP 发布权限禁用开关，并统一控制中心角色权限表「管理员」称谓。
+  - 在 `includes/modals.php`、`assets/js/mcp.js` 与 `assets/css/app.css` 为不可发布的审阅人隐藏 `#mcpPublishSwitchRow`（「允许发布和替换版本」开关行），首帧与接口返回双重同步隐藏并保留简短只读提示 `#mcpReadOnlyHint`（`审阅人仅可读取项目与批注。`），同时在提交凭据/权限参数时二次锁定 `mcpSettings.can_publish` 为真才允许 `can_publish=1`。
+  - 在 `includes/modals.php` 将控制中心「角色权限」表头由旧称谓「超级管理员」统一为「管理员」，覆盖主管理员与普通管理员两类后台管理角色。
+  - 在 `.dev/tests/profile_mcp_frontend_regression.js` 与 `.dev/tests/role_permissions_regression.py` 增补开关隐藏与表头称谓断言；已通过 `php -l includes/modals.php`、`node --check assets/js/mcp.js`、`git diff --check` 与 `python3 -B .dev/tests/run_all_tests.py`（PHP 8.3.20 下 25/25 套通过，可识别 1,105 项断言 100% PASS）；本轮尚未部署 FTP、未提交 GitHub，真实浏览器视觉效果待用户验收。
+
 - 2026-11-17：修复文件夹上传漏过隐藏目录（如 `.mimosa/`、`.git/`）导致服务端安全拦截报错，并精细化 ZIP 安全报错提示。
   - 在 `assets/js/admin.js` 提取 `getPrototypeFilePath()` 与 `findBlockedPrototypeFile()`，升级 `filterPrototypeFiles()`：将路径每一段中以 `.` 开头的隐藏目录与隐藏文件（如 `.mimosa/`、`.git/`、`.DS_Store`、`._*`）以及 `__MACOSX`、`Thumbs.db`、`desktop.ini` 一并自动跳过，并在 `setProtoSourceFolder()` 阶段预检服务端禁止扩展名（如 `.php`、`.sh`），发现时立即提示具体文件路径。
   - 在 `includes/zip_handler.php` 新增 `formatZipEntryLabel()` 与 `inspectZipEntryName()`，保持全部既有安全规则不放宽的同时，区分绝对路径、路径穿越、隐藏文件/目录、服务端脚本四类拦截场景并附带脱敏截断后的条目路径提示。

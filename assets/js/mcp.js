@@ -252,6 +252,8 @@ function loadMcpSettings() {
             if (!select.value) select.value = '0';
         }
 
+        var switchRow = document.getElementById('mcpPublishSwitchRow');
+        if (switchRow) switchRow.hidden = !res.data.can_publish;
         var permission = document.getElementById('mcpPublishPermission');
         if (permission) {
             permission.disabled = !res.data.can_publish;
@@ -389,7 +391,7 @@ function doCreateMcpToken(replace) {
         fd.append('project_ids[]', pid);
     });
     fd.append('project_id', String(primaryId));
-    fd.append('can_publish', (permission && permission.checked) ? '1' : '0');
+    fd.append('can_publish', (mcpSettings && mcpSettings.can_publish && permission && permission.checked) ? '1' : '0');
     fd.append('replace', replace ? '1' : '0');
     return apiFetch('mcp_token_create', fd, button).then(function(res) {
         if (!res.success) throw new Error(res.message || '生成凭据失败');
@@ -445,7 +447,7 @@ function handleMcpPermissionChange(event) {
     }
     var currentIds = getSelectedMcpProjectIds();
     var perm = document.getElementById('mcpPublishPermission');
-    var publish = !!(perm && perm.checked);
+    var publish = !!(mcpSettings && mcpSettings.can_publish && perm && perm.checked);
     var primaryId = currentIds.length === 1 ? currentIds[0] : (currentIds.length === 0 ? 0 : currentIds[0]);
     var submittedIds = currentIds.slice();
     var submittedPrimary = primaryId;
