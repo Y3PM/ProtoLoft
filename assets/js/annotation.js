@@ -1182,7 +1182,9 @@
                 showToast('原页面已不存在，请查看批注原文', 'warning');
             }
 
-            if (window.history && window.history.replaceState) {
+            if (typeof window.setActiveAnnotationHash === 'function') {
+                window.setActiveAnnotationHash(id);
+            } else if (window.history && window.history.replaceState) {
                 window.history.replaceState(null, '', '#annotation=' + id);
             }
             window.focusAnnotation(id);

@@ -35,3 +35,10 @@
 
 - `python3 -B .dev/tests/run_all_tests.py` 通过 25 套、1,135 项可识别断言。审批前端专项 27 项、JS 语法和 `git diff --check` 通过。
 - `python3 -B .dev/tmp/review-910c201-final/browser.py` 在 PHP 8.3.20 和 Chrome 157 下通过 19 项浏览器检查及发布落盘核对，另复现上述 P3。四角色批注跳转专项通过 44 项。浏览器无脚本异常，作为前置历史页面打开的裸 SVG 触发了浏览器默认 `/favicon.ico` 请求，返回 404。日志在 `.dev/tmp/review-910c201-final/`。PHP 7.0、生产环境及机器人客户端实际点击待验证。
+
+## 批注抽屉修复复核
+
+复核 `10004ec` 上的工作区改动。上轮 P3 已修复。批注直达和工作台抽屉跳转共用活跃批注锚点写入逻辑。Chrome 从第一条批注进入工作台，再在抽屉点击第二条批注后，批准申请并关闭控制中心。重载后保留第二条批注锚点，预览回到对应的 `page2.html`，抽屉重新展开并高亮第二条批注。上轮项目和版本恢复、两项文件夹上传场景均通过复验。
+
+- `python3 -B .dev/tests/run_all_tests.py` 在 PHP 8.3.20 下通过 25 套、1,137 项可识别断言。审批前端专项 29 项、JS 语法检查及 `git diff --check` 通过。
+- `python3 -B .dev/tmp/review-10004ec-recheck/browser.py` 在 Chrome 157 下通过 21 项浏览器检查及文件发布落盘核对。四角色 `annotation_jump_browser.py` 通过 44 项，覆盖分享访客页面的批注锚点。证据在 `.dev/tmp/review-10004ec-recheck/`。PHP 7.0、生产环境及机器人客户端实际点击待验证。

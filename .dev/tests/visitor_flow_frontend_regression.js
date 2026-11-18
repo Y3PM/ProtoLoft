@@ -10,6 +10,7 @@ const loginModalPhp = fs.readFileSync(path.join(root, 'includes/login_modal.php'
 const authPhp = fs.readFileSync(path.join(root, 'includes/actions/auth.php'), 'utf8');
 const modalsPhp = fs.readFileSync(path.join(root, 'includes/modals.php'), 'utf8');
 const appJs = fs.readFileSync(path.join(root, 'assets/js/app.js'), 'utf8');
+const annotationJs = fs.readFileSync(path.join(root, 'assets/js/annotation.js'), 'utf8');
 
 let passed = 0;
 const check = (name, condition) => {
@@ -43,10 +44,12 @@ check('auth.php register_visitor 成功文案明确自明', authPhp.includes("js
 check('auth.php register_visitor 对申请角色做白名单收口并透传通知', authPhp.includes("in_array($requestedRole, ['viewer', 'editor'], true)") && authPhp.includes("'申请角色' => $requestedRoleLabel"));
 check('modals.php 待审批表头包含申请角色列并同步 colspan=5', modalsPhp.includes('<th style="padding:9px 12px;">申请角色</th>') && modalsPhp.includes('id="pendingUsersTbody"') && modalsPhp.includes('<td colspan="5"'));
 check('auth.php register_visitor 通知包含直达待审批路由链接', authPhp.includes("app_url('index.php#admin=users&sub=pending')"));
+check('annotation.js 抽屉定位与 app.js 共用 window.setActiveAnnotationHash 写入活跃批注锚点',
+    annotationJs.includes("typeof window.setActiveAnnotationHash === 'function'") && annotationJs.includes('window.setActiveAnnotationHash(id)'));
 
 // 4. 前端 #admin=users&sub=pending 直达路由与角色权限守卫行为验证
 const routeSlice = appJs.slice(
-    appJs.indexOf('function handleAdminHashRoute('),
+    appJs.indexOf('function setActiveAnnotationHash('),
     appJs.indexOf('/* ===================== 全局通用弹窗与快捷交互 ===================== */')
 );
 function runRouteCase(role, initialHash, hasAdminFn, opts) {
@@ -126,7 +129,7 @@ check('地址栏指向旧项目而实际预览为项目2时，进入审批优先
         && adminWithItems.win.location.hash === '#item=2&v=V2.0'
         && adminWithItems.replacedUrls[adminWithItems.replacedUrls.length - 1] === '/index.php#item=2&v=V2.0');
 
-adminWithItems.win.currentActiveAnnotationHash = '#annotation=42';
+adminWithItems.win.setActiveAnnotationHash(42);
 adminWithItems.win.location.hash = '#admin=users&sub=pending';
 adminWithItems.listeners.hashchange({
     oldURL: 'https://example.com/index.php#annotation=42',
@@ -135,6 +138,16 @@ adminWithItems.listeners.hashchange({
 check('当前预览仍对应活跃批注锚点时，进入审批保留该批注锚点',
     adminWithItems.win.location.hash === '#annotation=42'
         && adminWithItems.replacedUrls[adminWithItems.replacedUrls.length - 1] === '/index.php#annotation=42');
+
+adminWithItems.win.setActiveAnnotationHash(99);
+adminWithItems.win.location.hash = '#admin=users&sub=pending';
+adminWithItems.listeners.hashchange({
+    oldURL: 'https://example.com/index.php#annotation=99',
+    newURL: 'https://example.com/index.php#admin=users&sub=pending'
+});
+check('通过抽屉切换到第二条批注后，进入审批同步保留第二条批注锚点',
+    adminWithItems.win.location.hash === '#annotation=99'
+        && adminWithItems.replacedUrls[adminWithItems.replacedUrls.length - 1] === '/index.php#annotation=99');
 
 adminWithItems.win.currentActiveAnnotationHash = '';
 adminWithItems.win.location.hash = '#admin=users&sub=pending';

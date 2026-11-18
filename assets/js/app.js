@@ -1182,15 +1182,32 @@ function openAnnotationLink(id) {
         $(node).closest('.category-group').removeClass('collapsed');
         selectItem(target.item_id, node, isLink ? '' : target.version_name, false, true);
         if (target.page_url && !isLink) document.getElementById('myFrame').src = target.page_url;
-        var annoHash = '#annotation=' + parseInt(id,10);
-        window.currentActiveAnnotationHash = annoHash;
-        window.history.replaceState(null, '', annoHash);
+        if (typeof window.setActiveAnnotationHash === 'function') {
+            window.setActiveAnnotationHash(id);
+        } else {
+            var annoHash = '#annotation=' + parseInt(id, 10);
+            window.currentActiveAnnotationHash = annoHash;
+            window.history.replaceState(null, '', annoHash);
+        }
         if (typeof window.focusAnnotation === 'function') window.focusAnnotation(parseInt(id,10));
         if (!target.page_url && !isLink) showToast('原页面已不存在，已打开版本入口；请查看批注原文', 'warning');
         else if (target.annotation && target.annotation.needs_review) showToast('原型已更新，此批注需要重新核对', 'info');
     }).catch(function(error) { showToast(error.message || '批注不可访问', 'error'); });
 }
 window.openAnnotationLink = openAnnotationLink;
+function setActiveAnnotationHash(id) {
+    var parsed = parseInt(id, 10);
+    if (!parsed || parsed <= 0) return '';
+    var annoHash = '#annotation=' + parsed;
+    if (typeof window !== 'undefined') {
+        window.currentActiveAnnotationHash = annoHash;
+        if (window.history && window.history.replaceState) {
+            window.history.replaceState(null, '', annoHash);
+        }
+    }
+    return annoHash;
+}
+window.setActiveAnnotationHash = setActiveAnnotationHash;
 function handleAdminHashRoute(hash, fallbackHash) {
     if (!hash || !/(?:^#|&)admin=users(?:&|$)/.test(hash)) return false;
     if (typeof CURRENT_USER === 'undefined' || !CURRENT_USER || CURRENT_USER.role !== 'admin') return false;
