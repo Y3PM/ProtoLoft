@@ -693,15 +693,31 @@ function getPrototypeFilePath(file) {
         .replace(/^\/+|\/+$/g, '');
 }
 
-function findBlockedPrototypeFile(files) {
+// 仅剥离浏览器附带的单层所选根目录（如 .selected-root/），保留其内部隐藏目录以供安全过滤
+function getSelectedRootPrefix(files) {
+    var rootName = null;
     for (var i = 0; i < files.length; i++) {
         var path = getPrototypeFilePath(files[i]);
-        var fileName = path.split('/').pop() || '';
+        if (!path) continue;
+        var parts = path.split('/');
+        if (parts.length < 2 || !parts[0]) return '';
+        if (rootName === null) rootName = parts[0];
+        else if (parts[0] !== rootName) return '';
+    }
+    return rootName ? (rootName + '/') : '';
+}
+
+function findBlockedPrototypeFile(files) {
+    var rootPrefix = getSelectedRootPrefix(files);
+    for (var i = 0; i < files.length; i++) {
+        var path = getPrototypeFilePath(files[i]);
+        var relPath = (rootPrefix && path.indexOf(rootPrefix) === 0) ? path.slice(rootPrefix.length) : path;
+        var fileName = relPath.split('/').pop() || '';
         var dotIdx = fileName.lastIndexOf('.');
         if (dotIdx > 0 && dotIdx < fileName.length - 1) {
             var ext = fileName.slice(dotIdx + 1).toLowerCase();
-            if (PROTO_BLOCKED_EXTENSIONS[ext]) {
-                return path;
+            if (Object.prototype.hasOwnProperty.call(PROTO_BLOCKED_EXTENSIONS, ext)) {
+                return relPath;
             }
         }
     }
@@ -709,12 +725,15 @@ function findBlockedPrototypeFile(files) {
 }
 
 function filterPrototypeFiles(files) {
+    var rootPrefix = getSelectedRootPrefix(files);
     var res = [];
     for (var i = 0; i < files.length; i++) {
         var f = files[i];
         var path = getPrototypeFilePath(f);
         if (!path) continue;
-        var parts = path.split('/');
+        var relPath = (rootPrefix && path.indexOf(rootPrefix) === 0) ? path.slice(rootPrefix.length) : path;
+        if (!relPath) continue;
+        var parts = relPath.split('/');
         var hasJunk = false;
         for (var j = 0; j < parts.length; j++) {
             var p = parts[j];

@@ -4,6 +4,8 @@
  */
 
 var currentSelectedItemId = null;
+window.currentActiveItemHash = '';
+window.currentActiveAnnotationHash = '';
 
 // 文本/属性输出共用；动态行为只传标识，不把用户文本拼进事件代码。
 function esc(s) {
@@ -395,7 +397,7 @@ $(document).ready(function() {
     }
 });
 
-// 选中项目 (isUserDirectClick: 仅当用户在工作台左侧手动显式点击时为 true)
+// 选中项目 (isUserDirectClick: 仅当用户在工作台左侧手动显式点击时为 true；可选第 5 参数 replaceHistory 为 true 时原地替换历史项)
 function selectItem(itemId, el, targetVerName, isUserDirectClick) {
     var $el = $(el);
     var type = $el.data('type');
@@ -664,7 +666,15 @@ function selectItem(itemId, el, targetVerName, isUserDirectClick) {
     // 更新 Hash 路由方便直达分享 (带上版本号)
     var hashStr = 'item=' + itemId;
     if (ver) hashStr += '&v=' + encodeURIComponent(ver);
-    window.location.hash = hashStr;
+    if (typeof window !== 'undefined') {
+        window.currentActiveItemHash = '#' + hashStr;
+        window.currentActiveAnnotationHash = '';
+        if (arguments.length > 4 && arguments[4] && window.history && window.history.replaceState) {
+            window.history.replaceState(null, '', window.location.pathname + window.location.search + '#' + hashStr);
+        } else {
+            window.location.hash = hashStr;
+        }
+    }
 
     // 联动更新批注上下文
     if (typeof window.updateAnnoContext === 'function') {
@@ -745,7 +755,11 @@ function onTopVersionChange(selectEl) {
     // 更新 Hash
     var hashStr = 'item=' + currentSelectedItemId;
     if (ver) hashStr += '&v=' + encodeURIComponent(ver);
-    window.location.hash = hashStr;
+    if (typeof window !== 'undefined') {
+        window.currentActiveItemHash = '#' + hashStr;
+        window.currentActiveAnnotationHash = '';
+        window.location.hash = hashStr;
+    }
 
     // 联动更新批注上下文
     if (typeof window.updateAnnoContext === 'function') {
@@ -1166,23 +1180,33 @@ function openAnnotationLink(id) {
             if (!match) throw new Error('版本已删除或不可访问');
         }
         $(node).closest('.category-group').removeClass('collapsed');
-        selectItem(target.item_id, node, isLink ? '' : target.version_name);
+        selectItem(target.item_id, node, isLink ? '' : target.version_name, false, true);
         if (target.page_url && !isLink) document.getElementById('myFrame').src = target.page_url;
-        window.history.replaceState(null, '', '#annotation=' + parseInt(id,10));
+        var annoHash = '#annotation=' + parseInt(id,10);
+        window.currentActiveAnnotationHash = annoHash;
+        window.history.replaceState(null, '', annoHash);
         if (typeof window.focusAnnotation === 'function') window.focusAnnotation(parseInt(id,10));
         if (!target.page_url && !isLink) showToast('原页面已不存在，已打开版本入口；请查看批注原文', 'warning');
         else if (target.annotation && target.annotation.needs_review) showToast('原型已更新，此批注需要重新核对', 'info');
     }).catch(function(error) { showToast(error.message || '批注不可访问', 'error'); });
 }
 window.openAnnotationLink = openAnnotationLink;
-function handleAdminHashRoute(hash) {
+function handleAdminHashRoute(hash, fallbackHash) {
     if (!hash || !/(?:^#|&)admin=users(?:&|$)/.test(hash)) return false;
     if (typeof CURRENT_USER === 'undefined' || !CURRENT_USER || CURRENT_USER.role !== 'admin') return false;
     if (typeof openAdminConsole !== 'function') return false;
     var subMatch = hash.match(/(?:^#|&)sub=(pending|active)(?:&|$)/);
     openAdminConsole('users', subMatch ? subMatch[1] : undefined);
     if (window.location.hash === hash && window.history && window.history.replaceState) {
-        window.history.replaceState(null, '', window.location.pathname + window.location.search);
+        var restoreHash = '';
+        if (typeof window.currentActiveAnnotationHash === 'string'
+            && /^#annotation=[1-9][0-9]*$/.test(window.currentActiveAnnotationHash)
+            && fallbackHash === window.currentActiveAnnotationHash) {
+            restoreHash = window.currentActiveAnnotationHash;
+        } else if (typeof window.currentActiveItemHash === 'string' && /^#item=\d+(?:&|$)/.test(window.currentActiveItemHash)) {
+            restoreHash = window.currentActiveItemHash;
+        }
+        window.history.replaceState(null, '', window.location.pathname + window.location.search + restoreHash);
     }
     return true;
 }
@@ -1191,10 +1215,14 @@ window.addEventListener('hashchange', function(event) {
     var incoming = new URL(event.newURL).hash;
     // selectItem 会写入自己的 Hash；忽略已被后续路由替换的排队事件。
     if (incoming !== window.location.hash) return;
+    var previous = '';
+    if (event.oldURL) {
+        try { previous = new URL(event.oldURL).hash; } catch (e) {}
+    }
     var match = incoming.match(/(?:^#|&)annotation=([1-9][0-9]*)/);
     if (match) openAnnotationLink(match[1]);
     else if (incoming === '#settings=mcp') { openProfileModal(); switchProfileTab('mcp'); }
-    else if (handleAdminHashRoute(incoming)) return;
+    else if (handleAdminHashRoute(incoming, previous)) return;
     else if (/[?&]vid=[1-9][0-9]*/.test(incoming)) initHashRoute();
 });
 
@@ -1219,7 +1247,7 @@ function initHashRoute() {
             });
             if (matchedEl) {
                 $(matchedEl).closest('.category-group').removeClass('collapsed');
-                selectItem($(matchedEl).data('item-id'), matchedEl);
+                selectItem($(matchedEl).data('item-id'), matchedEl, null, false, true);
                 return;
             }
         }
@@ -1242,15 +1270,15 @@ function initHashRoute() {
                     targetVer = decodeURIComponent(mV[1]);
                 }
                 $target.closest('.category-group').removeClass('collapsed');
-                selectItem(parseInt(m[1]), $target[0], targetVer);
+                selectItem(parseInt(m[1]), $target[0], targetVer, false, true);
                 return;
             }
         }
     }
-    // 默认激活首个项目
+    // 默认激活首个项目（原地替换历史项，避免在审批直达等入口残留会重开弹窗的历史记录）
     var $first = $('.item-row:first');
     if ($first.length) {
-        selectItem($first.data('item-id'), $first[0]);
+        selectItem($first.data('item-id'), $first[0], null, false, true);
     } else {
         updateTopActionsState(false);
     }

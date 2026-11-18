@@ -46,24 +46,50 @@ check('auth.php register_visitor 通知包含直达待审批路由链接', authP
 
 // 4. 前端 #admin=users&sub=pending 直达路由与角色权限守卫行为验证
 const routeSlice = appJs.slice(
-    appJs.indexOf('function handleAdminHashRoute(hash)'),
+    appJs.indexOf('function handleAdminHashRoute('),
     appJs.indexOf('/* ===================== 全局通用弹窗与快捷交互 ===================== */')
 );
-function runRouteCase(role, initialHash, hasAdminFn) {
+function runRouteCase(role, initialHash, hasAdminFn, opts) {
+    opts = opts || {};
     const opened = [];
-    let replacedUrl = null;
+    const selectedCalls = [];
+    const replacedUrls = [];
     const listeners = {};
     const win = {
+        currentActiveItemHash: opts.activeItemHash || '',
+        currentActiveAnnotationHash: opts.activeAnnotationHash || '',
         location: { hash: initialHash, pathname: '/index.php', search: '' },
-        history: { replaceState: (_s, _t, url) => { replacedUrl = url; win.location.hash = ''; } },
+        history: {
+            replaceState: (_s, _t, url) => {
+                replacedUrls.push(url);
+                const idx = String(url).indexOf('#');
+                win.location.hash = idx >= 0 ? String(url).slice(idx) : '';
+            }
+        },
         addEventListener: (name, fn) => { listeners[name] = fn; }
     };
+    const firstItem = opts.hasFirstItem ? {
+        length: 1,
+        0: { id: 'item-node-1' },
+        data: (k) => (k === 'item-id' ? 1 : '')
+    } : { length: 0 };
     const ctx = {
         window: win,
         URL,
         CURRENT_USER: role ? { id: 1, role } : null,
+        currentActiveItemHash: opts.activeItemHash || '',
         openAdminConsole: hasAdminFn ? ((tab, sub) => opened.push([tab, sub])) : undefined,
-        $: () => ({ length: 0, each: () => {} }),
+        selectItem: (id, el, ver, isClick, replaceHistory) => {
+            selectedCalls.push({ id, ver, isClick, replaceHistory });
+            const nextHash = '#item=' + id + '&v=V1.0';
+            win.currentActiveItemHash = nextHash;
+            if (replaceHistory) {
+                win.history.replaceState(null, '', win.location.pathname + win.location.search + nextHash);
+            } else {
+                win.location.hash = nextHash;
+            }
+        },
+        $: (sel) => (sel === '.item-row:first' ? firstItem : { length: 0, each: () => {} }),
         updateTopActionsState: () => {},
         openAnnotationLink: () => {},
         openProfileModal: () => {},
@@ -72,17 +98,53 @@ function runRouteCase(role, initialHash, hasAdminFn) {
     vm.createContext(ctx);
     vm.runInContext(routeSlice, ctx);
     ctx.initHashRoute();
-    return { opened, replacedUrl, listeners, win, ctx };
+    return { opened, selectedCalls, replacedUrls, replacedUrl: replacedUrls[replacedUrls.length - 1] || null, listeners, win, ctx };
 }
 
 const adminCase = runRouteCase('admin', '#admin=users&sub=pending', true);
-check('管理员打开 #admin=users&sub=pending 自动弹出控制中心待审批面板并清理一次性锚点',
+check('空工作台管理员打开 #admin=users&sub=pending 自动弹出控制中心待审批面板并清理一次性锚点',
     adminCase.opened.length === 1 && adminCase.opened[0][0] === 'users' && adminCase.opened[0][1] === 'pending' && adminCase.replacedUrl === '/index.php');
 
-adminCase.win.location.hash = '#admin=users&sub=pending';
-adminCase.listeners.hashchange({ newURL: 'https://example.com/index.php#admin=users&sub=pending' });
-check('管理员在已打开工作台触发 hashchange 同样直达待审批面板',
-    adminCase.opened.length === 2 && adminCase.opened[1][0] === 'users' && adminCase.opened[1][1] === 'pending');
+const adminWithItems = runRouteCase('admin', '#admin=users&sub=pending', true, { hasFirstItem: true });
+check('有项目工作台新开审批通知时，默认项目原地 replaceState 替换历史槽位而不留审批回退记录',
+    adminWithItems.opened.length === 1
+        && adminWithItems.selectedCalls.length === 1
+        && adminWithItems.selectedCalls[0].replaceHistory === true
+        && adminWithItems.win.location.hash === '#item=1&v=V1.0');
+
+adminWithItems.win.currentActiveItemHash = '#item=2&v=V2.0';
+adminWithItems.win.currentActiveAnnotationHash = '';
+adminWithItems.win.location.hash = '#admin=users&sub=pending';
+adminWithItems.listeners.hashchange({
+    oldURL: 'https://example.com/index.php#item=1&v=V1.0',
+    newURL: 'https://example.com/index.php#admin=users&sub=pending'
+});
+check('地址栏指向旧项目而实际预览为项目2时，进入审批优先恢复实际预览项目与版本（不切错回旧项目）',
+    adminWithItems.opened.length === 2
+        && adminWithItems.opened[1][0] === 'users'
+        && adminWithItems.opened[1][1] === 'pending'
+        && adminWithItems.win.location.hash === '#item=2&v=V2.0'
+        && adminWithItems.replacedUrls[adminWithItems.replacedUrls.length - 1] === '/index.php#item=2&v=V2.0');
+
+adminWithItems.win.currentActiveAnnotationHash = '#annotation=42';
+adminWithItems.win.location.hash = '#admin=users&sub=pending';
+adminWithItems.listeners.hashchange({
+    oldURL: 'https://example.com/index.php#annotation=42',
+    newURL: 'https://example.com/index.php#admin=users&sub=pending'
+});
+check('当前预览仍对应活跃批注锚点时，进入审批保留该批注锚点',
+    adminWithItems.win.location.hash === '#annotation=42'
+        && adminWithItems.replacedUrls[adminWithItems.replacedUrls.length - 1] === '/index.php#annotation=42');
+
+adminWithItems.win.currentActiveAnnotationHash = '';
+adminWithItems.win.location.hash = '#admin=users&sub=pending';
+adminWithItems.listeners.hashchange({
+    oldURL: 'https://example.com/index.php#annotation=42',
+    newURL: 'https://example.com/index.php#admin=users&sub=pending'
+});
+check('切换项目后旧批注锚点失效时，进入审批恢复实际项目而非过期批注',
+    adminWithItems.win.location.hash === '#item=2&v=V2.0'
+        && adminWithItems.replacedUrls[adminWithItems.replacedUrls.length - 1] === '/index.php#item=2&v=V2.0');
 
 const editorCase = runRouteCase('editor', '#admin=users&sub=pending', true);
 check('协作者打开 #admin=users&sub=pending 静默忽略且不越权呼出控制中心',

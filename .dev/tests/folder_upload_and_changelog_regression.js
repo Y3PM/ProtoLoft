@@ -271,6 +271,40 @@ const nonHtmlPaths = adminContext.filterPrototypeFiles(mockFiles(['MyProject/rea
 const hasHtml = nonHtmlPaths.some(p => /\.html?$/i.test(p));
 assert(!hasHtml, '准确探测无 HTML 文件夹并拦截');
 
+// P3 回归 1：所选根目录名以点号开头（如 .selected-root）时，剥离根目录后保留合法文件并继续过滤内部隐藏内容
+toastLogs.length = 0;
+mockBadgeText.textContent = '';
+adminContext.setProtoSourceFolder('.selected-root', mockFiles([
+    '.selected-root/index.html',
+    '.selected-root/assets/style.css',
+    '.selected-root/.DS_Store',
+    '.selected-root/.git/config',
+    '.selected-root/.hidden/page.html'
+]));
+assert(
+    adminContext.currentProtoSource
+        && adminContext.currentProtoSource.files.length === 2
+        && adminContext.currentProtoSource.files.every(f => !f.webkitRelativePath.includes('.DS_Store') && !f.webkitRelativePath.includes('.git') && !f.webkitRelativePath.includes('.hidden'))
+        && mockBadgeText.textContent.includes('2 个文件'),
+    '所选根目录为 .selected-root 时保留内部合法文件并继续过滤内部隐藏目录/文件'
+);
+
+// P3 回归 2：原型链同名扩展名（constructor / toString / valueOf）不得被误判为服务端脚本
+toastLogs.length = 0;
+mockBadgeText.textContent = '';
+adminContext.setProtoSourceFolder('ProtoWithMeta', mockFiles([
+    'ProtoWithMeta/index.html',
+    'ProtoWithMeta/data.constructor',
+    'ProtoWithMeta/config.toString',
+    'ProtoWithMeta/meta.valueOf'
+]));
+assert(
+    adminContext.currentProtoSource
+        && adminContext.currentProtoSource.files.length === 4
+        && toastLogs.length === 0,
+    '普通静态资源扩展名 data.constructor / toString / valueOf 不触发黑名单误报'
+);
+
 // ===================== 3. 测试 BFS 入口探测算法 =====================
 console.log('\n\x1b[1m[测试套件 3] 服务端 BFS 入口探测算法 (多层嵌套与直接多文件)\x1b[0m');
 
