@@ -1175,6 +1175,18 @@ function openAnnotationLink(id) {
     }).catch(function(error) { showToast(error.message || '批注不可访问', 'error'); });
 }
 window.openAnnotationLink = openAnnotationLink;
+function handleAdminHashRoute(hash) {
+    if (!hash || !/(?:^#|&)admin=users(?:&|$)/.test(hash)) return false;
+    if (typeof CURRENT_USER === 'undefined' || !CURRENT_USER || CURRENT_USER.role !== 'admin') return false;
+    if (typeof openAdminConsole !== 'function') return false;
+    var subMatch = hash.match(/(?:^#|&)sub=(pending|active)(?:&|$)/);
+    openAdminConsole('users', subMatch ? subMatch[1] : undefined);
+    if (window.location.hash === hash && window.history && window.history.replaceState) {
+        window.history.replaceState(null, '', window.location.pathname + window.location.search);
+    }
+    return true;
+}
+
 window.addEventListener('hashchange', function(event) {
     var incoming = new URL(event.newURL).hash;
     // selectItem 会写入自己的 Hash；忽略已被后续路由替换的排队事件。
@@ -1182,6 +1194,7 @@ window.addEventListener('hashchange', function(event) {
     var match = incoming.match(/(?:^#|&)annotation=([1-9][0-9]*)/);
     if (match) openAnnotationLink(match[1]);
     else if (incoming === '#settings=mcp') { openProfileModal(); switchProfileTab('mcp'); }
+    else if (handleAdminHashRoute(incoming)) return;
     else if (/[?&]vid=[1-9][0-9]*/.test(incoming)) initHashRoute();
 });
 
@@ -1190,6 +1203,7 @@ function initHashRoute() {
     var annotationMatch = hash.match(/(?:^#|&)annotation=([1-9][0-9]*)/);
     if (annotationMatch) { openAnnotationLink(annotationMatch[1]); return; }
     if (hash.indexOf('settings=mcp') !== -1) { openProfileModal(); switchProfileTab('mcp'); }
+    var isAdminDeepLink = /(?:^#|&)admin=users(?:&|$)/.test(hash);
     if (hash) {
         // 1. 尝试自愈直链回弹 (来自安全守卫的直达还原)
         var mDirect = hash.match(/direct=([^&]+)/);
@@ -1239,6 +1253,9 @@ function initHashRoute() {
         selectItem($first.data('item-id'), $first[0]);
     } else {
         updateTopActionsState(false);
+    }
+    if (isAdminDeepLink) {
+        handleAdminHashRoute(hash);
     }
 }
 

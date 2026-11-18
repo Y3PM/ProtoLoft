@@ -1,6 +1,7 @@
 /* Verify visitor registration flow logic and DOM contracts in static sources */
 const fs = require('fs');
 const path = require('path');
+const vm = require('vm');
 const assert = require('assert');
 
 const root = path.resolve(__dirname, '../..');
@@ -8,6 +9,7 @@ const indexPhp = fs.readFileSync(path.join(root, 'index.php'), 'utf8');
 const loginModalPhp = fs.readFileSync(path.join(root, 'includes/login_modal.php'), 'utf8');
 const authPhp = fs.readFileSync(path.join(root, 'includes/actions/auth.php'), 'utf8');
 const modalsPhp = fs.readFileSync(path.join(root, 'includes/modals.php'), 'utf8');
+const appJs = fs.readFileSync(path.join(root, 'assets/js/app.js'), 'utf8');
 
 let passed = 0;
 const check = (name, condition) => {
@@ -40,5 +42,54 @@ check('工作台登录弹窗包含申请角色单选且默认审阅人，不包�
 check('auth.php register_visitor 成功文案明确自明', authPhp.includes("jsonResponse(true, ['id' => $newId], '申请已提交，等待管理员审核后即可登录');"));
 check('auth.php register_visitor 对申请角色做白名单收口并透传通知', authPhp.includes("in_array($requestedRole, ['viewer', 'editor'], true)") && authPhp.includes("'申请角色' => $requestedRoleLabel"));
 check('modals.php 待审批表头包含申请角色列并同步 colspan=5', modalsPhp.includes('<th style="padding:9px 12px;">申请角色</th>') && modalsPhp.includes('id="pendingUsersTbody"') && modalsPhp.includes('<td colspan="5"'));
+check('auth.php register_visitor 通知包含直达待审批路由链接', authPhp.includes("app_url('index.php#admin=users&sub=pending')"));
 
-console.log(JSON.stringify({ passed, scope: 'visitor registration flow contract validation' }));
+// 4. 前端 #admin=users&sub=pending 直达路由与角色权限守卫行为验证
+const routeSlice = appJs.slice(
+    appJs.indexOf('function handleAdminHashRoute(hash)'),
+    appJs.indexOf('/* ===================== 全局通用弹窗与快捷交互 ===================== */')
+);
+function runRouteCase(role, initialHash, hasAdminFn) {
+    const opened = [];
+    let replacedUrl = null;
+    const listeners = {};
+    const win = {
+        location: { hash: initialHash, pathname: '/index.php', search: '' },
+        history: { replaceState: (_s, _t, url) => { replacedUrl = url; win.location.hash = ''; } },
+        addEventListener: (name, fn) => { listeners[name] = fn; }
+    };
+    const ctx = {
+        window: win,
+        URL,
+        CURRENT_USER: role ? { id: 1, role } : null,
+        openAdminConsole: hasAdminFn ? ((tab, sub) => opened.push([tab, sub])) : undefined,
+        $: () => ({ length: 0, each: () => {} }),
+        updateTopActionsState: () => {},
+        openAnnotationLink: () => {},
+        openProfileModal: () => {},
+        switchProfileTab: () => {}
+    };
+    vm.createContext(ctx);
+    vm.runInContext(routeSlice, ctx);
+    ctx.initHashRoute();
+    return { opened, replacedUrl, listeners, win, ctx };
+}
+
+const adminCase = runRouteCase('admin', '#admin=users&sub=pending', true);
+check('管理员打开 #admin=users&sub=pending 自动弹出控制中心待审批面板并清理一次性锚点',
+    adminCase.opened.length === 1 && adminCase.opened[0][0] === 'users' && adminCase.opened[0][1] === 'pending' && adminCase.replacedUrl === '/index.php');
+
+adminCase.win.location.hash = '#admin=users&sub=pending';
+adminCase.listeners.hashchange({ newURL: 'https://example.com/index.php#admin=users&sub=pending' });
+check('管理员在已打开工作台触发 hashchange 同样直达待审批面板',
+    adminCase.opened.length === 2 && adminCase.opened[1][0] === 'users' && adminCase.opened[1][1] === 'pending');
+
+const editorCase = runRouteCase('editor', '#admin=users&sub=pending', true);
+check('协作者打开 #admin=users&sub=pending 静默忽略且不越权呼出控制中心',
+    editorCase.opened.length === 0 && editorCase.replacedUrl === null);
+
+const viewerCase = runRouteCase('viewer', '#admin=users&sub=pending', false);
+check('审阅人（无 admin.js）打开 #admin=users&sub=pending 静默忽略不报错',
+    viewerCase.opened.length === 0 && viewerCase.replacedUrl === null);
+
+console.log(JSON.stringify({ passed, scope: 'visitor registration flow and approval deep-link validation' }));

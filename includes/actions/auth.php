@@ -186,7 +186,7 @@ switch ($action) {
                         'author' => $name . " ({$email})",
                         'fields' => $applyFields,
                         'content' => $applyContent,
-                        'link' => ''
+                        'link' => app_url('index.php#admin=users&sub=pending')
                     ]);
                 }
             }

@@ -119,6 +119,7 @@ class Webhook {
             'annotation_resolve' => ['批注已解决', '处理人', '批注内容', '查看批注']
         ];
         $isProjectEvent = isset($projectEvents[$eventType]);
+        $isUserApplyEvent = ($eventType === 'user_apply');
         $authorLabel = '操作人';
         $contentLabel = '内容';
         $linkLabel = '查看详情';
@@ -129,6 +130,11 @@ class Webhook {
             $authorLabel = $presentation[1];
             $contentLabel = $presentation[2];
             $linkLabel = $presentation[3];
+        } elseif ($isUserApplyEvent) {
+            $rawTitle = $data['title'] ?? '新成员申请待审批';
+            $authorLabel = '申请人';
+            $contentLabel = '申请说明';
+            $linkLabel = '前往审批';
         }
 
         // 面向 Markdown 渲染平台进行字符安全转义
@@ -146,9 +152,9 @@ class Webhook {
 
         // 统一组装属性行 [标签, 值, 语义类型]；存在结构化 fields 时跳过“内容”标签，逐行平铺展示
         $fieldRows = [];
-        if (!$isProjectEvent) {
+        if (!$isProjectEvent && !$isUserApplyEvent) {
             $fieldRows[] = ['项目', $item . ($version ? " (`{$version}`)" : ''), 'info'];
-        } elseif ($version !== '') {
+        } elseif ($isProjectEvent && $version !== '') {
             $fieldRows[] = ['版本', "`{$version}`", 'plain'];
         }
         if (!empty($page)) {

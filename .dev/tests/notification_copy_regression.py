@@ -160,6 +160,41 @@ def main():
         ok(editor, 'toggle_annotation_status', {'id': annotation_id})
         notice('annotation_resolve', '批注已解决', '处理人', '批注内容', '查看批注')
 
+        # 审批直达通知回归：配置管理员 Webhook 并允许新成员申请
+        ok(admin, 'profile_update_webhook', {'webhook_url': 'https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=fixture-admin'})
+        ok(admin, 'save_settings', {'visitor_register_enabled': '1'})
+        clear()
+        apply_res = guest.api('register_visitor', {
+            'name': '新成员林七',
+            'email': 'linqi@test.com',
+            'password': PASS_WORD,
+            'role': 'editor',
+            'department': '产品研发部'
+        })
+        check('新成员提交注册申请成功', apply_res['success'])
+        apply_messages = sent()
+        check('user_apply: 恰好生成一条审批通知', len(apply_messages) == 1)
+        apply_msg = apply_messages[0]
+        expected_apply_link = base + '/index.php#admin=users&sub=pending'
+        check('user_apply: 事件类型与直达审批链接正确', apply_msg['event'] == 'user_apply' and apply_msg['data'].get('link') == expected_apply_link)
+        for platform, payload in apply_msg['payloads'].items():
+            prefix = 'user_apply/' + platform + ': '
+            if platform == 'generic':
+                check(prefix + '标题、来源与直达链接正确', payload['title'] == '新成员申请待审批' and payload['source'] == '立象原型' and payload['link'] == expected_apply_link)
+                continue
+            if platform == 'feishu':
+                check(prefix + '标题为新成员申请待审批', payload['card']['header']['title']['content'] == '新成员申请待审批')
+                elements = payload['card']['elements']
+                body = elements[0]['text']['content']
+                button = elements[1]['actions'][0]
+                check(prefix + '底部主按钮文案与直达链接正确', button['text']['content'] == '前往审批' and button['url'] == expected_apply_link and button['type'] == 'primary')
+            else:
+                body = payload['markdown']['content' if platform == 'wecom' else 'text']
+                check(prefix + '标题为新成员申请待审批', body.startswith('### **新成员申请待审批**\n'))
+                check(prefix + '独立一行高亮链接正确', '[前往审批](' + expected_apply_link + ')' in body)
+            check(prefix + '不含冗余项目行且保留申请人与申请角色', '**项目**' not in body and '**申请人**：新成员林七 \\(linqi@test.com\\)' in body and '**申请角色**：协作者' in body and '**部门或职务**：产品研发部' in body)
+            check(prefix + '底部保持纯文本来源落款', body.count('来自 · 立象原型') == 1 and '[立象原型](' not in body)
+
     print(json.dumps({'passed': passed, 'scope': 'temporary HTTP installation; local notification capture'}, ensure_ascii=False))
 
 

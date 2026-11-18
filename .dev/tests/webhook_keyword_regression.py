@@ -82,12 +82,20 @@ def test_webhook_payloads():
         gen = payloads['generic']
         assert brand in gen.get('title', '') or brand in gen.get('source', ''), f"通用载荷未包含品牌 (event: {ev})"
 
-        # 5. 结构化 user_apply 逐行平铺键值断言（不出现多余“内容”标签）
+        # 5. 结构化 user_apply 逐行平铺键值与审批直达入口断言（不出现多余“项目”“内容”标签）
         if ev == 'user_apply':
             fs_body = fs.get('card', {}).get('elements', [{}])[0].get('text', {}).get('content', '')
-            assert '**内容**' not in fs_body and '**申请角色**：协作者' in fs_body and '**部门或职务**：产品部' in fs_body
-            assert '**内容**' not in dt.get('markdown', {}).get('text', '') and '**申请角色**：协作者' in dt.get('markdown', {}).get('text', '')
-            assert '**内容**' not in wc.get('markdown', {}).get('content', '') and '**申请角色**：协作者' in wc.get('markdown', {}).get('content', '')
+            fs_btn = fs.get('card', {}).get('elements', [{}, {}])[1].get('actions', [{}])[0]
+            dt_text = dt.get('markdown', {}).get('text', '')
+            wc_text = wc.get('markdown', {}).get('content', '')
+            assert '**项目**' not in fs_body and '**内容**' not in fs_body and '**申请人**：赵六 \\(zhao@example.com\\)' in fs_body
+            assert '**申请角色**：协作者' in fs_body and '**部门或职务**：产品部' in fs_body
+            assert fs_btn.get('text', {}).get('content') == '前往审批' and fs_btn.get('url') == 'https://example.com/admin'
+            assert '**项目**' not in dt_text and '**内容**' not in dt_text and '**申请人**：赵六 \\(zhao@example.com\\)' in dt_text
+            assert '**申请角色**：协作者' in dt_text and '[前往审批](https://example.com/admin)' in dt_text
+            assert '**项目**' not in wc_text and '**内容**' not in wc_text and '**申请人**：赵六 \\(zhao@example.com\\)' in wc_text
+            assert '**申请角色**：协作者' in wc_text and '[前往审批](https://example.com/admin)' in wc_text
+            assert '<font color="comment">来自 · 立象原型</font>' in wc_text
 
     print("✅ 所有平台 Payload 均 100% 包含「立象原型」关键词！")
 
