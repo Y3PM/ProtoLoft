@@ -1659,7 +1659,7 @@ class Auth {
             $result = Mailer::sendPasswordReset(
                 $user['email'],
                 $user['name'],
-                $base . '/index.php?reset_token=' . $token,
+                $base . '/index.php?reset=1#reset_token=' . $token,
                 self::getCompanyDisplayName()
             );
         } finally {

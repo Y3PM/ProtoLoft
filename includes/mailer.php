@@ -215,6 +215,14 @@ class Mailer {
         ];
     }
 
+    /** 现有授权码仅用于原 SMTP 连接和发信账号。 */
+    public static function matchesSmtpIdentity(array $saved, $host, $port, $encryption, $user) {
+        return strcasecmp($host, $saved['host']) === 0
+            && (int)$port === (int)$saved['port']
+            && $encryption === $saved['encryption']
+            && strcasecmp($user, $saved['user']) === 0;
+    }
+
     /**
      * 校验 SMTP 主机名合法性，阻断协议前缀、换行或控制字符注入
      */

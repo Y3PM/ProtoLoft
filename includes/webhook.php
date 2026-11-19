@@ -92,11 +92,59 @@ class Webhook {
      * 转义 Markdown 保留字符，防止外部内容注入伪造链接或破坏排版
      */
     private static function mdEscape($str, $stripNewlines = false) {
-        $str = (string)$str;
+        $str = str_replace(["\r\n", "\r"], "\n", (string)$str);
         if ($stripNewlines) {
-            $str = str_replace(["\r", "\n"], ' ', $str);
+            $str = str_replace("\n", ' ', $str);
         }
         return preg_replace('/([\\\\`\[\]\(\)<>])/u', '\\\\$1', $str);
+    }
+
+    /**
+     * 格式化属性行，保证含换行或块级 Markdown（列表/标题）的正文首行独立成行
+     */
+    private static function formatFieldLine($platform, $label, $val, $kind) {
+        $isContent = ($kind === 'content');
+        $hasNewline = $isContent && (strpos($val, "\n") !== false);
+        $startsWithBlock = $isContent && (bool)preg_match('/^(?:#{1,6}\s|[-*+]\s|\d+\.\s)/u', $val);
+
+        if ($platform === 'wecom') {
+            if ($startsWithBlock || $hasNewline) {
+                return "> **{$label}**：\n> " . str_replace("\n", "\n> ", $val) . "\n";
+            }
+            return "> **{$label}**：{$val}\n";
+        }
+        if ($platform === 'dingtalk') {
+            $body = $val;
+            $hasList = false;
+            if ($isContent && $hasNewline) {
+                $parts = explode("\n", $val);
+                $body = '';
+                foreach ($parts as $idx => $part) {
+                    $isListLine = (bool)preg_match('/^(?:[-*+]\s|\d+\.\s)/u', $part);
+                    if ($isListLine) $hasList = true;
+                    if ($idx > 0) {
+                        $prevIsBlock = (bool)preg_match('/^(?:#{1,6}\s|[-*+]\s|\d+\.\s)/u', $parts[$idx - 1]);
+                        $curIsBlock = $isListLine || (bool)preg_match('/^#{1,6}\s/u', $part);
+                        $body .= ($prevIsBlock || $curIsBlock) ? "\n" : "  \n";
+                    }
+                    $body .= $part;
+                }
+            } elseif ($startsWithBlock) {
+                $hasList = (bool)preg_match('/^(?:[-*+]\s|\d+\.\s)/u', $val);
+            }
+            $suffix = $hasList ? "\n" : '';
+            if ($startsWithBlock) {
+                return "**{$label}**：\n{$body}{$suffix}";
+            }
+            if ($hasNewline) {
+                return "**{$label}**：  \n{$body}{$suffix}";
+            }
+            return "**{$label}**：{$body}";
+        }
+        if ($startsWithBlock || $hasNewline) {
+            return "**{$label}**：\n{$val}";
+        }
+        return "**{$label}**：{$val}";
     }
 
     /**
@@ -184,10 +232,8 @@ class Webhook {
                 $val = $row[1];
                 if ($row[2] === 'info') {
                     $val = $item !== '' ? "<font color=\"info\">{$item}</font>" . ($version ? " (`{$version}`)" : "") : $val;
-                } elseif ($row[2] === 'content') {
-                    $val = str_replace("\n", "\n> ", $val);
                 }
-                $md .= "> **{$row[0]}**：{$val}\n";
+                $md .= self::formatFieldLine('wecom', $row[0], $val, $row[2]);
             }
             if (!empty($link)) {
                 $md .= "\n[{$linkLabel}]({$link})\n";
@@ -203,8 +249,7 @@ class Webhook {
         if ($platform === 'dingtalk') {
             $lines = [];
             foreach ($fieldRows as $row) {
-                $val = ($row[2] === 'content') ? str_replace("\n", "  \n", $row[1]) : $row[1];
-                $lines[] = "**{$row[0]}**：{$val}";
+                $lines[] = self::formatFieldLine('dingtalk', $row[0], $row[1], $row[2]);
             }
 
             $md = "### **{$title}**\n\n" . implode("  \n", $lines);
@@ -229,7 +274,7 @@ class Webhook {
             $elements = [];
             $lines = [];
             foreach ($fieldRows as $row) {
-                $lines[] = "**{$row[0]}**：{$row[1]}";
+                $lines[] = self::formatFieldLine('feishu', $row[0], $row[1], $row[2]);
             }
             $mdText = implode("\n", $lines) . "\n\n来自 · 立象原型";
 

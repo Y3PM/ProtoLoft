@@ -193,35 +193,9 @@ switch ($action) {
                 jsonResponse(false, null, $e->getMessage());
             }
         }
-        $savedSmtpHost = Auth::getSetting('smtp_host', '');
-        $savedSmtpUser = Auth::getSetting('smtp_user', '');
-        $smtpIdentityChanged = strcasecmp($updates['smtp_host'] ?? $savedSmtpHost, $savedSmtpHost) !== 0
-            || strcasecmp($updates['smtp_user'] ?? $savedSmtpUser, $savedSmtpUser) !== 0;
-        if ($smtpIdentityChanged && !isset($updates['smtp_pass_enc']) && Auth::getSetting('smtp_pass_enc', '') !== '') {
-            $updates['smtp_pass_enc'] = '';
-            $updates['smtp_enabled'] = '0';
-        }
-        $effectiveSmtpEnabled = array_key_exists('smtp_enabled', $updates)
-            ? $updates['smtp_enabled']
-            : Auth::getSetting('smtp_enabled', '0');
         $smtpChanged = array_key_exists('smtp_enabled', $updates) || array_key_exists('site_base_url', $updates);
         foreach (array_keys($updates) as $key) {
             if (strpos($key, 'smtp_') === 0) $smtpChanged = true;
-        }
-        if ($effectiveSmtpEnabled === '1' && $smtpChanged) {
-            $effHost = array_key_exists('smtp_host', $updates) ? $updates['smtp_host'] : Auth::getSetting('smtp_host', '');
-            $effPort = (int)(array_key_exists('smtp_port', $updates) ? $updates['smtp_port'] : Auth::getSetting('smtp_port', '465'));
-            $effUser = array_key_exists('smtp_user', $updates) ? $updates['smtp_user'] : Auth::getSetting('smtp_user', '');
-            $effPassEnc = array_key_exists('smtp_pass_enc', $updates) ? $updates['smtp_pass_enc'] : Auth::getSetting('smtp_pass_enc', '');
-            if (!Mailer::isValidHost($effHost) || $effPort < 1 || $effPort > 65535 || !filter_var($effUser, FILTER_VALIDATE_EMAIL)) {
-                jsonResponse(false, null, '请先填写完整的 SMTP 服务器、端口与发信邮箱');
-            }
-            if ($effPassEnc === '' || Mailer::decryptSecret($effPassEnc) === '') {
-                jsonResponse(false, null, '请填写邮箱客户端授权码');
-            }
-            if (Mailer::passwordResetBaseUrl($updates['site_base_url'] ?? null) === '') {
-                jsonResponse(false, null, '请先填写 HTTPS 站点访问地址，再启用邮件找回密码');
-            }
         }
         if (!empty($_POST['reset_logo'])) {
             $updates['site_logo'] = 'assets/images/logo.png';
@@ -249,6 +223,35 @@ switch ($action) {
         try {
             $db->beginTransaction();
             $db->exec('UPDATE settings SET key = key WHERE 0');
+            if ($smtpChanged) {
+                $savedSmtp = [
+                    'host' => Auth::getSetting('smtp_host', ''),
+                    'port' => Auth::getSetting('smtp_port', '465'),
+                    'encryption' => Auth::getSetting('smtp_encryption', 'ssl'),
+                    'user' => Auth::getSetting('smtp_user', ''),
+                ];
+                $host = $updates['smtp_host'] ?? $savedSmtp['host'];
+                $port = (int)($updates['smtp_port'] ?? $savedSmtp['port']);
+                $encryption = $updates['smtp_encryption'] ?? $savedSmtp['encryption'];
+                $user = $updates['smtp_user'] ?? $savedSmtp['user'];
+                $savedPass = Auth::getSetting('smtp_pass_enc', '');
+                if ($savedPass !== '' && empty($updates['smtp_pass_enc'])
+                    && !Mailer::matchesSmtpIdentity($savedSmtp, $host, $port, $encryption, $user)) {
+                    $updates['smtp_pass_enc'] = '';
+                    $updates['smtp_enabled'] = '0';
+                }
+                if (($updates['smtp_enabled'] ?? Auth::getSetting('smtp_enabled', '0')) === '1') {
+                    if (!Mailer::isValidHost($host) || $port < 1 || $port > 65535 || !filter_var($user, FILTER_VALIDATE_EMAIL)) {
+                        throw new DomainException('请先填写完整的 SMTP 服务器、端口与发信邮箱');
+                    }
+                    if (Mailer::decryptSecret($updates['smtp_pass_enc'] ?? $savedPass) === '') {
+                        throw new DomainException('请填写邮箱客户端授权码');
+                    }
+                    if (Mailer::passwordResetBaseUrl($updates['site_base_url'] ?? null) === '') {
+                        throw new DomainException('请先填写 HTTPS 站点访问地址，再启用邮件找回密码');
+                    }
+                }
+            }
             $oldImages = [];
             foreach (['site_logo'] as $key) $oldImages[$key] = Auth::getSetting($key, '');
             if ($images && !is_dir(BRANDING_PATH) && !@mkdir(BRANDING_PATH, 0755, true) && !is_dir(BRANDING_PATH)) {
@@ -268,6 +271,7 @@ switch ($action) {
         } catch (Throwable $e) {
             if ($db->inTransaction()) $db->rollBack();
             foreach ($newFiles as $path) @unlink($path);
+            if ($e instanceof DomainException) throw $e;
             error_log('[protoloft] 设置保存失败: ' . $e->getMessage());
             jsonResponse(false, null, '设置保存失败，请重试');
         }
@@ -295,13 +299,13 @@ switch ($action) {
         $host = trim((string)($_POST['smtp_host'] ?? Auth::getSetting('smtp_host', '')));
         $port = (int)($_POST['smtp_port'] ?? Auth::getSetting('smtp_port', '465'));
         $enc = strtolower(trim((string)($_POST['smtp_encryption'] ?? Auth::getSetting('smtp_encryption', 'ssl'))));
+        if (!in_array($enc, ['ssl', 'tls', 'none'], true)) $enc = 'ssl';
         $user = trim(strtolower((string)($_POST['smtp_user'] ?? Auth::getSetting('smtp_user', ''))));
         $fromName = trim((string)($_POST['smtp_from_name'] ?? Auth::getSetting('smtp_from_name', '')));
         $pass = (string)($_POST['smtp_pass'] ?? '');
         if ($pass === '') {
             $storedSmtp = Mailer::getRuntimeConfig();
-            if ($storedSmtp && strcasecmp($host, $storedSmtp['host']) === 0
-                && strcasecmp($user, $storedSmtp['user']) === 0) {
+            if ($storedSmtp && Mailer::matchesSmtpIdentity($storedSmtp, $host, $port, $enc, $user)) {
                 $pass = $storedSmtp['pass'];
             }
         }
@@ -320,7 +324,7 @@ switch ($action) {
             [
                 'host' => $host,
                 'port' => $port,
-                'encryption' => in_array($enc, ['ssl', 'tls', 'none'], true) ? $enc : 'ssl',
+                'encryption' => $enc,
                 'user' => $user,
                 'pass' => $pass,
                 'from_name' => $fromName,

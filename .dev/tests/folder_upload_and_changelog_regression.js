@@ -532,6 +532,281 @@ simulateOnInput(mockInput, '测试用版本');
 assert(!mockInput.classList.contains('m-input-error'), '用户开始输入时自动移除 .m-input-error');
 assert(mockInput.customValidity === '', '用户输入后 CustomValidity 保持纯净无报错');
 
-// 汇总
-console.log(`\n\x1b[1m测试结果: 共 ${passCount + failCount} 项，通过 ${passCount} 项，失败 ${failCount} 项\x1b[0m`);
-if (failCount > 0) process.exit(1);
+// ===================== 7. 测试文件夹文件列表筛选弹窗与局部排除打包 =====================
+console.log('\n\x1b[1m[测试套件 7] 文件夹文件列表筛选、防呆校验与固定前缀打包\x1b[0m');
+
+function createMockEl(tag) {
+    const listeners = {};
+    const attrs = {};
+    const classes = new Set();
+    const el = {
+        tagName: (tag || 'DIV').toUpperCase(),
+        style: { display: '' },
+        hidden: false,
+        disabled: false,
+        checked: false,
+        indeterminate: false,
+        value: '',
+        textContent: '',
+        title: '',
+        _innerHTML: '',
+        children: [],
+        listeners,
+        set innerHTML(v) { this._innerHTML = v; if (v === '') this.children = []; },
+        get innerHTML() { return this._innerHTML; },
+        className: '',
+        classList: {
+            add: (...cls) => cls.forEach(c => classes.add(c)),
+            remove: (...cls) => cls.forEach(c => classes.delete(c)),
+            toggle: (c, force) => {
+                const on = force !== undefined ? !!force : !classes.has(c);
+                if (on) classes.add(c); else classes.delete(c);
+            },
+            contains: (c) => classes.has(c)
+        },
+        setAttribute: (k, v) => { attrs[k] = String(v); },
+        getAttribute: (k) => (k in attrs ? attrs[k] : null),
+        addEventListener: (ev, fn) => {
+            if (!listeners[ev]) listeners[ev] = [];
+            listeners[ev].push(fn);
+        },
+        dispatchEvent: (ev) => {
+            const list = listeners[ev] || [];
+            list.forEach(fn => fn({ stopPropagation() {}, preventDefault() {} }));
+        },
+        appendChild: (child) => { el.children.push(child); return child; },
+        querySelector: (sel) => {
+            if (sel === 'input[type="checkbox"]') {
+                return el.children.find(c => c.tagName === 'INPUT' && c.type === 'checkbox') || null;
+            }
+            if (sel === '.folder-tree-meta') {
+                return el.children.find(c => (c.className || '').includes('folder-tree-meta')) || null;
+            }
+            return null;
+        },
+        querySelectorAll: (sel) => {
+            const res = [];
+            const walk = (node) => {
+                for (const c of (node.children || [])) {
+                    const cls = c.className || '';
+                    if (sel === '.folder-tree-row.is-file' && cls.includes('folder-tree-row') && cls.includes('is-file')) res.push(c);
+                    if (sel === '.folder-tree-row.is-dir' && cls.includes('folder-tree-row') && cls.includes('is-dir')) res.push(c);
+                    walk(c);
+                }
+            };
+            walk(el);
+            return res;
+        },
+        focus: () => {}
+    };
+    return el;
+}
+
+const domIds = {
+    uploadZipFile: createMockEl('input'),
+    uploadFolderInput: createMockEl('input'),
+    protoFileBadge: createMockEl('div'),
+    protoFileBadgeIcon: createMockEl('i'),
+    protoFileBadgeText: createMockEl('span'),
+    protoFolderManageBtn: createMockEl('button'),
+    protoDropActions: createMockEl('div'),
+    uploadZipName: createMockEl('span'),
+    folderFilesModal: createMockEl('div'),
+    folderFilesRootBadge: createMockEl('span'),
+    folderFilesSearchInput: createMockEl('input'),
+    folderFilesSearchClear: createMockEl('button'),
+    folderFilesViewAllBtn: createMockEl('button'),
+    folderFilesViewExclBtn: createMockEl('button'),
+    folderFilesExclCount: createMockEl('span'),
+    folderFilesCheckAllBtn: createMockEl('button'),
+    folderFilesUncheckAllBtn: createMockEl('button'),
+    folderFilesTreeBody: createMockEl('div'),
+    folderFilesEmptyState: createMockEl('div'),
+    folderFilesSummary: createMockEl('div'),
+    folderFilesApplyBtn: createMockEl('button')
+};
+domIds.protoFolderManageBtn.hidden = true;
+domIds.folderFilesModal.style.display = 'none';
+
+const filterToasts = [];
+const modalHistory = [];
+const capturedPackItems = [];
+
+const filterCtx = {
+    versionUploadBusy: false,
+    document: {
+        getElementById: (id) => domIds[id] || null,
+        createElement: (tag) => createMockEl(tag),
+        createDocumentFragment: () => createMockEl('fragment')
+    },
+    showToast: (msg, type) => filterToasts.push({ msg, type }),
+    openModal: (id) => {
+        if (domIds[id]) domIds[id].style.display = 'flex';
+        modalHistory.push('open:' + id);
+    },
+    closeModal: (id) => {
+        if (domIds[id]) domIds[id].style.display = 'none';
+        modalHistory.push('close:' + id);
+    },
+    buildPkZipBlob: (items) => {
+        capturedPackItems.length = 0;
+        items.forEach(it => capturedPackItems.push(it.path));
+        return Promise.resolve({ size: 1024, name: '' });
+    }
+};
+vm.createContext(filterCtx);
+vm.runInContext(
+    adminJs.slice(adminJs.indexOf('var currentProtoSource = null;'), adminJs.indexOf('function buildPkZipBlob(')),
+    filterCtx
+);
+
+const sampleFolderFiles = [
+    { webkitRelativePath: 'AppProto/index.html', name: 'index.html', size: 1000 },
+    { webkitRelativePath: 'AppProto/pages/home.html', name: 'home.html', size: 2000 },
+    { webkitRelativePath: 'AppProto/pages/detail.html', name: 'detail.html', size: 1500 },
+    { webkitRelativePath: 'AppProto/docs/需求说明.docx', name: '需求说明.docx', size: 5000 },
+    { webkitRelativePath: 'AppProto/docs/设计稿.psd', name: '设计稿.psd', size: 10000 },
+    { webkitRelativePath: 'AppProto/.DS_Store', name: '.DS_Store', size: 128 }
+];
+
+filterCtx.setProtoSourceFolder('AppProto', sampleFolderFiles);
+assert(
+    filterCtx.currentProtoSource
+        && filterCtx.currentProtoSource.files.length === 5
+        && domIds.protoFolderManageBtn.hidden === false
+        && domIds.protoFileBadgeText.textContent.includes('5 个文件'),
+    '选择文件夹后默认全选 5 个有效文件并显示「筛选文件」按钮'
+);
+
+filterCtx.openFolderFilesModal();
+assert(
+    domIds.folderFilesModal.style.display === 'flex'
+        && domIds.folderFilesRootBadge.textContent === 'AppProto'
+        && domIds.folderFilesTreeBody.querySelectorAll('.folder-tree-row.is-dir').length === 2
+        && domIds.folderFilesTreeBody.querySelectorAll('.folder-tree-row.is-file').length === 1,
+    '打开筛选弹窗按目录树结构渲染：根目录显示 docs、pages 两个折叠目录与 1 个直属 index.html'
+);
+
+// 搜索 .psd 并在搜索态执行「取消当前」
+filterCtx.onFolderFilesSearchInput('.psd');
+const matchedRows = domIds.folderFilesTreeBody.querySelectorAll('.folder-tree-row.is-file');
+assert(
+    matchedRows.length === 1
+        && matchedRows[0].getAttribute('data-file-path') === 'docs/设计稿.psd'
+        && domIds.folderFilesUncheckAllBtn.textContent === '取消当前',
+    '搜索 .psd 自动展开匹配目录并切换按钮为「取消当前」'
+);
+filterCtx.toggleFolderFilesVisibleSelection(false);
+assert(
+    domIds.folderFilesExclCount.textContent === '1'
+        && !filterCtx.folderFilterSession.draftExcluded['index.html']
+        && filterCtx.folderFilterSession.draftExcluded['docs/设计稿.psd'] === true,
+    '搜索态点击「取消当前」仅排除命中的设计稿.psd，不影响其他未显示文件'
+);
+
+// 取消关闭（模拟点击取消/ESC不点确认），原有选中文件不受影响
+filterCtx.closeModal('folderFilesModal');
+assert(
+    filterCtx.currentProtoSource.files.length === 5,
+    '直接关闭筛选弹窗不保存临时取消操作，保持 5 个文件全部选中'
+);
+
+// 重新打开，取消 docs 整个目录与 index.html，验证确认后实时更新与固定前缀打包
+filterCtx.openFolderFilesModal();
+const dirRows = domIds.folderFilesTreeBody.querySelectorAll('.folder-tree-row.is-dir');
+const docsDirRow = dirRows.find(r => r.getAttribute('data-dir-path') === 'docs');
+const docsCb = docsDirRow.querySelector('input[type="checkbox"]');
+docsCb.checked = false;
+docsCb.dispatchEvent('change');
+
+const rootHtmlRow = domIds.folderFilesTreeBody.querySelectorAll('.folder-tree-row.is-file')
+    .find(r => r.getAttribute('data-file-path') === 'index.html');
+const rootHtmlCb = rootHtmlRow.querySelector('input[type="checkbox"]');
+rootHtmlCb.checked = false;
+rootHtmlCb.dispatchEvent('change');
+
+assert(
+    domIds.folderFilesExclCount.textContent === '3'
+        && domIds.folderFilesSummary.textContent.includes('已选 2 / 5 个文件'),
+    '取消勾选 docs 目录与根目录 index.html 后，统计实时变为已选 2 / 5 个文件（已排除 3 个）'
+);
+
+// 切换到「已排除」视图检查排除列表
+filterCtx.setFolderFilesViewMode('excluded');
+const exclFileRows = domIds.folderFilesTreeBody.querySelectorAll('.folder-tree-row.is-file');
+assert(
+    exclFileRows.length === 3,
+    '切换至「已排除」视图仅展示被取消勾选的 3 个文件'
+);
+
+// 应用筛选并验证徽标更新
+filterCtx.applyFolderFilesFilter();
+assert(
+    filterCtx.currentProtoSource.files.length === 2
+        && filterCtx.currentProtoSource.size === 3500
+        && domIds.protoFileBadgeText.textContent.includes('已选 2 / 5 个文件')
+        && domIds.protoFolderManageBtn.innerHTML.includes('已排除 3'),
+    '点击确认后更新实际待传文件为 2 个、总体积准确扣减，并同步更新徽标与按钮计数'
+);
+
+// 测试防呆：取消全部 HTML 时禁用确认按钮并拦截提交
+filterCtx.openFolderFilesModal();
+filterCtx.toggleFolderFilesVisibleSelection(false);
+assert(
+    domIds.folderFilesApplyBtn.disabled === true
+        && domIds.folderFilesSummary.classList.contains('is-error')
+        && domIds.folderFilesSummary.textContent.includes('至少保留 1 个文件'),
+    '全部取消勾选时汇总报错并禁用确认按钮'
+);
+// 仅勾选 docs/需求说明.docx（无 HTML）
+filterCtx.onFolderFilesSearchInput('需求说明.docx');
+filterCtx.toggleFolderFilesVisibleSelection(true);
+assert(
+    domIds.folderFilesApplyBtn.disabled === true
+        && domIds.folderFilesSummary.classList.contains('is-error')
+        && domIds.folderFilesSummary.textContent.includes('未包含 HTML'),
+    '仅保留非 HTML 文件时提示缺少 HTML 原型页面并禁用确认按钮'
+);
+filterCtx.closeModal('folderFilesModal');
+
+// 切换为 ZIP 时隐藏「筛选文件」按钮
+filterCtx.setProtoSourceZip({ name: 'test.zip', size: 2048 });
+assert(domIds.protoFolderManageBtn.hidden === true, '改选 ZIP 包后自动隐藏「筛选文件」按钮');
+
+// 异步验证固定公共前缀打包：即使只保留 AppProto/pages/home.html 与 detail.html，依然保留 pages/ 层级
+filterCtx.setProtoSourceFolder('AppProto', sampleFolderFiles);
+filterCtx.openFolderFilesModal();
+filterCtx.folderFilterSession.draftExcluded['index.html'] = true;
+filterCtx.folderFilterSession.draftExcluded['docs/需求说明.docx'] = true;
+filterCtx.folderFilterSession.draftExcluded['docs/设计稿.psd'] = true;
+filterCtx.applyFolderFilesFilter();
+
+Promise.resolve(
+    filterCtx.createZipBlobFromFolder(
+        filterCtx.currentProtoSource.files,
+        filterCtx.currentProtoSource.name,
+        null,
+        filterCtx.currentProtoSource.packagePrefix
+    )
+).then(() => {
+    assert(
+        capturedPackItems.length === 2
+            && capturedPackItems.includes('pages/home.html')
+            && capturedPackItems.includes('pages/detail.html')
+            && !capturedPackItems.includes('home.html'),
+        '传入固定 packagePrefix 打包时保留 pages/ 子目录结构，不因取消同级文件导致相对路径错位'
+    );
+    const modalsPhp = fs.readFileSync(path.join(__dirname, '../../includes/modals.php'), 'utf8');
+    const appCss = fs.readFileSync(path.join(__dirname, '../../assets/css/app.css'), 'utf8');
+    assert(
+        modalsPhp.indexOf('id="uploadModal"') < modalsPhp.indexOf('id="folderFilesModal"')
+            && modalsPhp.includes('id="protoFolderManageBtn"')
+            && appCss.includes('.folder-files-modal-box'),
+        'modals.php 弹窗层级顺序与 app.css 样式类校验通过'
+    );
+    console.log(`\n\x1b[1m测试结果: 共 ${passCount + failCount} 项，通过 ${passCount} 项，失败 ${failCount} 项\x1b[0m`);
+    if (failCount > 0) process.exit(1);
+}).catch((err) => {
+    console.error(err);
+    process.exit(1);
+});

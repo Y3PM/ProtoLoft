@@ -305,6 +305,19 @@ def main():
                                                     "smtp_user": "other@example.com"})
             check("saved authorization cannot be reused by a different sender",
                   not wrong_sender["success"] and "授权码" in wrong_sender["message"])
+            with MockSmtpServer(("127.0.0.1", 0), smtp_user, smtp_pass) as other_server:
+                other_port = str(other_server.server_address[1])
+                for setting, replacement in (("smtp_port", other_port), ("smtp_encryption", "tls")):
+                    different_target = owner.api("test_smtp", {"to_email": "editor@example.com", setting: replacement})
+                    check("SMTP test requires fresh authorization after changing " + setting,
+                          not different_target["success"] and "授权码" in different_target["message"])
+                    updated = owner.api("save_settings", {setting: replacement})
+                    check("saving changed " + setting + " clears stored authorization and disables recovery",
+                          updated["success"] and not updated["data"]["smtp_has_pass"]
+                          and not updated["data"]["mail_reset_enabled"])
+                    restored = owner.api("save_settings", dict(smtp_config, site_title=company))
+                    check("explicit authorization restores configured SMTP after " + setting + " change",
+                          restored["success"] and restored["data"]["mail_reset_enabled"])
 
             test_subj, test_html, test_cids = decode_mime_message(smtp_server.messages[0]["raw"])
             check("test email contains brand identity, company name, and inline PNG icon",
@@ -357,7 +370,8 @@ def main():
                   and "protoloft-brand-icon" in reset_cids
                   and m_tok is not None)
             check("reset email uses the configured base despite spoofed Host",
-                  base + "/index.php?reset_token=" in reset_html and "untrusted.example.invalid" not in reset_html)
+                  base + "/index.php?reset=1#reset_token=" in reset_html and "untrusted.example.invalid" not in reset_html
+                  and "?reset_token=" not in reset_html)
             raw_token = m_tok.group(1)
 
             # DB stores only sha256 hash, not raw token
@@ -367,7 +381,24 @@ def main():
             check("SQLite stores SHA-256 hash only, never raw token",
                   json.loads(row)["token_hash"] == expected_hash and raw_token not in row)
 
-            # Visiting reset link renders set-new-password card even if old session exists
+            # First navigation from the email only carries the page flag. Validate through a session-bound POST.
+            st_new, new_page, new_headers = old_editor.request("/index.php?reset=1")
+            new_page_str = new_page.decode("utf-8", errors="replace")
+            check("new reset entry renders standalone with no token or email in the initial document",
+                  st_new == 200 and 'id="resetFields" hidden' in new_page_str
+                  and 'id="adminLoginForm"' in new_page_str and raw_token not in new_page_str
+                  and "ed***@example.com" not in new_page_str)
+            check("reset entry suppresses referrers and shared caching",
+                  new_headers.get("Referrer-Policy") == "no-referrer" and "no-store" in new_headers.get("Cache-Control", ""))
+            check("reset inspection requires the existing CSRF proof",
+                  not guest.api("validate_password_reset", {"token": raw_token}, csrf=False)["success"])
+            check("reset inspection via POST returns only the masked email",
+                  old_editor.api("validate_password_reset", {"token": raw_token})
+                  == {"success": True, "data": {"masked_email": "ed***@example.com"}, "message": ""})
+            check("tampered token has no masked email in inspection response",
+                  not old_editor.api("validate_password_reset", {"token": raw_token[:-1] + "z"})["success"])
+
+            # Short-lived links already issued before this release keep working.
             st_reset, reset_page, reset_headers = old_editor.request(f"/index.php?reset_token={raw_token}")
             reset_page_str = reset_page.decode("utf-8", errors="replace")
             check("visiting reset_token link renders 设置新密码 panel with masked email",

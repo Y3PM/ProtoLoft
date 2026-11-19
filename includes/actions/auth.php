@@ -203,6 +203,13 @@ switch ($action) {
         jsonResponse($res['success'], null, $res['message'], $res['send'] ?? null);
         break;
 
+    case 'validate_password_reset':
+        header('Cache-Control: no-store');
+        $token = $_POST['token'] ?? '';
+        $info = Auth::verifyPasswordResetToken(is_string($token) ? trim($token) : '');
+        jsonResponse($info['valid'], $info['valid'] ? ['masked_email' => $info['masked_email']] : null, $info['message'] ?? '');
+        break;
+
     case 'reset_password':
         $token = $_POST['token'] ?? '';
         $new = $_POST['new_password'] ?? '';

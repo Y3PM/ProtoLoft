@@ -73,6 +73,7 @@ $allUsers = $db->query("SELECT id, email, name, role FROM users WHERE status = 1
                     <div class="proto-file-badge" id="protoFileBadge" style="display:none;">
                         <i class="ri-file-check-line" id="protoFileBadgeIcon"></i>
                         <span class="proto-file-badge-text" id="protoFileBadgeText">未选择文件</span>
+                        <button type="button" id="protoFolderManageBtn" class="btn-sm btn-cancel proto-folder-manage-btn" hidden onclick="openFolderFilesModal()" title="查看或取消勾选不需要上传的文件"><i class="ri-list-check-2"></i> 筛选文件</button>
                         <button type="button" class="proto-file-badge-clear" onclick="clearSelectedProtoSource(event)" title="移除并重新选择"><i class="ri-close-line"></i></button>
                     </div>
                     <span class="file-name-display" id="uploadZipName" style="display:none;">未选择文件</span>
@@ -101,6 +102,7 @@ $allUsers = $db->query("SELECT id, email, name, role FROM users WHERE status = 1
                     <label class="m-label" id="uploadChangelogLabel" for="uploadChangelog">
                         <span>更新日志 <span class="req-star" id="changelogReqStar" style="display:none;">*</span></span>
                         <span class="opt-tag" id="changelogOptTag">选填</span>
+                        <span class="opt-tag">支持Markdown</span>
                     </label>
                     <button type="button" id="uploadLastLogBtn" class="upload-last-log-btn" hidden onclick="appendUploadLastChangelog()" title="将上一版本的更新日志添加到末尾">
                         <i class="ri-add-line"></i> 上版日志
@@ -166,6 +168,47 @@ $allUsers = $db->query("SELECT id, email, name, role FROM users WHERE status = 1
                 <button type="submit" class="btn-primary btn-standard" id="btnUploadSubmit">发布</button>
             </div>
         </form>
+    </div>
+</div>
+
+<!-- 1.0.1 文件夹上传内容筛选弹窗 (标准 L 档 640px) -->
+<div id="folderFilesModal" class="custom-modal" style="display:none;">
+    <div class="modal-dialog-box modal-lg folder-files-modal-box">
+        <div class="modal-head folder-files-head">
+            <div class="ver-modal-heading">
+                <h4>筛选上传文件</h4>
+                <span id="folderFilesRootBadge" class="m-badge m-badge-neutral"></span>
+            </div>
+            <button type="button" class="close-x" onclick="closeModal('folderFilesModal')" title="关闭"><i class="ri-close-line"></i></button>
+        </div>
+
+        <div class="folder-files-toolbar">
+            <div class="m-input m-input-sm ver-manage-search-wrap folder-files-search-wrap">
+                <i class="ri-search-line ver-manage-search-icon" aria-hidden="true"></i>
+                <input type="text" id="folderFilesSearchInput" class="ver-manage-search-input" aria-label="搜索文件名或路径" placeholder="搜索文件名或路径..." autocomplete="off" oninput="onFolderFilesSearchInput(this.value)">
+                <button type="button" id="folderFilesSearchClear" class="close-x" hidden onclick="clearFolderFilesSearch()" title="清空搜索"><i class="ri-close-line"></i></button>
+            </div>
+            <div class="folder-files-toolbar-actions">
+                <button type="button" id="folderFilesViewAllBtn" class="btn-sm btn-cancel is-active" onclick="setFolderFilesViewMode('all')">全部</button>
+                <button type="button" id="folderFilesViewExclBtn" class="btn-sm btn-cancel" onclick="setFolderFilesViewMode('excluded')">已排除 (<span id="folderFilesExclCount">0</span>)</button>
+                <span class="folder-files-toolbar-sep" aria-hidden="true"></span>
+                <button type="button" id="folderFilesCheckAllBtn" class="btn-sm btn-cancel" onclick="toggleFolderFilesVisibleSelection(true)">全选</button>
+                <button type="button" id="folderFilesUncheckAllBtn" class="btn-sm btn-cancel" onclick="toggleFolderFilesVisibleSelection(false)">全不选</button>
+            </div>
+        </div>
+
+        <div id="folderFilesTreeWrap" class="folder-files-tree-wrap">
+            <div id="folderFilesTreeBody" class="folder-files-tree-body"></div>
+            <div id="folderFilesEmptyState" class="folder-files-empty" hidden></div>
+        </div>
+
+        <div class="folder-files-footer">
+            <div class="folder-files-summary" id="folderFilesSummary"></div>
+            <div class="folder-files-footer-btns">
+                <button type="button" class="btn-cancel btn-standard" onclick="closeModal('folderFilesModal')">取消</button>
+                <button type="button" id="folderFilesApplyBtn" class="btn-primary btn-standard" onclick="applyFolderFilesFilter()">确认</button>
+            </div>
+        </div>
     </div>
 </div>
 

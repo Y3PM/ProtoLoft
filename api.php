@@ -294,6 +294,7 @@ $actionRoutes = [
     'get_session' => 'auth',
     'register_visitor' => 'auth',
     'request_password_reset' => 'auth',
+    'validate_password_reset' => 'auth',
     'reset_password' => 'auth',
     'profile_update' => 'auth',
     'profile_update_webhook' => 'auth',

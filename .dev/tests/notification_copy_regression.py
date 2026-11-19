@@ -195,6 +195,31 @@ def main():
             check(prefix + '不含冗余项目行且保留申请人与申请角色', '**项目**' not in body and '**申请人**：新成员林七 \\(linqi@test.com\\)' in body and '**申请角色**：协作者' in body and '**部门或职务**：产品研发部' in body)
             check(prefix + '底部保持纯文本来源落款', body.count('来自 · 立象原型') == 1 and '[立象原型](' not in body)
 
+        # 多行无序列表更新说明：第一项必须位于独立行首，避免被标签前缀吞掉 Markdown 列表识别
+        clear()
+        list_upload_id = uuid.uuid4().hex
+        ok(editor, 'upload_chunk', {'upload_id': list_upload_id, 'file_type': 'zip', 'chunk_index': 0, 'chunk_total': 1},
+           {'chunk_data': ('part', make_proto_zip())})
+        list_prepare = ok(editor, 'version_check_name', {'item_id': item, 'version_name': 'V1.3.0'})
+        ok(editor, 'version_publish', {
+            'item_id': item,
+            'version_name': 'V1.3.0',
+            'zip_upload_id': list_upload_id,
+            'overwrite_token': list_prepare['overwrite_token'],
+            'changelog': "* 第一项重构预设\n* 第二项引入新方案\n* 第三项支持变量",
+            'notify_item': 1,
+            'notify_global': 0
+        })
+        list_msgs = sent()
+        check('list_changelog: 恰好生成一条发版通知', len(list_msgs) == 1)
+        list_payloads = list_msgs[0]['payloads']
+        check('list_changelog/dingtalk: 第一项独立成行且末尾与时间行留白',
+              "**更新说明**：\n* 第一项重构预设\n* 第二项引入新方案\n* 第三项支持变量\n" in list_payloads['dingtalk']['markdown']['text'])
+        check('list_changelog/wecom: 第一项位于引用块行首',
+              "> **更新说明**：\n> * 第一项重构预设\n> * 第二项引入新方案\n> * 第三项支持变量\n" in list_payloads['wecom']['markdown']['content'])
+        check('list_changelog/feishu: 第一项独立成行',
+              "**更新说明**：\n* 第一项重构预设\n* 第二项引入新方案\n* 第三项支持变量" in list_payloads['feishu']['card']['elements'][0]['text']['content'])
+
     print(json.dumps({'passed': passed, 'scope': 'temporary HTTP installation; local notification capture'}, ensure_ascii=False))
 
 

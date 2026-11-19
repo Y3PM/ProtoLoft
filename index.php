@@ -15,13 +15,16 @@ $currentUser = Auth::getCurrentUser();
 $canManage = Auth::canManage();
 $isAdmin = Auth::isAdmin();
 
-// 未登录人员严禁进入工作台内部界面，一律拦截在专门的独立登录页面；携带重置令牌时优先展示重设密码卡片
-$resetTokenParam = trim((string)($_GET['reset_token'] ?? ''));
-$hasResetToken = ($resetTokenParam !== '');
-if ($hasResetToken) {
+// 新链接只在浏览器片段携带令牌。保留旧查询串入口，兼容此前发出的短效链接。
+$legacyResetToken = $_GET['reset_token'] ?? '';
+$resetTokenParam = is_string($legacyResetToken) ? trim($legacyResetToken) : '';
+$resetFromFragment = ($_GET['reset'] ?? '') === '1' && $resetTokenParam === '';
+$isResetPage = $resetFromFragment || $resetTokenParam !== '';
+if ($isResetPage) {
     header('Referrer-Policy: no-referrer');
+    header('Cache-Control: no-store');
 }
-$isSiteAuthorized = !empty($currentUser) && !$hasResetToken;
+$isSiteAuthorized = !empty($currentUser) && !$isResetPage;
 
 // 系统品牌固化 (立象原型 · 立象以尽意 · 披图而同心)
 $systemName = '立象原型';
@@ -39,7 +42,7 @@ $favUrl = $siteFavicon . '?v=' . substr(sha1_file(ROOT_PATH . '/' . $siteFavicon
 
 $visitorRegEnabled = (Auth::getSetting('visitor_register_enabled', '1') !== '0');
 $mailResetEnabled = Mailer::isConfiguredAndEnabled();
-$resetTokenInfo = $hasResetToken ? Auth::verifyPasswordResetToken($resetTokenParam) : ['valid' => false, 'message' => ''];
+$resetTokenInfo = $resetTokenParam !== '' ? Auth::verifyPasswordResetToken($resetTokenParam) : ['valid' => false, 'message' => ''];
 
 // 企业邮箱域名白名单与固化后缀支持
 $allowedDomainsSetting = Auth::getSetting('allowed_email_domains', '');
@@ -53,11 +56,11 @@ if (!empty(trim($allowedDomainsSetting))) {
 
 // 2. 如果未通过全站访问密码验证，或携带密码重置令牌，渲染独立认证页
 if (!$isSiteAuthorized) {
-    $initialAuthPane = $hasResetToken ? 'reset' : 'login';
+    $initialAuthPane = $isResetPage ? 'reset' : 'login';
     $loginBaseTitle = !empty($companyName) ? ($companyName . ' · 账号登录') : '账号登录';
     $initialTitle = $loginBaseTitle;
-    if ($hasResetToken) {
-        $initialTitle = !empty($resetTokenInfo['valid']) ? '设置新密码' : '重置链接已失效';
+    if ($isResetPage) {
+        $initialTitle = $resetFromFragment || $resetTokenInfo['valid'] ? '设置新密码' : '重置链接已失效';
     }
     ?>
     <!DOCTYPE html>
@@ -201,9 +204,10 @@ if (!$isSiteAuthorized) {
 
             <!-- 设置新密码面板（邮件链接回调） -->
             <form id="resetPwdForm" onsubmit="submitResetPwd(event)" style="<?php echo $initialAuthPane === 'reset' ? '' : 'display:none;'; ?>" novalidate>
-                <?php if (!empty($resetTokenInfo['valid'])): ?>
+                <?php if ($isResetPage): ?>
+                <div id="resetFields"<?php echo $resetTokenInfo['valid'] ? '' : ' hidden'; ?>>
                     <input type="hidden" id="resetTokenInput" value="<?php echo htmlspecialchars($resetTokenParam); ?>">
-                    <div class="auth-sub-note">账号：<strong><?php echo htmlspecialchars($resetTokenInfo['masked_email']); ?></strong></div>
+                    <div class="auth-sub-note">账号：<strong id="resetMaskedEmail"><?php echo htmlspecialchars($resetTokenInfo['masked_email'] ?? ''); ?></strong></div>
                     <div class="field-label-row">
                         <label class="m-label" for="resetNewPwdInput">新密码 <span class="req-star">*</span></label>
                         <span class="password-strength" id="resetPwdStrength" role="status"></span>
@@ -229,13 +233,15 @@ if (!$isSiteAuthorized) {
                     </div>
                     <button type="submit" class="btn-submit" id="btnResetSubmit">保存新密码</button>
                     <div class="error-tip" id="resetErrorTip"></div>
-                <?php else: ?>
-                    <div class="auth-sub-note"><?php echo htmlspecialchars($resetTokenInfo['message'] ?: '重置链接无效或已过期，请重新申请。'); ?></div>
+                </div>
+                <div id="resetLinkNotice"<?php echo $resetTokenInfo['valid'] ? ' hidden' : ''; ?>>
+                    <div class="auth-sub-note" role="status" id="resetLinkStatus"><?php echo htmlspecialchars($resetTokenInfo['message'] ?: ($resetFromFragment ? '正在验证重置链接…' : '重置链接无效或已过期，请重新申请。')); ?></div>
                     <?php if ($mailResetEnabled): ?>
                         <button type="button" class="btn-submit" onclick="toggleAuthPane('forgot')">重新找回</button>
                     <?php else: ?>
                         <button type="button" class="btn-submit" onclick="toggleAuthPane('login')">返回登录</button>
                     <?php endif; ?>
+                </div>
                 <?php endif; ?>
                 <div class="admin-login-link">
                     <a href="javascript:void(0)" onclick="toggleAuthPane('login')">返回登录</a>
@@ -250,6 +256,7 @@ if (!$isSiteAuthorized) {
         <script src="assets/js/password-strength.js?v=<?php echo filemtime(__DIR__ . '/assets/js/password-strength.js'); ?>" defer></script>
         <script>
             var authPane = <?php echo json_encode($initialAuthPane); ?>;
+            var resetPage = <?php echo $isResetPage ? 'true' : 'false'; ?>;
             var visitorRegAllowed = <?php echo $visitorRegEnabled ? 'true' : 'false'; ?>;
             var loginBaseTitle = <?php echo json_encode($loginBaseTitle); ?>;
 
@@ -291,9 +298,11 @@ if (!$isSiteAuthorized) {
                 }
 
                 if (authPane === 'login') {
-                    if (window.location.search && window.location.search.indexOf('reset_token=') !== -1 && window.history && window.history.replaceState) {
+                    if (resetPage && window.history && window.history.replaceState) {
                         window.history.replaceState(null, '', window.location.pathname);
                     }
+                    var resetTokenInput = document.getElementById('resetTokenInput');
+                    if (resetTokenInput) resetTokenInput.value = '';
                     var adminUser = document.getElementById('adminLoginUser');
                     if (adminUser) {
                         adminUser.focus();
@@ -365,6 +374,36 @@ if (!$isSiteAuthorized) {
                     method: 'POST',
                     headers: csrf ? { 'X-CSRF-Token': csrf } : {},
                     body: fd
+                });
+            }
+
+            function initPasswordResetLink() {
+                var match = window.location.hash.match(/^#reset_token=([1-9][0-9]{0,18}\.[a-f0-9]{64})$/);
+                if (window.location.hash && window.history && window.history.replaceState) {
+                    window.history.replaceState(null, '', window.location.pathname + window.location.search);
+                }
+                var status = document.getElementById('resetLinkStatus');
+                if (!match) {
+                    status.textContent = '重置链接无效或已过期，请重新申请。';
+                    return;
+                }
+                var token = match[1];
+                var fd = new FormData();
+                fd.append('action', 'validate_password_reset');
+                fd.append('token', token);
+                postLockApi(fd).then(function(response) { return response.json(); }).then(function(res) {
+                    if (authPane !== 'reset') return;
+                    if (!res.success) {
+                        status.textContent = res.message || '重置链接无效或已过期，请重新申请。';
+                        return;
+                    }
+                    document.getElementById('resetTokenInput').value = token;
+                    document.getElementById('resetMaskedEmail').textContent = res.data.masked_email;
+                    document.getElementById('resetLinkNotice').hidden = true;
+                    document.getElementById('resetFields').hidden = false;
+                    document.getElementById('resetNewPwdInput').focus();
+                }).catch(function() {
+                    status.textContent = '验证失败，请重新打开邮件中的链接。';
                 });
             }
 
@@ -652,6 +691,7 @@ if (!$isSiteAuthorized) {
                     err.style.display = 'block';
                 });
             }
+            <?php if ($resetFromFragment): ?>initPasswordResetLink();<?php endif; ?>
         </script>
     </body>
     </html>

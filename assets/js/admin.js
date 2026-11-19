@@ -586,20 +586,27 @@ function initRpDropZone() {
 
 // 原型发布源管理：支持 ZIP 包与原型文件夹
 var currentProtoSource = null;
+var folderFilterSession = null;
 
 function clearSelectedProtoSource(e) {
     if (e && typeof e.stopPropagation === 'function') e.stopPropagation();
     currentProtoSource = null;
+    folderFilterSession = null;
     var zipInput = document.getElementById('uploadZipFile');
     if (zipInput) zipInput.value = '';
     var folderInput = document.getElementById('uploadFolderInput');
     if (folderInput) folderInput.value = '';
     var badge = document.getElementById('protoFileBadge');
     if (badge) badge.style.display = 'none';
+    updateProtoFolderManageBtn(false);
     var actions = document.getElementById('protoDropActions');
     if (actions) actions.style.display = 'flex';
     var zn = document.getElementById('uploadZipName');
     if (zn) { zn.textContent = '未选择文件'; zn.classList.remove('has-file'); }
+    var filterModal = document.getElementById('folderFilesModal');
+    if (filterModal && filterModal.style.display !== 'none' && typeof closeModal === 'function') {
+        closeModal('folderFilesModal');
+    }
 }
 
 function handleZipSelected(input) {
@@ -631,12 +638,14 @@ function formatProtoBytes(bytes) {
 }
 
 function setProtoSourceZip(file) {
+    folderFilterSession = null;
     currentProtoSource = {
         type: 'zip',
         file: file,
         name: file.name,
         size: file.size
     };
+    updateProtoFolderManageBtn(false);
     renderProtoSourceBadge('ri-file-zip-line', file.name + ' (' + formatProtoBytes(file.size) + ')');
 }
 
@@ -653,6 +662,8 @@ function setProtoSourceFolder(folderName, filesList) {
         clearSelectedProtoSource();
         return;
     }
+    var rootPrefix = getSelectedRootPrefix(validFiles);
+    var packagePrefix = computeProtoCommonPrefix(validFiles);
     var totalBytes = 0;
     for (var i = 0; i < validFiles.length; i++) {
         totalBytes += (validFiles[i].size || 0);
@@ -660,10 +671,91 @@ function setProtoSourceFolder(folderName, filesList) {
     currentProtoSource = {
         type: 'folder',
         name: folderName,
-        files: validFiles,
+        rootPrefix: rootPrefix,
+        packagePrefix: packagePrefix,
+        allFiles: validFiles,
+        excludedPaths: {},
+        files: validFiles.slice(),
+        totalSize: totalBytes,
         size: totalBytes
     };
-    renderProtoSourceBadge('ri-folder-upload-line', '文件夹: ' + folderName + ' (' + validFiles.length + ' 个文件，' + formatProtoBytes(totalBytes) + ')');
+    folderFilterSession = null;
+    refreshProtoFolderBadge();
+}
+
+function getProtoRelativePath(file, rootPrefix) {
+    var path = getPrototypeFilePath(file);
+    if (rootPrefix && path.indexOf(rootPrefix) === 0) {
+        return path.slice(rootPrefix.length);
+    }
+    return path;
+}
+
+function computeProtoCommonPrefix(files) {
+    if (!files || files.length === 0) return '';
+    var paths = [];
+    for (var i = 0; i < files.length; i++) {
+        var p = getPrototypeFilePath(files[i]);
+        if (p) paths.push(p);
+    }
+    if (paths.length === 0) return '';
+    var firstParts = paths[0].split('/');
+    if (firstParts.length <= 1) return '';
+    var prefixParts = [];
+    for (var pi = 0; pi < firstParts.length - 1; pi++) {
+        var candidate = firstParts[pi];
+        var allMatch = true;
+        for (var fi = 1; fi < paths.length; fi++) {
+            var curParts = paths[fi].split('/');
+            if (curParts.length <= pi + 1 || curParts[pi] !== candidate) {
+                allMatch = false;
+                break;
+            }
+        }
+        if (allMatch) {
+            prefixParts.push(candidate);
+        } else {
+            break;
+        }
+    }
+    return prefixParts.length > 0 ? (prefixParts.join('/') + '/') : '';
+}
+
+function updateProtoFolderManageBtn(visible, excludedCount) {
+    var btn = document.getElementById('protoFolderManageBtn');
+    if (!btn) return;
+    btn.hidden = !visible;
+    if (visible) {
+        btn.innerHTML = excludedCount > 0
+            ? '<i class="ri-list-check-2"></i> 筛选文件 (已排除 ' + excludedCount + ')'
+            : '<i class="ri-list-check-2"></i> 筛选文件';
+    }
+}
+
+function refreshProtoFolderBadge() {
+    if (!currentProtoSource || currentProtoSource.type !== 'folder') return;
+    var allFiles = currentProtoSource.allFiles || currentProtoSource.files || [];
+    var excluded = currentProtoSource.excludedPaths || {};
+    var selected = [];
+    var selectedBytes = 0;
+    for (var i = 0; i < allFiles.length; i++) {
+        var f = allFiles[i];
+        var rel = getProtoRelativePath(f, currentProtoSource.rootPrefix || '');
+        if (!Object.prototype.hasOwnProperty.call(excluded, rel)) {
+            selected.push(f);
+            selectedBytes += (f.size || 0);
+        }
+    }
+    currentProtoSource.files = selected;
+    currentProtoSource.size = selectedBytes;
+    var totalCount = allFiles.length;
+    var selectedCount = selected.length;
+    var excludedCount = totalCount - selectedCount;
+    var badgeText = excludedCount > 0
+        ? ('文件夹: ' + currentProtoSource.name + ' (已选 ' + selectedCount + ' / ' + totalCount + ' 个文件，' + formatProtoBytes(selectedBytes) + ')')
+        : ('文件夹: ' + currentProtoSource.name + ' (' + totalCount + ' 个文件，' + formatProtoBytes(selectedBytes) + ')');
+    updateProtoFolderManageBtn(true, excludedCount);
+    renderProtoSourceBadge('ri-folder-upload-line', badgeText);
 }
 
 function renderProtoSourceBadge(iconClass, text) {
@@ -849,8 +941,499 @@ function readFileSystemEntry(entry) {
     });
 }
 
+function openFolderFilesModal() {
+    if (typeof versionUploadBusy !== 'undefined' && versionUploadBusy) {
+        showToast('发布任务进行中，暂不可调整文件', 'warning');
+        return;
+    }
+    if (!currentProtoSource || currentProtoSource.type !== 'folder') return;
+    var rootPrefix = currentProtoSource.rootPrefix || '';
+    var allFiles = currentProtoSource.allFiles || currentProtoSource.files || [];
+    var tree = buildFolderFilesTree(allFiles, rootPrefix);
+    var expandedMap = { '': true };
+    if (tree.dirs.length === 1 && tree.files.length === 0) {
+        expandedMap[tree.dirs[0].path] = true;
+    }
+    var draftExcluded = {};
+    var prevExcluded = currentProtoSource.excludedPaths || {};
+    for (var key in prevExcluded) {
+        if (Object.prototype.hasOwnProperty.call(prevExcluded, key) && prevExcluded[key]) {
+            draftExcluded[key] = true;
+        }
+    }
+    folderFilterSession = {
+        tree: tree,
+        draftExcluded: draftExcluded,
+        expandedMap: expandedMap,
+        searchQuery: '',
+        viewMode: 'all'
+    };
+    var rootBadge = document.getElementById('folderFilesRootBadge');
+    if (rootBadge) rootBadge.textContent = currentProtoSource.name || '原型文件夹';
+    var searchInput = document.getElementById('folderFilesSearchInput');
+    if (searchInput) searchInput.value = '';
+    var searchClear = document.getElementById('folderFilesSearchClear');
+    if (searchClear) searchClear.hidden = true;
+    updateFolderFilesViewModeButtons();
+    renderFolderFilesTree();
+    openModal('folderFilesModal', 'folderFilesSearchInput');
+}
+
+function buildFolderFilesTree(allFiles, rootPrefix) {
+    var root = {
+        type: 'dir',
+        name: '',
+        path: '',
+        dirsMap: {},
+        dirs: [],
+        files: [],
+        totalCount: 0,
+        totalSize: 0
+    };
+    for (var i = 0; i < allFiles.length; i++) {
+        var file = allFiles[i];
+        var relPath = getProtoRelativePath(file, rootPrefix);
+        if (!relPath) continue;
+        var parts = relPath.split('/');
+        var cur = root;
+        for (var j = 0; j < parts.length - 1; j++) {
+            var seg = parts[j];
+            if (!seg) continue;
+            var dirPath = cur.path ? (cur.path + '/' + seg) : seg;
+            if (!Object.prototype.hasOwnProperty.call(cur.dirsMap, seg)) {
+                cur.dirsMap[seg] = {
+                    type: 'dir',
+                    name: seg,
+                    path: dirPath,
+                    dirsMap: {},
+                    dirs: [],
+                    files: [],
+                    totalCount: 0,
+                    totalSize: 0
+                };
+                cur.dirs.push(cur.dirsMap[seg]);
+            }
+            cur = cur.dirsMap[seg];
+        }
+        cur.files.push({
+            type: 'file',
+            name: parts[parts.length - 1],
+            relPath: relPath,
+            size: file.size || 0,
+            file: file
+        });
+    }
+    function finalizeNode(node) {
+        node.dirs.sort(function(a, b) {
+            return a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' });
+        });
+        node.files.sort(function(a, b) {
+            return a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' });
+        });
+        var count = node.files.length;
+        var size = 0;
+        for (var fi = 0; fi < node.files.length; fi++) {
+            size += node.files[fi].size;
+        }
+        for (var di = 0; di < node.dirs.length; di++) {
+            finalizeNode(node.dirs[di]);
+            count += node.dirs[di].totalCount;
+            size += node.dirs[di].totalSize;
+        }
+        node.totalCount = count;
+        node.totalSize = size;
+    }
+    finalizeNode(root);
+    return root;
+}
+
+function onFolderFilesSearchInput(val) {
+    if (!folderFilterSession) return;
+    folderFilterSession.searchQuery = String(val || '');
+    var clearBtn = document.getElementById('folderFilesSearchClear');
+    if (clearBtn) clearBtn.hidden = !folderFilterSession.searchQuery.trim();
+    renderFolderFilesTree();
+}
+
+function clearFolderFilesSearch() {
+    var input = document.getElementById('folderFilesSearchInput');
+    if (input) {
+        input.value = '';
+        input.focus();
+    }
+    onFolderFilesSearchInput('');
+}
+
+function setFolderFilesViewMode(mode) {
+    if (!folderFilterSession) return;
+    folderFilterSession.viewMode = (mode === 'excluded') ? 'excluded' : 'all';
+    updateFolderFilesViewModeButtons();
+    renderFolderFilesTree();
+}
+
+function updateFolderFilesViewModeButtons() {
+    if (!folderFilterSession) return;
+    var allBtn = document.getElementById('folderFilesViewAllBtn');
+    var exclBtn = document.getElementById('folderFilesViewExclBtn');
+    if (allBtn) allBtn.classList.toggle('is-active', folderFilterSession.viewMode === 'all');
+    if (exclBtn) exclBtn.classList.toggle('is-active', folderFilterSession.viewMode === 'excluded');
+}
+
+function getFolderFileIconClass(name) {
+    var dot = name.lastIndexOf('.');
+    var ext = dot >= 0 ? name.slice(dot + 1).toLowerCase() : '';
+    if (ext === 'html' || ext === 'htm') return 'ri-pages-line';
+    if (ext === 'png' || ext === 'jpg' || ext === 'jpeg' || ext === 'gif' || ext === 'svg' || ext === 'webp' || ext === 'ico') return 'ri-image-line';
+    if (ext === 'css' || ext === 'js' || ext === 'json' || ext === 'map') return 'ri-file-code-line';
+    if (ext === 'woff' || ext === 'woff2' || ext === 'ttf' || ext === 'otf' || ext === 'eot') return 'ri-font-size';
+    return 'ri-file-text-line';
+}
+
+function collectFolderVisibleFiles(node, queryLower, viewMode, draftExcluded, parentMatched) {
+    var dirMatched = parentMatched || (queryLower && node.path && node.path.toLowerCase().indexOf(queryLower) !== -1);
+    var visibleFiles = [];
+    var visibleDirs = [];
+    for (var i = 0; i < node.dirs.length; i++) {
+        var childRes = collectFolderVisibleFiles(node.dirs[i], queryLower, viewMode, draftExcluded, dirMatched);
+        if (childRes.files.length > 0) {
+            visibleDirs.push(childRes);
+            for (var k = 0; k < childRes.files.length; k++) {
+                visibleFiles.push(childRes.files[k]);
+            }
+        }
+    }
+    var directFiles = [];
+    for (var j = 0; j < node.files.length; j++) {
+        var f = node.files[j];
+        var isExcluded = !!draftExcluded[f.relPath];
+        if (viewMode === 'excluded' && !isExcluded) continue;
+        if (queryLower && !dirMatched && f.relPath.toLowerCase().indexOf(queryLower) === -1) continue;
+        directFiles.push(f);
+        visibleFiles.push(f);
+    }
+    return {
+        dir: node,
+        dirs: visibleDirs,
+        directFiles: directFiles,
+        files: visibleFiles
+    };
+}
+
+function getFolderStatsForFiles(filesList, draftExcluded) {
+    var selectedCount = 0;
+    var selectedSize = 0;
+    for (var i = 0; i < filesList.length; i++) {
+        var f = filesList[i];
+        if (!draftExcluded[f.relPath]) {
+            selectedCount++;
+            selectedSize += f.size;
+        }
+    }
+    return {
+        totalCount: filesList.length,
+        selectedCount: selectedCount,
+        selectedSize: selectedSize
+    };
+}
+
+function toggleFolderFilesVisibleSelection(shouldSelect) {
+    if (!folderFilterSession) return;
+    var targets = folderFilterSession.currentVisibleFiles || [];
+    for (var i = 0; i < targets.length; i++) {
+        var relPath = targets[i].relPath;
+        if (shouldSelect) {
+            delete folderFilterSession.draftExcluded[relPath];
+        } else {
+            folderFilterSession.draftExcluded[relPath] = true;
+        }
+    }
+    updateFolderTreeCheckStates();
+}
+
+function renderFolderFilesTree() {
+    if (!folderFilterSession) return;
+    var body = document.getElementById('folderFilesTreeBody');
+    var emptyEl = document.getElementById('folderFilesEmptyState');
+    if (!body || !emptyEl) return;
+
+    var queryLower = folderFilterSession.searchQuery.trim().toLowerCase();
+    var viewMode = folderFilterSession.viewMode;
+    var forceExpand = !!queryLower || viewMode === 'excluded';
+    var visibleTree = collectFolderVisibleFiles(folderFilterSession.tree, queryLower, viewMode, folderFilterSession.draftExcluded, false);
+    folderFilterSession.currentVisibleFiles = visibleTree.files;
+
+    var isScoped = !!queryLower || viewMode === 'excluded';
+    var checkAllBtn = document.getElementById('folderFilesCheckAllBtn');
+    var uncheckAllBtn = document.getElementById('folderFilesUncheckAllBtn');
+    if (checkAllBtn) checkAllBtn.textContent = isScoped ? '全选当前' : '全选';
+    if (uncheckAllBtn) uncheckAllBtn.textContent = isScoped ? '取消当前' : '全不选';
+
+    body.innerHTML = '';
+    if (visibleTree.files.length === 0) {
+        body.hidden = true;
+        emptyEl.hidden = false;
+        if (viewMode === 'excluded' && !queryLower) {
+            emptyEl.innerHTML = '<i class="ri-checkbox-circle-line"></i><span>当前没有已排除的文件，所有文件均会随版本上传</span>';
+        } else {
+            emptyEl.innerHTML = '<i class="ri-search-eye-line"></i><span>没有找到匹配的文件</span>';
+        }
+        updateFolderFilesSummary();
+        return;
+    }
+
+    body.hidden = false;
+    emptyEl.hidden = true;
+    var frag = document.createDocumentFragment();
+
+    function appendDirChildren(visNode, depth) {
+        for (var i = 0; i < visNode.dirs.length; i++) {
+            var childVis = visNode.dirs[i];
+            var dir = childVis.dir;
+            var isExpanded = forceExpand || !!folderFilterSession.expandedMap[dir.path];
+            var row = document.createElement('div');
+            row.className = 'folder-tree-row is-dir';
+            row.style.paddingLeft = (10 + depth * 18) + 'px';
+            row.setAttribute('data-dir-path', dir.path);
+
+            var toggleBtn = document.createElement('button');
+            toggleBtn.type = 'button';
+            toggleBtn.className = 'folder-tree-toggle';
+            toggleBtn.setAttribute('aria-label', isExpanded ? '折叠文件夹' : '展开文件夹');
+            toggleBtn.innerHTML = '<i class="' + (isExpanded ? 'ri-arrow-down-s-fill' : 'ri-arrow-right-s-fill') + '"></i>';
+            if (forceExpand) {
+                toggleBtn.disabled = true;
+            } else {
+                (function(dirPath) {
+                    toggleBtn.addEventListener('click', function(e) {
+                        e.stopPropagation();
+                        folderFilterSession.expandedMap[dirPath] = !folderFilterSession.expandedMap[dirPath];
+                        renderFolderFilesTree();
+                    });
+                })(dir.path);
+            }
+
+            var cb = document.createElement('input');
+            cb.type = 'checkbox';
+            cb.className = 'folder-tree-cb';
+            cb.setAttribute('data-dir-cb', dir.path);
+            cb._dirVisibleFiles = childVis.files;
+            cb.addEventListener('click', function(e) { e.stopPropagation(); });
+            cb.addEventListener('change', (function(filesInDir, checkbox) {
+                return function() {
+                    var check = checkbox.checked;
+                    for (var fi = 0; fi < filesInDir.length; fi++) {
+                        if (check) delete folderFilterSession.draftExcluded[filesInDir[fi].relPath];
+                        else folderFilterSession.draftExcluded[filesInDir[fi].relPath] = true;
+                    }
+                    updateFolderTreeCheckStates();
+                };
+            })(childVis.files, cb));
+
+            var icon = document.createElement('i');
+            icon.className = 'folder-tree-icon ' + (isExpanded ? 'ri-folder-open-line' : 'ri-folder-3-line');
+
+            var nameEl = document.createElement('span');
+            nameEl.className = 'folder-tree-name';
+            nameEl.textContent = dir.name;
+            nameEl.title = dir.path;
+
+            var metaEl = document.createElement('span');
+            metaEl.className = 'folder-tree-meta';
+            metaEl.setAttribute('data-dir-meta', dir.path);
+            metaEl._dirVisibleFiles = childVis.files;
+
+            row.appendChild(toggleBtn);
+            row.appendChild(cb);
+            row.appendChild(icon);
+            row.appendChild(nameEl);
+            row.appendChild(metaEl);
+
+            if (!forceExpand) {
+                (function(dirPath) {
+                    row.addEventListener('click', function() {
+                        folderFilterSession.expandedMap[dirPath] = !folderFilterSession.expandedMap[dirPath];
+                        renderFolderFilesTree();
+                    });
+                })(dir.path);
+            }
+
+            frag.appendChild(row);
+            if (isExpanded) {
+                appendDirChildren(childVis, depth + 1);
+            }
+        }
+
+        for (var j = 0; j < visNode.directFiles.length; j++) {
+            var fileItem = visNode.directFiles[j];
+            var fRow = document.createElement('div');
+            fRow.className = 'folder-tree-row is-file';
+            fRow.style.paddingLeft = (10 + depth * 18) + 'px';
+            fRow.setAttribute('data-file-path', fileItem.relPath);
+
+            var spacer = document.createElement('span');
+            spacer.className = 'folder-tree-spacer';
+
+            var fCb = document.createElement('input');
+            fCb.type = 'checkbox';
+            fCb.className = 'folder-tree-cb';
+            fCb.setAttribute('data-file-cb', fileItem.relPath);
+            fCb.addEventListener('click', function(e) { e.stopPropagation(); });
+            fCb.addEventListener('change', (function(relPath, checkbox) {
+                return function() {
+                    if (checkbox.checked) delete folderFilterSession.draftExcluded[relPath];
+                    else folderFilterSession.draftExcluded[relPath] = true;
+                    updateFolderTreeCheckStates();
+                };
+            })(fileItem.relPath, fCb));
+
+            var fIcon = document.createElement('i');
+            fIcon.className = 'folder-tree-icon ' + getFolderFileIconClass(fileItem.name);
+
+            var fName = document.createElement('span');
+            fName.className = 'folder-tree-name';
+            fName.textContent = fileItem.name;
+            fName.title = fileItem.relPath;
+
+            var fMeta = document.createElement('span');
+            fMeta.className = 'folder-tree-meta';
+            fMeta.textContent = formatProtoBytes(fileItem.size);
+
+            fRow.appendChild(spacer);
+            fRow.appendChild(fCb);
+            fRow.appendChild(fIcon);
+            fRow.appendChild(fName);
+            fRow.appendChild(fMeta);
+
+            (function(relPath, checkbox) {
+                fRow.addEventListener('click', function() {
+                    checkbox.checked = !checkbox.checked;
+                    if (checkbox.checked) delete folderFilterSession.draftExcluded[relPath];
+                    else folderFilterSession.draftExcluded[relPath] = true;
+                    updateFolderTreeCheckStates();
+                });
+            })(fileItem.relPath, fCb);
+
+            frag.appendChild(fRow);
+        }
+    }
+
+    appendDirChildren(visibleTree, 0);
+    body.appendChild(frag);
+    updateFolderTreeCheckStates();
+}
+
+function updateFolderTreeCheckStates() {
+    if (!folderFilterSession) return;
+    var body = document.getElementById('folderFilesTreeBody');
+    var draftExcluded = folderFilterSession.draftExcluded;
+    if (body) {
+        var fileRows = body.querySelectorAll('.folder-tree-row.is-file');
+        for (var i = 0; i < fileRows.length; i++) {
+            var row = fileRows[i];
+            var relPath = row.getAttribute('data-file-path');
+            var excluded = !!draftExcluded[relPath];
+            row.classList.toggle('is-excluded', excluded);
+            var cb = row.querySelector('input[type="checkbox"]');
+            if (cb) cb.checked = !excluded;
+        }
+        var dirRows = body.querySelectorAll('.folder-tree-row.is-dir');
+        for (var j = 0; j < dirRows.length; j++) {
+            var dRow = dirRows[j];
+            var dCb = dRow.querySelector('input[type="checkbox"]');
+            var dMeta = dRow.querySelector('.folder-tree-meta');
+            var dirFiles = (dCb && dCb._dirVisibleFiles) || [];
+            var stats = getFolderStatsForFiles(dirFiles, draftExcluded);
+            if (dCb) {
+                dCb.checked = (stats.totalCount > 0 && stats.selectedCount === stats.totalCount);
+                dCb.indeterminate = (stats.selectedCount > 0 && stats.selectedCount < stats.totalCount);
+            }
+            dRow.classList.toggle('is-excluded', stats.selectedCount === 0);
+            if (dMeta) {
+                dMeta.textContent = stats.selectedCount === stats.totalCount
+                    ? (stats.totalCount + ' 项 · ' + formatProtoBytes(stats.selectedSize))
+                    : (stats.selectedCount + '/' + stats.totalCount + ' 项 · ' + formatProtoBytes(stats.selectedSize));
+            }
+        }
+    }
+    updateFolderFilesSummary();
+}
+
+function getFolderDraftSummary() {
+    if (!currentProtoSource || currentProtoSource.type !== 'folder' || !folderFilterSession) {
+        return { totalCount: 0, selectedCount: 0, excludedCount: 0, selectedSize: 0, hasHtml: false };
+    }
+    var allFiles = currentProtoSource.allFiles || [];
+    var rootPrefix = currentProtoSource.rootPrefix || '';
+    var draftExcluded = folderFilterSession.draftExcluded;
+    var selectedCount = 0;
+    var selectedSize = 0;
+    var hasHtml = false;
+    for (var i = 0; i < allFiles.length; i++) {
+        var f = allFiles[i];
+        var rel = getProtoRelativePath(f, rootPrefix);
+        if (!draftExcluded[rel]) {
+            selectedCount++;
+            selectedSize += (f.size || 0);
+            if (/\.html?$/i.test(rel)) hasHtml = true;
+        }
+    }
+    return {
+        totalCount: allFiles.length,
+        selectedCount: selectedCount,
+        excludedCount: allFiles.length - selectedCount,
+        selectedSize: selectedSize,
+        hasHtml: hasHtml
+    };
+}
+
+function updateFolderFilesSummary() {
+    var summaryEl = document.getElementById('folderFilesSummary');
+    var exclCountEl = document.getElementById('folderFilesExclCount');
+    var applyBtn = document.getElementById('folderFilesApplyBtn');
+    var info = getFolderDraftSummary();
+    if (exclCountEl) exclCountEl.textContent = String(info.excludedCount);
+    if (!summaryEl) return;
+    if (info.selectedCount === 0) {
+        summaryEl.classList.add('is-error');
+        summaryEl.textContent = '请至少保留 1 个文件';
+        if (applyBtn) applyBtn.disabled = true;
+    } else if (!info.hasHtml) {
+        summaryEl.classList.add('is-error');
+        summaryEl.textContent = '已选 ' + info.selectedCount + ' 个文件，但未包含 HTML 原型页面';
+        if (applyBtn) applyBtn.disabled = true;
+    } else {
+        summaryEl.classList.remove('is-error');
+        summaryEl.textContent = '已选 ' + info.selectedCount + ' / ' + info.totalCount + ' 个文件 · ' + formatProtoBytes(info.selectedSize)
+            + (info.excludedCount > 0 ? ('（已排除 ' + info.excludedCount + ' 个）') : '');
+        if (applyBtn) applyBtn.disabled = false;
+    }
+}
+
+function applyFolderFilesFilter() {
+    if (!currentProtoSource || currentProtoSource.type !== 'folder' || !folderFilterSession) return;
+    var info = getFolderDraftSummary();
+    if (info.selectedCount === 0) {
+        showToast('请至少保留 1 个文件', 'warning');
+        return;
+    }
+    if (!info.hasHtml) {
+        showToast('已选文件中未包含 HTML 原型页面，无法作为原型预览', 'warning');
+        return;
+    }
+    var nextExcluded = {};
+    for (var key in folderFilterSession.draftExcluded) {
+        if (Object.prototype.hasOwnProperty.call(folderFilterSession.draftExcluded, key) && folderFilterSession.draftExcluded[key]) {
+            nextExcluded[key] = true;
+        }
+    }
+    currentProtoSource.excludedPaths = nextExcluded;
+    refreshProtoFolderBadge();
+    folderFilterSession = null;
+    closeModal('folderFilesModal');
+}
+
 // 快速 Store 模式原生 PKZIP 组装器（含剥离公共父目录）
-function createZipBlobFromFolder(files, defaultName, onProgress) {
+function createZipBlobFromFolder(files, defaultName, onProgress, fixedCommonPrefix) {
     return new Promise(function(resolve, reject) {
         if (!files || files.length === 0) {
             return reject(new Error('文件夹中没有有效文件'));
@@ -866,29 +1449,33 @@ function createZipBlobFromFolder(files, defaultName, onProgress) {
             return reject(new Error('文件夹中没有有效文件'));
         }
 
-        // 计算公共父目录前缀并智能剥离
+        // 优先沿用原文件夹公共父目录前缀，防止取消部分文件后误剥离剩余子目录层级
         var commonPrefix = '';
-        var firstPathParts = fileList[0].path.split('/');
-        if (firstPathParts.length > 1) {
-            var prefixParts = [];
-            for (var pi = 0; pi < firstPathParts.length - 1; pi++) {
-                var candidate = firstPathParts[pi];
-                var allMatch = true;
-                for (var fi = 1; fi < fileList.length; fi++) {
-                    var curParts = fileList[fi].path.split('/');
-                    if (curParts.length <= pi + 1 || curParts[pi] !== candidate) {
-                        allMatch = false;
+        if (typeof fixedCommonPrefix === 'string') {
+            commonPrefix = fixedCommonPrefix;
+        } else {
+            var firstPathParts = fileList[0].path.split('/');
+            if (firstPathParts.length > 1) {
+                var prefixParts = [];
+                for (var pi = 0; pi < firstPathParts.length - 1; pi++) {
+                    var candidate = firstPathParts[pi];
+                    var allMatch = true;
+                    for (var fi = 1; fi < fileList.length; fi++) {
+                        var curParts = fileList[fi].path.split('/');
+                        if (curParts.length <= pi + 1 || curParts[pi] !== candidate) {
+                            allMatch = false;
+                            break;
+                        }
+                    }
+                    if (allMatch) {
+                        prefixParts.push(candidate);
+                    } else {
                         break;
                     }
                 }
-                if (allMatch) {
-                    prefixParts.push(candidate);
-                } else {
-                    break;
+                if (prefixParts.length > 0) {
+                    commonPrefix = prefixParts.join('/') + '/';
                 }
-            }
-            if (prefixParts.length > 0) {
-                commonPrefix = prefixParts.join('/') + '/';
             }
         }
 
@@ -1192,12 +1779,15 @@ function handleVersionUpload(e) {
 
         var prepareZipPromise;
         if (currentProtoSource.type === 'folder') {
+            if (!currentProtoSource.files || currentProtoSource.files.length === 0) {
+                throw new Error('请至少保留 1 个文件再发布');
+            }
             pText.innerText = '正在整理打包文件夹...';
             prepareZipPromise = createZipBlobFromFolder(currentProtoSource.files, currentProtoSource.name, function(curr, tot) {
                 var p = Math.round((curr / tot) * 100);
                 pText.innerText = '正在整理文件夹 (' + curr + '/' + tot + ')...';
                 pBar.style.width = Math.min(95, Math.round(p * 0.2)) + '%';
-            });
+            }, currentProtoSource.packagePrefix);
         } else {
             prepareZipPromise = Promise.resolve(currentProtoSource.file);
         }
