@@ -157,11 +157,16 @@ body.page-standalone {
     border: 1px solid var(--border-strong);
     border-radius: var(--radius-md);
     padding: 0 14px;
+    font-family: inherit;
     font-size: 14px;
     box-sizing: border-box;
     background: var(--surface);
     color: var(--text-1);
     transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.standalone-card .form-control::placeholder,
+.standalone-form-control::placeholder {
+    color: var(--text-3);
 }
 .standalone-card .form-control:focus,
 .standalone-form-control:focus {
@@ -2035,6 +2040,7 @@ body, html {
     border: 1px solid var(--border-strong);
     border-radius: var(--radius-md);
     padding: 9px 12px;
+    font-family: inherit;
     font-size: 13.5px;
     box-sizing: border-box;
     background: var(--surface);
@@ -3965,6 +3971,9 @@ textarea.m-input.m-input-error:focus {
     transition: border-color 0.15s, box-shadow 0.15s;
     background: #ffffff;
     color: var(--text-1);
+}
+.anno-input-textarea::placeholder {
+    color: var(--text-3);
 }
 .anno-input-textarea:focus {
     border-color: var(--primary);

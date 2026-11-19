@@ -102,7 +102,6 @@ $allUsers = $db->query("SELECT id, email, name, role FROM users WHERE status = 1
                     <label class="m-label" id="uploadChangelogLabel" for="uploadChangelog">
                         <span>更新日志 <span class="req-star" id="changelogReqStar" style="display:none;">*</span></span>
                         <span class="opt-tag" id="changelogOptTag">选填</span>
-                        <span class="opt-tag">支持Markdown</span>
                     </label>
                     <button type="button" id="uploadLastLogBtn" class="upload-last-log-btn" hidden onclick="appendUploadLastChangelog()" title="将上一版本的更新日志添加到末尾">
                         <i class="ri-add-line"></i> 上版日志
