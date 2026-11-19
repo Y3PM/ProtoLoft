@@ -589,6 +589,186 @@ for (const [source, numberingJs] of numberingSources) {
     const firstRender = names.map(name => name.innerHTML);
     runNumbering();
     check('TC-AXURE-IDEMPOTENT: 重复执行不会改变编号或重复徽标', names.every((name, index) => name.innerHTML === firstRender[index]));
+
+    // 侧栏自适应宽度测试（正常扩展、不过大上限、手工拖拽保护、短内容不误扩、出现前预同步、运行中平滑动画）
+    const makePanelDoc = (opts) => {
+        let resizedCount = 0;
+        let lastLeftPanelWidthMock = 220;
+        let origExpandReadWidth = null;
+        const scheduledTimers = [];
+        const clearedTimers = new Set();
+        const splitHandlers = {};
+        const makePanelObj = (baseClass, widthNum) => ({
+            className: baseClass,
+            offsetWidth: widthNum || 0,
+            offsetHeight: widthNum ? 600 : 0,
+            style: widthNum ? { width: widthNum + 'px' } : { display: 'none', width: '' },
+            classList: {
+                _list: baseClass ? baseClass.split(/\s+/) : [],
+                contains: function(c) { return this._list.includes(c); },
+                add: function(c) { if (!this._list.includes(c)) this._list.push(c); },
+                remove: function(c) { this._list = this._list.filter(x => x !== c); }
+            }
+        });
+        const splitbar = {
+            className: 'splitbar',
+            offsetWidth: opts.panelWidth === 0 ? 0 : 4,
+            offsetHeight: opts.panelWidth === 0 ? 0 : 600,
+            style: { left: '216px' },
+            classList: {
+                _list: ['splitbar'],
+                contains: function(c) { return this._list.includes(c); },
+                add: function(c) { if (!this._list.includes(c)) this._list.push(c); },
+                remove: function(c) { this._list = this._list.filter(x => x !== c); }
+            },
+            addEventListener: (ev, fn) => { (splitHandlers[ev] = splitHandlers[ev] || []).push(fn); },
+            triggerDown: () => (splitHandlers.mousedown || []).forEach(fn => fn())
+        };
+        const initWidth = opts.panelWidth === undefined ? 220 : opts.panelWidth;
+        const leftPanel = makePanelObj('leftPanel', initWidth);
+        const clipBounds = makePanelObj('', 1220);
+        const treeContainer = {
+            scrollWidth: opts.scrollWidth,
+            clientWidth: opts.clientWidth || 220,
+            offsetWidth: opts.offsetWidth || 220
+        };
+        const pDoc = {
+            body: { classList: { contains: () => false } },
+            documentElement: { clientWidth: opts.vw || 1440 },
+            getElementById: (id) => ({
+                sitemapTreeContainer: treeContainer,
+                lsplitbar: splitbar,
+                leftPanel: leftPanel,
+                clippingBounds: clipBounds
+            }[id] || null),
+            querySelector: (sel) => {
+                if (sel === '.leftPanel') return leftPanel;
+                if (sel.includes('sitemapTree')) return treeUl;
+                return null;
+            }
+        };
+        const axPlayer = {
+            isAnimating: false,
+            resizeContent: () => {
+                resizedCount++;
+                const parsed = parseInt(leftPanel.style.width, 10);
+                if (leftPanel.style.display === 'block' && parsed > 0) {
+                    lastLeftPanelWidthMock = parsed;
+                } else if (leftPanel.offsetWidth > 0) {
+                    lastLeftPanelWidthMock = leftPanel.offsetWidth;
+                }
+            },
+            expandFromBar: (hostId, context) => {
+                if (context === 'project') {
+                    origExpandReadWidth = lastLeftPanelWidthMock;
+                    leftPanel.offsetWidth = lastLeftPanelWidthMock;
+                    leftPanel.style.display = 'block';
+                    leftPanel.style.width = lastLeftPanelWidthMock + 'px';
+                    splitbar.offsetWidth = 4;
+                    splitbar.style.left = (lastLeftPanelWidthMock - 4) + 'px';
+                }
+            }
+        };
+        const pWin = {
+            innerWidth: opts.vw || 1440,
+            $axure: { player: axPlayer },
+            document: pDoc,
+            addEventListener: () => {}
+        };
+        const pSandbox = {
+            $: () => ({ on: () => {}, ready: () => {}, length: 0 }),
+            window: pWin,
+            document: pDoc,
+            setInterval: () => 1,
+            clearInterval: () => {}
+        };
+        if (opts.withTimeout) {
+            const setT = (fn) => {
+                const id = scheduledTimers.length + 1;
+                scheduledTimers.push({ id, fn });
+                return id;
+            };
+            const clrT = (id) => clearedTimers.add(id);
+            pWin.setTimeout = setT;
+            pWin.clearTimeout = clrT;
+            pSandbox.setTimeout = setT;
+            pSandbox.clearTimeout = clrT;
+        }
+        vm.createContext(pSandbox);
+        vm.runInContext(numberingJs, pSandbox);
+        if (pSandbox.setupAxureSitemapAutoNumbering) pSandbox.setupAxureSitemapAutoNumbering(pWin);
+        return {
+            leftPanel,
+            splitbar,
+            clipBounds,
+            treeContainer,
+            axPlayer,
+            getResizedCount: () => resizedCount,
+            getOrigExpandWidth: () => origExpandReadWidth,
+            flushTimers: () => {
+                while (scheduledTimers.length) {
+                    const t = scheduledTimers.shift();
+                    if (!clearedTimers.has(t.id)) t.fn();
+                }
+            },
+            hasPendingTimer: () => scheduledTimers.some(t => !clearedTimers.has(t.id)),
+            rerun: () => {
+                if (pSandbox.setupAxureSitemapAutoNumbering) pSandbox.setupAxureSitemapAutoNumbering(pWin);
+                else vm.runInContext(numberingJs, pSandbox);
+            }
+        };
+    };
+
+    const fitShort = makePanelDoc({ scrollWidth: 205, clientWidth: 205, offsetWidth: 220, vw: 1440 });
+    check('TC-AXURE-FIT-SHORT: 未超宽时不无故撑大默认 220px', fitShort.leftPanel.style.width === '220px');
+
+    const fitMid = makePanelDoc({ scrollWidth: 268, clientWidth: 205, offsetWidth: 220, vw: 1440 });
+    check('TC-AXURE-FIT-MID: 超出宽度时自动扩展至完整容纳且同步移动分割线并通知画布重排',
+        fitMid.leftPanel.style.width === '293px'
+        && fitMid.splitbar.style.left === '289px'
+        && fitMid.getResizedCount() >= 1);
+
+    const fitCap = makePanelDoc({ scrollWidth: 520, clientWidth: 205, offsetWidth: 220, vw: 1440 });
+    check('TC-AXURE-FIT-CAP: 超长名称时严格受限于 340px 上限不过大', fitCap.leftPanel.style.width === '340px');
+
+    const fitRatioCap = makePanelDoc({ scrollWidth: 520, clientWidth: 205, offsetWidth: 220, vw: 1000 });
+    check('TC-AXURE-FIT-RATIO: 较小窗口下受限于视口 28%（280px）不挤压画布', fitRatioCap.leftPanel.style.width === '280px');
+
+    fitMid.splitbar.triggerDown();
+    fitMid.leftPanel.offsetWidth = 250;
+    fitMid.leftPanel.style.width = '250px';
+    fitMid.treeContainer.scrollWidth = 310;
+    fitMid.rerun();
+    check('TC-AXURE-FIT-USER: 手动拖拽过分割线后不再被自动覆写宽度', fitMid.leftPanel.style.width === '250px');
+
+    const prefitCase = makePanelDoc({ panelWidth: 0, scrollWidth: 268, clientWidth: 205, offsetWidth: 220, vw: 1440, withTimeout: true });
+    prefitCase.axPlayer.expandFromBar('sitemapHost', 'project', true);
+    check('TC-AXURE-PREFIT-EXPAND: 出现前预计算并在首次 expandFromBar 即以目标宽度展开',
+        prefitCase.getOrigExpandWidth() === 293 && prefitCase.leftPanel.style.width === '293px'
+        && !prefitCase.leftPanel.classList.contains('protoloft-panel-anim'));
+
+    const smoothCase = makePanelDoc({ panelWidth: 220, scrollWidth: 268, clientWidth: 205, offsetWidth: 220, vw: 1440, withTimeout: true });
+    const hasAnimWhileMoving = smoothCase.leftPanel.classList.contains('protoloft-panel-anim')
+        && smoothCase.splitbar.classList.contains('protoloft-panel-anim')
+        && smoothCase.clipBounds.classList.contains('protoloft-panel-anim')
+        && smoothCase.leftPanel.style.width === '293px'
+        && smoothCase.clipBounds.style.left === '293px';
+    const resizedBeforeFlush = smoothCase.getResizedCount();
+    smoothCase.flushTimers();
+    check('TC-AXURE-SMOOTH-EXPAND: 出现后扩宽自动启用过渡动画且结束后卸除类名并重排画布',
+        hasAnimWhileMoving && resizedBeforeFlush === 0
+        && !smoothCase.leftPanel.classList.contains('protoloft-panel-anim')
+        && smoothCase.getResizedCount() === 1);
+
+    const dragCancelCase = makePanelDoc({ panelWidth: 220, scrollWidth: 268, clientWidth: 205, offsetWidth: 220, vw: 1440, withTimeout: true });
+    dragCancelCase.splitbar.triggerDown();
+    const animClearedOnDrag = !dragCancelCase.leftPanel.classList.contains('protoloft-panel-anim')
+        && !dragCancelCase.splitbar.classList.contains('protoloft-panel-anim')
+        && !dragCancelCase.hasPendingTimer();
+    dragCancelCase.leftPanel.style.width = '245px';
+    dragCancelCase.flushTimers();
+    check('TC-AXURE-DRAG-CANCEL-ANIM: 过渡中途按下分割条立即撤销动画且保持手工宽度',
+        animClearedOnDrag && dragCancelCase.leftPanel.style.width === '245px');
 }
 
 console.log('\n[*] 8. P2-1 与 P2-2 冷启动接力流防打断与序列号时序隔离状态机验证');

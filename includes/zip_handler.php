@@ -239,6 +239,13 @@ class ZipHandler {
 /* 4. Axure 11 兼容适配 */
 .selected .btn_check { fill: #0076de !important; }
 .sitemapHeader { padding: 8px 0 0 7px !important; }
+.leftPanel.protoloft-panel-anim {
+    transition: width 180ms cubic-bezier(0.2, 0, 0, 1) !important;
+}
+#lsplitbar.protoloft-panel-anim,
+#clippingBounds.protoloft-panel-anim {
+    transition: left 180ms cubic-bezier(0.2, 0, 0, 1), width 180ms cubic-bezier(0.2, 0, 0, 1) !important;
+}
 
 /* 5. 内置 Remix Icon 现代字体定义 (支持在原型中直接书写 ri-* 图标) */
 @font-face {
@@ -303,22 +310,262 @@ class ZipHandler {
             if(subUl) walkUl(subUl, currentSeq);
         }
     }
+    function setAnimClass(el, on){
+        if(!el) return;
+        if(el.classList && typeof el.classList.add === 'function' && typeof el.classList.remove === 'function'){
+            if(on) el.classList.add('protoloft-panel-anim');
+            else el.classList.remove('protoloft-panel-anim');
+        } else if(typeof el.className === 'string'){
+            var cleaned = el.className.replace(/\bprotoloft-panel-anim\b/g, '').replace(/\s+/g, ' ').trim();
+            el.className = on ? (cleaned ? cleaned + ' protoloft-panel-anim' : 'protoloft-panel-anim') : cleaned;
+        }
+    }
+    function clearAnimState(leftPanel){
+        if(leftPanel && leftPanel.__protoloftAnimTimer && typeof clearTimeout === 'function'){
+            clearTimeout(leftPanel.__protoloftAnimTimer);
+            leftPanel.__protoloftAnimTimer = null;
+        }
+        setAnimClass(leftPanel, false);
+        setAnimClass(document.getElementById('lsplitbar'), false);
+        setAnimClass(document.getElementById('clippingBounds'), false);
+    }
+    function bindSplitbarWatch(leftPanel){
+        var splitbar = document.getElementById('lsplitbar');
+        if(!splitbar || splitbar.__protoloftWatched || typeof splitbar.addEventListener !== 'function') return;
+        splitbar.__protoloftWatched = true;
+        var markUser = function(){
+            leftPanel.__protoloftUserResized = true;
+            clearAnimState(leftPanel);
+            var jq = window.jQuery || window['$'];
+            if(jq && typeof jq === 'function'){
+                try { jq('.leftPanel, #lsplitbar, #clippingBounds').stop(true, false); } catch(e){}
+            }
+        };
+        splitbar.addEventListener('mousedown', markUser);
+        splitbar.addEventListener('pointerdown', markUser);
+    }
+    function getPanelMaxWidth(vw){
+        return vw > 0 ? Math.max(220, Math.min(340, Math.floor(vw * 0.28))) : 340;
+    }
+    function computeDesiredLeftWidth(leftPanel, vw){
+        var treeUl = document.querySelector('#sitemapTreeContainer ul.sitemapTree') || document.querySelector('.sitemapTree');
+        var treeContainer = document.getElementById('sitemapTreeContainer') || (treeUl ? treeUl.parentElement : null);
+        if(!treeUl || !treeContainer) return 0;
+
+        var curW = leftPanel.offsetWidth || 0;
+        var wasHidden = curW < 180;
+        var saved = null;
+        if(wasHidden && leftPanel.style){
+            saved = {
+                display: leftPanel.style.display || '',
+                visibility: leftPanel.style.visibility || '',
+                position: leftPanel.style.position || '',
+                left: leftPanel.style.left || '',
+                top: leftPanel.style.top || '',
+                width: leftPanel.style.width || ''
+            };
+            leftPanel.style.position = 'fixed';
+            leftPanel.style.left = '-9999px';
+            leftPanel.style.top = '0px';
+            leftPanel.style.visibility = 'hidden';
+            leftPanel.style.display = 'block';
+            leftPanel.style.width = '220px';
+        }
+        try {
+            var baseW = wasHidden ? 220 : curW;
+            var contentW = Math.max(treeContainer.scrollWidth || 0, treeUl.scrollWidth || 0);
+            var clientW = treeContainer.clientWidth || baseW;
+            if(contentW <= clientW) return baseW;
+            var scrollbarW = Math.max(0, (treeContainer.offsetWidth || 0) - clientW);
+            var desiredW = Math.ceil(contentW + scrollbarW + 10);
+            var minW = Math.max(220, leftPanel.__protoloftAppliedWidth || baseW);
+            return Math.max(minW, Math.min(desiredW, getPanelMaxWidth(vw)));
+        } finally {
+            if(saved){
+                leftPanel.style.display = saved.display;
+                leftPanel.style.visibility = saved.visibility;
+                leftPanel.style.position = saved.position;
+                leftPanel.style.left = saved.left;
+                leftPanel.style.top = saved.top;
+                leftPanel.style.width = saved.width;
+            }
+        }
+    }
+    function applyWidthSync(leftPanel, targetW, axObj){
+        clearAnimState(leftPanel);
+        leftPanel.style.width = targetW + 'px';
+        leftPanel.__protoloftAppliedWidth = targetW;
+        leftPanel.__protoloftHasFitted = true;
+        var splitbar = document.getElementById('lsplitbar');
+        if(splitbar) splitbar.style.left = (targetW - 4) + 'px';
+        if(axObj && axObj.player && typeof axObj.player.resizeContent === 'function'){
+            axObj.player.resizeContent();
+        }
+    }
+    function applyWidthSmooth(leftPanel, targetW, vw, axObj){
+        if(typeof setTimeout !== 'function'){
+            applyWidthSync(leftPanel, targetW, axObj);
+            return;
+        }
+        clearAnimState(leftPanel);
+        var splitbar = document.getElementById('lsplitbar');
+        var clipBounds = document.getElementById('clippingBounds');
+        setAnimClass(leftPanel, true);
+        setAnimClass(splitbar, true);
+        setAnimClass(clipBounds, true);
+        void leftPanel.offsetWidth;
+
+        leftPanel.style.width = targetW + 'px';
+        leftPanel.__protoloftAppliedWidth = targetW;
+        leftPanel.__protoloftHasFitted = true;
+        if(splitbar && splitbar.style) splitbar.style.left = (targetW - 4) + 'px';
+        if(clipBounds && clipBounds.style && vw > 0){
+            var rightEl = document.querySelector ? document.querySelector('.rightPanel') : null;
+            var rightW = (rightEl && rightEl.offsetWidth) ? rightEl.offsetWidth : 0;
+            clipBounds.style.left = targetW + 'px';
+            clipBounds.style.width = Math.max(0, vw - targetW - rightW) + 'px';
+        }
+        leftPanel.__protoloftAnimTimer = setTimeout(function(){
+            clearAnimState(leftPanel);
+            if(!leftPanel.__protoloftUserResized && axObj && axObj.player && typeof axObj.player.resizeContent === 'function'){
+                axObj.player.resizeContent();
+            }
+        }, 210);
+    }
+    function preSyncExpandWidth(leftPanel, vw, axObj){
+        var targetW = computeDesiredLeftWidth(leftPanel, vw);
+        if(!(targetW > 220)) return targetW;
+        if(axObj && axObj.player && typeof axObj.player.resizeContent === 'function' && leftPanel.style){
+            var saved = {
+                display: leftPanel.style.display || '',
+                visibility: leftPanel.style.visibility || '',
+                position: leftPanel.style.position || '',
+                left: leftPanel.style.left || '',
+                top: leftPanel.style.top || '',
+                width: leftPanel.style.width || ''
+            };
+            try {
+                leftPanel.style.position = 'fixed';
+                leftPanel.style.left = '-9999px';
+                leftPanel.style.top = '0px';
+                leftPanel.style.visibility = 'hidden';
+                leftPanel.style.display = 'block';
+                leftPanel.style.width = targetW + 'px';
+                axObj.player.resizeContent(true);
+            } finally {
+                leftPanel.style.display = saved.display;
+                leftPanel.style.visibility = saved.visibility;
+                leftPanel.style.position = saved.position;
+                leftPanel.style.left = saved.left;
+                leftPanel.style.top = saved.top;
+                leftPanel.style.width = saved.width;
+            }
+        }
+        leftPanel.__protoloftAppliedWidth = targetW;
+        leftPanel.__protoloftHasFitted = true;
+        return targetW;
+    }
+    function hookExpandFromBar(){
+        var axObj = window['$' + 'axure'];
+        if(!axObj || !axObj.player || typeof axObj.player.expandFromBar !== 'function') return;
+        if(axObj.player.expandFromBar.__protoloftWrapped) return;
+        var origExpand = axObj.player.expandFromBar;
+        var wrappedExpand = function(hostId, context){
+            try {
+                if(context === 'project'){
+                    var leftPanel = (document.querySelector && document.querySelector('.leftPanel')) || document.getElementById('leftPanel');
+                    if(leftPanel) bindSplitbarWatch(leftPanel);
+                    var mobile = document.body && document.body.classList && document.body.classList.contains('mobileMode');
+                    var vw = window.innerWidth || (document.documentElement && document.documentElement.clientWidth) || 0;
+                    var splitbar = document.getElementById('lsplitbar');
+                    var barHidden = !splitbar || !(splitbar.offsetWidth > 0 || splitbar.offsetHeight > 0);
+                    if(leftPanel && !leftPanel.__protoloftUserResized && !mobile && !(vw > 0 && vw < 720) && !(leftPanel.classList && leftPanel.classList.contains('popup')) && barHidden){
+                        run();
+                        preSyncExpandWidth(leftPanel, vw, axObj);
+                    }
+                }
+            } catch(e){}
+            return origExpand.apply(this, arguments);
+        };
+        wrappedExpand.__protoloftWrapped = true;
+        axObj.player.expandFromBar = wrappedExpand;
+    }
+    function fitLeftPanelWidth(){
+        try {
+            hookExpandFromBar();
+            if(!document.body || (document.body.classList && document.body.classList.contains('mobileMode'))) return false;
+            var leftPanel = (document.querySelector && document.querySelector('.leftPanel')) || document.getElementById('leftPanel');
+            if(!leftPanel) return false;
+            bindSplitbarWatch(leftPanel);
+            if(leftPanel.__protoloftUserResized) return true;
+            if(leftPanel.classList && leftPanel.classList.contains('popup')) return false;
+            var vw = window.innerWidth || (document.documentElement && document.documentElement.clientWidth) || 0;
+            if(vw > 0 && vw < 720) return false;
+            var axObj = window['$' + 'axure'];
+            var curW = leftPanel.offsetWidth || 0;
+            if(curW < 180){
+                preSyncExpandWidth(leftPanel, vw, axObj);
+                return false;
+            }
+            var targetW = computeDesiredLeftWidth(leftPanel, vw);
+            if(!targetW) return false;
+            if(targetW <= curW + 2){
+                if(!leftPanel.__protoloftAppliedWidth) leftPanel.__protoloftAppliedWidth = curW;
+                leftPanel.__protoloftHasFitted = true;
+                return true;
+            }
+            var jq = window.jQuery || window['$'];
+            var marginL = leftPanel.style && leftPanel.style.marginLeft ? parseFloat(leftPanel.style.marginLeft) : 0;
+            var isSlidingIn = (marginL < -1) || !!(jq && typeof jq === 'function' && jq(leftPanel).is && jq(leftPanel).is(':animated'));
+            if(isSlidingIn && jq && typeof jq === 'function'){
+                try {
+                    jq('#clippingBoundsScrollContainer').stop(false, true);
+                    jq(leftPanel).stop(true, false);
+                    jq('#lsplitbar').stop(true, false);
+                    jq('#clippingBounds').stop(true, false);
+                    leftPanel.style.width = targetW + 'px';
+                    leftPanel.__protoloftAppliedWidth = targetW;
+                    leftPanel.__protoloftHasFitted = true;
+                    var rightEl = document.querySelector ? document.querySelector('.rightPanel') : null;
+                    var rightW = (rightEl && rightEl.offsetWidth) ? rightEl.offsetWidth : 0;
+                    var clipW = vw > 0 ? Math.max(0, vw - targetW - rightW) : 0;
+                    jq(leftPanel).animate({ 'margin-left': '0px' }, { duration: 140, complete: function(){ leftPanel.style.marginLeft = ''; } });
+                    jq('#lsplitbar').animate({ left: (targetW - 4) + 'px' }, { duration: 140 });
+                    var clipTarget = vw > 0 ? { left: targetW + 'px', width: clipW + 'px' } : { left: targetW + 'px' };
+                    jq('#clippingBounds').animate(clipTarget, { duration: 140, complete: function(){
+                        if(!leftPanel.__protoloftUserResized && axObj && axObj.player && typeof axObj.player.resizeContent === 'function'){
+                            axObj.player.resizeContent();
+                        }
+                    }});
+                    return true;
+                } catch(e){}
+            }
+            applyWidthSmooth(leftPanel, targetW, vw, axObj);
+            return true;
+        } catch(e){ return false; }
+    }
     function run(){
         var treeUl = document.querySelector('#sitemapTreeContainer ul.sitemapTree') || document.querySelector('.sitemapTree');
         if(!treeUl || !treeUl.children.length) return false;
         walkUl(treeUl, '');
         return true;
     }
+    function runAndFit(){
+        hookExpandFromBar();
+        var seqOk = run();
+        var fitOk = seqOk ? fitLeftPanelWidth() : false;
+        return seqOk && fitOk;
+    }
     if(document.readyState === 'loading'){
-        document.addEventListener('DOMContentLoaded', run);
+        document.addEventListener('DOMContentLoaded', runAndFit);
     } else {
-        run();
+        runAndFit();
     }
     var attempts = 0;
     var timer = setInterval(function(){
         attempts++;
-        if(run() || attempts >= 25) clearInterval(timer);
-    }, 120);
+        if(runAndFit() || attempts >= 45) clearInterval(timer);
+    }, 60);
     try {
         var host = document.getElementById('sitemapHost') || document.getElementById('sitemapTreeContainer') || document.body;
         if(host && window.MutationObserver && !host.__autonumObserved){
@@ -326,18 +573,25 @@ class ZipHandler {
             var deb = null;
             var obs = new MutationObserver(function(muts){
                 var hit = false;
+                var needFitOnly = false;
                 for(var m=0; m<muts.length; m++){
                     var t = muts[m].target;
-                    if(t && t.nodeType === 1 && (t.classList.contains('sitemapTree') || t.classList.contains('sitemapNode') || t.id === 'sitemapTreeContainer')){
+                    if(!t || t.nodeType !== 1) continue;
+                    if(muts[m].type === 'attributes'){
+                        if(t.tagName === 'UL' || t.classList.contains('sitemapTree')){ needFitOnly = true; }
+                    } else if(t.classList.contains('sitemapTree') || t.classList.contains('sitemapNode') || t.id === 'sitemapTreeContainer'){
                         hit = true; break;
                     }
                 }
-                if(hit){
+                if(hit || needFitOnly){
                     if(deb) clearTimeout(deb);
-                    deb = setTimeout(run, 60);
+                    deb = setTimeout(function(){
+                        if(hit) run();
+                        fitLeftPanelWidth();
+                    }, 120);
                 }
             });
-            obs.observe(host, { childList: true, subtree: true });
+            obs.observe(host, { childList: true, subtree: true, attributes: true, attributeFilter: ['style'] });
         }
     } catch(e){}
 })();

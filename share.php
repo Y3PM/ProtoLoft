@@ -1250,10 +1250,258 @@ function setupAxureSitemapAutoNumbering(targetWindow) {
                     '  min-width: 0 !important;' +
                     '  text-align: center !important;' +
                     '}' +
-                    '.sitemapPageNameTag::before { content: attr(data-sitemap-page-name-tag); }';
+                    '.sitemapPageNameTag::before { content: attr(data-sitemap-page-name-tag); }' +
+                    '.leftPanel.protoloft-panel-anim { transition: width 180ms cubic-bezier(0.2, 0, 0, 1) !important; }' +
+                    '#lsplitbar.protoloft-panel-anim, #clippingBounds.protoloft-panel-anim { transition: left 180ms cubic-bezier(0.2, 0, 0, 1), width 180ms cubic-bezier(0.2, 0, 0, 1) !important; }';
                 head.appendChild(styleEl);
             }
         } catch(e) {}
+    }
+
+    function setAnimClass(el, on) {
+        if (!el) return;
+        if (el.classList && typeof el.classList.add === 'function' && typeof el.classList.remove === 'function') {
+            if (on) el.classList.add('protoloft-panel-anim');
+            else el.classList.remove('protoloft-panel-anim');
+        } else if (typeof el.className === 'string') {
+            var cleaned = el.className.replace(/\bprotoloft-panel-anim\b/g, '').replace(/\s+/g, ' ').trim();
+            el.className = on ? (cleaned ? cleaned + ' protoloft-panel-anim' : 'protoloft-panel-anim') : cleaned;
+        }
+    }
+
+    function clearAnimState(leftPanel) {
+        var clearTimer = (typeof targetWindow.clearTimeout === 'function') ? targetWindow.clearTimeout : (typeof clearTimeout === 'function' ? clearTimeout : null);
+        if (leftPanel && leftPanel.__protoloftAnimTimer && clearTimer) {
+            clearTimer(leftPanel.__protoloftAnimTimer);
+            leftPanel.__protoloftAnimTimer = null;
+        }
+        setAnimClass(leftPanel, false);
+        setAnimClass(doc.getElementById('lsplitbar'), false);
+        setAnimClass(doc.getElementById('clippingBounds'), false);
+    }
+
+    function bindSplitbarWatch(leftPanel) {
+        var splitbar = doc.getElementById('lsplitbar');
+        if (!splitbar || splitbar.__protoloftWatched || typeof splitbar.addEventListener !== 'function') return;
+        splitbar.__protoloftWatched = true;
+        var markUser = function() {
+            leftPanel.__protoloftUserResized = true;
+            clearAnimState(leftPanel);
+            var jq = targetWindow.jQuery || targetWindow.$;
+            if (jq && typeof jq === 'function') {
+                try { jq('.leftPanel, #lsplitbar, #clippingBounds').stop(true, false); } catch(e) {}
+            }
+        };
+        splitbar.addEventListener('mousedown', markUser);
+        splitbar.addEventListener('pointerdown', markUser);
+    }
+
+    function getPanelMaxWidth(vw) {
+        return vw > 0 ? Math.max(220, Math.min(340, Math.floor(vw * 0.28))) : 340;
+    }
+
+    function computeDesiredLeftWidth(leftPanel, vw) {
+        var treeUl = doc.querySelector('#sitemapTreeContainer ul.sitemapTree') || doc.querySelector('.sitemapTree');
+        var treeContainer = doc.getElementById('sitemapTreeContainer') || (treeUl ? treeUl.parentElement : null);
+        if (!treeUl || !treeContainer) return 0;
+
+        var curW = leftPanel.offsetWidth || 0;
+        var wasHidden = curW < 180;
+        var saved = null;
+        if (wasHidden && leftPanel.style) {
+            saved = {
+                display: leftPanel.style.display || '',
+                visibility: leftPanel.style.visibility || '',
+                position: leftPanel.style.position || '',
+                left: leftPanel.style.left || '',
+                top: leftPanel.style.top || '',
+                width: leftPanel.style.width || ''
+            };
+            leftPanel.style.position = 'fixed';
+            leftPanel.style.left = '-9999px';
+            leftPanel.style.top = '0px';
+            leftPanel.style.visibility = 'hidden';
+            leftPanel.style.display = 'block';
+            leftPanel.style.width = '220px';
+        }
+        try {
+            var baseW = wasHidden ? 220 : curW;
+            var contentW = Math.max(treeContainer.scrollWidth || 0, treeUl.scrollWidth || 0);
+            var clientW = treeContainer.clientWidth || baseW;
+            if (contentW <= clientW) return baseW;
+            var scrollbarW = Math.max(0, (treeContainer.offsetWidth || 0) - clientW);
+            var desiredW = Math.ceil(contentW + scrollbarW + 10);
+            var minW = Math.max(220, leftPanel.__protoloftAppliedWidth || baseW);
+            return Math.max(minW, Math.min(desiredW, getPanelMaxWidth(vw)));
+        } finally {
+            if (saved) {
+                leftPanel.style.display = saved.display;
+                leftPanel.style.visibility = saved.visibility;
+                leftPanel.style.position = saved.position;
+                leftPanel.style.left = saved.left;
+                leftPanel.style.top = saved.top;
+                leftPanel.style.width = saved.width;
+            }
+        }
+    }
+
+    function applyWidthSync(leftPanel, targetW, axObj) {
+        clearAnimState(leftPanel);
+        leftPanel.style.width = targetW + 'px';
+        leftPanel.__protoloftAppliedWidth = targetW;
+        leftPanel.__protoloftHasFitted = true;
+        var splitbar = doc.getElementById('lsplitbar');
+        if (splitbar) splitbar.style.left = (targetW - 4) + 'px';
+        if (axObj && axObj.player && typeof axObj.player.resizeContent === 'function') {
+            axObj.player.resizeContent();
+        }
+    }
+
+    function applyWidthSmooth(leftPanel, targetW, vw, axObj) {
+        var setTimer = (typeof targetWindow.setTimeout === 'function') ? targetWindow.setTimeout : (typeof setTimeout === 'function' ? setTimeout : null);
+        if (!setTimer) {
+            applyWidthSync(leftPanel, targetW, axObj);
+            return;
+        }
+        clearAnimState(leftPanel);
+        var splitbar = doc.getElementById('lsplitbar');
+        var clipBounds = doc.getElementById('clippingBounds');
+        setAnimClass(leftPanel, true);
+        setAnimClass(splitbar, true);
+        setAnimClass(clipBounds, true);
+        void leftPanel.offsetWidth;
+
+        leftPanel.style.width = targetW + 'px';
+        leftPanel.__protoloftAppliedWidth = targetW;
+        leftPanel.__protoloftHasFitted = true;
+        if (splitbar && splitbar.style) splitbar.style.left = (targetW - 4) + 'px';
+        if (clipBounds && clipBounds.style && vw > 0) {
+            var rightEl = doc.querySelector ? doc.querySelector('.rightPanel') : null;
+            var rightW = (rightEl && rightEl.offsetWidth) ? rightEl.offsetWidth : 0;
+            clipBounds.style.left = targetW + 'px';
+            clipBounds.style.width = Math.max(0, vw - targetW - rightW) + 'px';
+        }
+        leftPanel.__protoloftAnimTimer = setTimer(function() {
+            clearAnimState(leftPanel);
+            if (!leftPanel.__protoloftUserResized && axObj && axObj.player && typeof axObj.player.resizeContent === 'function') {
+                axObj.player.resizeContent();
+            }
+        }, 210);
+    }
+
+    function preSyncExpandWidth(leftPanel, vw, axObj) {
+        var targetW = computeDesiredLeftWidth(leftPanel, vw);
+        if (!(targetW > 220)) return targetW;
+        if (axObj && axObj.player && typeof axObj.player.resizeContent === 'function' && leftPanel.style) {
+            var saved = {
+                display: leftPanel.style.display || '',
+                visibility: leftPanel.style.visibility || '',
+                position: leftPanel.style.position || '',
+                left: leftPanel.style.left || '',
+                top: leftPanel.style.top || '',
+                width: leftPanel.style.width || ''
+            };
+            try {
+                leftPanel.style.position = 'fixed';
+                leftPanel.style.left = '-9999px';
+                leftPanel.style.top = '0px';
+                leftPanel.style.visibility = 'hidden';
+                leftPanel.style.display = 'block';
+                leftPanel.style.width = targetW + 'px';
+                axObj.player.resizeContent(true);
+            } finally {
+                leftPanel.style.display = saved.display;
+                leftPanel.style.visibility = saved.visibility;
+                leftPanel.style.position = saved.position;
+                leftPanel.style.left = saved.left;
+                leftPanel.style.top = saved.top;
+                leftPanel.style.width = saved.width;
+            }
+        }
+        leftPanel.__protoloftAppliedWidth = targetW;
+        leftPanel.__protoloftHasFitted = true;
+        return targetW;
+    }
+
+    function hookExpandFromBar() {
+        var axObj = targetWindow.$axure;
+        if (!axObj || !axObj.player || typeof axObj.player.expandFromBar !== 'function') return;
+        if (axObj.player.expandFromBar.__protoloftWrapped) return;
+        var origExpand = axObj.player.expandFromBar;
+        var wrappedExpand = function(hostId, context) {
+            try {
+                if (context === 'project') {
+                    var leftPanel = (doc.querySelector && doc.querySelector('.leftPanel')) || doc.getElementById('leftPanel');
+                    if (leftPanel) bindSplitbarWatch(leftPanel);
+                    var mobile = doc.body && doc.body.classList && doc.body.classList.contains('mobileMode');
+                    var vw = targetWindow.innerWidth || (doc.documentElement && doc.documentElement.clientWidth) || 0;
+                    var splitbar = doc.getElementById('lsplitbar');
+                    var barHidden = !splitbar || !(splitbar.offsetWidth > 0 || splitbar.offsetHeight > 0);
+                    if (leftPanel && !leftPanel.__protoloftUserResized && !mobile && !(vw > 0 && vw < 720) && !(leftPanel.classList && leftPanel.classList.contains('popup')) && barHidden) {
+                        run();
+                        preSyncExpandWidth(leftPanel, vw, axObj);
+                    }
+                }
+            } catch(e) {}
+            return origExpand.apply(this, arguments);
+        };
+        wrappedExpand.__protoloftWrapped = true;
+        axObj.player.expandFromBar = wrappedExpand;
+    }
+
+    function fitLeftPanelWidth() {
+        try {
+            hookExpandFromBar();
+            if (!doc.body || (doc.body.classList && doc.body.classList.contains('mobileMode'))) return false;
+            var leftPanel = (doc.querySelector && doc.querySelector('.leftPanel')) || doc.getElementById('leftPanel');
+            if (!leftPanel) return false;
+            bindSplitbarWatch(leftPanel);
+            if (leftPanel.__protoloftUserResized) return true;
+            if (leftPanel.classList && leftPanel.classList.contains('popup')) return false;
+            var vw = targetWindow.innerWidth || (doc.documentElement && doc.documentElement.clientWidth) || 0;
+            if (vw > 0 && vw < 720) return false;
+            var axObj = targetWindow.$axure;
+            var curW = leftPanel.offsetWidth || 0;
+            if (curW < 180) {
+                preSyncExpandWidth(leftPanel, vw, axObj);
+                return false;
+            }
+            var targetW = computeDesiredLeftWidth(leftPanel, vw);
+            if (!targetW) return false;
+            if (targetW <= curW + 2) {
+                if (!leftPanel.__protoloftAppliedWidth) leftPanel.__protoloftAppliedWidth = curW;
+                leftPanel.__protoloftHasFitted = true;
+                return true;
+            }
+            var jq = targetWindow.jQuery || targetWindow.$;
+            var marginL = leftPanel.style && leftPanel.style.marginLeft ? parseFloat(leftPanel.style.marginLeft) : 0;
+            var isSlidingIn = (marginL < -1) || !!(jq && typeof jq === 'function' && jq(leftPanel).is && jq(leftPanel).is(':animated'));
+            if (isSlidingIn && jq && typeof jq === 'function') {
+                try {
+                    jq('#clippingBoundsScrollContainer').stop(false, true);
+                    jq(leftPanel).stop(true, false);
+                    jq('#lsplitbar').stop(true, false);
+                    jq('#clippingBounds').stop(true, false);
+                    leftPanel.style.width = targetW + 'px';
+                    leftPanel.__protoloftAppliedWidth = targetW;
+                    leftPanel.__protoloftHasFitted = true;
+                    var rightEl = doc.querySelector ? doc.querySelector('.rightPanel') : null;
+                    var rightW = (rightEl && rightEl.offsetWidth) ? rightEl.offsetWidth : 0;
+                    var clipW = vw > 0 ? Math.max(0, vw - targetW - rightW) : 0;
+                    jq(leftPanel).animate({ 'margin-left': '0px' }, { duration: 140, complete: function() { leftPanel.style.marginLeft = ''; } });
+                    jq('#lsplitbar').animate({ left: (targetW - 4) + 'px' }, { duration: 140 });
+                    var clipTarget = vw > 0 ? { left: targetW + 'px', width: clipW + 'px' } : { left: targetW + 'px' };
+                    jq('#clippingBounds').animate(clipTarget, { duration: 140, complete: function() {
+                        if (!leftPanel.__protoloftUserResized && axObj && axObj.player && typeof axObj.player.resizeContent === 'function') {
+                            axObj.player.resizeContent();
+                        }
+                    }});
+                    return true;
+                } catch(e) {}
+            }
+            applyWidthSmooth(leftPanel, targetW, vw, axObj);
+            return true;
+        } catch(e) { return false; }
     }
 
     function run() {
@@ -1265,12 +1513,19 @@ function setupAxureSitemapAutoNumbering(targetWindow) {
         return true;
     }
 
-    run();
+    function runAndFit() {
+        hookExpandFromBar();
+        var seqOk = run();
+        var fitOk = seqOk ? fitLeftPanelWidth() : false;
+        return seqOk && fitOk;
+    }
+
+    runAndFit();
     var attempts = 0;
     var timer = setInterval(function() {
         attempts++;
-        if (run() || attempts >= 25) clearInterval(timer);
-    }, 120);
+        if (runAndFit() || attempts >= 45) clearInterval(timer);
+    }, 60);
 
     try {
         var host = doc.getElementById('sitemapHost') || doc.getElementById('sitemapTreeContainer') || doc.body;
@@ -1279,18 +1534,25 @@ function setupAxureSitemapAutoNumbering(targetWindow) {
             var deb = null;
             var obs = new targetWindow.MutationObserver(function(muts) {
                 var hit = false;
+                var needFitOnly = false;
                 for (var m = 0; m < muts.length; m++) {
                     var t = muts[m].target;
-                    if (t && t.nodeType === 1 && (t.classList.contains('sitemapTree') || t.classList.contains('sitemapNode') || t.id === 'sitemapTreeContainer')) {
+                    if (!t || t.nodeType !== 1) continue;
+                    if (muts[m].type === 'attributes') {
+                        if (t.tagName === 'UL' || t.classList.contains('sitemapTree')) { needFitOnly = true; }
+                    } else if (t.classList.contains('sitemapTree') || t.classList.contains('sitemapNode') || t.id === 'sitemapTreeContainer') {
                         hit = true; break;
                     }
                 }
-                if (hit) {
+                if (hit || needFitOnly) {
                     if (deb) clearTimeout(deb);
-                    deb = setTimeout(run, 60);
+                    deb = setTimeout(function() {
+                        if (hit) run();
+                        fitLeftPanelWidth();
+                    }, 120);
                 }
             });
-            obs.observe(host, { childList: true, subtree: true });
+            obs.observe(host, { childList: true, subtree: true, attributes: true, attributeFilter: ['style'] });
         }
     } catch(e) {}
 }
