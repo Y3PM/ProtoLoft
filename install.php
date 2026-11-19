@@ -542,11 +542,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             border: 1px solid var(--border-strong);
             border-radius: var(--radius-md);
             padding: 0 14px;
-            font-size: 13.5px;
+            font-family: inherit;
+            font-size: 14px;
             box-sizing: border-box;
             background-color: var(--surface);
             color: var(--text-1);
             transition: border-color 0.15s ease, box-shadow 0.15s ease;
+        }
+        .form-control::placeholder {
+            color: var(--text-3);
         }
         .install-domain-select {
             position: absolute;

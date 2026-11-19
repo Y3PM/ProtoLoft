@@ -964,7 +964,9 @@ foreach ($cats as $cat) {
             <div class="prototype-meta" style="position:relative;">
                 <span class="current-proto-title" id="barTitle">未选择项目</span>
                 <span class="current-ver-tag" id="barVer" style="display:none;"></span>
-                <select class="top-ver-select" id="barVerSelect" style="display:none;" onchange="onTopVersionChange(this)"></select>
+                <div class="ver-picker-wrap" id="barVerPickerWrap" style="display:none;">
+                    <select class="top-ver-select" id="barVerSelect" style="display:none;" onchange="onTopVersionChange(this)"></select>
+                </div>
                 <div class="top-changelog-wrap" id="barChangelogWrap" style="display:none;">
                     <button type="button" class="btn-top-changelog" id="barChangelogBtn" onclick="toggleTopChangelog(this)" title="查看更新日志">
                         <i class="ri-file-list-2-line"></i> 日志
@@ -1236,6 +1238,7 @@ $verSuffix = function($relPath) {
 ?>
 <script src="assets/js/mcp.js?v=<?php echo $verSuffix('assets/js/mcp.js'); ?>"></script>
 <script src="assets/js/watermark.js?v=<?php echo $verSuffix('assets/js/watermark.js'); ?>"></script>
+<script src="assets/js/ver-picker.js?v=<?php echo $verSuffix('assets/js/ver-picker.js'); ?>"></script>
 <script src="assets/js/password-strength.js?v=<?php echo $verSuffix('assets/js/password-strength.js'); ?>" defer></script>
 <script src="assets/js/app.js?v=<?php echo $verSuffix('assets/js/app.js'); ?>"></script>
 <?php if (Auth::canAnnotate()): ?>

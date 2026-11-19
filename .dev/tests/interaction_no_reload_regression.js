@@ -552,6 +552,238 @@ const asyncGuard = setTimeout(() => {
             && adminJs.includes("openModal('itemModal', 'itemName')"));
     }
 
+    // 7. Linear 风格顶栏版本切换器 (ver-picker.js) 交互与同步护栏
+    {
+        const verPickerJs = fs.readFileSync(path.join(root, 'assets/js/ver-picker.js'), 'utf8');
+        const indexPhp = fs.readFileSync(path.join(root, 'index.php'), 'utf8');
+        const sharePhp = fs.readFileSync(path.join(root, 'share.php'), 'utf8');
+        const exportPy = fs.readFileSync(path.join(root, '.dev/export_release.py'), 'utf8');
+
+        check('export_release.py 白名单已纳入 assets/js/ver-picker.js', exportPy.includes("'assets/js/ver-picker.js'"));
+        check('index.php 与 share.php 均引入 ver-picker.js 并保留原生 select 兼容包裹',
+            indexPhp.includes('ver-picker-wrap') && indexPhp.includes('assets/js/ver-picker.js')
+            && sharePhp.includes('ver-picker-wrap') && sharePhp.includes('assets/js/ver-picker.js'));
+
+        function makeDomNode(tag) {
+            const attrs = {};
+            const listeners = {};
+            const classes = new Set();
+            const node = {
+                tagName: (tag || 'DIV').toUpperCase(),
+                style: { display: '' },
+                hidden: false,
+                tabIndex: 0,
+                value: '',
+                textContent: '',
+                title: '',
+                children: [],
+                options: [],
+                selectedIndex: 0,
+                _innerHTML: '',
+                set innerHTML(v) { this._innerHTML = v; if (v === '') this.children = []; },
+                get innerHTML() { return this._innerHTML; },
+                set className(v) {
+                    classes.clear();
+                    String(v || '').split(/\s+/).filter(Boolean).forEach(c => classes.add(c));
+                },
+                get className() { return Array.from(classes).join(' '); },
+                classList: {
+                    add: (...c) => c.forEach(x => classes.add(x)),
+                    remove: (...c) => c.forEach(x => classes.delete(x)),
+                    toggle: (c, f) => { const on = f !== undefined ? !!f : !classes.has(c); if (on) classes.add(c); else classes.delete(c); },
+                    contains: (c) => classes.has(c)
+                },
+                setAttribute: (k, v) => { attrs[k] = String(v); },
+                getAttribute: (k) => (k in attrs ? attrs[k] : null),
+                hasAttribute: (k) => (k in attrs) || (k === 'hidden' && node.hidden === true),
+                addEventListener: (ev, fn) => { (listeners[ev] = listeners[ev] || []).push(fn); },
+                dispatchEvent: (ev) => {
+                    (listeners[ev.type || ev] || []).forEach(fn => fn({
+                        type: ev.type || ev,
+                        target: node,
+                        key: ev.key,
+                        stopPropagation() {},
+                        stopImmediatePropagation() { ev._stoppedImmediate = true; },
+                        preventDefault() {}
+                    }));
+                },
+                insertBefore: (newNode, refNode) => {
+                    const idx = node.children.indexOf(refNode);
+                    if (idx >= 0) node.children.splice(idx, 0, newNode);
+                    else node.children.push(newNode);
+                    newNode.parentNode = node;
+                    return newNode;
+                },
+                appendChild: (c) => {
+                    if (c.tagName === 'FRAGMENT') {
+                        c.children.forEach(item => { node.children.push(item); item.parentNode = node; });
+                        c.children = [];
+                    } else {
+                        if (c.parentNode && c.parentNode.children) {
+                            const oldIdx = c.parentNode.children.indexOf(c);
+                            if (oldIdx >= 0) c.parentNode.children.splice(oldIdx, 1);
+                        }
+                        node.children.push(c);
+                        c.parentNode = node;
+                    }
+                    return c;
+                },
+                closest: (sel) => {
+                    if (sel === '.ver-picker-wrap' && node.parentNode && node.parentNode.classList && node.parentNode.classList.contains('ver-picker-wrap')) {
+                        return node.parentNode;
+                    }
+                    return null;
+                },
+                contains: (t) => t === node || node.children.some(c => c === t || (c.contains && c.contains(t))),
+                focus: () => { lastFocused = node; },
+                getBoundingClientRect: () => ({ left: 40, top: 60, right: 240, bottom: 98, width: 200, height: 38 }),
+                scrollIntoView: () => {}
+            };
+            return node;
+        }
+
+        let lastFocused = null;
+        const bodyNode = makeDomNode('body');
+        const wrapNode = makeDomNode('div');
+        wrapNode.className = 'ver-picker-wrap';
+        wrapNode.style.display = 'none';
+
+        const selectNode = makeDomNode('select');
+        selectNode.id = 'barVerSelect';
+        selectNode.className = 'top-ver-select';
+        selectNode.style.display = 'none';
+        wrapNode.appendChild(selectNode);
+        bodyNode.appendChild(wrapNode);
+
+        for (let i = 1; i <= 7; i++) {
+            const opt = makeDomNode('option');
+            opt.textContent = 'V0.' + i + '.0';
+            opt.value = 'asset.php/v' + i + '/index.html';
+            opt.setAttribute('data-ver', 'V0.' + i + '.0');
+            opt.setAttribute('data-ver-id', String(i));
+            selectNode.options.push(opt);
+        }
+        selectNode.selectedIndex = 6; // V0.7.0
+
+        // 构造通用弹窗内带 optgroup 的 .m-input select、.m-select-sm 和 hidden select
+        const formGroup = makeDomNode('div');
+        const itemSelect = makeDomNode('select');
+        itemSelect.id = 'uploadItemSelect';
+        itemSelect.className = 'm-input';
+        const grp = makeDomNode('optgroup');
+        grp.setAttribute('label', '核心业务');
+        const gOpt1 = makeDomNode('option'); gOpt1.textContent = '机柜配置器'; gOpt1.value = '10';
+        const gOpt2 = makeDomNode('option'); gOpt2.textContent = '协同平台'; gOpt2.value = '11';
+        grp.appendChild(gOpt1); grp.appendChild(gOpt2);
+        itemSelect.appendChild(grp);
+        itemSelect.options = [gOpt1, gOpt2];
+        itemSelect.selectedIndex = 0;
+        formGroup.appendChild(itemSelect);
+        bodyNode.appendChild(formGroup);
+
+        const smSelect = makeDomNode('select');
+        smSelect.id = 'filterAnnoProject';
+        smSelect.className = 'm-select-sm dashboard-project-filter';
+        const smOpt = makeDomNode('option'); smOpt.textContent = '全部项目'; smOpt.value = '0';
+        smSelect.appendChild(smOpt);
+        smSelect.options = [smOpt];
+        bodyNode.appendChild(smSelect);
+
+        const hiddenSelect = makeDomNode('select');
+        hiddenSelect.id = 'mcpProjectScope';
+        hiddenSelect.className = 'm-input';
+        hiddenSelect.hidden = true;
+        bodyNode.appendChild(hiddenSelect);
+
+        const docListeners = {};
+        const winListeners = {};
+        const pickerSandbox = {
+            innerWidth: 1280,
+            innerHeight: 800,
+            document: {
+                readyState: 'complete',
+                body: bodyNode,
+                documentElement: { clientWidth: 1280, clientHeight: 800 },
+                createElement: (t) => makeDomNode(t),
+                createDocumentFragment: () => makeDomNode('fragment'),
+                getElementById: (id) => ({ barVerSelect: selectNode, uploadItemSelect: itemSelect, filterAnnoProject: smSelect }[id] || null),
+                querySelectorAll: () => [selectNode, itemSelect, smSelect, hiddenSelect],
+                addEventListener: (ev, fn) => { (docListeners[ev] = docListeners[ev] || []).push(fn); }
+            },
+            Event: function(type) { this.type = type; },
+            addEventListener: (ev, fn) => { (winListeners[ev] = winListeners[ev] || []).push(fn); }
+        };
+        pickerSandbox.window = pickerSandbox;
+        vm.createContext(pickerSandbox);
+        vm.runInContext(verPickerJs, pickerSandbox);
+
+        const triggerBtn = wrapNode.children.find(c => c.classList.contains('top-ver-trigger'));
+        const menuEl = wrapNode.children.find(c => c.classList.contains('ver-popover-menu'));
+        check('ver-picker 隐藏态时同步隐藏外层容器与浮层', wrapNode.style.display === 'none' && menuEl.hidden === true);
+
+        selectNode.style.display = 'inline-block';
+        pickerSandbox.syncVersionPicker('barVerSelect');
+        check('ver-picker 启用后显示触发按钮并回显当前选中版本 V0.7.0',
+            wrapNode.style.display === 'inline-flex'
+            && wrapNode.classList.contains('is-enhanced')
+            && triggerBtn.children[1].textContent === 'V0.7.0');
+
+        let changeFired = 0;
+        selectNode.addEventListener('change', () => { changeFired++; });
+
+        // 打开浮层，校验纯净单行列表渲染
+        triggerBtn.dispatchEvent({ type: 'click' });
+        const listEl = menuEl.children[0];
+        check('ver-picker 展开纯净单行菜单并高亮当前选中版本',
+            menuEl.hidden === false
+            && listEl.children.length === 7
+            && listEl.children[6].classList.contains('is-selected')
+            && listEl.children[0].children[0].textContent === 'V0.1.0');
+
+        listEl.children[2].dispatchEvent({ type: 'click' });
+        check('点击选项后同步更新原生 select、触发 change、收起浮层并回焦触发按钮',
+            selectNode.selectedIndex === 2
+            && triggerBtn.children[1].textContent === 'V0.3.0'
+            && changeFired === 1
+            && menuEl.hidden === true
+            && lastFocused === triggerBtn);
+
+        // 再次打开并在主窗口失焦（点入 iframe）时自动关闭
+        triggerBtn.dispatchEvent({ type: 'click' });
+        check('再次点击触发按钮正常展开菜单', menuEl.hidden === false);
+        (winListeners.blur || []).forEach(fn => fn());
+        check('窗口 blur（例如点击原型 iframe 画布）时自动收起版本菜单', menuEl.hidden === true);
+
+        // 验证通用单选下拉 (.m-input 含 optgroup + .m-select-sm + hidden 排除 + ESC 拦截)
+        const itemWrap = itemSelect.parentNode;
+        const itemTrig = itemWrap.children.find(c => c.classList.contains('linear-select-trigger'));
+        const itemMenu = itemWrap.children.find(c => c.classList.contains('ver-popover-menu'));
+        check('通用 .m-input 自动包装 .is-block 与 38px 阶梯触发器 (.is-lg)，hidden 控件不被误增强',
+            itemWrap.classList.contains('is-block')
+            && itemTrig.classList.contains('is-lg')
+            && itemTrig.children[0].textContent === '机柜配置器'
+            && !hiddenSelect._verPickerInst);
+
+        const smWrap = smSelect.parentNode;
+        const smTrig = smWrap.children.find(c => c.classList.contains('linear-select-trigger'));
+        check('.m-select-sm 自动应用 28px 阶梯 (.is-sm) 并透传宽度限制类',
+            smWrap.classList.contains('dashboard-project-filter') && smTrig.classList.contains('is-sm'));
+
+        itemTrig.dispatchEvent({ type: 'click' });
+        const itemList = itemMenu.children[0];
+        check('含 optgroup 的下拉展开后渲染分组标题与全部选项，并挂载 Portal 菜单',
+            itemMenu.hidden === false
+            && itemList.children[0].classList.contains('linear-select-group-label')
+            && itemList.children[0].textContent === '核心业务'
+            && itemList.children[1].children[0].textContent === '机柜配置器'
+            && itemList.children[2].children[0].textContent === '协同平台');
+
+        const escEv = { key: 'Escape', preventDefault() {}, stopPropagation() {}, stopImmediatePropagation() { this._stoppedImmediate = true; } };
+        (docListeners.keydown || []).forEach(fn => fn(escEv));
+        check('展开状态下按 ESC 只关闭下拉并阻断冒泡传播（不误关所属弹窗）',
+            itemMenu.hidden === true && escEv._stoppedImmediate === true);
+    }
+
     console.log(`\n======================================================`);
     console.log(`  交互优化质量护栏测试通过: ${passed} 项断言全部合格！`);
     console.log(`======================================================\n`);

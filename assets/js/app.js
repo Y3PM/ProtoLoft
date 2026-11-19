@@ -488,6 +488,7 @@ function selectItem(itemId, el, targetVerName, isUserDirectClick) {
                 .val(v.entry_file)
                 .text(v.version_name)
                 .attr('data-ver-id', v.id)
+                .attr('data-ver', v.version_name)
                 .data('ver', v.version_name)
                 .data('ver-id', v.id)
                 .data('token', v.token || '')
@@ -502,11 +503,14 @@ function selectItem(itemId, el, targetVerName, isUserDirectClick) {
             $barVerSelect.append($opt);
         }
         $barVerSelect.show();
+        if (typeof syncVersionPicker === 'function') syncVersionPicker('barVerSelect');
     } else if (versions.length === 1) {
         $barVerSelect.hide();
+        if (typeof syncVersionPicker === 'function') syncVersionPicker('barVerSelect');
         $barVer.html('<i class="ri-git-branch-line"></i> ' + esc(versions[0].version_name)).show();
     } else {
         $barVerSelect.hide();
+        if (typeof syncVersionPicker === 'function') syncVersionPicker('barVerSelect');
         $barVer.hide();
     }
 

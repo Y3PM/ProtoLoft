@@ -727,24 +727,26 @@ Auth::recordAccessLog($item['id'], $item['name'], $curVerName, 'share');
 
             <!-- 版本切换组件 (安全红线：外部只读分享页面绝对不显示版本切换下拉框，禁止外部切换版本；仅内部登录管理人员可见) -->
             <?php if ($canManage && $verCount > 1): ?>
-                <select class="top-ver-select" id="shareVerSelect" onchange="onShareVersionChange(this)">
-                    <?php foreach ($versions as $v): 
-                        $vShareCode = $shareCode;
-                        $vToken = '';
-                    ?>
-                        <option value="<?php echo htmlspecialchars(Auth::assetUrl($v)); ?>"
-                                data-ver="<?php echo htmlspecialchars($v['version_name']); ?>"
-                                data-ver-id="<?php echo htmlspecialchars($v['id']); ?>"
-                                data-share-code="<?php echo htmlspecialchars($vShareCode); ?>"
-                                data-token="<?php echo htmlspecialchars($vToken); ?>"
-                                data-rp="<?php echo htmlspecialchars($v['rp_file'] ?? ''); ?>"
-                                data-time="<?php echo htmlspecialchars($v['updated_at'] ?? ''); ?>"
-                                data-changelog="<?php echo htmlspecialchars($v['changelog'] ?? '', ENT_QUOTES); ?>"
-                                <?php echo ($curVersion && $v['id'] === $curVersion['id']) ? 'selected' : ''; ?>>
-                            <?php echo htmlspecialchars($v['version_name']); ?>
-                        </option>
-                    <?php endforeach; ?>
-                </select>
+                <div class="ver-picker-wrap" id="shareVerPickerWrap">
+                    <select class="top-ver-select" id="shareVerSelect" onchange="onShareVersionChange(this)">
+                        <?php foreach ($versions as $v):
+                            $vShareCode = $shareCode;
+                            $vToken = '';
+                        ?>
+                            <option value="<?php echo htmlspecialchars(Auth::assetUrl($v)); ?>"
+                                    data-ver="<?php echo htmlspecialchars($v['version_name']); ?>"
+                                    data-ver-id="<?php echo htmlspecialchars($v['id']); ?>"
+                                    data-share-code="<?php echo htmlspecialchars($vShareCode); ?>"
+                                    data-token="<?php echo htmlspecialchars($vToken); ?>"
+                                    data-rp="<?php echo htmlspecialchars($v['rp_file'] ?? ''); ?>"
+                                    data-time="<?php echo htmlspecialchars($v['updated_at'] ?? ''); ?>"
+                                    data-changelog="<?php echo htmlspecialchars($v['changelog'] ?? '', ENT_QUOTES); ?>"
+                                    <?php echo ($curVersion && $v['id'] === $curVersion['id']) ? 'selected' : ''; ?>>
+                                <?php echo htmlspecialchars($v['version_name']); ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
             <?php elseif (!empty($curVerName)): ?>
                 <span class="current-ver-tag"><?php echo htmlspecialchars($curVerName); ?></span>
             <?php endif; ?>
@@ -876,6 +878,7 @@ Auth::recordAccessLog($item['id'], $item['name'], $curVerName, 'share');
 
 <?php if ($isWatermarkActive): ?>
 <script src="assets/js/watermark.js?v=<?php echo APP_VERSION . '.' . filemtime(__DIR__ . '/assets/js/watermark.js'); ?>"></script>
+<script src="assets/js/ver-picker.js?v=<?php echo APP_VERSION . '.' . filemtime(__DIR__ . '/assets/js/ver-picker.js'); ?>"></script>
 <?php endif; ?>
 <script>
     var currentItemId = <?php echo (int)$item['id']; ?>;

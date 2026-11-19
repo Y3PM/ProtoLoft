@@ -60,6 +60,7 @@ APPROVED_CORE_FILES = [
     'assets/js/mcp.js',
     'assets/js/password-strength.js',
     'assets/js/share.js',
+    'assets/js/ver-picker.js',
     'assets/js/watermark.js',
     'assets/js/vendor/zxcvbn-ts/core.min.js',
     'assets/js/vendor/zxcvbn-ts/language-common.min.js',
