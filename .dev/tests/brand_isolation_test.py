@@ -56,6 +56,13 @@ def test_modals_php():
     assert 'settingCustomFavicon' not in c, "modals.php 仍存在 Favicon 自定义上传（应移除）"
     assert 'settingCustomBg' not in c, "modals.php 仍存在登录背景图自定义上传（应移除）"
     assert '立象原型 v<?php echo APP_VERSION; ?>' in c, "modals.php 控制中心左下角底座品牌未生效"
+    assert 'href="https://github.com/Y3PM/ProtoLoft"' in c, "modals.php 控制中心底座缺少 GitHub 链接"
+    assert 'class="admin-nav-github"' in c, "modals.php 控制中心底座缺少 admin-nav-github 样式类"
+    assert 'ri-github-line' in c, "modals.php 控制中心底座缺少 GitHub 图标"
+    cfg = read_file('includes/config.php')
+    assert "define('APP_VERSION', '3.1.0');" in cfg, "config.php APP_VERSION 应为 3.1.0"
+    css = read_file('assets/css/app.css')
+    assert '.admin-nav-github' in css, "app.css 缺少 .admin-nav-github 样式规则"
     print("PASS: includes/modals.php 品牌侵蚀项彻底剔除，企业信息边界清晰")
 
 def test_system_action():

@@ -2743,6 +2743,28 @@ textarea.m-input.m-input-error:focus {
     color: var(--text-3);
 }
 
+.admin-nav-github {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-3);
+    font-size: 16px;
+    line-height: 1;
+    text-decoration: none;
+    transition: color 0.15s ease;
+    border-radius: var(--radius-sm, 4px);
+    padding: 2px;
+}
+
+.admin-nav-github:hover {
+    color: var(--text-1);
+}
+
+.admin-nav-github:focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
+}
+
 .admin-content {
     flex: 1;
     display: flex;

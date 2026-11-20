@@ -565,6 +565,9 @@ $renderItemOwnersCell = function($item, $usersMap) use ($editorShareAllowed) {
             </div>
             <div class="admin-nav-footer">
                 <span style="font-size:12px;color:var(--text-3);">立象原型 v<?php echo APP_VERSION; ?></span>
+                <a href="https://github.com/Y3PM/ProtoLoft" target="_blank" rel="noopener noreferrer" class="admin-nav-github" title="GitHub 仓库" aria-label="GitHub 仓库">
+                    <i class="ri-github-line"></i>
+                </a>
             </div>
         </div>
 

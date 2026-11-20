@@ -28,7 +28,7 @@ define('BRANDING_PATH', UPLOADS_PATH . '/branding');
 define('PROTOTYPES_PATH', DATA_PATH . '/prototypes');
 define('CHUNKS_PATH', DATA_PATH . '/chunks');
 
-define('APP_VERSION', '3.8.0');
+define('APP_VERSION', '3.1.0');
 
 /**
  * 检查系统是否已安装
