@@ -83,7 +83,7 @@ def main():
                 check(prefix + '正文不重复项目字段', '**项目**' not in body)
                 check(prefix + '事件对应的字段标签正确', '**' + author_label + '**' in body and '**' + content_label + '**' in body)
                 version = data.get('version_name', '')
-                check(prefix + '版本独立展示或在缺省时省略', ('**版本**：`' + version + '`' in body) if version else '**版本**' not in body)
+                check(prefix + '版本独立展示或在缺省时省略', ('**版本**：' + version in body) if version else '**版本**' not in body)
             return data
 
         admin = TestClient(base).login('admin@test.com', PASS_WORD)
@@ -215,10 +215,10 @@ def main():
         list_payloads = list_msgs[0]['payloads']
         check('list_changelog/dingtalk: 第一项独立成行且末尾与时间行留白',
               "**更新说明**：\n* 第一项重构预设\n* 第二项引入新方案\n* 第三项支持变量\n" in list_payloads['dingtalk']['markdown']['text'])
-        check('list_changelog/wecom: 第一项位于引用块行首',
-              "> **更新说明**：\n> * 第一项重构预设\n> * 第二项引入新方案\n> * 第三项支持变量\n" in list_payloads['wecom']['markdown']['content'])
+        check('list_changelog/wecom: 第一项独立成行',
+              "**更新说明**：\n• 第一项重构预设\n• 第二项引入新方案\n• 第三项支持变量\n" in list_payloads['wecom']['markdown']['content'])
         check('list_changelog/feishu: 第一项独立成行',
-              "**更新说明**：\n* 第一项重构预设\n* 第二项引入新方案\n* 第三项支持变量" in list_payloads['feishu']['card']['elements'][0]['text']['content'])
+              "**更新说明**：\n• 第一项重构预设\n• 第二项引入新方案\n• 第三项支持变量" in list_payloads['feishu']['card']['elements'][0]['text']['content'])
 
     print(json.dumps({'passed': passed, 'scope': 'temporary HTTP installation; local notification capture'}, ensure_ascii=False))
 

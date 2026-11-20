@@ -108,10 +108,14 @@ class Webhook {
         $startsWithBlock = $isContent && (bool)preg_match('/^(?:#{1,6}\s|[-*+]\s|\d+\.\s)/u', $val);
 
         if ($platform === 'wecom') {
-            if ($startsWithBlock || $hasNewline) {
-                return "> **{$label}**：\n> " . str_replace("\n", "\n> ", $val) . "\n";
+            $body = $val;
+            if ($isContent) {
+                $body = preg_replace('/^[-*]\s+/um', '• ', $body);
             }
-            return "> **{$label}**：{$val}\n";
+            if ($startsWithBlock || $hasNewline) {
+                return "**{$label}**：\n{$body}\n";
+            }
+            return "**{$label}**：{$body}\n";
         }
         if ($platform === 'dingtalk') {
             $body = $val;
@@ -123,9 +127,7 @@ class Webhook {
                     $isListLine = (bool)preg_match('/^(?:[-*+]\s|\d+\.\s)/u', $part);
                     if ($isListLine) $hasList = true;
                     if ($idx > 0) {
-                        $prevIsBlock = (bool)preg_match('/^(?:#{1,6}\s|[-*+]\s|\d+\.\s)/u', $parts[$idx - 1]);
-                        $curIsBlock = $isListLine || (bool)preg_match('/^#{1,6}\s/u', $part);
-                        $body .= ($prevIsBlock || $curIsBlock) ? "\n" : "  \n";
+                        $body .= "\n";
                     }
                     $body .= $part;
                 }
@@ -137,9 +139,12 @@ class Webhook {
                 return "**{$label}**：\n{$body}{$suffix}";
             }
             if ($hasNewline) {
-                return "**{$label}**：  \n{$body}{$suffix}";
+                return "**{$label}**：\n{$body}{$suffix}";
             }
             return "**{$label}**：{$body}";
+        }
+        if ($platform === 'feishu' && $isContent) {
+            $val = preg_replace('/^[-*]\s+/um', '• ', $val);
         }
         if ($startsWithBlock || $hasNewline) {
             return "**{$label}**：\n{$val}";
@@ -201,9 +206,9 @@ class Webhook {
         // 统一组装属性行 [标签, 值, 语义类型]；存在结构化 fields 时跳过“内容”标签，逐行平铺展示
         $fieldRows = [];
         if (!$isProjectEvent && !$isUserApplyEvent) {
-            $fieldRows[] = ['项目', $item . ($version ? " (`{$version}`)" : ''), 'info'];
+            $fieldRows[] = ['项目', $item . ($version ? " ({$version})" : ''), 'info'];
         } elseif ($isProjectEvent && $version !== '') {
-            $fieldRows[] = ['版本', "`{$version}`", 'plain'];
+            $fieldRows[] = ['版本', $version, 'plain'];
         }
         if (!empty($page)) {
             $fieldRows[] = ['页面', $page, 'plain'];
@@ -231,7 +236,7 @@ class Webhook {
             foreach ($fieldRows as $row) {
                 $val = $row[1];
                 if ($row[2] === 'info') {
-                    $val = $item !== '' ? "<font color=\"info\">{$item}</font>" . ($version ? " (`{$version}`)" : "") : $val;
+                    $val = $item !== '' ? "<font color=\"info\">{$item}</font>" . ($version ? " ({$version})" : "") : $val;
                 }
                 $md .= self::formatFieldLine('wecom', $row[0], $val, $row[2]);
             }
@@ -245,20 +250,35 @@ class Webhook {
             ];
         }
 
-        // 2. 钉钉 (DingTalk) - 紧致左对齐 Markdown 气泡（无圆点缩进）
+        // 2. 钉钉 (DingTalk) - 紧致左对齐 Markdown 气泡（单行属性用 <br> 紧凑换行；列表块末尾留白闭合，杜绝时间行缩进）
         if ($platform === 'dingtalk') {
             $lines = [];
             foreach ($fieldRows as $row) {
                 $lines[] = self::formatFieldLine('dingtalk', $row[0], $row[1], $row[2]);
             }
 
-            $md = "### **{$title}**\n\n" . implode("  \n", $lines);
+            $mdText = '';
+            foreach ($lines as $idx => $line) {
+                if ($idx === 0) {
+                    $mdText .= $line;
+                } else {
+                    $prevLine = $lines[$idx - 1];
+                    // 上一行若以 \n 结尾（如列表块），使用换行安全脱离列表容器并留白；否则使用 <br> 保持单行紧凑
+                    if (substr($prevLine, -1) === "\n") {
+                        $mdText .= "\n" . $line;
+                    } else {
+                        $mdText .= "<br>" . $line;
+                    }
+                }
+            }
+
+            $md = "### **{$title}**\n\n" . $mdText;
             $footer = [];
             if (!empty($link)) {
                 $footer[] = "[{$linkLabel}]({$link})";
             }
             $footer[] = "*来自 · 立象原型*";
-            $md .= "\n\n" . implode("  \n", $footer);
+            $md .= "\n\n" . implode("<br>", $footer);
 
             return [
                 'msgtype' => 'markdown',
