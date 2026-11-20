@@ -65,7 +65,9 @@ python3 -B .dev/tests/dropdown_sync_regression_browser.py --php /path/to/php --p
 
 ## 交接方式
 
-2026-11-20 最新：[可发版统计记录](docs/reviews/2026-11-20-publishable-project-count.md)。团队列使用 `publishable_project_count`，与发版范围一致；原 `item_count` 继续独立供交接使用，不得用可发版数量替代资产归属或删除保护。已完成 FTP 四文件回读及 HTTPS 3/3 检查。
+2026-11-20 最新：[发版贡献与成员排序记录](docs/reviews/2026-11-20-publication-count-and-member-order.md)。团队列已改为“发版数/项目数”，使用 `published_version_count` / `published_project_count`，按当前版本的原上传者及项目去重统计；覆盖不累加，交接/停用/降级不改写统计归属，删除版本后减少。成员按主管理员、管理员、协作者、审阅人，再按加入时间升序、ID 升序排列。`item_count` 仍只供资产交接与删除保护。已完成 FTP 四文件回读及匿名 HTTPS 3/3 检查。
+
+2026-11-20 历史（已由发版贡献统计替代）：[可发版统计记录](docs/reviews/2026-11-20-publishable-project-count.md)。团队列使用 `publishable_project_count`，与发版范围一致；原 `item_count` 继续独立供交接使用，不得用可发版数量替代资产归属或删除保护。已完成 FTP 四文件回读及 HTTPS 3/3 检查。
 
 2026-11-20 最新：[外发授权文案记录](docs/reviews/2026-11-20-collaboration-share-copy.md)。协作权限选择器及列表提示跟随协作者外发授权，角色保存成功后即时更新；不以管理员个人分享特权替代协作者配置。已完成 FTP 两项文件校验和 HTTPS 3/3 检查。
 

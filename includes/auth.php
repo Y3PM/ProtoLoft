@@ -1025,21 +1025,20 @@ class Auth {
      */
     public static function listUsers() {
         $db = DB::getInstance();
-        $stmt = $db->query("SELECT id, email, name, role, is_owner, status, department, webhook_url, created_at, (SELECT COUNT(*) FROM items WHERE created_by = users.id OR (type = 'project' AND instr(',' || collaborators || ',', ',' || users.id || ',') > 0)) as item_count FROM users WHERE status NOT IN (0, 2) ORDER BY is_owner DESC, id ASC");
+        $stmt = $db->query("SELECT id, email, name, role, is_owner, status, department, webhook_url, created_at, (SELECT COUNT(*) FROM items WHERE created_by = users.id OR (type = 'project' AND instr(',' || collaborators || ',', ',' || users.id || ',') > 0)) as item_count FROM users WHERE status NOT IN (0, 2) ORDER BY is_owner DESC, CASE role WHEN 'admin' THEN 0 WHEN 'editor' THEN 1 WHEN 'viewer' THEN 2 ELSE 3 END, created_at ASC, id ASC");
         $rows = $stmt->fetchAll();
-        $projects = $db->query("SELECT id, type, collaborators FROM items WHERE type = 'project'")->fetchAll();
+        // 统计当前保留的版本；同名覆盖更新原记录，交接不改写原上传者。
+        $publicationStats = [];
+        $stats = $db->query("SELECT v.created_by, COUNT(*) AS version_count, COUNT(DISTINCT v.item_id) AS project_count FROM versions v INNER JOIN items i ON i.id = v.item_id WHERE i.type = 'project' GROUP BY v.created_by")->fetchAll();
+        foreach ($stats as $stat) $publicationStats[(int)$stat['created_by']] = $stat;
         foreach ($rows as &$row) {
             $row['username'] = $row['email'];
             $row['display_name'] = $row['name'];
             // item_count 仅服务于交接：归属与指定关系不因账号停用或发版范围变化而消失。
             $row['item_count'] = (int)$row['item_count'];
-            $row['publishable_project_count'] = 0;
-            if ((int)$row['status'] === 1 && in_array($row['role'], ['admin', 'editor'], true)) {
-                // 与发版下拉复用同一鉴权判断；全员协作项目计入，外链不计入。
-                foreach ($projects as $project) {
-                    if (self::canEditItem($project, $row)) $row['publishable_project_count']++;
-                }
-            }
+            $stat = isset($publicationStats[(int)$row['id']]) ? $publicationStats[(int)$row['id']] : [];
+            $row['published_version_count'] = isset($stat['version_count']) ? (int)$stat['version_count'] : 0;
+            $row['published_project_count'] = isset($stat['project_count']) ? (int)$stat['project_count'] : 0;
         }
         return $rows;
     }

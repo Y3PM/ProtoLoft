@@ -45,6 +45,30 @@ function check(label, value) {
             await page.locator('#itemModal').waitFor({ state: 'hidden' });
         }
 
+        async function publishVersion(page, itemId, name) {
+            return page.evaluate(async ({ itemId, name, zip }) => {
+                const bytes = Uint8Array.from(atob(zip), c => c.charCodeAt(0));
+                const uploadId = Array.from(crypto.getRandomValues(new Uint8Array(16)), b => b.toString(16).padStart(2, '0')).join('');
+                const chunks = new FormData();
+                chunks.append('upload_id', uploadId); chunks.append('file_type', 'zip');
+                chunks.append('chunk_index', '0'); chunks.append('chunk_total', '1');
+                chunks.append('chunk_data', new Blob([bytes]), 'prototype.zip');
+                const uploaded = await adminFetch('upload_chunk', chunks);
+                if (!uploaded.success) throw new Error(JSON.stringify(uploaded));
+                const preflight = new FormData();
+                preflight.append('item_id', itemId); preflight.append('version_name', name);
+                const checked = await adminFetch('version_check_name', preflight);
+                if (!checked.success) throw new Error(JSON.stringify(checked));
+                preflight.append('zip_upload_id', uploadId);
+                preflight.append('overwrite_token', checked.data.overwrite_token);
+                preflight.append('notify_item', '0'); preflight.append('notify_global', '0');
+                preflight.set('action', 'version_publish');
+                const published = await adminFetch('version_publish', preflight);
+                if (!published.success || !published.data.id) throw new Error(JSON.stringify(published));
+                return published.data.id;
+            }, { itemId, name, zip: fixture.protoZip });
+        }
+
         // 1. 管理员创建「默认开放项目」与「指定多选负责人项目」
         const adminSession = await newUserPage('admin@test.com');
         const adminPage = adminSession.page;
@@ -108,15 +132,16 @@ function check(label, value) {
         check('控制中心表格正确展示多选指定负责人姓名', lockRowText.includes('仅测试超管、协作者A'));
         await adminPage.screenshot({ animations: 'disabled', path: path.join(fixture.artifacts, '03-admin-console-owners-table.png') });
         await adminPage.locator('#nav-users').click();
-        await adminPage.waitForFunction(id => cachedUsersMap[id] && cachedUsersMap[id].publishable_project_count === 2, fixture.adminId);
+        await adminPage.waitForFunction(id => cachedUsersMap[id] && cachedUsersMap[id].published_version_count === 0, fixture.adminId);
         const countCell = (page, email) => page.locator(`#userTableBody tr:has-text("${email}") td`).nth(2);
-        check('团队表头准确显示可发版项目', (await adminPage.locator('#userBoxActive thead').innerText()).includes('可发版项目'));
-        check('管理员可发版数量包含全部原型项目', (await countCell(adminPage, 'admin@test.com').innerText()) === '2 个');
-        check('指定协作者计入开放和指定项目', (await countCell(adminPage, 'editora@test.com').innerText()) === '2 个');
-        check('其他协作者只计入可发布的开放项目', (await countCell(adminPage, 'editorb@test.com').innerText()) === '1 个');
-        check('审阅人可发版数量显示横线', (await countCell(adminPage, 'viewer@test.com').innerText()) === '—');
-        check('停用协作者可发版数量显示横线', (await countCell(adminPage, 'paused@test.com').innerText()) === '—');
-        await adminPage.screenshot({ animations: 'disabled', path: path.join(fixture.artifacts, '10-team-publishable-projects.png') });
+        check('团队表头准确显示发版数和项目数', (await adminPage.locator('#userBoxActive thead').innerText()).includes('发版数/项目数'));
+        check('管理员未上传版本时显示零而不是全部项目数', (await countCell(adminPage, 'admin@test.com').innerText()) === '0/0');
+        check('指定协作者未上传版本仍显示零', (await countCell(adminPage, 'editora@test.com').innerText()) === '0/0');
+        check('其他协作者未上传版本显示零', (await countCell(adminPage, 'editorb@test.com').innerText()) === '0/0');
+        check('审阅人没有发版记录显示零', (await countCell(adminPage, 'viewer@test.com').innerText()) === '0/0');
+        check('停用协作者没有发版记录显示零', (await countCell(adminPage, 'paused@test.com').innerText()) === '0/0');
+        check('团队列表先按角色再按加入时间排序', JSON.stringify(await adminPage.locator('#userTableBody tr').evaluateAll(rows => rows.map(row => row.querySelector('td').innerText.split('\n').pop()))) === JSON.stringify(['admin@test.com', 'editora@test.com', 'editorb@test.com', 'paused@test.com', 'viewer@test.com']));
+        await adminPage.screenshot({ animations: 'disabled', path: path.join(fixture.artifacts, '10-team-no-publications.png') });
 
         // A permission-save reply may arrive while a project draft is open.
         await adminPage.locator('#nav-roles').click();
@@ -214,8 +239,13 @@ function check(label, value) {
             && (await bLockRow.innerText()).includes('受保护'));
         await bPage.screenshot({ animations: 'disabled', path: path.join(fixture.artifacts, '05-editor-b-console-permissions.png') });
         await bPage.locator('#nav-users').click();
-        await bPage.waitForFunction(id => cachedUsersMap[id] && cachedUsersMap[id].publishable_project_count === 1, fixture.editorBId);
-        check('协作者只读成员列表的数量与自身发布下拉一致', (await countCell(bPage, 'editorb@test.com').innerText()) === (await bPage.locator('#uploadItemSelect option').count()) + ' 个');
+        await bPage.waitForFunction(id => cachedUsersMap[id] && cachedUsersMap[id].published_version_count === 0, fixture.editorBId);
+        check('协作者只读成员列表展示实际贡献而不是授权项目数', (await countCell(bPage, 'editorb@test.com').innerText()) === '0/0');
+        const bOpenId = await bOpenRow.getAttribute('data-item-id');
+        await publishVersion(bPage, bOpenId, 'B retained version');
+        await bPage.evaluate(() => loadUserList());
+        await bPage.waitForFunction(id => cachedUsersMap[id].published_version_count === 1, fixture.editorBId);
+        check('首次上传后重新进入统计显示一版一个项目', (await countCell(bPage, 'editorb@test.com').innerText()) === '1/1');
         await bPage.locator('#adminConsoleModal .close-x').click();
 
         // 3. 当管理员把唯一开放项目也锁定为仅 [协作者A] 后，协作者B点击「发布版本」提示不可发版而不误跳新建项目
@@ -322,10 +352,10 @@ function check(label, value) {
         await openProjects(adminFinalPage);
         await adminFinalPage.locator('#nav-users').click();
         const handoverButton = adminFinalPage.locator('#userTableBody tr:has-text("editorb@test.com") button[title="工作交接"]');
-        check('停用成员零可发版仍显示可用的工作交接入口', (await countCell(adminFinalPage, 'editorb@test.com').innerText()) === '—' && await handoverButton.isVisible());
+        check('停用成员保留原发版统计且仍显示工作交接入口', (await countCell(adminFinalPage, 'editorb@test.com').innerText()) === '1/1' && await handoverButton.isVisible());
         await handoverButton.click();
         await adminFinalPage.locator('#userHandoverModal').waitFor({ state: 'visible' });
-        check('交接弹窗使用独立记录数量而非零可发版数量', (await adminFinalPage.locator('#handoverDescText').innerText()).includes('1') && (await adminFinalPage.locator('#handoverDescText').innerText()).includes('项目或链接'));
+        check('交接弹窗使用独立资产关联数量', (await adminFinalPage.locator('#handoverDescText').innerText()).includes('1') && (await adminFinalPage.locator('#handoverDescText').innerText()).includes('项目或链接'));
         await adminFinalPage.locator('#handoverToUserId').selectOption(String(fixture.adminId));
         const handed = adminFinalPage.waitForResponse(r => r.url().includes('api.php') && (r.request().postData() || '').includes('user_handover'));
         await adminFinalPage.locator('#btnHandoverSubmit').click();
@@ -338,6 +368,26 @@ function check(label, value) {
         await finalRow.locator('button[title="编辑属性"]').click();
         check('交接后的编辑弹窗不恢复原负责人', await adminFinalPage.locator('#itemCollaborators').inputValue() === String(fixture.adminId));
         await adminFinalPage.screenshot({ animations: 'disabled', path: path.join(fixture.artifacts, '08-handover-owner-synced.png') });
+        await adminFinalPage.locator('#itemModal .close-x').click();
+        const publicationProjectIds = await aPage.locator('#overviewTableProjects tr[data-item-id]').evaluateAll(rows => Object.fromEntries(rows.map(row => [row.innerText.includes('专属锁定原型') ? 'selected' : row.innerText.includes('全员开放原型') ? 'open' : 'other', row.dataset.itemId])));
+        const aVersions = [];
+        for (const name of ['V1', 'V2', 'V3']) aVersions.push(await publishVersion(aPage, publicationProjectIds.open, name));
+        for (const name of ['V1', 'V2']) await publishVersion(aPage, publicationProjectIds.selected, name);
+        check('覆盖现有版本返回同一版本记录', await publishVersion(aPage, publicationProjectIds.open, 'V1') === aVersions[0]);
+        await adminFinalPage.locator('#nav-users').click();
+        await adminFinalPage.waitForFunction(id => cachedUsersMap[id] && cachedUsersMap[id].published_version_count === 5, fixture.editorAId);
+        check('五版两个项目在成员表准确显示五比二', (await countCell(adminFinalPage, 'editora@test.com').innerText()) === '5/2');
+        check('紧凑数字提供明确的悬停说明', await countCell(adminFinalPage, 'editora@test.com').locator('span').getAttribute('title') === '5 个版本 · 2 个项目');
+        check('他人上传不计入管理员且交接不改写原上传者统计', (await countCell(adminFinalPage, 'admin@test.com').innerText()) === '0/0' && (await countCell(adminFinalPage, 'editorb@test.com').innerText()) === '1/1');
+        await adminFinalPage.screenshot({ animations: 'disabled', path: path.join(fixture.artifacts, '11-team-publication-counts.png') });
+        await adminFinalPage.setViewportSize({ width: 1024, height: 768 });
+        const statsBounds = await countCell(adminFinalPage, 'editora@test.com').boundingBox();
+        check('1024 屏幕发版统计列保持在可视区域内', statsBounds.x >= 0 && statsBounds.x + statsBounds.width <= 1024);
+        check('1024 屏幕统计表头保持完整单行', await adminFinalPage.locator('#userBoxActive th').nth(2).evaluate(el => getComputedStyle(el).whiteSpace === 'nowrap' && el.scrollWidth === el.clientWidth));
+        await adminFinalPage.screenshot({ animations: 'disabled', path: path.join(fixture.artifacts, '12-team-publication-counts-1024.png') });
+        await aPage.locator('#nav-users').click();
+        await aPage.waitForFunction(id => cachedUsersMap[id] && cachedUsersMap[id].published_version_count === 5, fixture.editorAId);
+        check('协作者只读成员页显示相同五比二', (await countCell(aPage, 'editora@test.com').innerText()) === '5/2');
         await aSession.ctx.close();
         await adminFinalSession.ctx.close();
 

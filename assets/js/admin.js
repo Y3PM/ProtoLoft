@@ -3746,7 +3746,8 @@ function loadUserList() {
             var nameText = esc(u.name || u.display_name || '未命名');
             var emailText = esc(u.email || u.username || '-');
             var deptText = esc(u.department || u.apply_remark || '-');
-            var publishableCount = parseInt(u.publishable_project_count || 0, 10);
+            var versionCount = parseInt(u.published_version_count || 0, 10);
+            var projectCount = parseInt(u.published_project_count || 0, 10);
             var webhookBadge = u.webhook_url ? '<i class="ri-robot-line" title="已配置个人机器人 Webhook" style="font-size:12px;color:var(--primary);margin-left:5px;cursor:help;"></i>' : '';
 
             var actionButtons = '';
@@ -3784,7 +3785,7 @@ function loadUserList() {
                     </td>
                     <td style="padding:10px 12px;">${roleBadge} ${statusBadge}</td>
                     <td style="padding:10px 12px;font-size:12.5px;">
-                        ${publishableCount > 0 ? `<span style="font-weight:600;color:var(--text-1);">${publishableCount} 个</span>` : '<span style="color:var(--text-3);">—</span>'}
+                        <span title="${versionCount} 个版本 · ${projectCount} 个项目"${versionCount > 0 ? ' style="font-weight:600;color:var(--text-1);"' : ' style="color:var(--text-3);"'}>${versionCount}/${projectCount}</span>
                     </td>
                     <td style="padding:10px 12px;color:var(--text-2);font-size:12.5px;">${deptText}</td>
                     <td style="padding:10px 12px;color:var(--text-3);font-size:12px;">${esc(u.created_at)}</td>

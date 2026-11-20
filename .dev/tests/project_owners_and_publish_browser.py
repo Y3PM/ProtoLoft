@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
 """Chrome E2E: 方案 A：协作权限模式、成员多选与发版入口验证"""
 import argparse
+import base64
 import json
 import os
 from pathlib import Path
 import subprocess
 
-from guest_permissions_regression import sandbox_server, TestClient, PASS_WORD
+from guest_permissions_regression import sandbox_server, TestClient, PASS_WORD, make_proto_zip
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -46,7 +47,7 @@ def main():
                 changed = admin.api('user_update', {'id': added['data'], 'status': 3})
                 assert changed['success'], changed
 
-        artifact_dir = ROOT / '.dev' / 'tmp' / 'publishable-project-count-verify'
+        artifact_dir = ROOT / '.dev' / 'tmp' / 'publication-count-verify'
         artifact_dir.mkdir(parents=True, exist_ok=True)
         fixture = {
             'base': base,
@@ -55,7 +56,8 @@ def main():
             'adminId': int(admin.user['id']),
             'editorAId': int(ed_a['data']),
             'editorBId': int(ed_b['data']),
-            'artifacts': str(artifact_dir)
+            'artifacts': str(artifact_dir),
+            'protoZip': base64.b64encode(make_proto_zip()).decode()
         }
         env = dict(os.environ, PLAYWRIGHT_MODULE=args.playwright_module, OWNERS_FIXTURE=json.dumps(fixture))
         run = subprocess.run(
