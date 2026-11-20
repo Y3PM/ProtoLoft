@@ -79,10 +79,15 @@ switch ($action) {
         if ($type === 'link') {
             $webhookUrl = '';
         }
+        $hasCollaboratorsParam = array_key_exists('collaborators', $_POST);
+        if ($hasCollaboratorsParam && !is_string($_POST['collaborators'])) jsonResponse(false, null, '项目负责人格式不正确');
         $collaborators = trim($_POST['collaborators'] ?? '');
         if ($collaborators !== '') {
-            $cArr = array_filter(array_map('intval', explode(',', $collaborators)), function($v) { return $v > 0; });
-            $collaborators = implode(',', array_unique($cArr));
+            if (!preg_match('/^[1-9][0-9]*(\s*,\s*[1-9][0-9]*)*$/D', $collaborators)) jsonResponse(false, null, '项目负责人格式不正确');
+            $cArr = array_values(array_unique(array_filter(array_map('intval', explode(',', $collaborators)), function($v) { return $v > 0; })));
+            $collaborators = implode(',', $cArr);
+        } else {
+            $cArr = [];
         }
         $watermarkEnabled = !empty($_POST['watermark_enabled']) ? 1 : 0;
 
@@ -104,72 +109,104 @@ switch ($action) {
         $category->execute([$catId]);
         if (!$category->fetchColumn()) jsonResponse(false, null, '所属文件夹不存在');
         $currentUser = Auth::getCurrentUser();
-        if ($itemId > 0) {
-            $oldItemStmt = $db->prepare("SELECT * FROM items WHERE id = ?");
-            $oldItemStmt->execute([$itemId]);
-            $oldItem = $oldItemStmt->fetch();
-            if (!$oldItem) {
-                jsonResponse(false, null, '未找到指定项目');
-            }
-            // 基本资料编辑不覆盖由其他入口管理的协作者与水印配置。
-            if (!array_key_exists('collaborators', $_POST)) $collaborators = $oldItem['collaborators'];
-            if (!array_key_exists('watermark_enabled', $_POST)) $watermarkEnabled = (int)$oldItem['watermark_enabled'];
-            if (!Auth::canEditItem($oldItem, $currentUser)) {
-                jsonResponse(false, null, '您不是该项目的创建者或协作者，无权修改其配置');
-            }
+        $db->beginTransaction();
+        try {
+            // 与负责人变更、工作交接串行，避免旧表单恢复已撤销的负责人范围。
+            $db->exec('UPDATE items SET id = id WHERE 0');
+            if ($itemId > 0) {
+                $oldItemStmt = $db->prepare("SELECT * FROM items WHERE id = ?");
+                $oldItemStmt->execute([$itemId]);
+                $oldItem = $oldItemStmt->fetch();
+                if (!$oldItem) {
+                    jsonResponse(false, null, '未找到指定项目');
+                }
+                $oldCollabArr = Auth::parseItemCollaborators($oldItem);
+                $oldCollabNormalized = implode(',', $oldCollabArr);
+                // 基本资料编辑不覆盖由其他入口管理的负责人范围与水印配置。
+                if (!$hasCollaboratorsParam) {
+                    $collaborators = $oldCollabNormalized;
+                    $cArr = $oldCollabArr;
+                }
+                if (!array_key_exists('watermark_enabled', $_POST)) $watermarkEnabled = (int)$oldItem['watermark_enabled'];
+                if (!Auth::canManageItemConfig($oldItem, $currentUser)) {
+                    jsonResponse(false, null, '您不是该项目的创建者或指定负责人，无权修改其配置');
+                }
 
-            if ($type !== $oldItem['type']) jsonResponse(false, null, '项目类型不可变更');
-            $finalAuthorId = (Auth::isAdmin() && isset($_POST['created_by'])) ? (int)$_POST['created_by'] : (int)($oldItem['created_by'] ?? 0);
-            if (Auth::isAdmin() && isset($_POST['created_by'])) {
-                $owner = $db->prepare("SELECT id FROM users WHERE id = ? AND status = 1 AND role IN ('admin', 'editor')");
-                $owner->execute([$finalAuthorId]);
-                if (!$owner->fetchColumn()) jsonResponse(false, null, '负责人必须是正常成员');
-            }
-            if ($collaborators !== '') {
-                $cArr = array_filter(array_map('intval', explode(',', $collaborators)), function($v) use ($finalAuthorId) {
-                    return $v > 0 && $v !== $finalAuthorId;
-                });
-                $collaborators = implode(',', array_unique($cArr));
-            }
+                if ($hasCollaboratorsParam && $collaborators !== $oldCollabNormalized && !Auth::canEditItemOwners($oldItem, $currentUser)) {
+                    jsonResponse(false, null, '仅管理员或项目创建者可调整项目负责人');
+                }
+                if ($hasCollaboratorsParam && !empty($cArr)) {
+                    $placeholders = implode(',', array_fill(0, count($cArr), '?'));
+                    $uCheck = $db->prepare("SELECT id, role, status FROM users WHERE id IN ($placeholders)");
+                    $uCheck->execute($cArr);
+                    $uRows = [];
+                    foreach ($uCheck->fetchAll() as $ur) {
+                        $uRows[(int)$ur['id']] = $ur;
+                    }
+                    foreach ($cArr as $cid) {
+                        $uRow = $uRows[$cid] ?? null;
+                        $isValidActive = $uRow && in_array($uRow['role'], ['admin', 'editor'], true) && (int)$uRow['status'] === 1;
+                        $wasExistingOwner = in_array($cid, $oldCollabArr, true);
+                        if (!$isValidActive && !$wasExistingOwner) {
+                            jsonResponse(false, null, '项目负责人必须是正常状态的管理员或协作者');
+                        }
+                    }
+                }
 
-            $nextSort = (int)($oldItem['sort_order'] ?? 0);
-            if ($catId !== (int)($oldItem['category_id'] ?? 0)) {
+                if ($type !== $oldItem['type']) jsonResponse(false, null, '项目类型不可变更');
+                $finalAuthorId = (Auth::isAdmin() && isset($_POST['created_by'])) ? (int)$_POST['created_by'] : (int)($oldItem['created_by'] ?? 0);
+                if (Auth::isAdmin() && isset($_POST['created_by'])) {
+                    $owner = $db->prepare("SELECT id FROM users WHERE id = ? AND status = 1 AND role IN ('admin', 'editor')");
+                    $owner->execute([$finalAuthorId]);
+                    if (!$owner->fetchColumn()) jsonResponse(false, null, '负责人必须是正常成员');
+                }
+
+                $nextSort = (int)($oldItem['sort_order'] ?? 0);
+                if ($catId !== (int)($oldItem['category_id'] ?? 0)) {
+                    $minSortStmt = $db->prepare("SELECT MIN(sort_order) as m FROM items WHERE category_id = ?");
+                    $minSortStmt->execute([$catId]);
+                    $minSort = $minSortStmt->fetch()['m'] ?? null;
+                    $nextSort = ($minSort === null) ? 10 : ((int)$minSort - 10);
+                }
+
+                if (Auth::isAdmin() && isset($_POST['created_by'])) {
+                    $stmt = $db->prepare("UPDATE items SET category_id = ?, type = ?, name = ?, link_url = ?, link_target = ?, webhook_url = ?, sort_order = ?, created_by = ?, collaborators = ?, watermark_enabled = ? WHERE id = ?");
+                    $stmt->execute([$catId, $type, $name, $linkUrl, $linkTarget, $webhookUrl, $nextSort, $finalAuthorId, $collaborators, $watermarkEnabled, $itemId]);
+                } else {
+                    $stmt = $db->prepare("UPDATE items SET category_id = ?, type = ?, name = ?, link_url = ?, link_target = ?, webhook_url = ?, sort_order = ?, collaborators = ?, watermark_enabled = ? WHERE id = ?");
+                    $stmt->execute([$catId, $type, $name, $linkUrl, $linkTarget, $webhookUrl, $nextSort, $collaborators, $watermarkEnabled, $itemId]);
+                }
+            } else {
                 $minSortStmt = $db->prepare("SELECT MIN(sort_order) as m FROM items WHERE category_id = ?");
                 $minSortStmt->execute([$catId]);
                 $minSort = $minSortStmt->fetch()['m'] ?? null;
                 $nextSort = ($minSort === null) ? 10 : ((int)$minSort - 10);
+
+                $initialUid = (int)($currentUser['id'] ?? 0);
+                if (!empty($cArr)) {
+                    $placeholders = implode(',', array_fill(0, count($cArr), '?'));
+                    $uCheck = $db->prepare("SELECT id FROM users WHERE id IN ($placeholders) AND status = 1 AND role IN ('admin', 'editor')");
+                    $uCheck->execute($cArr);
+                    $validIds = array_map('intval', $uCheck->fetchAll(PDO::FETCH_COLUMN));
+                    if (count($validIds) !== count($cArr)) {
+                        jsonResponse(false, null, '项目负责人必须是正常状态的管理员或协作者');
+                    }
+                }
+
+                $newShareCode = Auth::generateShortCode(8);
+
+                $stmt = $db->prepare("INSERT INTO items (category_id, type, name, target_dir, link_url, link_target, share_code, share_enabled, webhook_url, sort_order, created_by, collaborators, watermark_enabled) VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?, ?, ?)");
+                $stmt->execute([$catId, $type, $name, $targetDir, $linkUrl, $linkTarget, $newShareCode, $webhookUrl, $nextSort, $initialUid, $collaborators, $watermarkEnabled]);
+                $itemId = $db->lastInsertId();
+
+                try {
+                    $db->prepare("INSERT INTO share_codes (code, item_id, ver_id) VALUES (?, ?, 0)")->execute([$newShareCode, $itemId]);
+                } catch (Exception $e) {}
             }
-
-            if (Auth::isAdmin() && isset($_POST['created_by'])) {
-                $stmt = $db->prepare("UPDATE items SET category_id = ?, type = ?, name = ?, link_url = ?, link_target = ?, webhook_url = ?, sort_order = ?, created_by = ?, collaborators = ?, watermark_enabled = ? WHERE id = ?");
-                $stmt->execute([$catId, $type, $name, $linkUrl, $linkTarget, $webhookUrl, $nextSort, $finalAuthorId, $collaborators, $watermarkEnabled, $itemId]);
-            } else {
-                $stmt = $db->prepare("UPDATE items SET category_id = ?, type = ?, name = ?, link_url = ?, link_target = ?, webhook_url = ?, sort_order = ?, collaborators = ?, watermark_enabled = ? WHERE id = ?");
-                $stmt->execute([$catId, $type, $name, $linkUrl, $linkTarget, $webhookUrl, $nextSort, $collaborators, $watermarkEnabled, $itemId]);
-            }
-        } else {
-            $minSortStmt = $db->prepare("SELECT MIN(sort_order) as m FROM items WHERE category_id = ?");
-            $minSortStmt->execute([$catId]);
-            $minSort = $minSortStmt->fetch()['m'] ?? null;
-            $nextSort = ($minSort === null) ? 10 : ((int)$minSort - 10);
-
-            $initialUid = (int)($currentUser['id'] ?? 0);
-            if ($collaborators !== '') {
-                $cArr = array_filter(array_map('intval', explode(',', $collaborators)), function($v) use ($initialUid) {
-                    return $v > 0 && $v !== $initialUid;
-                });
-                $collaborators = implode(',', array_unique($cArr));
-            }
-
-            $newShareCode = Auth::generateShortCode(8);
-
-            $stmt = $db->prepare("INSERT INTO items (category_id, type, name, target_dir, link_url, link_target, share_code, share_enabled, webhook_url, sort_order, created_by, collaborators, watermark_enabled) VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?, ?, ?)");
-            $stmt->execute([$catId, $type, $name, $targetDir, $linkUrl, $linkTarget, $newShareCode, $webhookUrl, $nextSort, $initialUid, $collaborators, $watermarkEnabled]);
-            $itemId = $db->lastInsertId();
-
-            try {
-                $db->prepare("INSERT INTO share_codes (code, item_id, ver_id) VALUES (?, ?, 0)")->execute([$newShareCode, $itemId]);
-            } catch (Exception $e) {}
+            $db->commit();
+        } catch (Throwable $e) {
+            if ($db->inTransaction()) $db->rollBack();
+            throw $e;
         }
         jsonResponse(true, ['id' => $itemId, 'name' => $name]);
         break;
@@ -185,7 +222,7 @@ switch ($action) {
         $item = $stmtItem->fetch();
         if (!$item) jsonResponse(false, null, '未找到指定项目');
         if (($item['type'] ?? '') === 'link') jsonResponse(false, null, '链接类型不支持配置群通知');
-        if (!Auth::canEditItem($item)) jsonResponse(false, null, '您无权配置该项目的 Webhook');
+        if (!Auth::canManageItemConfig($item)) jsonResponse(false, null, '您无权配置该项目的 Webhook');
         if (mb_strlen($webhookUrl, 'UTF-8') > 1000) jsonResponse(false, null, 'Webhook 地址不能超过 1000 个字符');
         if ($webhookUrl !== '' && !Webhook::isAllowedUrl($webhookUrl)) {
             jsonResponse(false, null, '仅支持企业微信、飞书或钉钉的 HTTPS Webhook 地址');
@@ -221,8 +258,8 @@ switch ($action) {
         $curr->execute([$itemId]);
         $row = $curr->fetch();
         if ($row) {
-            if (!Auth::canEditItem($row)) {
-                jsonResponse(false, null, '您不是该项目的创建者，无权修改其可见性');
+            if (!Auth::canManageItemConfig($row)) {
+                jsonResponse(false, null, '您不是该项目的创建者或指定负责人，无权修改其可见性');
             }
             $newVis = $row['is_visible'] ? 0 : 1;
             $stmt = $db->prepare("UPDATE items SET is_visible = ? WHERE id = ?");
@@ -248,7 +285,7 @@ switch ($action) {
             }
             foreach ($ids as $id) {
                 $row = Auth::getItem($id);
-                if (!$row || !Auth::canEditItem($row)) throw new DomainException('无权调整所选项目');
+                if (!$row || !Auth::canManageItemConfig($row)) throw new DomainException('无权调整所选项目');
             }
             $sort = 10;
             foreach ($ids as $id) {

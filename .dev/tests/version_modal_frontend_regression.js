@@ -39,6 +39,7 @@ c.currentVerManageAllVersions=records;c.currentVerManageCanEdit=false;c.CURRENT_
 check('non-owner reader receives no mutation handler',!html.includes('onclick="handleDeleteVersion') && !html.includes('onclick="triggerRpUploadForVersion') && !html.includes('onclick="handleSetDefaultVersion'));
 c.currentVerManageCanEdit=true;c.CURRENT_USER={id:7,role:'editor'};html=render();
 check('project collaborator cannot delete another publisher version',!html.includes('handleDeleteVersion(2,') && html.includes('handleDeleteVersion(3,'));
+check('project collaborator cannot replace another publisher RP',!html.includes('triggerRpUploadForVersion(2,') && !html.includes('handleRemoveRp(2,'));
 c.currentVerManageAllVersions=[];render();
 check('unpublished project retains the first-publish path',nodes['#verManageEmpty'].value.includes('quickOpenUploadFromVersionManage()') && !nodes['#verManagePagination'].visible);
 console.log(JSON.stringify({passed,scope:'production version renderer with controlled view state'}));

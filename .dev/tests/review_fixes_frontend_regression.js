@@ -876,6 +876,8 @@ console.log('\n[*] 8. P2-1 与 P2-2 冷启动接力流防打断与序列号时�
 
     sandbox.toggleItemType = () => {};
     sandbox.syncAuthorSelectOptions = () => {};
+    sandbox.canCurrentUserEditItemByOwners = () => true;
+    sandbox.syncItemOwnerPermissions = () => {};
 
     const openItemSrc = adminJs.slice(
         adminJs.indexOf('function openItemModal('),

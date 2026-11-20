@@ -2757,11 +2757,10 @@ function openItemModal(arg1, arg2, arg3) {
         if (nameInput) nameInput.placeholder = '输入项目名称';
     }
 
-    // 新建模式：作者无需指定，初始版本彻底解耦独立，表单极简纯净
-    var authorGroup = document.getElementById('itemAuthorGroup');
-    if (authorGroup) authorGroup.style.display = 'none';
-    var ownerInput = document.getElementById('itemCreatedBy');
-    if (ownerInput) ownerInput.required = false;
+    // 新建模式：默认全部协作者可发版，创建者也可主动指定一位或多位负责人
+    if (typeof setItemOwnersSelection === 'function') {
+        setItemOwnersSelection('', true);
+    }
 
     if (document.getElementById('itemLinkUrl')) document.getElementById('itemLinkUrl').value = '';
     if (document.getElementById('itemLinkTarget')) document.getElementById('itemLinkTarget').value = '_blank';
@@ -2776,15 +2775,212 @@ function openItemModal(arg1, arg2, arg3) {
     openModal('itemModal', 'itemName');
 }
 
-// 全局成员负责人下拉选项热重绘 (保持 #itemCreatedBy 永远与当前成员数据最新一致)
-function syncAuthorSelectOptions() {
-    var authorSelect = document.getElementById('itemCreatedBy');
-    if (!authorSelect || typeof cachedUsersMap === 'undefined') return;
+// 全局成员负责人下拉选项热重绘 (保持 #itemOwnersOptions 永远与当前成员数据最新一致)
+function parseOwnerIds(raw) {
+    if (!raw) return [];
+    var seen = {};
+    var out = [];
+    String(raw).split(',').forEach(function(part) {
+        var id = parseInt(String(part).trim(), 10);
+        if (id > 0 && !seen[id]) {
+            seen[id] = true;
+            out.push(String(id));
+        }
+    });
+    return out;
+}
 
-    var curVal = authorSelect.value;
-    var optsHtml = '<option value="" disabled>请选择负责人</option>';
-    
-    // 提取所有活跃管理员与协作者
+function getOwnerDisplayName(uid) {
+    var idNum = parseInt(uid, 10);
+    if (!idNum) return '';
+    if (typeof cachedUsersMap !== 'undefined' && cachedUsersMap[idNum]) {
+        return cachedUsersMap[idNum].name || cachedUsersMap[idNum].email || ('成员 #' + idNum);
+    }
+    var cb = document.querySelector('#itemOwnersOptions input.item-owner-cb[value="' + idNum + '"]');
+    if (cb && cb.getAttribute('data-name')) {
+        return cb.getAttribute('data-name');
+    }
+    return '成员 #' + idNum;
+}
+
+function renderItemOwnersCellHtml(collaboratorsStr, creatorName) {
+    var ids = parseOwnerIds(collaboratorsStr);
+    if (ids.length > 0) {
+        var names = ids.map(getOwnerDisplayName);
+        var fullText = names.join('、');
+        return '<span title="' + esc(fullText) + '">' + esc(fullText) + '</span>';
+    }
+    var safeCreator = String(creatorName || '').trim();
+    if (safeCreator) {
+        return '<span title="项目创建者：' + esc(safeCreator) + '">全部协作者 <span class="item-owner-creator">(' + esc(safeCreator) + ')</span></span>';
+    }
+    return '<span>全部协作者</span>';
+}
+window.renderItemOwnersCellHtml = renderItemOwnersCellHtml;
+
+function canCurrentUserEditItemByOwners(collaboratorsStr, createdBy) {
+    if (typeof CURRENT_USER === 'undefined' || !CURRENT_USER || (CURRENT_USER.role !== 'admin' && CURRENT_USER.role !== 'editor')) return false;
+    if (typeof CURRENT_USER !== 'undefined' && CURRENT_USER && CURRENT_USER.role === 'admin') {
+        return true;
+    }
+    var myUidNum = (typeof CURRENT_USER !== 'undefined' && CURRENT_USER) ? (parseInt(CURRENT_USER.id, 10) || 0) : 0;
+    var ids = parseOwnerIds(collaboratorsStr);
+    if (ids.length === 0) return true;
+    return myUidNum > 0 && ids.indexOf(String(myUidNum)) !== -1;
+}
+
+// 保存负责人后同步当前页面的发版入口，避免等到整页刷新才收回权限。
+function syncItemOwnerPermissions(itemId, collaboratorsStr, createdBy) {
+    var canPublish = canCurrentUserEditItemByOwners(collaboratorsStr, createdBy);
+    var $tree = $('#item-node-' + itemId);
+    var $row = $('#admin-item-row-' + itemId);
+    $tree.add($row).attr('data-collaborators', collaboratorsStr).data('collaborators', collaboratorsStr)
+        .attr('data-can-edit', canPublish ? '1' : '0').data('can-edit', canPublish ? 1 : 0);
+    var $treeControls = $tree.find('.admin-controls');
+    var $rowUpload = $row.find('button[title="发布新版本"]');
+    if (!canPublish) {
+        $treeControls.remove();
+        $rowUpload.remove();
+    } else {
+        if ($tree.length && !$treeControls.length) {
+            $tree.append('<div class="admin-controls" onclick="event.stopPropagation()"><button type="button" class="btn-act" onclick="openUploadModal(' + parseInt(itemId, 10) + ')" title="发布版本"><i class="ri-upload-cloud-line"></i></button></div>');
+        }
+        if ($row.length && !$rowUpload.length) {
+            $row.find('td').last().prepend('<button type="button" class="btn-act" onclick="openUploadModal(' + parseInt(itemId, 10) + ')" title="发布新版本"><i class="ri-upload-cloud-line"></i></button> ');
+        }
+    }
+}
+
+function closeItemOwnersDropdown() {
+    var menu = document.getElementById('itemOwnersMenu');
+    var trigger = document.getElementById('itemOwnersTrigger');
+    if (menu) menu.style.display = 'none';
+    if (trigger) trigger.setAttribute('aria-expanded', 'false');
+}
+
+function toggleItemOwnersDropdown(e) {
+    if (e) e.stopPropagation();
+    var menu = document.getElementById('itemOwnersMenu');
+    var trigger = document.getElementById('itemOwnersTrigger');
+    if (!menu || !trigger) return;
+    var isOpen = (menu.style.display !== 'none');
+    menu.style.display = isOpen ? 'none' : 'block';
+    trigger.setAttribute('aria-expanded', String(!isOpen));
+    if (!isOpen) {
+        menu.style.top = (trigger.offsetTop + trigger.offsetHeight + 4) + 'px';
+        var modalBox = trigger.closest('.modal-dialog-box');
+        var visibleTop = 0;
+        var visibleBottom = window.innerHeight;
+        if (modalBox) {
+            var boxRect = modalBox.getBoundingClientRect();
+            visibleTop = Math.max(visibleTop, boxRect.top);
+            visibleBottom = Math.min(visibleBottom, boxRect.bottom);
+        }
+        var triggerRect = trigger.getBoundingClientRect();
+        var menuRect = menu.getBoundingClientRect();
+        if (menuRect.bottom > visibleBottom && triggerRect.top - menuRect.height - 4 >= visibleTop) {
+            menu.style.top = (trigger.offsetTop - menu.offsetHeight - 4) + 'px';
+        }
+    }
+}
+
+function onItemOwnersChange() {
+    var optionsEl = document.getElementById('itemOwnersOptions');
+    var hiddenEl = document.getElementById('itemCollaborators');
+    var tagsWrap = document.getElementById('itemOwnersTags');
+    if (!optionsEl || !tagsWrap) return;
+
+    var selectedIds = [];
+    var selectedNames = [];
+    var cbs = optionsEl.querySelectorAll('input.item-owner-cb');
+    cbs.forEach(function(cb) {
+        if (cb.checked) {
+            var idNum = parseInt(cb.value, 10);
+            if (idNum > 0) {
+                selectedIds.push(String(idNum));
+                selectedNames.push(cb.getAttribute('data-name') || getOwnerDisplayName(idNum));
+            }
+        }
+    });
+
+    if (hiddenEl) {
+        hiddenEl.value = selectedIds.join(',');
+    }
+
+    if (selectedNames.length === 0) {
+        tagsWrap.innerHTML = '<span class="item-owner-placeholder">全部协作者</span>';
+    } else if (selectedNames.length <= 3) {
+        var html = '';
+        selectedNames.forEach(function(name) {
+            html += '<span class="badge-tag badge-primary">' + esc(name) + '</span>';
+        });
+        tagsWrap.innerHTML = html;
+    } else {
+        tagsWrap.innerHTML = '<span class="badge-tag badge-primary">' + esc(selectedNames[0]) + ' 等 ' + selectedNames.length + ' 人</span>';
+    }
+}
+
+function clearItemOwnersSelection() {
+    var optionsEl = document.getElementById('itemOwnersOptions');
+    if (optionsEl) {
+        optionsEl.querySelectorAll('input.item-owner-cb').forEach(function(cb) {
+            cb.checked = false;
+        });
+    }
+    onItemOwnersChange();
+    closeItemOwnersDropdown();
+}
+
+function setItemOwnersSelection(collaboratorsStr, canEditOwners) {
+    closeItemOwnersDropdown();
+    var group = document.getElementById('itemOwnersGroup');
+    var optionsEl = document.getElementById('itemOwnersOptions');
+    var hiddenEl = document.getElementById('itemCollaborators');
+    var selectedIds = parseOwnerIds(collaboratorsStr);
+    if (hiddenEl) hiddenEl.value = selectedIds.join(',');
+    if (group) {
+        group.setAttribute('data-can-edit-owners', canEditOwners ? '1' : '0');
+        group.style.display = canEditOwners ? 'block' : 'none';
+    }
+    if (!optionsEl) return;
+
+    optionsEl.querySelectorAll('.temp-fallback-owner-option').forEach(function(el) {
+        el.remove();
+    });
+
+    var cbs = optionsEl.querySelectorAll('input.item-owner-cb');
+    var existingMap = {};
+    cbs.forEach(function(cb) {
+        var val = String(parseInt(cb.value, 10) || '');
+        existingMap[val] = cb;
+        cb.checked = selectedIds.indexOf(val) !== -1;
+    });
+
+    selectedIds.forEach(function(sid) {
+        if (!existingMap[sid]) {
+            var u = (typeof cachedUsersMap !== 'undefined' && cachedUsersMap[sid]) ? cachedUsersMap[sid] : null;
+            var uName = u ? (u.name || u.email) : ('成员 #' + sid);
+            var suffix = (u && parseInt(u.status, 10) === 3) ? ' (已停用)' : '';
+            var lbl = document.createElement('label');
+            lbl.className = 'mcp-project-option temp-fallback-owner-option';
+            lbl.innerHTML = '<input type="checkbox" class="item-owner-cb" value="' + esc(sid) + '" data-name="' + esc(uName) + '" checked onchange="onItemOwnersChange()">' +
+                '<span>' + esc(uName + suffix) + '</span>';
+            optionsEl.appendChild(lbl);
+        }
+    });
+
+    onItemOwnersChange();
+}
+
+function syncAuthorSelectOptions() {
+    var optionsEl = document.getElementById('itemOwnersOptions');
+    if (!optionsEl || typeof cachedUsersMap === 'undefined') return;
+
+    var curSelected = [];
+    optionsEl.querySelectorAll('input.item-owner-cb:checked').forEach(function(cb) {
+        curSelected.push(String(parseInt(cb.value, 10) || ''));
+    });
+
     var activeUsers = [];
     for (var uid in cachedUsersMap) {
         var u = cachedUsersMap[uid];
@@ -2792,18 +2988,23 @@ function syncAuthorSelectOptions() {
             activeUsers.push(u);
         }
     }
-    // 按 ID 升序排列
     activeUsers.sort(function(a, b) { return parseInt(a.id, 10) - parseInt(b.id, 10); });
 
+    var html = '';
     activeUsers.forEach(function(u) {
-        var uLabel = (u.name ? (u.name + ' (' + u.email + ')') : u.email) + (u.role === 'admin' ? ' (管理员)' : '');
-        optsHtml += '<option value="' + u.id + '">' + esc(uLabel) + '</option>';
+        var uDisplay = u.name || u.email || ('成员 #' + u.id);
+        var roleTag = u.role === 'admin' ? ' (管理员)' : '';
+        var checkedAttr = curSelected.indexOf(String(u.id)) !== -1 ? ' checked' : '';
+        html += '<label class="mcp-project-option">' +
+            '<input type="checkbox" class="item-owner-cb" value="' + parseInt(u.id, 10) + '" data-name="' + esc(uDisplay) + '"' + checkedAttr + ' onchange="onItemOwnersChange()">' +
+            '<span>' + esc(uDisplay + roleTag) + '</span>' +
+        '</label>';
     });
-
-    authorSelect.innerHTML = optsHtml;
-    if (curVal) {
-        authorSelect.value = curVal;
-    }
+    optionsEl.innerHTML = html;
+    var group = document.getElementById('itemOwnersGroup');
+    setItemOwnersSelection(curSelected.join(','), !!group && group.getAttribute('data-can-edit-owners') === '1');
+    var typeEl = document.getElementById('itemType');
+    if (typeEl) toggleItemType(typeEl.value);
 }
 window.syncAuthorSelectOptions = syncAuthorSelectOptions;
 
@@ -3062,51 +3263,12 @@ function editItem(data) {
     document.getElementById('itemName').value = data.name || '';
     document.getElementById('itemType').value = type;
 
-    // 仅管理员在编辑已有【原型项目】时可见并可调整归属作者；外链无负责人属性
-    var authorGroup = document.getElementById('itemAuthorGroup');
-    if (authorGroup) {
-        if (type !== 'link' && typeof CURRENT_USER !== 'undefined' && CURRENT_USER && CURRENT_USER.role === 'admin') {
-            authorGroup.style.display = 'block';
-            var authorSelect = document.getElementById('itemCreatedBy');
-            if (authorSelect) {
-                authorSelect.required = true;
-                var targetAuthorId = (data.created_by !== undefined && data.created_by !== null) ? String(data.created_by) : '0';
-
-                // 清除之前的临时兜底选项
-                var oldTempOpt = authorSelect.querySelector('.temp-fallback-author-option');
-                if (oldTempOpt) {
-                    oldTempOpt.remove();
-                }
-
-                var hasMatch = false;
-                for (var i = 0; i < authorSelect.options.length; i++) {
-                    if (authorSelect.options[i].value === targetAuthorId) {
-                        hasMatch = true;
-                        break;
-                    }
-                }
-
-                // 若由于停用或角色变更在活跃列表中未匹配上且非 0，动态追加兜底 option，防止下拉框置空
-                if (!hasMatch && targetAuthorId !== '0' && targetAuthorId !== '') {
-                    var fallbackUser = (typeof cachedUsersMap !== 'undefined' && cachedUsersMap[targetAuthorId]) ? cachedUsersMap[targetAuthorId] : null;
-                    var fallbackLabel = fallbackUser 
-                        ? ((fallbackUser.name || fallbackUser.email) + (parseInt(fallbackUser.status, 10) === 3 ? ' (已停用)' : ''))
-                        : ('成员 #' + targetAuthorId);
-                    var newOpt = document.createElement('option');
-                    newOpt.value = targetAuthorId;
-                    newOpt.textContent = fallbackLabel;
-                    newOpt.className = 'temp-fallback-author-option';
-                    authorSelect.appendChild(newOpt);
-                }
-
-                authorSelect.value = targetAuthorId;
-            }
-        } else {
-            authorGroup.style.display = 'none';
-        }
+    // 管理员或项目创建者可调整项目负责人范围（默认全部协作者；勾选则仅限所选负责人）
+    var isCurAdmin = (typeof CURRENT_USER !== 'undefined' && CURRENT_USER && CURRENT_USER.role === 'admin');
+    var isCreator = (typeof CURRENT_USER !== 'undefined' && CURRENT_USER && parseInt(CURRENT_USER.id, 10) === parseInt(data.created_by || 0, 10));
+    if (typeof setItemOwnersSelection === 'function') {
+        setItemOwnersSelection(data.collaborators || '', isCurAdmin || isCreator);
     }
-    var ownerInput = document.getElementById('itemCreatedBy');
-    if (ownerInput) ownerInput.required = !!(authorGroup && authorGroup.style.display !== 'none');
     toggleItemType(type);
 
     if (document.getElementById('itemLinkUrl')) {
@@ -3134,6 +3296,8 @@ function editItem(data) {
 }
 
 function toggleItemType(type) {
+    var ownersGroup = document.getElementById('itemOwnersGroup');
+    if (ownersGroup) ownersGroup.style.display = (type !== 'link' && ownersGroup.getAttribute('data-can-edit-owners') === '1') ? 'block' : 'none';
     var lFields = document.getElementById('linkFields');
     if (lFields) {
         lFields.style.display = (type === 'link') ? 'block' : 'none';
@@ -3171,13 +3335,15 @@ function handleItemSave(e) {
     var hookEl = document.getElementById('itemWebhookUrl');
     fd.append('webhook_url', (itemType === 'link' || !hookEl) ? '' : hookEl.value.trim());
 
-    // 基本资料编辑不提交其他入口管理的协作者和全局水印配置。
-
-    // 仅当编辑模式且作者调整组可见时才提交 created_by
-    var authorGroup = document.getElementById('itemAuthorGroup');
-    var authorEl = document.getElementById('itemCreatedBy');
-    if (authorGroup && authorGroup.style && authorGroup.style.display !== 'none' && authorEl) {
-        fd.append('created_by', authorEl.value);
+    // 基本资料编辑不覆盖未呈现的全局水印或无权变更的负责人配置。
+    var ownersGroup = document.getElementById('itemOwnersGroup');
+    var ownersInput = document.getElementById('itemCollaborators');
+    var hasSubmittedCollaborators = false;
+    var submittedCollaborators = null;
+    if (ownersGroup && ownersGroup.style && ownersGroup.style.display !== 'none' && ownersInput) {
+        hasSubmittedCollaborators = true;
+        submittedCollaborators = ownersInput.value || '';
+        fd.append('collaborators', submittedCollaborators);
     }
 
     adminFetch('item_save', fd).then(function(res) {
@@ -3187,9 +3353,27 @@ function handleItemSave(e) {
             var curFlow = (typeof getQuickCreateFlow === 'function') ? getQuickCreateFlow() : null;
             var isFlowActive = (!editId && capturedFlowId > 0 && curFlow && curFlow.id === capturedFlowId);
             var flow = isFlowActive ? curFlow : null;
-            var shouldAdvanceUpload = (flow && flow.target === 'upload' && itemType === 'project');
+            var shouldAdvanceUpload = (flow && flow.target === 'upload' && itemType === 'project' && canCurrentUserEditItemByOwners(submittedCollaborators));
             var curItemSession = (typeof itemModalSession !== 'undefined') ? itemModalSession : 0;
             var isFormSessionValid = (curItemSession === capturedModalSession && isModalOpen('itemModal'));
+            var savedCollaborators = hasSubmittedCollaborators ? (submittedCollaborators || '') : null;
+
+            function syncProjectOptionByOwners(targetId, targetName, targetHook, targetCatId, targetCollaborators, targetCreatedBy) {
+                syncItemOwnerPermissions(targetId, targetCollaborators, targetCreatedBy);
+                var canEdit = (typeof canCurrentUserEditItemByOwners === 'function')
+                    ? canCurrentUserEditItemByOwners(targetCollaborators, targetCreatedBy)
+                    : true;
+                if (canEdit) {
+                    syncProjectSelectOption(targetId, targetName, targetHook, targetCatId, getCategoryNameById(targetCatId));
+                } else {
+                    if (typeof syncUploadModalRemoveItem === 'function') {
+                        syncUploadModalRemoveItem(targetId);
+                    }
+                    if (typeof syncDashboardSaveProject === 'function') {
+                        syncDashboardSaveProject(targetId, targetName, targetCatId);
+                    }
+                }
+            }
 
             if (shouldAdvanceUpload) {
                 flow.createdAny = true;
@@ -3199,7 +3383,8 @@ function handleItemSave(e) {
                 }
                 if (itemType === 'project') {
                     var advCatId = fd.get('category_id') || '0';
-                    syncProjectSelectOption(itemId, fd.get('name') || '', fd.get('webhook_url') || '', advCatId, getCategoryNameById(advCatId));
+                    var advUid = (typeof CURRENT_USER !== 'undefined' && CURRENT_USER) ? CURRENT_USER.id : 0;
+                    syncProjectOptionByOwners(itemId, fd.get('name') || '', fd.get('webhook_url') || '', advCatId, savedCollaborators || '', advUid);
                 }
                 if (typeof setQuickCreateSubmitLabel === 'function') {
                     setQuickCreateSubmitLabel('itemModal', '保存');
@@ -3218,7 +3403,8 @@ function handleItemSave(e) {
             if ((capturedFlowId > 0 && !isFlowActive) || !isFormSessionValid) {
                 if (itemType === 'project') {
                     var advCatId = fd.get('category_id') || '0';
-                    syncProjectSelectOption(itemId, fd.get('name') || '', fd.get('webhook_url') || '', advCatId, getCategoryNameById(advCatId));
+                    var staleUid = (typeof CURRENT_USER !== 'undefined' && CURRENT_USER) ? CURRENT_USER.id : 0;
+                    syncProjectOptionByOwners(itemId, fd.get('name') || '', fd.get('webhook_url') || '', advCatId, savedCollaborators || '', staleUid);
                 }
                 return;
             }
@@ -3230,7 +3416,18 @@ function handleItemSave(e) {
             }
             if (itemType === 'project') {
                 var normCatId = fd.get('category_id') || '0';
-                syncProjectSelectOption(itemId, fd.get('name') || '', fd.get('webhook_url') || '', normCatId, getCategoryNameById(normCatId));
+                var effectiveCollabForSelect = savedCollaborators;
+                var effectiveCreatorId = (typeof CURRENT_USER !== 'undefined' && CURRENT_USER) ? CURRENT_USER.id : 0;
+                if (typeof $ === 'function') {
+                    var $existingRow = $('#admin-item-row-' + itemId);
+                    if ($existingRow.length) {
+                        if (effectiveCollabForSelect === null) {
+                            effectiveCollabForSelect = $existingRow.attr('data-collaborators') || '';
+                        }
+                        effectiveCreatorId = parseInt($existingRow.attr('data-created-by') || effectiveCreatorId, 10) || effectiveCreatorId;
+                    }
+                }
+                syncProjectOptionByOwners(itemId, fd.get('name') || '', fd.get('webhook_url') || '', normCatId, effectiveCollabForSelect || '', effectiveCreatorId);
             }
             if (typeof showToast === 'function') {
                 showToast(editId ? '修改保存成功' : '项目创建成功', 'success');
@@ -3243,8 +3440,16 @@ function handleItemSave(e) {
                 var $row = $('#admin-item-row-' + itemId);
                 if ($row.length) {
                     var prevCatId = String($row.attr('data-cat-id') || '0');
+                    var prevItemData = $row.find('.btn-edit-item-trigger').data('item-data') || {};
+                    var rowCreatorId = parseInt($row.attr('data-created-by') || prevItemData.created_by || 0, 10) || ((typeof CURRENT_USER !== 'undefined' && CURRENT_USER) ? CURRENT_USER.id : 0);
+                    var rowCreatorName = String($row.attr('data-creator-name') || '').trim();
+                    if (!rowCreatorName && typeof cachedUsersMap !== 'undefined' && cachedUsersMap[rowCreatorId]) {
+                        rowCreatorName = cachedUsersMap[rowCreatorId].name || cachedUsersMap[rowCreatorId].email || '';
+                    }
+                    var nextCollaborators = (savedCollaborators !== null) ? savedCollaborators : String($row.attr('data-collaborators') || prevItemData.collaborators || '');
                     $row.data('cat-id', itemCatId).attr('data-cat-id', itemCatId);
                     $row.data('name', itemName).attr('data-name', itemName);
+                    $row.data('collaborators', nextCollaborators).attr('data-collaborators', nextCollaborators);
                     if (prevCatId !== String(itemCatId)) {
                         var $hostBody = $row.closest('tbody');
                         $row.detach();
@@ -3257,7 +3462,7 @@ function handleItemSave(e) {
                         var linkTarget = fd.get('link_target') || '_blank';
                         var targetText = (linkTarget === '_blank') ? '新标签页' : '内嵌预览';
                         var targetBadgeStyle = (linkTarget === '_blank') ? 'background:var(--primary-subtle);color:var(--primary);border:1px solid var(--primary-border);' : 'background:#f8fafc;color:var(--text-3);border:1px solid var(--border);';
-                        if ($tds.length >= 4) {
+                        if ($tds.length >= 5) {
                             $tds.eq(0).html('<i class="ri-external-link-line" style="color:var(--primary);margin-right:4px;font-size:14px;vertical-align:-1px;"></i>' + esc(itemName));
                             $tds.eq(1).text(catText);
                             $tds.eq(2).html('<span class="badge-tag" style="' + targetBadgeStyle + 'font-size:11px;">' + esc(targetText) + '</span>');
@@ -3266,6 +3471,7 @@ function handleItemSave(e) {
                                 (linkUrl ? '<button type="button" class="btn-act btn-copy-url" data-url="' + esc(linkUrl) + '" title="复制链接"><i class="ri-file-copy-line"></i></button>' : '') +
                             '</div>';
                             $tds.eq(3).html(urlHtml);
+                            $tds.eq(4).text(rowCreatorName || '-');
                             var updatedLinkData = {
                                 id: itemId,
                                 type: 'link',
@@ -3274,7 +3480,8 @@ function handleItemSave(e) {
                                 link_url: linkUrl,
                                 link_target: linkTarget,
                                 webhook_url: '',
-                                created_by: (typeof CURRENT_USER !== 'undefined' && CURRENT_USER) ? CURRENT_USER.id : 0
+                                created_by: rowCreatorId,
+                                collaborators: nextCollaborators
                             };
                             $row.find('.btn-edit-item-trigger')
                                 .removeAttr('onclick')
@@ -3282,30 +3489,12 @@ function handleItemSave(e) {
                                 .attr('data-item-json', JSON.stringify(updatedLinkData));
                         }
                     } else {
-                        if ($tds.length >= 2) {
+                        if ($tds.length >= 3) {
                             var $nameTd = $tds.eq(0);
                             var $badges = $nameTd.find('.badge-tag, .badge-link').detach();
                             $nameTd.text(' ' + itemName + ' ').append($badges);
                             $tds.eq(1).text(catText);
-
-                            // 正确获取并维护负责人 ID 与展示名称，杜绝覆盖为当前登录者
-                            var submittedAuthorId = fd.has('created_by') ? parseInt(fd.get('created_by'), 10) : 0;
-                            var prevItemData = $row.find('.btn-edit-item-trigger').data('item-data') || {};
-                            var finalAuthorId = submittedAuthorId > 0 ? submittedAuthorId : (parseInt(prevItemData.created_by, 10) || ((typeof CURRENT_USER !== 'undefined' && CURRENT_USER) ? CURRENT_USER.id : 0));
-
-                            var authorName = '-';
-                            if (typeof cachedUsersMap !== 'undefined' && cachedUsersMap[finalAuthorId]) {
-                                authorName = cachedUsersMap[finalAuthorId].name || cachedUsersMap[finalAuthorId].email || '-';
-                            } else if (document.getElementById('itemCreatedBy')) {
-                                var selOpt = document.getElementById('itemCreatedBy').querySelector('option[value="' + finalAuthorId + '"]');
-                                if (selOpt) {
-                                    authorName = selOpt.textContent.split('(')[0].trim();
-                                }
-                            }
-                            if ($tds.length >= 3 && authorName && authorName !== '-') {
-                                $tds.eq(2).text(authorName);
-                            }
-
+                            $tds.eq(2).html(renderItemOwnersCellHtml(nextCollaborators, rowCreatorName));
                             var updatedProjData = {
                                 id: itemId,
                                 type: 'project',
@@ -3314,7 +3503,8 @@ function handleItemSave(e) {
                                 link_url: '',
                                 link_target: '_blank',
                                 webhook_url: fd.get('webhook_url') || '',
-                                created_by: finalAuthorId
+                                created_by: rowCreatorId,
+                                collaborators: nextCollaborators
                             };
                             $row.find('.btn-edit-item-trigger')
                                 .removeAttr('onclick')
@@ -3324,8 +3514,10 @@ function handleItemSave(e) {
                     }
                 } else {
                     var safeItemName = esc(itemName);
-                    var curUserName = (typeof CURRENT_USER !== 'undefined' && CURRENT_USER) ? CURRENT_USER.name : '-';
+                    var curUserName = (typeof CURRENT_USER !== 'undefined' && CURRENT_USER) ? (CURRENT_USER.name || CURRENT_USER.email || '-') : '-';
                     var curUserId = (typeof CURRENT_USER !== 'undefined' && CURRENT_USER) ? CURRENT_USER.id : 0;
+                    var newCollabStr = savedCollaborators || '';
+                    var canUploadNewItem = canCurrentUserEditItemByOwners(newCollabStr);
                     if (itemType === 'link') {
                         var $lTableBody = $('#overviewTableLinks tbody');
                         if ($lTableBody.length) {
@@ -3342,9 +3534,10 @@ function handleItemSave(e) {
                                 link_url: linkUrl,
                                 link_target: linkTarget,
                                 webhook_url: '',
-                                created_by: curUserId
+                                created_by: curUserId,
+                                collaborators: newCollabStr
                             };
-                            var newLinkRowHtml = '<tr id="admin-item-row-' + itemId + '" data-item-id="' + itemId + '" data-cat-id="' + itemCatId + '" data-name="' + safeItemName + '" data-type="link" data-can-edit="1" style="border-bottom:1px solid var(--border);">' +
+                            var newLinkRowHtml = '<tr id="admin-item-row-' + itemId + '" data-item-id="' + itemId + '" data-cat-id="' + itemCatId + '" data-name="' + safeItemName + '" data-type="link" data-created-by="' + curUserId + '" data-creator-name="' + esc(curUserName) + '" data-collaborators="' + esc(newCollabStr) + '" data-can-edit="1" style="border-bottom:1px solid var(--border);">' +
                                 '<td style="padding:9px 12px;font-weight:600;color:var(--text-1);"><i class="ri-external-link-line" style="color:var(--primary);margin-right:4px;font-size:14px;vertical-align:-1px;"></i>' + safeItemName + '</td>' +
                                 '<td style="padding:9px 12px;color:var(--text-2);">' + esc(catText) + '</td>' +
                                 '<td style="padding:9px 12px;"><span class="badge-tag" style="' + targetBadgeStyle + 'font-size:11px;">' + esc(targetText) + '</span></td>' +
@@ -3379,18 +3572,19 @@ function handleItemSave(e) {
                                 link_url: '',
                                 link_target: '_blank',
                                 webhook_url: fd.get('webhook_url') || '',
-                                created_by: curUserId
+                                created_by: curUserId,
+                                collaborators: newCollabStr
                             };
-                            var newRowHtml = '<tr id="admin-item-row-' + itemId + '" data-item-id="' + itemId + '" data-cat-id="' + itemCatId + '" data-name="' + safeItemName + '" data-type="project" data-can-edit="1" style="border-bottom:1px solid var(--border);">' +
+                            var newRowHtml = '<tr id="admin-item-row-' + itemId + '" data-item-id="' + itemId + '" data-cat-id="' + itemCatId + '" data-name="' + safeItemName + '" data-type="project" data-created-by="' + curUserId + '" data-creator-name="' + esc(curUserName) + '" data-collaborators="' + esc(newCollabStr) + '" data-can-edit="' + (canUploadNewItem ? '1' : '0') + '" data-can-config="1" style="border-bottom:1px solid var(--border);">' +
                                 '<td style="padding:9px 12px;font-weight:600;color:var(--text-1);">' + safeItemName + '</td>' +
                                 '<td style="padding:9px 12px;color:var(--text-2);">' + esc(catText) + '</td>' +
-                                '<td style="padding:9px 12px;color:var(--text-2);">' + esc(curUserName) + '</td>' +
+                                '<td style="padding:9px 12px;color:var(--text-2);">' + renderItemOwnersCellHtml(newCollabStr, curUserName) + '</td>' +
                                 '<td style="padding:9px 12px;"><span class="badge-ver">-</span></td>' +
                                 '<td style="padding:9px 12px;"><button type="button" class="btn-cancel btn-sm btn-table-ver" onclick="openVersionManageModal(' + itemId + ')"><i class="ri-history-line"></i> 0 个版本</button></td>' +
                                 '<td style="padding:9px 12px;text-align:right;white-space:nowrap;">' +
                                     '<button type="button" class="btn-act project-order-btn btn-proj-move-up" style="display:none;margin-right:2px;" onclick="moveItemOrder(this, -1)" title="上移"><i class="ri-arrow-up-s-line"></i></button>' +
                                     '<button type="button" class="btn-act project-order-btn btn-proj-move-down" style="display:none;margin-right:6px;" onclick="moveItemOrder(this, 1)" title="下移"><i class="ri-arrow-down-s-line"></i></button>' +
-                                    '<button type="button" class="btn-act" onclick="openUploadModal(' + itemId + ')" title="发布新版本"><i class="ri-upload-cloud-line"></i></button> ' +
+                                    (canUploadNewItem ? '<button type="button" class="btn-act" onclick="openUploadModal(' + itemId + ')" title="发布新版本"><i class="ri-upload-cloud-line"></i></button> ' : '') +
                                     '<button type="button" class="btn-act btn-edit-item-trigger" data-item-json="' + esc(JSON.stringify(newProjData)) + '" title="编辑属性"><i class="ri-edit-line"></i></button> ' +
                                     '<button type="button" class="btn-act" onclick="deleteItem(' + itemId + ')" title="删除"><i class="ri-delete-bin-line"></i></button>' +
                                 '</td>' +
@@ -3909,18 +4103,33 @@ function handleUserHandover(e) {
                     if (d && d.created_by) rowCreatedBy = parseInt(d.created_by, 10);
                 }
 
-                if (rowCreatedBy === fromId) {
-                    $row.attr('data-created-by', toId).data('created-by', toId);
-                    $row.attr('data-creator-name', toName).data('creator-name', toName);
+                var rawCollab = String($row.attr('data-collaborators') || '');
+                var collabArr = parseOwnerIds(rawCollab);
+                if (rowCreatedBy === fromId || collabArr.indexOf(String(fromId)) !== -1) {
+                    if (rowCreatedBy === fromId) {
+                        $row.attr('data-created-by', toId).data('created-by', toId);
+                        $row.attr('data-creator-name', toName).data('creator-name', toName);
+                    }
+                    if (collabArr.length > 0 && collabArr.indexOf(String(fromId)) !== -1) {
+                        var seenCollab = {};
+                        var replacedArr = [];
+                        collabArr.forEach(function(cid) {
+                            var mapped = (cid === String(fromId)) ? String(toId) : cid;
+                            if (!seenCollab[mapped]) {
+                                seenCollab[mapped] = true;
+                                replacedArr.push(mapped);
+                            }
+                        });
+                        rawCollab = replacedArr.join(',');
+                        $row.attr('data-collaborators', rawCollab).data('collaborators', rawCollab);
+                    }
 
                     // 在项目表格中，第 3 列为负责人 (列索引 2: 0=名称, 1=文件夹, 2=负责人)
-                    // 在外链表格中，第 5 列为创建者 (列索引 4)
+                    // 在外链表格中，第 5 列为负责人 (列索引 4)
                     var isLinkTable = $row.closest('#overviewTableLinks').length > 0;
-                    if (isLinkTable) {
-                        $row.find('td').eq(4).text(toName);
-                    } else {
-                        $row.find('td').eq(2).text(toName);
-                    }
+                    var creatorName = String($row.attr('data-creator-name') || '');
+                    if (isLinkTable) $row.find('td').eq(4).text(creatorName || '-');
+                    else $row.find('td').eq(2).html(renderItemOwnersCellHtml(rawCollab, creatorName));
 
                     // 更新编辑按钮上的数据与参数
                     var $editBtn = $row.find('.btn-edit-item-trigger');
@@ -3933,13 +4142,19 @@ function handleUserHandover(e) {
                             }
                         }
                         if (itemData) {
-                            itemData.created_by = toId;
+                            if (rowCreatedBy === fromId) itemData.created_by = toId;
+                            itemData.collaborators = rawCollab;
                             $editBtn.data('item-data', itemData).attr('data-item-json', JSON.stringify(itemData));
                         }
                         var onclickAttr = $editBtn.attr('onclick');
                         if (onclickAttr && onclickAttr.indexOf('openEditItemModal') !== -1) {
-                            var updatedOnclick = onclickAttr.replace(new RegExp('(&quot;created_by&quot;\\s*:\\s*)' + fromId, 'g'), '$1' + toId);
-                            $editBtn.attr('onclick', updatedOnclick);
+                            var json = onclickAttr.slice(onclickAttr.indexOf('(') + 1, onclickAttr.lastIndexOf(')'));
+                            try {
+                                var updatedItem = JSON.parse(json);
+                                if (rowCreatedBy === fromId) updatedItem.created_by = toId;
+                                updatedItem.collaborators = rawCollab;
+                                $editBtn.removeAttr('onclick').data('item-data', updatedItem).attr('data-item-json', JSON.stringify(updatedItem));
+                            } catch (e) {}
                         }
                     }
                 }
@@ -3949,6 +4164,12 @@ function handleUserHandover(e) {
             $('li.item-row').each(function() {
                 var $node = $(this);
                 var nodeCreatedBy = parseInt($node.attr('data-created-by'), 10);
+                var nodeOwners = parseOwnerIds($node.attr('data-collaborators') || '');
+                if (nodeOwners.indexOf(String(fromId)) !== -1) {
+                    var nextOwners = nodeOwners.map(function(id) { return id === String(fromId) ? String(toId) : id; });
+                    var normalizedOwners = parseOwnerIds(nextOwners.join(',')).join(',');
+                    $node.attr('data-collaborators', normalizedOwners).data('collaborators', normalizedOwners);
+                }
                 if (nodeCreatedBy === fromId) {
                     $node.attr('data-created-by', toId).data('created-by', toId);
                     $node.attr('data-creator-name', toName).data('creator-name', toName);
@@ -3970,32 +4191,12 @@ function handleUserHandover(e) {
                 }
             });
 
-            // 3. 维护负责人下拉框中的选项状态
-            var authorSelect = document.getElementById('itemCreatedBy');
-            if (authorSelect) {
-                // 若原成员已停用，将原选项文字打上 (已停用) 标识
-                if (deact) {
-                    for (var i = 0; i < authorSelect.options.length; i++) {
-                        if (parseInt(authorSelect.options[i].value, 10) === fromId) {
-                            authorSelect.options[i].textContent = authorSelect.options[i].textContent.replace(/\s*\(已停用\)/g, '') + ' (已停用)';
-                            break;
-                        }
-                    }
-                }
-                // 确保接管人在下拉框中存在
-                var hasTo = false;
-                for (var j = 0; j < authorSelect.options.length; j++) {
-                    if (parseInt(authorSelect.options[j].value, 10) === toId) {
-                        hasTo = true;
-                        break;
-                    }
-                }
-                if (!hasTo && toUser) {
-                    var opt = document.createElement('option');
-                    opt.value = toId;
-                    opt.textContent = (toUser.name ? (toUser.name + ' (' + toUser.email + ')') : toUser.email) + (toUser.role === 'admin' ? ' (管理员)' : '');
-                    authorSelect.appendChild(opt);
-                }
+            // 3. 同步更新项目负责人多选候选列表中的停用/新增状态
+            if (typeof cachedUsersMap !== 'undefined' && cachedUsersMap[fromId] && deact) {
+                cachedUsersMap[fromId].status = 3;
+            }
+            if (typeof syncAuthorSelectOptions === 'function') {
+                syncAuthorSelectOptions();
             }
 
             if (isAdminConsoleOpen()) {
@@ -5749,10 +5950,10 @@ function renderVersionManageView() {
         var actionsHtml = '';
         if (currentVerManageCanEdit) {
             actionsHtml += '<button type="button" class="btn-cancel btn-sm btn-ver-edit" onclick="openEditVersionModal(' + ver.id + ')" title="编辑版本名称与更新日志"><i class="ri-edit-line"></i> 编辑</button>';
-            if (hasRp) {
+            if (hasRp && canDelThisVer) {
                 actionsHtml += '<button type="button" class="btn-cancel btn-sm" onclick="triggerRpUploadForVersion(' + ver.id + ', ' + currentVerManageItemId + ', true)" title="重新上传并替换 RP 底稿"><i class="ri-repeat-line"></i> 更换RP</button>';
                 actionsHtml += '<button type="button" class="btn-cancel btn-sm is-danger" onclick="handleRemoveRp(' + ver.id + ', ' + currentVerManageItemId + ')" title="移除此版本的 RP 底稿"><i class="ri-delete-bin-line"></i> 移除RP</button>';
-            } else {
+            } else if (canDelThisVer) {
                 actionsHtml += '<button type="button" class="btn-cancel btn-sm btn-table-rp-add" onclick="triggerRpUploadForVersion(' + ver.id + ', ' + currentVerManageItemId + ', false)" title="为此版本补传 Axure RP 底稿"><i class="ri-upload-2-line"></i> 补传RP</button>';
             }
             if (!isDef) {
@@ -6159,6 +6360,10 @@ function openQuickUploadModal() {
     var targetId = (typeof currentSelectedItemId !== 'undefined') ? currentSelectedItemId : null;
     var $sel = $('#uploadItemSelect');
     if (!$sel.length || !$sel.find('option').length) {
+        if ($('.item-row[data-type="project"]').length > 0) {
+            showToast('暂无可发布版本的项目，请新建项目或联系项目创建者将您设为负责人', 'warning');
+            return;
+        }
         setQuickCreateFlow(createQuickCreateFlow('upload', true));
         openQuickItemModal('project');
         return;
@@ -6302,9 +6507,17 @@ document.addEventListener('click', function(e) {
     var menu = document.getElementById('adminMultiSelectMenu');
     var trigger = document.getElementById('adminMultiSelectTrigger');
     if (menu && menu.style.display !== 'none') {
-        if (!menu.contains(e.target) && !trigger.contains(e.target)) {
+        if (!menu.contains(e.target) && (!trigger || !trigger.contains(e.target))) {
             menu.style.display = 'none';
-            trigger.setAttribute('aria-expanded', 'false');
+            if (trigger) trigger.setAttribute('aria-expanded', 'false');
+        }
+    }
+    var ownersMenu = document.getElementById('itemOwnersMenu');
+    var ownersTrigger = document.getElementById('itemOwnersTrigger');
+    if (ownersMenu && ownersMenu.style.display !== 'none') {
+        if (!ownersMenu.contains(e.target) && (!ownersTrigger || !ownersTrigger.contains(e.target))) {
+            ownersMenu.style.display = 'none';
+            if (ownersTrigger) ownersTrigger.setAttribute('aria-expanded', 'false');
         }
     }
 });

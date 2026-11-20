@@ -306,16 +306,27 @@ def run_tests(base_url, temp_dir):
     print("  ✓ 多角色用户登录会话就绪")
 
     # ----------------------------------------------------
-    # 3. 协作者项目级隔离验证 (Editor A 创建项目 A，包含 RP 底稿)
+    # 3. 协作者项目权限隔离与默认开放验证
     # ----------------------------------------------------
-    print("▶ 3. 测试协作者项目隔离与防越权...")
+    print("▶ 3. 测试协作者项目权限隔离与默认全部协作者开放...")
+    editor_a_id = editor_a.user['id']
     proj_a_res = editor_a.api('item_save', {
         'category_id': cat_id,
         'type': 'project',
-        'name': '协作者A专属项目'
+        'name': '协作者A专属项目',
+        'collaborators': str(editor_a_id)
     })
     assert proj_a_res and proj_a_res.get('success'), f"Editor A 创建项目失败: {proj_a_res}"
     proj_a_id = proj_a_res['data']['id']
+
+    # Editor A 创建默认开放（全部协作者）项目
+    proj_open_res = editor_a.api('item_save', {
+        'category_id': cat_id,
+        'type': 'project',
+        'name': '全部协作者开放项目'
+    })
+    assert proj_open_res and proj_open_res.get('success'), f"创建开放项目失败: {proj_open_res}"
+    proj_open_id = proj_open_res['data']['id']
 
     # Editor A 可以为自己的项目发版 (附带 RP 底稿)
     fake_rp = b'PK\x03\x04FAKE_RP_CONTENT_FOR_RBAC_TESTING'
@@ -324,17 +335,25 @@ def run_tests(base_url, temp_dir):
     ver_id = pub_res['data']['version_id']
     print("  ✓ Editor A 成功为自己的项目发版并上传 RP 底稿")
 
-    # Editor B 试图越权修改 Project A 的信息 -> 必须被拒绝
+    # Editor B 在默认开放项目中可以正常发版，在工作台悬浮也应看到上传按钮，但不能改项目属性或删除他人项目
+    ok_open, pub_open = publish_version(editor_b, proj_open_id, 'v1.0.0')
+    assert ok_open and pub_open.get('success') is True, f"Editor B 对全部协作者开放项目发版失败: {pub_open}"
+    assert not editor_b.api('item_save', {'id': proj_open_id, 'category_id': cat_id, 'name': '篡改开放项目名称'}).get('success'), "全部协作者项目中非创建者不应修改项目属性"
+    assert not editor_b.api('item_delete', {'id': proj_open_id}).get('success'), "全部协作者项目中非创建者不应删除项目"
+    _, editor_b_home, _ = editor_b.request('/index.php')
+    assert f'id="item-node-{proj_open_id}"'.encode() in editor_b_home and f'openUploadModal({proj_open_id},'.encode() in editor_b_home, "全部协作者项目对 Editor B 应渲染侧栏悬浮上传按钮"
+
+    # Editor B 试图越权修改指定负责人的 Project A -> 必须被拒绝
     hack_item = editor_b.api('item_save', {
         'id': proj_a_id,
         'category_id': cat_id,
         'name': 'Editor B 恶意篡改名称'
     })
-    assert not (hack_item and hack_item.get('success')), "严重安全漏洞: Editor B 越权修改了他人的项目属性"
+    assert not (hack_item and hack_item.get('success')), "严重安全漏洞: Editor B 越权修改了指定负责人项目的属性"
 
-    # Editor B 试图越权为 Project A 发版 -> 必须被拒绝
+    # Editor B 试图越权为指定负责人的 Project A 发版 -> 必须被拒绝
     ok_hack, hack_ver = publish_version(editor_b, proj_a_id, 'v9.9.9')
-    assert not ok_hack, "严重安全漏洞: Editor B 越权为他人的项目发版"
+    assert not ok_hack, "严重安全漏洞: Editor B 越权为指定负责人项目发版"
 
     # Editor B 试图越权删除 Project A -> 必须被拒绝
     hack_del = editor_b.api('item_delete', {'id': proj_a_id})
@@ -343,7 +362,7 @@ def run_tests(base_url, temp_dir):
     # Editor B 试图越权修改 Project A 的分享配置 -> 必须被拒绝
     hack_share = editor_b.api('item_save_share', {'id': proj_a_id, 'access_password': 'hacked_pwd'})
     assert not (hack_share and hack_share.get('success')), "严重安全漏洞: Editor B 越权修改了他人的分享设置"
-    print("  ✓ 协作者项目越权全方位防御生效 (编辑/发版/删除/分享配置均被严格拦截)")
+    print("  ✓ 默认开放项目发版与指定负责人项目越权防御全部生效")
 
     # ----------------------------------------------------
     # 4. 批注状态切换角色边界验证
@@ -437,11 +456,12 @@ def run_tests(base_url, temp_dir):
     assert 'name="perm_guest_annotate"' in modals_code, "modals.php 漏掉了 perm_guest_annotate"
     assert 'roleFeatureAnno' not in admin_js, "admin.js 中不应存在伪字段 roleFeatureAnno"
 
-    # 检查项目列表表格发版按钮是否在 canManageThisItem 内部
-    assert 'data-can-edit="<?php echo $canManageThisItem ? \'1\' : \'0\'; ?>"' in modals_code, "modals.php 未输出 data-can-edit 属性"
+    # 检查项目列表表格发版按钮与权限属性是否严格区分可发版与可改配置
+    assert 'data-can-edit="<?php echo $canPublishThisItem ? \'1\' : \'0\'; ?>"' in modals_code, "modals.php 未输出 data-can-edit 属性"
+    assert '<?php if ($canPublishThisItem): ?>' in modals_code, "modals.php 项目列表上传按钮未受 $canPublishThisItem 守卫"
 
-    # 检查发版项目下拉框是否包含 canEditThisProject 过滤
-    assert '$canEditThisProject' in modals_code, "modals.php 发版下拉列表未过滤协作者权限"
+    # 检查发版项目下拉框是否统一调用 Auth::canEditItem
+    assert 'Auth::canEditItem($it, $currentUser)' in modals_code, "modals.php 发版下拉列表未按 Auth::canEditItem 过滤"
 
     # 检查 annotation.js 切换批注状态是否检查了 canManageCurrentItem
     assert 'canManageCurrentItem' in anno_js, "annotation.js 状态切换未严格校验当前项目权限"

@@ -201,9 +201,10 @@ def main():
         check('new folder appears at top of sidebar list', folder_page.index(b'Second Folder') < folder_page.index(b'Synthetic Folder'))
         check('folder without project offers project creation only',empty_action(folder_page).count('<button ')==1 and '新建项目' in empty_action(folder_page))
 
-        item = ok(editor, 'item_save', {'category_id':folder,'name':'Same Name','type':'project','collaborators':user_ids['other']})['id']
+        item = ok(editor, 'item_save', {'category_id':folder,'name':'Same Name','type':'project','collaborators':str(user_ids['editor']) + ',' + str(user_ids['other'])})['id']
         top_item = ok(editor, 'item_save', {'category_id':folder,'name':'Top Created Project','type':'project'})['id']
-        item2 = ok(other, 'item_save', {'category_id':folder2,'name':'Same Name','type':'project'})['id']
+        item2 = ok(other, 'item_save', {'category_id':folder2,'name':'Same Name','type':'project','collaborators':user_ids['other']})['id']
+        open_item = ok(other, 'item_save', {'category_id':folder2,'name':'Open Project','type':'project'})['id']
         _,project_page,_=owner.request('/index.php')
         check('new project appears at top of folder list', project_page.index(('id="item-node-%d"' % int(top_item)).encode()) < project_page.index(('id="item-node-%d"' % int(item)).encode()))
         ok(editor, 'item_delete', {'id':top_item})
@@ -286,7 +287,10 @@ def main():
         check('unauthorized RP download rejected', guest.request('/api.php?action=download_rp&ver_id=%d' % v1)[0] == 403)
         check('authorized RP download works', editor.request('/api.php?action=download_rp&ver_id=%d' % v1)[1] == b'Synthetic RP')
         check('old direct upload route disabled', not other.api('version_upload', {'item_id':item})['success'])
-        check('unrelated editor cannot publish', not publish(editor,item2,'V2',zipped())['success'])
+        check('unrelated editor cannot publish to restricted project', not publish(editor,item2,'V2',zipped())['success'])
+        check('editor can publish to default open project', publish(editor,open_item,'V1',zipped())['success'])
+        check('non-creator editor cannot rename default open project', not editor.api('item_save',{'id':open_item,'category_id':folder2,'name':'Tampered','type':'project'})['success'])
+        check('non-creator editor cannot delete default open project', not editor.api('item_delete',{'id':open_item})['success'])
         check('co-manager cannot overwrite other author', not publish(other,item,'V1',zipped('forbidden'))['success'])
         check('rejected overwrite keeps old assets', row(v1)['storage_dir'] == initial['storage_dir'] and b'original' in editor.request(asset1)[1])
         check('invalid ZIP rejected', not publish(editor,item,'V1',b'not a zip')['success'])
@@ -469,7 +473,7 @@ def main():
         check('folder deletion cleans shares and nested assets including RP', db.execute('SELECT COUNT(*) FROM share_codes WHERE item_id=?',(item,)).fetchone()[0] == 0 and not current_root.exists())
         check('deleting one same-named project preserves the other', other.request('/asset.php/v%d/index.html'%v2)[0] == 200)
         # Free-form names and explicit, generation-bound replacement confirmation.
-        name_item=ok(editor if editor.api('get_session')['data']['user'] else owner,'item_save',{'category_id':folder2,'name':'Name Rules','type':'project'})['id']
+        name_item=ok(owner,'item_save',{'category_id':folder2,'name':'Name Rules','type':'project','collaborators':1})['id']
         publisher=owner
         assert viewer.api('login',{'email':'viewer@example.com','password':PASS+'x'})['success']
         viewer.token=viewer.api('get_session')['data']['csrfToken']

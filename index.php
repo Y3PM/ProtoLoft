@@ -873,13 +873,8 @@ foreach ($cats as $cat) {
                             }
 
                             $isShareDisabled = Auth::isItemShareDisabled($it['id']);
-                            $isCollaborator = false;
-                            if (!empty($it['collaborators'])) {
-                                $collabIds = array_filter(array_map('intval', explode(',', (string)$it['collaborators'])));
-                                $isCollaborator = in_array((int)($currentUser['id'] ?? 0), $collabIds, true);
-                            }
-                            $canEditThisItem = ($isAdmin || ($currentUser && (int)$it['created_by'] === (int)$currentUser['id']) || $isCollaborator);
-                            $canDeleteThisItem = ($isAdmin || ($currentUser && (int)$it['created_by'] === (int)$currentUser['id']));
+                            $canEditThisItem = Auth::canEditItem($it, $currentUser);
+                            $canDeleteThisItem = Auth::canDeleteItem($it, $currentUser);
                             ?>
                             <li class="item-row <?php echo ($it['is_visible'] == 0) ? 'is-hidden-item' : ''; ?>"
                                 id="item-node-<?php echo $it['id']; ?>"

@@ -297,6 +297,7 @@ switch ($action) {
         $stmt->execute([$id]);
         $version = $stmt->fetch();
         if (!$version) jsonResponse(false, null, '版本不存在');
+        if (!Auth::canDeleteVersion($version)) jsonResponse(false, null, '只有版本发布者或管理员可修改 RP 底稿');
         $item = Auth::getItem($version['item_id']);
         if (!$item || !Auth::canEditItem($item)) jsonResponse(false, null, '无权操作此项目');
         if (defined('MCP_REQUEST')) McpAccess::guardWrite($version['item_id']);
@@ -319,10 +320,12 @@ switch ($action) {
 
             $db->beginTransaction();
             $db->exec('UPDATE versions SET id = id WHERE 0');
-            $stmtLock = $db->prepare('SELECT id, item_id, version_name FROM versions WHERE id = ?');
+            $stmtLock = $db->prepare('SELECT * FROM versions WHERE id = ?');
             $stmtLock->execute([$id]);
             $lockedVer = $stmtLock->fetch();
             if (!$lockedVer) throw new DomainException('版本已被移除');
+            if (!Auth::canDeleteVersion($lockedVer) || !Auth::canEditItem(Auth::getItem($lockedVer['item_id']))) throw new DomainException('无权修改此版本底稿');
+            if ($lockedVer['storage_dir'] !== $version['storage_dir']) throw new DomainException('版本已更新，请刷新后重试');
 
             if (is_dir($destFile)) {
                 throw new DomainException('底稿目标路径异常');
@@ -392,6 +395,7 @@ switch ($action) {
         $stmt->execute([$id]);
         $version = $stmt->fetch();
         if (!$version) jsonResponse(false, null, '版本不存在');
+        if (!Auth::canDeleteVersion($version)) jsonResponse(false, null, '只有版本发布者或管理员可移除 RP 底稿');
         $item = Auth::getItem($version['item_id']);
         if (!$item || !Auth::canEditItem($item)) jsonResponse(false, null, '无权操作此项目');
         if (defined('MCP_REQUEST')) McpAccess::guardWrite($version['item_id']);
@@ -400,10 +404,12 @@ switch ($action) {
         $oldRp = '';
         try {
             $db->exec('UPDATE versions SET id = id WHERE 0');
-            $stmtLock = $db->prepare('SELECT id, item_id, rp_file FROM versions WHERE id = ?');
+            $stmtLock = $db->prepare('SELECT * FROM versions WHERE id = ?');
             $stmtLock->execute([$id]);
             $lockedVer = $stmtLock->fetch();
             if (!$lockedVer) throw new DomainException('版本已被移除');
+            if (!Auth::canDeleteVersion($lockedVer) || !Auth::canEditItem(Auth::getItem($lockedVer['item_id']))) throw new DomainException('无权移除此版本底稿');
+            $version = $lockedVer;
             $oldRp = $lockedVer['rp_file'] ?? '';
 
             $db->prepare('UPDATE versions SET rp_file = ?, rp_size = 0, updated_at = CURRENT_TIMESTAMP WHERE id = ?')

@@ -615,7 +615,8 @@ function selectItem(itemId, el, targetVerName, isUserDirectClick) {
         $('#myFrame').hide().attr('src', 'about:blank');
         updateTopActionsState(false, type);
         var isCanManage = $('body').hasClass('can-manage');
-        var actionHtml = isCanManage
+        var canEditEmptyProject = ($el && ($el.data('can-edit') === 1 || $el.data('can-edit') === '1'));
+        var actionHtml = (isCanManage && canEditEmptyProject)
             ? '<div class="empty-state-actions"><button type="button" class="empty-state-btn" onclick="openUploadModal(' + itemId + ')"><i class="ri-upload-cloud-line"></i> 发布原型</button></div>'
             : '';
         $('#noVersionPlaceholder').html(
@@ -1837,11 +1838,26 @@ function handleSaveProfile(e) {
                 }
 
                 // 2. 同步控制中心表格
-                $('#overviewTableProjects tbody tr[data-item-id]').each(function() {
+                $('#overviewTableProjects tbody tr[data-item-id], #overviewTableLinks tbody tr[data-item-id]').each(function() {
                     var $row = $(this);
-                    if (parseInt($row.attr('data-created-by'), 10) === myUid) {
+                    var collabStr = String($row.attr('data-collaborators') || '');
+                    var isCreatorRow = parseInt($row.attr('data-created-by'), 10) === myUid;
+                    if (isCreatorRow) {
                         $row.attr('data-creator-name', newName).data('creator-name', newName);
-                        $row.find('td').eq(2).text(newName);
+                    }
+                    var isLinkRow = $row.closest('#overviewTableLinks').length > 0;
+                    var colIdx = isLinkRow ? 4 : 2;
+                    if (isLinkRow) {
+                        if (isCreatorRow) $row.find('td').eq(colIdx).text(newName);
+                        return;
+                    }
+                    if (typeof renderItemOwnersCellHtml === 'function') {
+                        var cName = isCreatorRow ? newName : String($row.attr('data-creator-name') || '');
+                        if (isCreatorRow || (collabStr && collabStr.split(',').indexOf(String(myUid)) !== -1)) {
+                            $row.find('td').eq(colIdx).html(renderItemOwnersCellHtml(collabStr, cName));
+                        }
+                    } else if (isCreatorRow && !collabStr) {
+                        $row.find('td').eq(colIdx).html('<span title="默认全部协作者可发版；项目归属：' + esc(newName) + '">全部协作者 <span class="item-owner-creator">(' + esc(newName) + ')</span></span>');
                     }
                 });
 
@@ -1862,13 +1878,18 @@ function handleSaveProfile(e) {
                 }
             }
 
-            // 4. 同步负责人下拉框
-            var authorSelect = document.getElementById('itemCreatedBy');
-            if (authorSelect) {
-                var myOpt = authorSelect.querySelector('option[value="' + myUid + '"]');
-                if (myOpt) {
-                    var roleSuffix = CURRENT_USER.role === 'admin' ? ' (管理员)' : '';
-                    myOpt.textContent = (newName ? (newName + ' (' + (CURRENT_USER.email || '') + ')') : CURRENT_USER.email) + roleSuffix;
+            // 4. 同步负责人多选列表
+            var ownersOptions = document.getElementById('itemOwnersOptions');
+            if (ownersOptions) {
+                var myCb = ownersOptions.querySelector('input.item-owner-cb[value="' + myUid + '"]');
+                if (myCb) {
+                    myCb.setAttribute('data-name', newName);
+                    var labelEl = myCb.closest('label');
+                    var spanEl = labelEl ? labelEl.querySelector('span') : null;
+                    if (spanEl) {
+                        spanEl.textContent = newName + (CURRENT_USER.role === 'admin' ? ' (管理员)' : '');
+                    }
+                    if (typeof onItemOwnersChange === 'function') onItemOwnersChange();
                 }
             }
         }

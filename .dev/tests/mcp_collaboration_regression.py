@@ -79,8 +79,9 @@ def main():
         for who,role in [('editor','editor'),('other','editor'),('viewer','viewer'),('admin','admin')]:
             ids[who]=ok(owner,'user_add',{'email':who+'@example.com','name':who,'password':PASS,'role':role});clients[who]=Client(base);clients[who].login(who+'@example.com')
         folder=ok(owner,'category_save',{'name':'MCP Folder'})['id']
-        item=int(ok(clients['editor'],'item_save',{'category_id':folder,'name':'Prototype Project','type':'project'})['id'])
-        other=int(ok(clients['other'],'item_save',{'category_id':folder,'name':'Other Project','type':'project'})['id'])
+        item=int(ok(clients['editor'],'item_save',{'category_id':folder,'name':'Prototype Project','type':'project','collaborators':str(ids['editor'])})['id'])
+        other=int(ok(clients['other'],'item_save',{'category_id':folder,'name':'Other Project','type':'project','collaborators':str(ids['other'])})['id'])
+        open_proj=int(ok(clients['other'],'item_save',{'category_id':folder,'name':'Open Project','type':'project'})['id'])
         v1=publish_web(clients['editor'],item,'首次评审',prototype())
         v_other=publish_web(clients['other'],other,'V1',prototype('Other'))
         db=sqlite3.connect(temp/'data/database.sqlite')
@@ -122,7 +123,8 @@ def main():
         check('same token immediately recovers publishing tools', len(wt_restored) == 10)
 
         # 多选项目范围与越权发布防御测试
-        check('editor cannot grant publish on another user project', not clients['editor'].api('mcp_permission_update', {'project_ids': [item, other], 'can_publish': 1})['success'])
+        check('editor cannot grant publish on restricted another user project', not clients['editor'].api('mcp_permission_update', {'project_ids': [item, other], 'can_publish': 1})['success'])
+        check('editor can grant publish on default open project', clients['editor'].api('mcp_permission_update', {'project_ids': [item, open_proj], 'can_publish': 1})['success'])
         multi_read = clients['editor'].api('mcp_permission_update', {'project_ids': [item, other], 'can_publish': 0})
         check('editor can grant multi-project read-only scope', multi_read['success'])
         multi_projects = data(writer, 'list_projects', {})['projects']

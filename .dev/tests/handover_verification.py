@@ -24,6 +24,7 @@ from pathlib import Path
 import re
 import shutil
 import socket
+import sqlite3
 import subprocess
 import sys
 import tempfile
@@ -92,6 +93,9 @@ def make_sample_zip():
     return buf.getvalue()
 
 def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--php', default='php')
+    args = parser.parse_args()
     temp_dir = tempfile.mkdtemp(prefix='protoloft-handover-test-')
     app_dir = Path(temp_dir) / 'app'
     shutil.copytree(ROOT, app_dir, ignore=shutil.ignore_patterns('.git', '.dev', 'data', 'uploads'))
@@ -100,7 +104,7 @@ def main():
 
     port = find_free_port()
     base_url = f'http://127.0.0.1:{port}/'
-    cmd = ['php', '-S', f'127.0.0.1:{port}', '-t', str(app_dir)]
+    cmd = [args.php, '-S', f'127.0.0.1:{port}', '-t', str(app_dir)]
     proc = subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
     total_checks = 7
@@ -199,13 +203,13 @@ def main():
         assert 'data-creator-name="李四"' in home_after, "Index item node should now have creator-name 李四"
         # 控制中心表格中的负责人列与 DOM 属性
         assert f'id="admin-item-row-{item_id}"' in home_after and f'data-created-by="{editorB_id}"' in home_after, "Admin item row must carry data-created-by attribute"
-        assert '<td style="padding:9px 12px;color:var(--text-2);">李四</td>' in home_after, "Overview table should show 李四 as creator"
+        assert '全部协作者' in home_after and '(李四)' in home_after, "Overview table should show 全部协作者 (李四) as open project owner"
         # 验证没有残留 "-" 或空
         assert '<td style="padding:9px 12px;color:var(--text-2);">-</td>' not in home_after, "Overview table should not show empty dash"
-        # 验证负责人下拉框中包含李四
-        assert f'<option value="{editorB_id}">李四 (editorb@protoloft.local)</option>' in home_after, "Item author select should contain 李四"
+        # 验证负责人多选框中包含李四
+        assert f'value="{editorB_id}" data-name="李四"' in home_after, "Item owners options should contain 李四"
         passed_count += 1
-        print(" [✓] 5. 首屏 HTML 验证通过: 节点属性、表格负责人列、下拉框全部稳健展示为李四，无任何空值")
+        print(" [✓] 5. 首屏 HTML 验证通过: 节点属性、表格负责人列、多选下拉全部稳健展示为李四，无任何空值")
 
         # 6. 验证姓名为空的用户作为接管人时，creator_name 稳健兜底为邮箱
         st, resC, _ = admin.json_post('user_add', {
@@ -215,11 +219,15 @@ def main():
             'role': 'editor'
         })
         editorC_id = resC.get('data')
-        # 将 editorC 的姓名更新为空字符串，模拟无真实姓名的情况
+        assert resC.get('success'), resC
+        # 正常 API 不允许空姓名；仅在此合成数据库中构造空值以检验显示兜底。
         st, resC_up, _ = admin.json_post('user_update', {
             'id': editorC_id,
             'name': ''
         })
+        assert not resC_up.get('success'), '正常成员资料接口必须拒绝空姓名'
+        with sqlite3.connect(app_dir / 'data' / 'database.sqlite') as fixture_db:
+            fixture_db.execute('UPDATE users SET name = ? WHERE id = ?', ('', editorC_id))
         # 再次交接给 editorC
         st, handover_c, _ = admin.json_post('user_handover', {
             'from_user_id': editorB_id,
@@ -231,7 +239,7 @@ def main():
         st, home_c, _ = admin.request('index.php')
         # 必须兜底显示 editorc@protoloft.local，而不是 "-" 或空
         assert 'data-creator-name="editorc@protoloft.local"' in home_c, "Creator name should fallback to email when name is empty"
-        assert '<td style="padding:9px 12px;color:var(--text-2);">editorc@protoloft.local</td>' in home_c, "Table TD should fallback to email"
+        assert '(editorc@protoloft.local)' in home_c, "Table TD should fallback to email"
         passed_count += 1
         print(" [✓] 6. 姓名为空时邮箱兜底验证通过: 成功展示为 editorc@protoloft.local，杜绝破损")
 
@@ -254,6 +262,9 @@ def main():
         proc.wait(timeout=5)
 
     finally:
+        if proc.poll() is None:
+            proc.terminate()
+            proc.wait(timeout=5)
         shutil.rmtree(temp_dir, ignore_errors=True)
 
     print(f"\n==========================================")

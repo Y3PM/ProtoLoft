@@ -526,23 +526,59 @@ class Auth {
     }
 
     /**
-     * 是否对指定项目拥有编辑/修改权 (管理员或项目创建者本人)
+     * 解析项目指定的负责人 ID 列表；空数组表示默认「全部协作者」开放模式
      */
-    public static function canEditItem($item, $user = null) {
-        if (!$user) $user = self::getCurrentUser();
-        if (!$user || !in_array($user['role'], ['admin', 'editor'])) return false;
-        if ($user['role'] === 'admin') return true;
-        $uid = (int)$user['id'];
-        if ((int)($item['created_by'] ?? 0) === $uid) return true;
-        if (!empty($item['collaborators'])) {
-            $collabIds = array_filter(array_map('intval', explode(',', (string)$item['collaborators'])));
-            if (in_array($uid, $collabIds, true)) return true;
-        }
-        return false;
+    public static function parseItemCollaborators($item) {
+        if (empty($item['collaborators'])) return [];
+        $ids = array_filter(array_map('intval', explode(',', (string)$item['collaborators'])), function($v) {
+            return $v > 0;
+        });
+        return array_values(array_unique($ids));
     }
 
     /**
-     * 是否对指定项目拥有删除权 (管理员或项目创建者本人，共管人不可删除他人项目)
+     * 是否对指定项目拥有发版/日常协作权 (管理员、开放模式全部协作者，或指定负责人)
+     */
+    public static function canEditItem($item, $user = null) {
+        if (!$item) return false;
+        if (!$user) $user = self::getCurrentUser();
+        if (!$user || !in_array($user['role'], ['admin', 'editor'], true)) return false;
+        if ($user['role'] === 'admin') return true;
+        // 外链沿用创建者/指定成员的配置权限，不参与原型项目的默认开放发版。
+        if (($item['type'] ?? 'project') !== 'project') return self::canManageItemConfig($item, $user);
+        $collabIds = self::parseItemCollaborators($item);
+        if (empty($collabIds)) {
+            return true;
+        }
+        return in_array((int)$user['id'], $collabIds, true);
+    }
+
+    /**
+     * 是否对指定项目拥有基础配置修改权 (管理员、项目创建者，或指定负责人)
+     * 说明：在「全部协作者」模式下，其他协作者可发版但不可随意改写他人项目的名称、分类或负责人设置
+     */
+    public static function canManageItemConfig($item, $user = null) {
+        if (!$user) $user = self::getCurrentUser();
+        if (!$user || !in_array($user['role'], ['admin', 'editor'], true)) return false;
+        if ($user['role'] === 'admin') return true;
+        $uid = (int)$user['id'];
+        if ((int)($item['created_by'] ?? 0) === $uid) return true;
+        $collabIds = self::parseItemCollaborators($item);
+        return !empty($collabIds) && in_array($uid, $collabIds, true);
+    }
+
+    /**
+     * 是否可调整项目的负责人范围 (仅管理员或项目创建者本人)
+     */
+    public static function canEditItemOwners($item, $user = null) {
+        if (!$user) $user = self::getCurrentUser();
+        if (!$user || !in_array($user['role'], ['admin', 'editor'], true)) return false;
+        if ($user['role'] === 'admin') return true;
+        return (int)($item['created_by'] ?? 0) === (int)$user['id'];
+    }
+
+    /**
+     * 是否对指定项目拥有删除权 (仅管理员或项目创建者本人)
      */
     public static function canDeleteItem($item, $user = null) {
         if (!$user) $user = self::getCurrentUser();
@@ -989,7 +1025,7 @@ class Auth {
      */
     public static function listUsers() {
         $db = DB::getInstance();
-        $stmt = $db->query("SELECT id, email, name, role, is_owner, status, department, webhook_url, created_at, (SELECT COUNT(*) FROM items WHERE created_by = users.id) as item_count FROM users WHERE status NOT IN (0, 2) ORDER BY is_owner DESC, id ASC");
+        $stmt = $db->query("SELECT id, email, name, role, is_owner, status, department, webhook_url, created_at, (SELECT COUNT(*) FROM items WHERE created_by = users.id OR (type = 'project' AND instr(',' || collaborators || ',', ',' || users.id || ',') > 0)) as item_count FROM users WHERE status NOT IN (0, 2) ORDER BY is_owner DESC, id ASC");
         $rows = $stmt->fetchAll();
         foreach ($rows as &$row) {
             $row['username'] = $row['email'];
@@ -1253,16 +1289,27 @@ class Auth {
         }
 
         // 防孤儿资产: 若名下仍有负责的项目，强制要求先完成工作交接
-        $itemCount = (int)$db->query("SELECT COUNT(*) FROM items WHERE created_by = " . (int)$id)->fetchColumn();
-        if ($itemCount > 0) {
-            return ['success' => false, 'message' => "该成员名下仍有 {$itemCount} 个负责项目，请先完成工作交接再删除"];
-        }
+        $db->beginTransaction();
+        try {
+            $db->exec('UPDATE items SET id = id WHERE 0');
+            $stmtItems = $db->prepare("SELECT COUNT(*) FROM items WHERE created_by = ? OR (type = 'project' AND instr(',' || collaborators || ',', ?) > 0)");
+            $stmtItems->execute([$id, ',' . $id . ',']);
+            $itemCount = (int)$stmtItems->fetchColumn();
+            if ($itemCount > 0) {
+                $db->rollBack();
+                return ['success' => false, 'message' => "该成员名下仍有 {$itemCount} 个负责项目，请先完成工作交接再删除"];
+            }
 
-        $db->prepare("DELETE FROM settings WHERE key = ?")->execute(['admin_token_' . $id]);
-        $db->prepare('DELETE FROM mcp_tokens WHERE user_id = ?')->execute([$id]);
-        $stmtDel = $db->prepare("DELETE FROM users WHERE id = ?");
-        $stmtDel->execute([$id]);
-        self::deletePasswordReset($db, $id);
+            $db->prepare("DELETE FROM settings WHERE key = ?")->execute(['admin_token_' . $id]);
+            $db->prepare('DELETE FROM mcp_tokens WHERE user_id = ?')->execute([$id]);
+            $stmtDel = $db->prepare("DELETE FROM users WHERE id = ?");
+            $stmtDel->execute([$id]);
+            self::deletePasswordReset($db, $id);
+            $db->commit();
+        } catch (Throwable $e) {
+            if ($db->inTransaction()) $db->rollBack();
+            throw $e;
+        }
         return ['success' => true];
     }
 
@@ -1309,28 +1356,32 @@ class Auth {
             return ['success' => false, 'message' => '接管人必须是正常状态的管理员或协作者'];
         }
 
-        // 查询原用户负责的项目数
-        $stmtItems = $db->prepare("SELECT COUNT(*) FROM items WHERE created_by = ?");
-        $stmtItems->execute([$fromUserId]);
-        $projectCount = (int)$stmtItems->fetchColumn();
-
         try {
             $db->beginTransaction();
+            $db->exec('UPDATE items SET id = id WHERE 0');
+            // 同时交接创建者归属与指定负责人资格；默认开放项目不会因此变为指定模式。
+            $stmtTo->execute([$toUserId]);
+            $toUser = $stmtTo->fetch();
+            if (!$toUser || !in_array($toUser['role'], ['admin', 'editor'], true) || (int)$toUser['status'] !== 1) throw new DomainException('接管人成员状态已变化');
+            $stmtHandoverItems = $db->prepare("SELECT id, created_by, collaborators FROM items WHERE created_by = ? OR (type = 'project' AND instr(',' || collaborators || ',', ?) > 0)");
+            $stmtHandoverItems->execute([$fromUserId, ',' . $fromUserId . ',']);
+            $handoverItems = $stmtHandoverItems->fetchAll();
+            $projectCount = count($handoverItems);
 
             if ($projectCount > 0) {
                 $stmtUpdate = $db->prepare("UPDATE items SET created_by = ? WHERE created_by = ?");
                 $stmtUpdate->execute([$toUserId, $fromUserId]);
 
-                // 若接管人原先在这些项目的协作者列表中，自动清洗剔除，避免自己成为自己的协作者
-                $itemsWithCollab = $db->query("SELECT id, collaborators FROM items WHERE created_by = " . (int)$toUserId)->fetchAll();
-                foreach ($itemsWithCollab as $iwc) {
-                    if (!empty($iwc['collaborators'])) {
-                        $cList = array_filter(array_map('intval', explode(',', $iwc['collaborators'])), function($v) use ($toUserId) {
-                            return $v > 0 && $v !== (int)$toUserId;
-                        });
-                        $newCollabStr = implode(',', array_unique($cList));
-                        if ($newCollabStr !== $iwc['collaborators']) {
-                            $db->prepare("UPDATE items SET collaborators = ? WHERE id = ?")->execute([$newCollabStr, $iwc['id']]);
+                // 若被交接项目处于指定负责人模式且包含原负责人，将其替换为接管人（全部协作者模式保持空值）
+                foreach ($handoverItems as $hi) {
+                    $cList = self::parseItemCollaborators($hi);
+                    if (!empty($cList) && in_array($fromUserId, $cList, true)) {
+                        $replaced = array_map(function($v) use ($fromUserId, $toUserId) {
+                            return $v === $fromUserId ? $toUserId : $v;
+                        }, $cList);
+                        $newCollabStr = implode(',', array_values(array_unique($replaced)));
+                        if ($newCollabStr !== (string)$hi['collaborators']) {
+                            $db->prepare("UPDATE items SET collaborators = ? WHERE id = ?")->execute([$newCollabStr, $hi['id']]);
                         }
                     }
                 }

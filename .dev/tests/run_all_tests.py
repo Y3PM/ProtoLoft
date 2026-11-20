@@ -122,6 +122,13 @@ SUITES = [
         "type": "python"
     },
     {
+        "id": "project_owners",
+        "name": "项目负责人范围、版本归属与离职交接",
+        "cmd": ["python3", "-B", str(TESTS_DIR / "project_owners_regression.py")],
+        "needs_php": True,
+        "type": "python"
+    },
+    {
         "id": "link_annotation",
         "name": "外链批注协同全链路与上版未决隔离",
         "cmd": ["python3", "-B", str(TESTS_DIR / "link_annotation_regression.py")],

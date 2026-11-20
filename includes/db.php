@@ -115,7 +115,7 @@ class DB {
             );
         ");
 
-        // 4. 项目与外链表 (包含共管人 collaborators 与动态水印 watermark_enabled)
+        // 4. 项目与外链表 (collaborators 保存项目指定负责人，空值为全部协作者；watermark_enabled 为动态水印)
         $db->exec("
             CREATE TABLE IF NOT EXISTS items (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,

@@ -32,6 +32,11 @@ python3 -B .dev/tests/mcp_collaboration_regression.py --php /path/to/php
 python3 -B .dev/tests/ftp_layout_regression.py --php /path/to/php
 python3 -B .dev/tests/notification_copy_regression.py --php /path/to/php
 
+# 项目负责人：默认全部协作者、指定名单、版本归属与工作交接
+python3 -B .dev/tests/project_owners_regression.py --php /path/to/php
+python3 -B .dev/tests/handover_verification.py --php /path/to/php
+python3 -B .dev/tests/project_owners_and_publish_browser.py --php /path/to/php --playwright-module /path/to/playwright
+
 # 已有 Playwright 与 Chrome 环境：四角色批注跳转浏览器专项
 python3 -B .dev/tests/annotation_jump_browser.py --php /path/to/php --playwright-module /path/to/playwright
 
@@ -59,6 +64,8 @@ python3 -B .dev/tests/dropdown_sync_regression_browser.py --php /path/to/php --p
 前端脚本执行实际业务 JS，但使用模拟 DOM/网络，不是浏览器验收。Python 套件执行临时安装的真实 HTTP 请求，默认清理临时数据；只有明确需要调试时才使用 `--keep`，保留的副本可能含测试凭据。官方 MCP SDK 互通验证另见 `docs/mcp.md`，SDK 只能在项目外临时安装，不能成为生产依赖。
 
 ## 交接方式
+
+2026-11-20 项目负责人模型与发布入口复核见 [负责人审查与修复记录](docs/reviews/2026-11-20-project-owners-review.md)。指定名单控制发版权限；创建者保留负责人范围与整项目删除的管理权。指定负责人也计入工作交接与成员删除保护。已按用户授权完成 FTP 部署，程序文件 10/10 回读校验、匿名 HTTPS 5/5 检查通过；生产多角色操作待用户验收。
 
 开始前检查 `git status`、相关差异和最近记录；同一文件避免并行编辑。完成后在变更记录或对应审查文档中写明改动范围、实际执行的命令与结果，以及尚未验证的内容。没有运行的检查不得沿用历史结果写成通过。
 

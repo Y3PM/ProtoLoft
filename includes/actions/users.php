@@ -17,6 +17,7 @@ switch ($action) {
                     'email' => $u['email'],
                     'name' => $u['name'],
                     'role' => $u['role'],
+                    'status' => (int)($u['status'] ?? 1),
                     'item_count' => (int)($u['item_count'] ?? 0),
                     'is_owner' => !empty($u['is_owner']) ? 1 : 0,
                     'created_at' => $u['created_at']

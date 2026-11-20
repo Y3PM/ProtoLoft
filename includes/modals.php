@@ -4,6 +4,35 @@
  */
 // 获取当前所有正常状态成员 (基于邮箱与真实姓名二元模型)
 $allUsers = $db->query("SELECT id, email, name, role FROM users WHERE status = 1 ORDER BY id ASC")->fetchAll();
+$allUsersMap = [];
+foreach ($db->query("SELECT id, email, name, role, status FROM users")->fetchAll() as $uRow) {
+    $allUsersMap[(int)$uRow['id']] = $uRow;
+}
+$renderItemOwnersCell = function($item, $usersMap) {
+    $collabIds = Auth::parseItemCollaborators($item);
+    if (!empty($collabIds)) {
+        $names = [];
+        foreach ($collabIds as $cid) {
+            $u = $usersMap[$cid] ?? null;
+            if ($u) {
+                $names[] = !empty($u['name']) ? $u['name'] : $u['email'];
+            } else {
+                $names[] = '成员 #' . $cid;
+            }
+        }
+        $fullText = implode('、', $names);
+        return '<span title="' . htmlspecialchars($fullText, ENT_QUOTES, 'UTF-8') . '">' . htmlspecialchars($fullText) . '</span>';
+    }
+    $creatorName = trim((string)($item['creator_name'] ?? ''));
+    if ($creatorName === '' && !empty($item['created_by'])) {
+        $cu = $usersMap[(int)$item['created_by']] ?? null;
+        if ($cu) $creatorName = !empty($cu['name']) ? $cu['name'] : $cu['email'];
+    }
+    if ($creatorName !== '') {
+        return '<span title="项目创建者：' . htmlspecialchars($creatorName, ENT_QUOTES, 'UTF-8') . '">全部协作者 <span class="item-owner-creator">(' . htmlspecialchars($creatorName) . ')</span></span>';
+    }
+    return '<span>全部协作者</span>';
+};
 ?>
 <?php if ($canManage): ?>
 <!-- 1. 发布/更新版本弹窗 (标准 M 档 540px) -->
@@ -23,20 +52,15 @@ $allUsers = $db->query("SELECT id, email, name, role FROM users WHERE status = 1
                     if (!empty($cats) && !empty($catItems)) {
                         foreach ($cats as $c) {
                             $cItems = $catItems[$c['id']] ?? [];
-                            $projList = [];
+                            $editableProjs = [];
                             foreach ($cItems as $it) {
-                                if ($it['type'] === 'project') { $projList[] = $it; }
+                                if ($it['type'] === 'project' && Auth::canEditItem($it, $currentUser)) {
+                                    $editableProjs[] = $it;
+                                }
                             }
-                            if (!empty($projList)) {
+                            if (!empty($editableProjs)) {
                                 echo '<optgroup label="' . htmlspecialchars($c['name']) . '" data-cat-id="' . (int)$c['id'] . '">';
-                                foreach ($projList as $p) {
-                                    $isCollab = false;
-                                    if (!empty($p['collaborators']) && $currentUser) {
-                                        $cList = array_map('intval', explode(',', $p['collaborators']));
-                                        if (in_array((int)$currentUser['id'], $cList, true)) $isCollab = true;
-                                    }
-                                    $canEditThisProject = $isAdmin || ($currentUser && ((int)($p['created_by'] ?? 0) === (int)$currentUser['id'])) || $isCollab;
-                                    if (!$canEditThisProject) continue;
+                                foreach ($editableProjs as $p) {
                                     $hasWb = !empty($p['webhook_url']) ? '1' : '0';
                                     $wbUrl = htmlspecialchars($p['webhook_url'] ?? '', ENT_QUOTES);
                                     echo '<option value="' . (int)$p['id'] . '" data-has-webhook="' . $hasWb . '" data-webhook-url="' . $wbUrl . '">' . htmlspecialchars($p['name']) . '</option>';
@@ -319,18 +343,34 @@ $allUsers = $db->query("SELECT id, email, name, role FROM users WHERE status = 1
                 <input type="text" id="itemName" class="m-input" placeholder="输入项目名称" required maxlength="40">
             </div>
 
-            <?php if ($isAdmin): ?>
-            <div class="m-form-group" id="itemAuthorGroup" style="display:none;">
-                <label class="m-label">项目负责人 <span class="req-star">*</span></label>
-                <select id="itemCreatedBy" class="m-input">
-                    <option value="" disabled>请选择负责人</option>
-                    <?php foreach ($allUsers as $u): ?>
-                        <?php if (!in_array($u['role'], ['admin', 'editor'])) continue; ?>
-                        <option value="<?php echo $u['id']; ?>"><?php echo htmlspecialchars(!empty($u['name']) ? $u['name'] . ' (' . $u['email'] . ')' : $u['email']); ?><?php echo $u['role'] === 'admin' ? ' (管理员)' : ''; ?></option>
-                    <?php endforeach; ?>
-                </select>
+            <div class="m-form-group item-owners-group" id="itemOwnersGroup">
+                <label class="m-label" id="itemOwnersLabel">
+                    <span>项目负责人</span>
+                </label>
+                <input type="hidden" id="itemCollaborators" value="">
+                <button type="button" id="itemOwnersTrigger" class="m-input m-input-trigger" aria-labelledby="itemOwnersLabel" aria-expanded="false" aria-controls="itemOwnersMenu" onclick="toggleItemOwnersDropdown(event)">
+                    <span id="itemOwnersTags" class="item-owners-tags"></span>
+                    <i class="ri-arrow-down-s-line item-owners-arrow"></i>
+                </button>
+                <div id="itemOwnersMenu" class="mcp-dropdown-menu" role="group" aria-labelledby="itemOwnersLabel" style="display:none;" onclick="event.stopPropagation()">
+                    <div class="mcp-dropdown-header">
+                        <span>选择负责人</span>
+                        <div class="mcp-dropdown-tools">
+                            <button type="button" class="inline-action-btn is-primary" onclick="clearItemOwnersSelection()">全部协作者</button>
+                        </div>
+                    </div>
+                    <div id="itemOwnersOptions" class="mcp-dropdown-options">
+                        <?php foreach ($allUsers as $u): ?>
+                            <?php if (!in_array($u['role'], ['admin', 'editor'], true)) continue; ?>
+                            <?php $uDisplay = !empty($u['name']) ? $u['name'] : $u['email']; ?>
+                            <label class="mcp-project-option">
+                                <input type="checkbox" class="item-owner-cb" value="<?php echo (int)$u['id']; ?>" data-name="<?php echo htmlspecialchars($uDisplay, ENT_QUOTES, 'UTF-8'); ?>" onchange="onItemOwnersChange()">
+                                <span><?php echo htmlspecialchars($uDisplay); ?><?php echo $u['role'] === 'admin' ? ' (管理员)' : ''; ?></span>
+                            </label>
+                        <?php endforeach; ?>
+                    </div>
+                </div>
             </div>
-            <?php endif; ?>
 
             <div id="linkFields" style="display:none;">
                 <div class="m-form-group">
@@ -1234,21 +1274,18 @@ $allUsers = $db->query("SELECT id, email, name, role FROM users WHERE status = 1
                                     <?php foreach ($projectItems as $it): 
                                         $vList = $itemVersions[$it['id']] ?? [];
                                         $defaultV = !empty($vList) ? $vList[0]['version_name'] : '-';
-                                        $isCollab = false;
-                                        if (!empty($it['collaborators']) && $currentUser) {
-                                            $cList = array_map('intval', explode(',', $it['collaborators']));
-                                            if (in_array((int)$currentUser['id'], $cList, true)) $isCollab = true;
-                                        }
-                                        $canManageThisItem = ($isAdmin || (int)$it['created_by'] === (int)($currentUser['id'] ?? 0) || $isCollab);
-                                        $canDeleteThisItem = ($isAdmin || (int)$it['created_by'] === (int)($currentUser['id'] ?? 0));
+                                        $canPublishThisItem = Auth::canEditItem($it, $currentUser);
+                                        $canManageThisItem = Auth::canManageItemConfig($it, $currentUser);
+                                        $canDeleteThisItem = Auth::canDeleteItem($it, $currentUser);
                                         $pAnnoCount = $pendingAnnoCounts[$it['id']] ?? 0;
                                     ?>
-                                    <tr id="admin-item-row-<?php echo $it['id']; ?>" data-can-edit="<?php echo $canManageThisItem ? '1' : '0'; ?>"
+                                    <tr id="admin-item-row-<?php echo $it['id']; ?>" data-can-edit="<?php echo $canPublishThisItem ? '1' : '0'; ?>" data-can-config="<?php echo $canManageThisItem ? '1' : '0'; ?>"
                                         data-item-id="<?php echo $it['id']; ?>"
                                         data-cat-id="<?php echo $it['category_id']; ?>"
                                         data-name="<?php echo htmlspecialchars($it['name']); ?>" 
                                         data-created-by="<?php echo (int)($it['created_by'] ?? 0); ?>"
                                         data-creator-name="<?php echo htmlspecialchars($it['creator_name'] ?? ''); ?>"
+                                        data-collaborators="<?php echo htmlspecialchars($it['collaborators'] ?? ''); ?>"
                                         style="border-bottom:1px solid var(--border);">
                                         <td style="padding:9px 12px;font-weight:600;color:var(--text-1);">
                                             <?php echo htmlspecialchars($it['name']); ?>
@@ -1260,7 +1297,7 @@ $allUsers = $db->query("SELECT id, email, name, role FROM users WHERE status = 1
                                             <?php endif; ?>
                                         </td>
                                         <td style="padding:9px 12px;color:var(--text-2);"><?php echo htmlspecialchars($catMap[$it['category_id']] ?? '未归类'); ?></td>
-                                        <td style="padding:9px 12px;color:var(--text-2);"><?php echo !empty($it['creator_name']) ? htmlspecialchars($it['creator_name']) : '-'; ?></td>
+                                        <td style="padding:9px 12px;color:var(--text-2);"><?php echo $renderItemOwnersCell($it, $allUsersMap); ?></td>
                                         <td style="padding:9px 12px;"><span class="badge-ver"><?php echo htmlspecialchars($defaultV); ?></span></td>
                                         <td style="padding:9px 12px;">
                                             <button type="button" class="btn-cancel btn-sm btn-table-ver" onclick="openVersionManageModal(<?php echo $it['id']; ?>)" title="管理此项目的历史版本与底稿">
@@ -1272,7 +1309,9 @@ $allUsers = $db->query("SELECT id, email, name, role FROM users WHERE status = 1
                                             <button type="button" class="btn-act project-order-btn btn-proj-move-up" style="display:none;margin-right:2px;" onclick="moveItemOrder(this, -1)" title="上移"><i class="ri-arrow-up-s-line"></i></button>
                                             <button type="button" class="btn-act project-order-btn btn-proj-move-down" style="display:none;margin-right:6px;" onclick="moveItemOrder(this, 1)" title="下移"><i class="ri-arrow-down-s-line"></i></button>
 
-                                            <button class="btn-act" onclick="openUploadModal(<?php echo $it['id']; ?>, '<?php echo htmlspecialchars(addslashes($it['name'])); ?>')" title="发布新版本"><i class="ri-upload-cloud-line"></i></button>
+                                            <?php if ($canPublishThisItem): ?>
+                                                <button class="btn-act" onclick="openUploadModal(<?php echo $it['id']; ?>, '<?php echo htmlspecialchars(addslashes($it['name'])); ?>')" title="发布新版本"><i class="ri-upload-cloud-line"></i></button>
+                                            <?php endif; ?>
                                             <?php if ($canManageThisItem): ?>
                                                 <?php if ($isAdmin): ?>
                                                     <button class="btn-act" onclick="rotateShareToken(<?php echo $it['id']; ?>)" title="重置安全短链"><i class="ri-refresh-line" style="color:var(--text-3);"></i></button>
@@ -1293,7 +1332,7 @@ $allUsers = $db->query("SELECT id, email, name, role FROM users WHERE status = 1
                                                 <?php if ($canDeleteThisItem): ?>
                                                     <button class="btn-act" onclick="deleteItem(<?php echo $it['id']; ?>)" title="删除"><i class="ri-delete-bin-line"></i></button>
                                                 <?php endif; ?>
-                                            <?php else: ?>
+                                            <?php elseif (!$canPublishThisItem): ?>
                                                 <span style="font-size:11px;color:var(--text-3);padding:0 4px;" title="受保护">受保护</span>
                                             <?php endif; ?>
                                         </td>
@@ -1346,13 +1385,8 @@ $allUsers = $db->query("SELECT id, email, name, role FROM users WHERE status = 1
                                     </td></tr>
                                 <?php else: ?>
                                     <?php foreach ($linkItems as $it): 
-                                        $isCollab = false;
-                                        if (!empty($it['collaborators']) && $currentUser) {
-                                            $cList = array_map('intval', explode(',', $it['collaborators']));
-                                            if (in_array((int)$currentUser['id'], $cList, true)) $isCollab = true;
-                                        }
-                                        $canManageThisItem = ($isAdmin || (int)$it['created_by'] === (int)($currentUser['id'] ?? 0) || $isCollab);
-                                        $canDeleteThisItem = ($isAdmin || (int)$it['created_by'] === (int)($currentUser['id'] ?? 0));
+                                        $canManageThisItem = Auth::canManageItemConfig($it, $currentUser);
+                                        $canDeleteThisItem = Auth::canDeleteItem($it, $currentUser);
                                         $targetText = ($it['link_target'] === '_blank') ? '新标签页' : '内嵌预览';
                                         $targetBadgeStyle = ($it['link_target'] === '_blank') ? 'background:var(--primary-subtle);color:var(--primary);border:1px solid var(--primary-border);' : 'background:#f8fafc;color:var(--text-3);border:1px solid var(--border);';
                                     ?>
@@ -1362,6 +1396,7 @@ $allUsers = $db->query("SELECT id, email, name, role FROM users WHERE status = 1
                                         data-name="<?php echo htmlspecialchars($it['name']); ?>"
                                         data-created-by="<?php echo (int)($it['created_by'] ?? 0); ?>"
                                         data-creator-name="<?php echo htmlspecialchars($it['creator_name'] ?? ''); ?>"
+                                        data-collaborators="<?php echo htmlspecialchars($it['collaborators'] ?? ''); ?>"
                                         data-type="link"
                                         style="border-bottom:1px solid var(--border);">
                                         <td style="padding:9px 12px;font-weight:600;color:var(--text-1);">
