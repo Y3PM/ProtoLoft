@@ -9,7 +9,7 @@ let checks = 0;
 function check(name, condition) { assert(condition, name); checks++; console.log('PASS ' + name); }
 
 // 编译守卫：全站所有原生 JS 脚本必须 100% 具备无损语法完整性，防止运行期 ReferenceError
-['app.js', 'admin.js', 'share.js', 'annotation.js', 'mcp.js'].forEach(file => {
+['app.js', 'admin.js', 'share.js', 'annotation.js', 'mcp.js', 'ver-picker.js'].forEach(file => {
   const code = fs.readFileSync(path.join(__dirname, '../../assets/js', file), 'utf8');
   assert.doesNotThrow(() => new vm.Script(code), `Syntax error in assets/js/${file}`);
   checks++;
@@ -356,6 +356,305 @@ const turn = () => new Promise(resolve => setImmediate(resolve));
   const fakeRp = { name: 'demo.rp', size: 900 * 1024, slice(s, e) { return new Blob([new Uint8Array(e - s)]); } };
   await rpCtx.uploadRpForVersion(1, 2, fakeRp);
   check('uploadRpForVersion splits 900KB file into 512KB chunks (<= 512KB each)', rpChunks.length === 2 && rpChunks.every(c => c.size <= 512 * 1024));
+
+  // ==================== 2026-11-20 审查发现 4 项修复回归 ====================
+  // 1. 批注抽屉关闭重开必须同步他人更新，同时仅对并发中请求去重
+  {
+    const annoCode = fs.readFileSync(path.join(__dirname, '../../assets/js/annotation.js'), 'utf8');
+    const annoReqs = [];
+    const collectText = (node) => {
+      if (!node) return '';
+      let out = (node.textContent || '') + ' ' + (node.innerHTML || '');
+      if (Array.isArray(node.children)) {
+        for (const ch of node.children) out += ' ' + collectText(ch);
+      }
+      return out;
+    };
+    const makeMockNode = () => {
+      let _text = '';
+      let _html = '';
+      const node = {
+        style: {},
+        children: [],
+        classList: { add() {}, remove() {}, toggle() {} },
+        setAttribute() {},
+        addEventListener() {},
+        appendChild(c) { node.children.push(c); return c; },
+        querySelectorAll: () => [],
+        get textContent() { return _text; },
+        set textContent(v) {
+          _text = String(v == null ? '' : v);
+          _html = _text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        },
+        get innerHTML() { return _html; },
+        set innerHTML(v) { _html = String(v == null ? '' : v); }
+      };
+      return node;
+    };
+    const domMap = {
+      annotationDrawer: Object.assign(makeMockNode(), { style: { display: 'none' }, contains() { return false; } }),
+      annoListBody: makeMockNode(),
+      annoCurPageTitle: makeMockNode(),
+      annoHeaderBadge: makeMockNode(),
+      annoNewInput: Object.assign(makeMockNode(), { value: '', disabled: false, focus() {} }),
+      btnSendAnno: Object.assign(makeMockNode(), { disabled: false }),
+      annoFilterCurPage: makeMockNode(),
+      annoFilterAllPages: makeMockNode(),
+      annoStatusAll: makeMockNode(),
+      annoStatusPending: makeMockNode(),
+      annoStatusResolved: makeMockNode(),
+      annoStatusPrevious: makeMockNode(),
+      myFrame: { style: { display: 'block' }, src: 'http://localhost/asset.php/v2/index.html', getAttribute: () => 'http://localhost/asset.php/v2/index.html', addEventListener() {}, contentWindow: { location: { href: 'http://localhost/asset.php/v2/index.html' }, document: { title: 'DemoPage' } } }
+    };
+    const fakeDoc = {
+      getElementById: id => domMap[id] || null,
+      querySelector: () => null,
+      querySelectorAll: () => [],
+      createElement: () => makeMockNode(),
+      addEventListener() {}
+    };
+    const annoCtx = {
+      Date, Math, Promise, Array, Object, JSON, parseInt, setTimeout: (fn) => { if (typeof fn === 'function') fn(); return 1; }, clearTimeout() {}, setInterval: () => 1, clearInterval() {}, console: { error() {}, warn() {}, log() {} },
+      CURRENT_USER: { id: 1, name: 'Admin', role: 'admin' },
+      document: fakeDoc,
+      fetch: url => new Promise(resolve => annoReqs.push({ url, resolve }))
+    };
+    annoCtx.window = annoCtx;
+    vm.createContext(annoCtx);
+    vm.runInContext(annoCode, annoCtx);
+
+    annoCtx.switchAnnoFilterMode('all');
+    annoCtx.updateAnnoContext(1, 2, 'v2', 'project');
+    check('annotation initial updateAnnoContext fires 1 fetch', annoReqs.length === 1);
+
+    // 请求还在 inflight 时打开抽屉，应复用进行中的请求不重复发
+    annoCtx.toggleAnnotationDrawer(true);
+    check('opening drawer while request inflight avoids duplicate fetch', annoReqs.length === 1);
+
+    annoReqs[0].resolve({
+      json: () => Promise.resolve({ success: true, data: { ver_id: 2, pending_count: 1, list: [{ id: 101, page_path: 'index.html', content: '初始批注', status: 'pending', creator_name: 'Admin' }] } })
+    });
+    await turn();
+
+    // 关闭抽屉后再重新打开，必须发出新请求同步其他成员新增的批注
+    annoCtx.toggleAnnotationDrawer(false);
+    annoCtx.toggleAnnotationDrawer(true);
+    check('reopening drawer triggers fresh list_annotations sync', annoReqs.length === 2);
+
+    annoReqs[1].resolve({
+      json: () => Promise.resolve({ success: true, data: { ver_id: 2, pending_count: 2, list: [{ id: 101, page_path: 'index.html', content: '初始批注', status: 'pending', creator_name: 'Admin' }, { id: 102, page_path: 'index.html', content: '他人新增批注', status: 'pending', creator_name: 'Editor' }] } })
+    });
+    await turn();
+    check('reopened drawer renders newly synced annotation text', collectText(domMap.annoListBody).includes('他人新增批注'));
+  }
+
+  // 2. zip_handler 注入脚本必须在普通 HTML 下零 ReferenceError
+  {
+    const zipHandlerSrc = fs.readFileSync(path.join(__dirname, '../../includes/zip_handler.php'), 'utf8');
+    const sStart = zipHandlerSrc.indexOf('<script id="protoloft-axure-sitemap-autonum">');
+    const sEnd = zipHandlerSrc.indexOf('</script>', sStart);
+    check('zip_handler.php contains injected autonum script block', sStart > 0 && sEnd > sStart);
+    const injectedJs = zipHandlerSrc.slice(sStart + '<script id="protoloft-axure-sitemap-autonum">'.length, sEnd);
+    check('injected script defines local isAxureEnvironment', injectedJs.includes('function isAxureEnvironment('));
+
+    const intervals = [];
+    const domDoc = {
+      readyState: 'complete',
+      getElementById: () => null,
+      querySelector: () => null,
+      addEventListener() {}
+    };
+    const injectCtx = {
+      document: domDoc,
+      setInterval: (fn) => { intervals.push(fn); return intervals.length; },
+      clearInterval() {},
+      setTimeout() { return 1; },
+      clearTimeout() {}
+    };
+    injectCtx.window = injectCtx;
+    vm.createContext(injectCtx);
+    assert.doesNotThrow(() => vm.runInContext(injectedJs, injectCtx), 'injected script must not throw on complete plain HTML');
+    check('injected script exits cleanly on complete plain HTML without polling', intervals.length === 0);
+
+    // 即使在 loading 态启动了轮询且稍后文档就绪为非 Axure 页面，调用轮询回调也不应抛 ReferenceError
+    domDoc.readyState = 'loading';
+    assert.doesNotThrow(() => vm.runInContext(injectedJs, injectCtx), 'injected script must not throw on loading plain HTML');
+    domDoc.readyState = 'complete';
+    assert.doesNotThrow(() => { intervals.forEach(fn => fn()); }, 'injected polling callbacks must not throw ReferenceError');
+    check('injected polling callbacks exit cleanly on non-Axure plain HTML', true);
+  }
+
+  // 3. 搜索索引在节点字段原地同步后必须正确失效并命中新关键词
+  {
+    const searchStart = app.indexOf('var _searchDebounceTimer = null;');
+    const searchEnd = app.indexOf('// 清空搜索');
+    const execStart = app.indexOf('// 执行搜索匹配与高亮');
+    const execEnd = app.indexOf('// 根据 URL Hash 路由恢复项目定位', execStart);
+    const titleEl = { textContent: '示例原型', innerHTML: '示例原型' };
+    const rowAttrs = { 'data-name': '示例原型', 'data-creator-name': '旧负责人', 'data-versions': '[]' };
+    const rowData = { name: '示例原型', 'creator-name': '旧负责人', versions: [] };
+    const rowEl = {
+      style: { display: '' },
+      getAttribute: k => (k in rowAttrs ? rowAttrs[k] : null),
+      querySelector: sel => (sel === '.item-title' ? titleEl : null),
+      closest: () => ({ querySelector: sel => (sel === '.cat-name-text' ? { textContent: '默认目录' } : null) })
+    };
+    let observerCallback = null;
+    const $stub = target => {
+      if (target === rowEl) {
+        return {
+          data: (k, v) => {
+            if (v !== undefined) { rowData[k] = v; return $stub(target); }
+            return rowData[k];
+          },
+          closest: () => [{ querySelector: () => ({ textContent: '默认目录' }) }]
+        };
+      }
+      if (target === '.category-group') {
+        return {
+          show() { return this; },
+          each(cb) { cb.call({ querySelectorAll: () => [rowEl] }); }
+        };
+      }
+      return {
+        show() { return this; },
+        hide() { return this; },
+        removeClass() { return this; }
+      };
+    };
+    const searchCtx = {
+      RegExp, Array, JSON, MutationObserver: function(cb) { observerCallback = cb; this.observe = function() {}; },
+      document: {
+        getElementById: id => (id === 'categoryTree' ? {} : null),
+        querySelectorAll: sel => (sel === '.item-row' ? [rowEl] : [])
+      },
+      $: $stub,
+      addEventListener() {},
+      highlightSearchMatches: name => name
+    };
+    searchCtx.window = searchCtx;
+    vm.createContext(searchCtx);
+    vm.runInContext(app.slice(searchStart, searchEnd) + '\n' + app.slice(execStart, execEnd), searchCtx);
+
+    searchCtx.executeSearch('旧负责人');
+    check('initial search hits old creator and caches index', rowEl.style.display === '');
+
+    rowAttrs['data-creator-name'] = '新负责人甲';
+    rowData['creator-name'] = '新负责人甲';
+    if (observerCallback) observerCallback([{ type: 'attributes', attributeName: 'data-creator-name' }]);
+    searchCtx.executeSearch('新负责人甲');
+    check('search after attribute mutation finds updated creator name', rowEl.style.display === '');
+
+    rowAttrs['data-name'] = '改名后原型';
+    rowData['name'] = '改名后原型';
+    searchCtx.invalidateSidebarSearchIndex();
+    searchCtx.executeSearch('');
+    check('clearing search keeps updated title instead of stale cached name', titleEl.textContent === '改名后原型');
+  }
+
+  // 4. ver-picker 下拉方向键移动焦点并与 Space/Enter 统一提交当前高亮项
+  {
+    const pickerCode = fs.readFileSync(path.join(__dirname, '../../assets/js/ver-picker.js'), 'utf8');
+    function makeEl(tag) {
+      const listeners = {};
+      const classes = new Set();
+      const attrs = {};
+      const children = [];
+      const el = {
+        tagName: tag.toUpperCase(),
+        style: {},
+        hidden: false,
+        disabled: false,
+        children,
+        parentNode: null,
+        classList: {
+          add: (...c) => c.forEach(x => classes.add(x)),
+          remove: (...c) => c.forEach(x => classes.delete(x)),
+          toggle: (c, force) => { if (force === undefined ? !classes.has(c) : force) classes.add(c); else classes.delete(c); },
+          contains: c => classes.has(c)
+        },
+        set className(v) { classes.clear(); String(v).split(/\s+/).filter(Boolean).forEach(x => classes.add(x)); },
+        get className() { return Array.from(classes).join(' '); },
+        setAttribute: (k, v) => { attrs[k] = String(v); },
+        getAttribute: k => (k in attrs ? attrs[k] : null),
+        hasAttribute: k => (k in attrs),
+        removeAttribute: k => { delete attrs[k]; },
+        matches: () => false,
+        appendChild: child => { child.parentNode = el; child.parentElement = el; children.push(child); return child; },
+        insertBefore: (child, ref) => { child.parentNode = el; child.parentElement = el; const idx = children.indexOf(ref); if (idx >= 0) children.splice(idx, 0, child); else children.push(child); return child; },
+        addEventListener: (ev, fn) => { (listeners[ev] = listeners[ev] || []).push(fn); },
+        dispatchEvent: ev => {
+          (listeners[ev.type] || []).slice().forEach(fn => fn(ev));
+          return true;
+        },
+        focus: () => { docStub.activeElement = el; },
+        scrollIntoView: () => {},
+        contains: node => node === el || children.some(c => c.contains && c.contains(node)),
+        getBoundingClientRect: () => ({ left: 10, top: 10, right: 120, bottom: 40, width: 110, height: 30 }),
+        closest: sel => (sel === '.ver-picker-wrap' && el.parentNode && el.parentNode.classList.contains('ver-picker-wrap') ? el.parentNode : null),
+        set innerHTML(v) { if (v === '') children.length = 0; },
+        textContent: ''
+      };
+      return el;
+    }
+    const docStub = {
+      activeElement: null,
+      documentElement: { clientWidth: 1440, clientHeight: 900 },
+      body: makeEl('body'),
+      createElement: makeEl,
+      createDocumentFragment: () => makeEl('fragment'),
+      createEvent: () => ({ initEvent(t) { this.type = t; } }),
+      addEventListener() {},
+      getElementById: () => null,
+      querySelectorAll: () => []
+    };
+    const pickerCtx = {
+      document: docStub,
+      setTimeout, clearTimeout, Math, parseInt, isNaN, Array, Object, String,
+      Event: function(type) { this.type = type; },
+      innerWidth: 1440, innerHeight: 900,
+      addEventListener() {}
+    };
+    pickerCtx.window = pickerCtx;
+    vm.createContext(pickerCtx);
+    vm.runInContext(pickerCode, pickerCtx);
+
+    const hostWrap = makeEl('div');
+    hostWrap.className = 'ver-picker-wrap';
+    const selEl = makeEl('select');
+    selEl.id = 'barVerSelect';
+    selEl.className = 'top-ver-select';
+    const opt2 = makeEl('option'); opt2.value = 'v2'; opt2.textContent = 'v2'; opt2.disabled = false;
+    const opt1 = makeEl('option'); opt1.value = 'v1'; opt1.textContent = 'v1'; opt1.disabled = false;
+    selEl.appendChild(opt2);
+    selEl.appendChild(opt1);
+    selEl.options = [opt2, opt1];
+    selEl.selectedIndex = 0;
+    let changeEvents = 0;
+    selEl.addEventListener('change', () => { changeEvents++; });
+    hostWrap.appendChild(selEl);
+
+    pickerCtx.syncVersionPicker(selEl);
+    const inst = selEl._verPickerInst;
+    check('syncVersionPicker attaches picker instance cleanly', Boolean(inst));
+    inst.open();
+    check('ver-picker initially focuses active selected item v2', docStub.activeElement === inst.visibleItems[0]);
+
+    let prevented = false;
+    inst.menu.dispatchEvent({ type: 'keydown', key: 'ArrowDown', preventDefault() { prevented = true; } });
+    check('ArrowDown moves active class and real DOM focus synchronously to v1', prevented && inst.visibleItems[1].classList.contains('is-active') && docStub.activeElement === inst.visibleItems[1]);
+
+    let spacePrevented = false;
+    let spaceStopped = false;
+    inst.menu.dispatchEvent({ type: 'keydown', key: ' ', preventDefault() { spacePrevented = true; }, stopPropagation() { spaceStopped = true; } });
+    check('Space selects highlighted option v1 instead of old focus', spacePrevented && spaceStopped && !inst.isOpen && selEl.selectedIndex === 1 && changeEvents === 1);
+
+    inst.open();
+    inst.menu.dispatchEvent({ type: 'keydown', key: 'ArrowUp', preventDefault() {} });
+    check('ArrowUp moves active class and DOM focus back to v2', docStub.activeElement === inst.visibleItems[0]);
+    inst.menu.dispatchEvent({ type: 'keydown', key: 'Enter', preventDefault() {}, stopPropagation() {} });
+    check('Enter selects highlighted option v2', !inst.isOpen && selEl.selectedIndex === 0 && changeEvents === 2);
+  }
 
   console.log(JSON.stringify({passed:checks,scope:'actual JS with mocked network and DOM'}));
 })().catch(error => { console.error(error); process.exitCode=1; });

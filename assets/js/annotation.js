@@ -258,7 +258,9 @@
         statusFilter: 'all', // 'all', 'pending', 'resolved'
         list: [],
         pendingCount: 0,
-        loadedKey: ''
+        loadedKey: '',
+        inflightKey: '',
+        lastLoadedAt: 0
     };
 
     function syncComposer() {
@@ -389,8 +391,9 @@
                 updateActiveContext(true);
             }
             startContextWatcher();
-            if (AnnoState.loadedKey !== (AnnoState.itemId + ':' + AnnoState.verId)) {
-                window.loadAnnotations(true);
+            var ctxKey = AnnoState.itemId + ':' + AnnoState.verId;
+            if (AnnoState.itemId && AnnoState.inflightKey !== ctxKey) {
+                window.loadAnnotations();
             }
             if (AnnoState.statusFilter === 'previous') loadPreviousAnnotations();
             var input = document.getElementById('annoNewInput');
@@ -533,6 +536,8 @@
             AnnoState.list = [];
             AnnoState.pendingCount = 0;
             AnnoState.loadedKey = '';
+            AnnoState.inflightKey = '';
+            AnnoState.lastLoadedAt = 0;
             var input = document.getElementById('annoNewInput');
             if (input) input.value = '';
             var body = document.getElementById('annoListBody');
@@ -557,13 +562,15 @@
             AnnoState.list = [];
             AnnoState.pendingCount = 0;
             AnnoState.loadedKey = '';
+            AnnoState.inflightKey = '';
+            AnnoState.lastLoadedAt = 0;
             updateHeaderBadge();
             renderAnnotationList();
             return;
         }
 
         var ctxKey = AnnoState.itemId + ':' + AnnoState.verId;
-        AnnoState.loadedKey = ctxKey;
+        AnnoState.inflightKey = ctxKey;
 
         var url = 'api.php?action=list_annotations&item_id=' + AnnoState.itemId;
         if (AnnoState.verId) url += '&ver_id=' + AnnoState.verId;
@@ -575,17 +582,24 @@
         fetch(url)
         .then(function(r) { return r.json(); })
         .then(function(res) {
+            if (sequence === requestSequence && AnnoState.inflightKey === ctxKey) {
+                AnnoState.inflightKey = '';
+            }
             if (sequence !== requestSequence || contextSnapshot !== contextSequence || itemSnapshot !== AnnoState.itemId || versionSnapshot !== AnnoState.verId) return;
             if (res.success && res.data) {
                 AnnoState.list = res.data.list || [];
                 AnnoState.pendingCount = parseInt(res.data.pending_count, 10) || 0;
                 AnnoState.verId = res.data.ver_id || AnnoState.verId;
                 AnnoState.loadedKey = AnnoState.itemId + ':' + AnnoState.verId;
+                AnnoState.lastLoadedAt = Date.now();
                 updateHeaderBadge();
                 renderAnnotationList();
             }
         })
         .catch(function(err) {
+            if (sequence === requestSequence && AnnoState.inflightKey === ctxKey) {
+                AnnoState.inflightKey = '';
+            }
             if (contextSnapshot === contextSequence && AnnoState.loadedKey === ctxKey) {
                 AnnoState.loadedKey = '';
             }
@@ -1755,8 +1769,11 @@
                 if (AnnoState.filterMode === 'page') {
                     renderAnnotationList();
                 }
-                if (AnnoState.loadedKey !== (AnnoState.itemId + ':' + AnnoState.verId)) {
-                    window.loadAnnotations(true);
+                var ctxKey = AnnoState.itemId + ':' + AnnoState.verId;
+                var needsInitialLoad = (AnnoState.loadedKey !== ctxKey);
+                var needsStaleSync = (AnnoState.isOpen && Date.now() - (AnnoState.lastLoadedAt || 0) > 5000);
+                if (AnnoState.inflightKey !== ctxKey && (needsInitialLoad || needsStaleSync)) {
+                    window.loadAnnotations();
                 }
             }
         }

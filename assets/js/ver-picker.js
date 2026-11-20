@@ -328,13 +328,21 @@
                 }
             },
 
-            highlightIndex: function(idx, scrollIntoView) {
+            highlightIndex: function(idx, scrollIntoView, moveFocus) {
                 for (var i = 0; i < inst.visibleItems.length; i++) {
                     inst.visibleItems[i].classList.toggle('is-active', i === idx);
                 }
                 inst.activeIndex = idx;
-                if (scrollIntoView && idx >= 0 && inst.visibleItems[idx] && typeof inst.visibleItems[idx].scrollIntoView === 'function') {
-                    inst.visibleItems[idx].scrollIntoView({ block: 'nearest' });
+                var activeBtn = (idx >= 0 && inst.visibleItems[idx]) ? inst.visibleItems[idx] : null;
+                if (activeBtn && scrollIntoView && typeof activeBtn.scrollIntoView === 'function') {
+                    activeBtn.scrollIntoView({ block: 'nearest' });
+                }
+                if (activeBtn && moveFocus && typeof activeBtn.focus === 'function') {
+                    try {
+                        activeBtn.focus({ preventScroll: !!scrollIntoView });
+                    } catch (err) {
+                        activeBtn.focus();
+                    }
                 }
             },
 
@@ -463,14 +471,15 @@
             if (e.key === 'ArrowDown') {
                 e.preventDefault();
                 var next = (inst.activeIndex + 1) % inst.visibleItems.length;
-                inst.highlightIndex(next, true);
+                inst.highlightIndex(next, true, true);
             } else if (e.key === 'ArrowUp') {
                 e.preventDefault();
                 var prev = (inst.activeIndex <= 0 ? inst.visibleItems.length - 1 : inst.activeIndex - 1);
-                inst.highlightIndex(prev, true);
-            } else if (e.key === 'Enter') {
+                inst.highlightIndex(prev, true, true);
+            } else if (e.key === 'Enter' || e.key === ' ' || e.key === 'Spacebar') {
                 if (inst.activeIndex >= 0 && inst.visibleItems[inst.activeIndex]) {
                     e.preventDefault();
+                    e.stopPropagation();
                     var optIdx = parseInt(inst.visibleItems[inst.activeIndex].getAttribute('data-opt-index'), 10);
                     if (!isNaN(optIdx)) inst.selectOptionIndex(optIdx);
                 }

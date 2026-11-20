@@ -575,6 +575,14 @@ EOD;
             return true;
         } catch(e){ return false; }
     }
+    function isAxureEnvironment(){
+        try {
+            if(window['$' + 'axure']) return true;
+            if(document.getElementById('sitemapHost') || document.getElementById('sitemapTreeContainer')) return true;
+            if(document.querySelector && document.querySelector('.sitemapTree, .sitemapNode')) return true;
+        } catch(e){}
+        return false;
+    }
     function run(){
         var treeUl = document.querySelector('#sitemapTreeContainer ul.sitemapTree') || document.querySelector('.sitemapTree');
         if(!treeUl || !treeUl.children.length) return false;

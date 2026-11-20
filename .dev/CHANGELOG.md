@@ -7,6 +7,13 @@
 
 ## 发布前修复（全新版本，未发布）
 
+- 2026-11-20：修复近期代码审查（`.dev/docs/reviews/2026-11-20-recent-changes-review.md`）发现的 4 项 P2 问题并补全回归断言。
+  - **原型注入脚本补全 Axure 环境判定**：在 `includes/zip_handler.php` 注入给原型 HTML 的 `#protoloft-axure-sitemap-autonum` 自执行脚本内部补全 `isAxureEnvironment()` 定义，消除普通 HTML 原型页面轮询时触发的 `ReferenceError: isAxureEnvironment is not defined`。
+  - **批注抽屉关闭重开同步更新**：在 `assets/js/annotation.js` 中分离并发在途键 `inflightKey` 与已加载上下文键 `loadedKey`，仅拦截正在进行的同一上下文重复请求；用户关闭再打开批注抽屉、或抽屉处于开启态且距上次同步超过 5 秒切换原型页面时，均静默发起 `list_annotations` 重新拉取最新批注列表，避免遗漏其他成员新增批注。
+  - **搜索索引精准失效**：在 `assets/js/app.js` 新增全局 `invalidateSidebarSearchIndex()`，对 `#categoryTree` 绑定轻量化 `MutationObserver`（监听 `data-name` / `data-creator-name` / `data-versions` / `data-created-by` 属性、项目/目录增删及 `.cat-name-text` 变更，并用 `_isApplyingSearchHighlight` 避开搜索高亮自身变更），同时优先读取 DOM 最新属性、在个人改名热同步后显式使索引失效。
+  - **全站单选下拉焦点与空格提交同步**：在 `assets/js/ver-picker.js` 中扩展 `highlightIndex(idx, scrollIntoView, moveFocus)`，键盘 `ArrowDown`/`ArrowUp` 移动高亮时同步聚焦目标选项按钮，并在 `menu` `keydown` 中将 `Enter` 与 `Space`（`' '` / `'Spacebar'`）统一拦截并提交当前 `activeIndex` 选项。
+  - **验证与测试补强**：在 `.dev/tests/security_frontend_regression.js` 增补上述 4 项场景与 `ver-picker.js` 语法编译共 18 项自动化断言；通过无头 Chrome（CDP 1440×1000，主管理员/审阅人/分享访客）实机验证（控制台与 iframe 零 `pageerror`/`error`、抽屉重开同步 `协作者后发批注`、个人改名后搜索即时命中、`ArrowDown + Space` 与 `ArrowUp + Enter` 精确切换 `v1`/`v2`），并重新跑通全量测试 `python3 -B .dev/tests/run_all_tests.py --php /Users/yyy/.local/bin/php`（25/25 套 PASS，可识别断言 1,206 项，耗时 60.41s）。
+
 - 2026-11-19：全面优化浏览器端加载性能、缓存复用与运行时功耗（保持原有视觉细节与覆盖发版即时可见）。
   - **原型资产私有协商缓存**：在 `asset.php` 将 `Cache-Control: private, no-store` 调整为 `private, no-cache`，基于 `storage_dir` + 相对路径 + 文件大小/更新时间生成强 `ETag` 与 `Last-Modified`，命中 `If-None-Match` 返回 `304 Not Modified`；移除 `assets/js/app.js` 与 `share.php` 加载原型 `iframe` 时拼接的 `?t=Date.now()`。同名版本覆盖发布因 `storage_dir` 换新而自动失效缓存，未变更资产切回时直接走 `304` 零字节体复用。
   - **分钟级低耗防泄密水印**：将 `assets/js/app.js` 与 `share.php` 水印时间精度调整为 `YYYY-M-D HH:MM` 并按分钟级低频更新，在 `assets/js/watermark.js` 增加同文本早退缓存、最宽数字宽度缓存、CSS `--watermark-ink` 色值缓存与 Canvas 缓冲区复用，消除每秒主线程 PNG 编码与样式重算；同步调整 `.dev/tests/copy_consistency_frontend.js` 与 `.dev/tests/watermark_layout_browser.js` 分钟级断言。

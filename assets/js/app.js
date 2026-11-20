@@ -1058,8 +1058,55 @@ function highlightSearchMatches(text, tokens) {
 var _searchDebounceTimer = null;
 var _sidebarSearchCache = null;
 var _sidebarSearchCacheNodeCount = -1;
+var _sidebarSearchObserverBound = false;
+var _isApplyingSearchHighlight = false;
+
+window.invalidateSidebarSearchIndex = function() {
+    _sidebarSearchCache = null;
+    _sidebarSearchCacheNodeCount = -1;
+};
+
+function ensureSidebarSearchObserver() {
+    if (_sidebarSearchObserverBound || typeof MutationObserver === 'undefined') return;
+    var treeRoot = document.getElementById('categoryTree');
+    if (!treeRoot) return;
+    _sidebarSearchObserverBound = true;
+    var obs = new MutationObserver(function(muts) {
+        if (_isApplyingSearchHighlight || !_sidebarSearchCache) return;
+        for (var i = 0; i < muts.length; i++) {
+            var m = muts[i];
+            if (m.type === 'attributes') {
+                window.invalidateSidebarSearchIndex();
+                return;
+            }
+            var target = m.target;
+            if (m.type === 'characterData') {
+                var parentEl = target && target.parentElement;
+                if (parentEl && parentEl.closest && (parentEl.closest('.cat-name-text') || parentEl.closest('.item-title'))) {
+                    window.invalidateSidebarSearchIndex();
+                    return;
+                }
+                continue;
+            }
+            if (m.type === 'childList') {
+                if (!target || !target.classList || !target.classList.contains('item-title')) {
+                    window.invalidateSidebarSearchIndex();
+                    return;
+                }
+            }
+        }
+    });
+    obs.observe(treeRoot, {
+        childList: true,
+        subtree: true,
+        characterData: true,
+        attributes: true,
+        attributeFilter: ['data-name', 'data-creator-name', 'data-versions', 'data-created-by']
+    });
+}
 
 function getSidebarSearchIndex() {
+    ensureSidebarSearchObserver();
     var rows = document.querySelectorAll('.item-row');
     if (_sidebarSearchCache && _sidebarSearchCacheNodeCount === rows.length) {
         return _sidebarSearchCache;
@@ -1068,12 +1115,15 @@ function getSidebarSearchIndex() {
     for (var i = 0; i < rows.length; i++) {
         var row = rows[i];
         var $row = $(row);
-        var name = ($row.data('name') || '').toString();
-        var creator = ($row.data('creator-name') || '').toString();
+        var attrName = row.getAttribute('data-name');
+        var name = (attrName !== null ? attrName : ($row.data('name') || '')).toString();
+        var attrCreator = row.getAttribute('data-creator-name');
+        var creator = (attrCreator !== null ? attrCreator : ($row.data('creator-name') || '')).toString();
         var catGroup = row.closest ? row.closest('.category-group') : $row.closest('.category-group')[0];
         var catNameEl = catGroup ? catGroup.querySelector('.cat-name-text') : null;
         var catName = catNameEl ? (catNameEl.textContent || '').trim() : '';
-        var versionsData = $row.data('versions');
+        var attrVersions = row.getAttribute('data-versions');
+        var versionsData = attrVersions !== null ? attrVersions : $row.data('versions');
         var versionTexts = [];
         if (versionsData) {
             if (typeof versionsData === 'string') {
@@ -1137,68 +1187,73 @@ function executeSearch(kw) {
     var $emptyState = $('#searchEmptyState');
     var indexList = getSidebarSearchIndex();
 
-    if (!kw) {
-        $clearBtn.hide();
-        $emptyState.hide();
-        for (var i = 0; i < indexList.length; i++) {
-            var entry = indexList[i];
-            entry.row.style.display = '';
-            if (entry.titleEl && entry.name !== undefined) {
-                entry.titleEl.textContent = entry.name;
+    _isApplyingSearchHighlight = true;
+    try {
+        if (!kw) {
+            $clearBtn.hide();
+            $emptyState.hide();
+            for (var i = 0; i < indexList.length; i++) {
+                var entry = indexList[i];
+                entry.row.style.display = '';
+                if (entry.titleEl && entry.name !== undefined) {
+                    entry.titleEl.textContent = entry.name;
+                }
+            }
+            $('.category-group').show();
+            return;
+        }
+
+        $clearBtn.show();
+
+        // 空格多词拆分 (AND 查询)
+        var tokens = kw.toLowerCase().split(/\s+/).filter(Boolean);
+        var totalMatches = 0;
+
+        for (var j = 0; j < indexList.length; j++) {
+            var item = indexList[j];
+            var isMatch = tokens.length > 0 && tokens.every(function(t) {
+                return item.haystack.indexOf(t) > -1;
+            });
+
+            if (isMatch) {
+                item.row.style.display = '';
+                totalMatches++;
+                if (item.titleEl) {
+                    item.titleEl.innerHTML = highlightSearchMatches(item.name, tokens);
+                }
+            } else {
+                item.row.style.display = 'none';
+                if (item.titleEl) {
+                    item.titleEl.textContent = item.name;
+                }
             }
         }
-        $('.category-group').show();
-        return;
-    }
 
-    $clearBtn.show();
-
-    // 空格多词拆分 (AND 查询)
-    var tokens = kw.toLowerCase().split(/\s+/).filter(Boolean);
-    var totalMatches = 0;
-
-    for (var j = 0; j < indexList.length; j++) {
-        var item = indexList[j];
-        var isMatch = tokens.length > 0 && tokens.every(function(t) {
-            return item.haystack.indexOf(t) > -1;
+        // 智能展开/隐藏分类组
+        $('.category-group').each(function() {
+            var $cat = $(this);
+            var rows = this.querySelectorAll('.item-row');
+            var matchCountInCat = 0;
+            for (var k = 0; k < rows.length; k++) {
+                if (rows[k].style.display !== 'none') {
+                    matchCountInCat++;
+                    break;
+                }
+            }
+            if (matchCountInCat > 0) {
+                $cat.show().removeClass('collapsed');
+            } else {
+                $cat.hide();
+            }
         });
 
-        if (isMatch) {
-            item.row.style.display = '';
-            totalMatches++;
-            if (item.titleEl) {
-                item.titleEl.innerHTML = highlightSearchMatches(item.name, tokens);
-            }
+        if (totalMatches === 0) {
+            $emptyState.show();
         } else {
-            item.row.style.display = 'none';
-            if (item.titleEl) {
-                item.titleEl.textContent = item.name;
-            }
+            $emptyState.hide();
         }
-    }
-
-    // 智能展开/隐藏分类组
-    $('.category-group').each(function() {
-        var $cat = $(this);
-        var rows = this.querySelectorAll('.item-row');
-        var matchCountInCat = 0;
-        for (var k = 0; k < rows.length; k++) {
-            if (rows[k].style.display !== 'none') {
-                matchCountInCat++;
-                break;
-            }
-        }
-        if (matchCountInCat > 0) {
-            $cat.show().removeClass('collapsed');
-        } else {
-            $cat.hide();
-        }
-    });
-
-    if (totalMatches === 0) {
-        $emptyState.show();
-    } else {
-        $emptyState.hide();
+    } finally {
+        _isApplyingSearchHighlight = false;
     }
 }
 
@@ -1777,6 +1832,9 @@ function handleSaveProfile(e) {
                         $node.attr('data-creator-name', newName).data('creator-name', newName);
                     }
                 });
+                if (typeof invalidateSidebarSearchIndex === 'function') {
+                    invalidateSidebarSearchIndex();
+                }
 
                 // 2. 同步控制中心表格
                 $('#overviewTableProjects tbody tr[data-item-id]').each(function() {
