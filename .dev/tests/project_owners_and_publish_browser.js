@@ -52,9 +52,12 @@ function check(label, value) {
         await adminPage.locator('#btnQuickAdd').click();
         await adminPage.locator('#quickAddMenu button:has-text("新建项目")').click();
         await adminPage.locator('#itemModal').waitFor({ state: 'visible' });
-        const defaultOwnersText = await adminPage.locator('#itemOwnersTags').innerText();
-        check('新建项目默认负责人显示「全部协作者」', defaultOwnersText.includes('全部协作者'));
-        await adminPage.screenshot({ path: path.join(fixture.artifacts, '01-admin-new-project-default.png') });
+        check('新建项目以协作权限表达默认全员管理版本和分享',
+            await adminPage.locator('#itemCollaborationScope').inputValue() === 'all'
+            && (await adminPage.locator('#itemCollaborationScope option:checked').textContent()).includes('管理版本和分享')
+            && (await adminPage.locator('label[for="itemCollaborationScope"]').innerText()) === '协作权限');
+        check('默认全员模式隐藏成员多选，避免被当作项目署名', !(await adminPage.locator('#itemOwnersSelection').isVisible()));
+        await adminPage.screenshot({ animations: 'disabled', path: path.join(fixture.artifacts, '01-admin-new-project-default.png') });
 
         await adminPage.locator('#itemName').fill('全员开放原型');
         await Promise.all([
@@ -68,13 +71,26 @@ function check(label, value) {
         await adminPage.locator('#quickAddMenu button:has-text("新建项目")').click();
         await adminPage.locator('#itemModal').waitFor({ state: 'visible' });
         await adminPage.locator('#itemName').fill('专属锁定原型');
+        await adminPage.locator('#itemCollaborationScope').selectOption('selected');
+        check('选择指定成员后才出现成员多选', await adminPage.locator('#itemOwnersSelection').isVisible());
+        await adminPage.evaluate(() => { cachedUsersMap = {}; loadUserList(); });
+        await adminPage.waitForFunction(id => !!cachedUsersMap[id], fixture.editorAId);
+        check('候选名单重绘保留空的指定模式', await adminPage.locator('#itemCollaborationScope').inputValue() === 'selected' && await adminPage.locator('#itemCollaborators').inputValue() === '');
+        let blockedSaves = 0;
+        const countSave = request => { if (request.url().includes('api.php') && (request.postData() || '').includes('item_save')) blockedSaves++; };
+        adminPage.on('request', countSave);
+        await adminPage.locator('#btnItemSubmit').click();
+        await adminPage.locator('#itemCollaboratorsError').waitFor({ state: 'visible' });
+        check('空指定名单阻止保存并给出就地提示', blockedSaves === 0 && (await adminPage.locator('#itemCollaboratorsError').innerText()).includes('至少选择一位') && !(await adminPage.locator('#btnItemSubmit').isDisabled()));
+        adminPage.off('request', countSave);
         await adminPage.locator('#itemOwnersTrigger').click();
         await adminPage.locator('#itemOwnersMenu').waitFor({ state: 'visible' });
         await adminPage.locator(`#itemOwnersOptions input[value="${fixture.adminId}"]`).check();
         await adminPage.locator(`#itemOwnersOptions input[value="${fixture.editorAId}"]`).check();
         const selectedBadges = await adminPage.locator('#itemOwnersTags').innerText();
-        check('多选项目负责人触发框实时渲染名字胶囊', selectedBadges.includes('测试超管') && selectedBadges.includes('协作者A'));
-        await adminPage.screenshot({ path: path.join(fixture.artifacts, '02-admin-multi-owners-dropdown.png') });
+        check('选择成员后清除空名单错误', await adminPage.locator('#itemCollaboratorsError').innerText() === '' && await adminPage.locator('#itemOwnersTrigger').getAttribute('aria-invalid') === null);
+        check('多选协作成员触发框实时渲染名字胶囊', selectedBadges.includes('测试超管') && selectedBadges.includes('协作者A'));
+        await adminPage.screenshot({ animations: 'disabled', path: path.join(fixture.artifacts, '02-admin-multi-owners-dropdown.png') });
         await adminPage.locator('#itemModalTitle').click();
         await Promise.all([
             adminPage.waitForNavigation({ waitUntil: 'load' }),
@@ -85,11 +101,12 @@ function check(label, value) {
         // 验证管理员控制中心表格展示
         await openProjects(adminPage);
         await adminPage.locator('#adminConsoleModal').waitFor({ state: 'visible' });
+        check('项目列表表头使用协作权限', (await adminPage.locator('#overviewTableProjects thead').innerText()).includes('协作权限'));
         const openRowText = await adminPage.locator('#overviewTableProjects tr:has-text("全员开放原型")').innerText();
         const lockRowText = await adminPage.locator('#overviewTableProjects tr:has-text("专属锁定原型")').innerText();
-        check('控制中心表格正确展示「全部协作者」及创建者兜底', openRowText.includes('全部协作者') && openRowText.includes('测试超管'));
-        check('控制中心表格正确展示多选指定负责人姓名', lockRowText.includes('测试超管、协作者A'));
-        await adminPage.screenshot({ path: path.join(fixture.artifacts, '03-admin-console-owners-table.png') });
+        check('控制中心以权限表达全员协作，创建者仍自动记录', openRowText.includes('所有协作者') && !openRowText.includes('测试超管') && await adminPage.locator('#overviewTableProjects tr:has-text("全员开放原型")').getAttribute('data-created-by') === String(fixture.adminId));
+        check('控制中心表格正确展示多选指定负责人姓名', lockRowText.includes('仅测试超管、协作者A'));
+        await adminPage.screenshot({ animations: 'disabled', path: path.join(fixture.artifacts, '03-admin-console-owners-table.png') });
         await adminSession.ctx.close();
 
         // 2. 协作者 B 登录，测试悬浮上传、发布版本弹窗与受保护项目隔离
@@ -109,7 +126,7 @@ function check(label, value) {
         const uploadOptionsText = await bPage.locator('#uploadItemSelect').innerText();
         check('悬浮点击上传直达发布版本弹窗且下拉包含开放项目、排除他人锁定项目',
             uploadOptionsText.includes('全员开放原型') && !uploadOptionsText.includes('专属锁定原型'));
-        await bPage.screenshot({ path: path.join(fixture.artifacts, '04-editor-b-open-project-upload.png') });
+        await bPage.screenshot({ animations: 'disabled', path: path.join(fixture.artifacts, '04-editor-b-open-project-upload.png') });
         await bPage.locator('#uploadModal .close-x').click();
 
         // 点击左上角 + -> 发布版本 -> 直接打开 uploadModal，不再误跳新建项目
@@ -138,7 +155,7 @@ function check(label, value) {
         check('协作者B在控制中心对锁定项目显示「受保护」且无上传按钮',
             (await bLockRow.locator('button[title="发布新版本"]').count()) === 0
             && (await bLockRow.innerText()).includes('受保护'));
-        await bPage.screenshot({ path: path.join(fixture.artifacts, '05-editor-b-console-permissions.png') });
+        await bPage.screenshot({ animations: 'disabled', path: path.join(fixture.artifacts, '05-editor-b-console-permissions.png') });
         await bPage.locator('#adminConsoleModal .close-x').click();
 
         // 3. 当管理员把唯一开放项目也锁定为仅 [协作者A] 后，协作者B点击「发布版本」提示不可发版而不误跳新建项目
@@ -147,6 +164,7 @@ function check(label, value) {
         await openProjects(adminEditPage);
         await adminEditPage.locator('#overviewTableProjects tr:has-text("全员开放原型") button[title="编辑属性"]').click();
         await adminEditPage.locator('#itemModal').waitFor({ state: 'visible' });
+        await adminEditPage.locator('#itemCollaborationScope').selectOption('selected');
         await adminEditPage.locator('#itemOwnersTrigger').click();
         await adminEditPage.locator(`#itemOwnersOptions input[value="${fixture.editorAId}"]`).check();
         await adminEditPage.locator('#itemModalTitle').click();
@@ -162,7 +180,7 @@ function check(label, value) {
         check('全站项目均锁定给他人时，协作者B点「发布版本」不误开「新建项目」而是给出提示',
             !(await bPage.locator('#itemModal').isVisible())
             && (await bPage.locator('.toast-item').innerText()).includes('暂无可发布版本的项目'));
-        await bPage.screenshot({ path: path.join(fixture.artifacts, '06-editor-b-no-editable-project-toast.png') });
+        await bPage.screenshot({ animations: 'disabled', path: path.join(fixture.artifacts, '06-editor-b-no-editable-project-toast.png') });
         await bSession.ctx.close();
 
         // 4. 创建者指定他人后，即时收回发版入口；恢复全部协作者后即时恢复。
@@ -177,6 +195,7 @@ function check(label, value) {
         await aPage.reload();
         await openProjects(aPage);
         await aRow.locator('button[title="编辑属性"]').click();
+        await aPage.locator('#itemCollaborationScope').selectOption('selected');
         await aPage.locator('#itemOwnersTrigger').click();
         await aPage.locator(`#itemOwnersOptions input[value="${fixture.editorBId}"]`).check();
         await aPage.locator('#itemModalTitle').click();
@@ -190,8 +209,8 @@ function check(label, value) {
         check('创建者仍保留编辑负责人和删除项目入口',
             await aRow.locator('button[title="编辑属性"]').count() === 1 && await aRow.locator('button[title="删除"]').count() === 1);
         await aRow.locator('button[title="编辑属性"]').click();
-        await aPage.locator('#itemOwnersTrigger').click();
-        await aPage.locator('#itemOwnersMenu button:has-text("全部协作者")').click();
+        await aPage.locator('#itemCollaborationScope').selectOption('all');
+        check('切回全员模式立即清空成员值并收起名单', await aPage.locator('#itemCollaborators').inputValue() === '' && !(await aPage.locator('#itemOwnersSelection').isVisible()));
         await saveModal(aPage);
         check('切回全部协作者后，无刷新恢复表格、侧栏和发布下拉入口',
             await aRow.getAttribute('data-can-edit') === '1'
@@ -207,11 +226,12 @@ function check(label, value) {
         await aPage.locator('#itemLinkUrl').fill('https://example.com');
         await saveModal(aPage);
         const linkRow = aPage.locator('#overviewTableLinks tr:has-text("外部演示")');
-        check('外链列表展示创建者且不混入全部协作者', (await linkRow.innerText()).includes('协作者A') && !(await linkRow.innerText()).includes('全部协作者'));
+        check('外链列表展示创建者且不混入全部协作者', (await linkRow.innerText()).includes('协作者A') && !(await linkRow.innerText()).includes('所有协作者'));
 
         // 保留唯一已停用的负责人，不得因候选名单重绘而静默切为全员开放。
         await aPage.locator('#btnSubtabProjects').click();
         await aRow.locator('button[title="编辑属性"]').click();
+        await aPage.locator('#itemCollaborationScope').selectOption('selected');
         await aPage.locator('#itemOwnersTrigger').click();
         await aPage.locator(`#itemOwnersOptions input[value="${fixture.editorBId}"]`).check();
         await aPage.locator('#itemModalTitle').click();
@@ -230,10 +250,11 @@ function check(label, value) {
         await aPage.waitForFunction(id => cachedUsersMap[id] && cachedUsersMap[id].status === 3, fixture.editorBId);
         check('重绘成员候选不清空已停用负责人', await aPage.locator('#itemCollaborators').inputValue() === String(fixture.editorBId));
         await aPage.setViewportSize({ width: 1024, height: 768 });
+        await aPage.locator('#itemCollaborationScope').selectOption('selected');
         await aPage.locator('#itemOwnersTrigger').click();
         const menuBounds = await aPage.locator('#itemOwnersMenu').boundingBox();
         check('1024 屏幕负责人菜单位于可视范围', menuBounds.x >= 0 && menuBounds.y >= 0 && menuBounds.x + menuBounds.width <= 1024 && menuBounds.y + menuBounds.height <= 768);
-        await aPage.screenshot({ path: path.join(fixture.artifacts, '07-inactive-owner-preserved-1024.png') });
+        await aPage.screenshot({ animations: 'disabled', path: path.join(fixture.artifacts, '07-inactive-owner-preserved-1024.png') });
         await aPage.locator('#itemModalTitle').click();
         await saveModal(aPage);
 
@@ -254,7 +275,7 @@ function check(label, value) {
         check('交接同步侧栏指定负责人', await adminFinalPage.locator(`#item-node-${aId}`).getAttribute('data-collaborators') === String(fixture.adminId));
         await finalRow.locator('button[title="编辑属性"]').click();
         check('交接后的编辑弹窗不恢复原负责人', await adminFinalPage.locator('#itemCollaborators').inputValue() === String(fixture.adminId));
-        await adminFinalPage.screenshot({ path: path.join(fixture.artifacts, '08-handover-owner-synced.png') });
+        await adminFinalPage.screenshot({ animations: 'disabled', path: path.join(fixture.artifacts, '08-handover-owner-synced.png') });
         await aSession.ctx.close();
         await adminFinalSession.ctx.close();
 

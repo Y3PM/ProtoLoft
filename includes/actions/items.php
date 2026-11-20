@@ -79,11 +79,16 @@ switch ($action) {
         if ($type === 'link') {
             $webhookUrl = '';
         }
-        $hasCollaboratorsParam = array_key_exists('collaborators', $_POST);
-        if ($hasCollaboratorsParam && !is_string($_POST['collaborators'])) jsonResponse(false, null, '项目负责人格式不正确');
+        $hasScopeParam = array_key_exists('collaboration_scope', $_POST);
+        $scope = $hasScopeParam ? $_POST['collaboration_scope'] : null;
+        if ($hasScopeParam && !in_array($scope, ['all', 'selected'], true)) jsonResponse(false, null, '请选择有效的协作权限');
+        $hasCollaboratorsParam = array_key_exists('collaborators', $_POST) || $hasScopeParam;
+        if (array_key_exists('collaborators', $_POST) && !is_string($_POST['collaborators'])) jsonResponse(false, null, '协作成员格式不正确');
         $collaborators = trim($_POST['collaborators'] ?? '');
+        if ($scope === 'all') $collaborators = '';
+        if ($scope === 'selected' && $collaborators === '') jsonResponse(false, null, '请至少选择一位协作成员');
         if ($collaborators !== '') {
-            if (!preg_match('/^[1-9][0-9]*(\s*,\s*[1-9][0-9]*)*$/D', $collaborators)) jsonResponse(false, null, '项目负责人格式不正确');
+            if (!preg_match('/^[1-9][0-9]*(\s*,\s*[1-9][0-9]*)*$/D', $collaborators)) jsonResponse(false, null, '协作成员格式不正确');
             $cArr = array_values(array_unique(array_filter(array_map('intval', explode(',', $collaborators)), function($v) { return $v > 0; })));
             $collaborators = implode(',', $cArr);
         } else {
@@ -129,11 +134,11 @@ switch ($action) {
                 }
                 if (!array_key_exists('watermark_enabled', $_POST)) $watermarkEnabled = (int)$oldItem['watermark_enabled'];
                 if (!Auth::canManageItemConfig($oldItem, $currentUser)) {
-                    jsonResponse(false, null, '您不是该项目的创建者或指定负责人，无权修改其配置');
+                    jsonResponse(false, null, '您不是该项目的创建者或指定协作成员，无权修改其配置');
                 }
 
                 if ($hasCollaboratorsParam && $collaborators !== $oldCollabNormalized && !Auth::canEditItemOwners($oldItem, $currentUser)) {
-                    jsonResponse(false, null, '仅管理员或项目创建者可调整项目负责人');
+                    jsonResponse(false, null, '仅管理员或项目创建者可调整协作权限');
                 }
                 if ($hasCollaboratorsParam && !empty($cArr)) {
                     $placeholders = implode(',', array_fill(0, count($cArr), '?'));
@@ -148,7 +153,7 @@ switch ($action) {
                         $isValidActive = $uRow && in_array($uRow['role'], ['admin', 'editor'], true) && (int)$uRow['status'] === 1;
                         $wasExistingOwner = in_array($cid, $oldCollabArr, true);
                         if (!$isValidActive && !$wasExistingOwner) {
-                            jsonResponse(false, null, '项目负责人必须是正常状态的管理员或协作者');
+                            jsonResponse(false, null, '协作成员必须是正常状态的管理员或协作者');
                         }
                     }
                 }
@@ -189,7 +194,7 @@ switch ($action) {
                     $uCheck->execute($cArr);
                     $validIds = array_map('intval', $uCheck->fetchAll(PDO::FETCH_COLUMN));
                     if (count($validIds) !== count($cArr)) {
-                        jsonResponse(false, null, '项目负责人必须是正常状态的管理员或协作者');
+                        jsonResponse(false, null, '协作成员必须是正常状态的管理员或协作者');
                     }
                 }
 
@@ -259,7 +264,7 @@ switch ($action) {
         $row = $curr->fetch();
         if ($row) {
             if (!Auth::canManageItemConfig($row)) {
-                jsonResponse(false, null, '您不是该项目的创建者或指定负责人，无权修改其可见性');
+                jsonResponse(false, null, '您不是该项目的创建者或指定协作成员，无权修改其可见性');
             }
             $newVis = $row['is_visible'] ? 0 : 1;
             $stmt = $db->prepare("UPDATE items SET is_visible = ? WHERE id = ?");

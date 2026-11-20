@@ -2808,13 +2808,9 @@ function renderItemOwnersCellHtml(collaboratorsStr, creatorName) {
     if (ids.length > 0) {
         var names = ids.map(getOwnerDisplayName);
         var fullText = names.join('、');
-        return '<span title="' + esc(fullText) + '">' + esc(fullText) + '</span>';
+        return '<span title="版本与分享：仅' + esc(fullText) + '">仅' + esc(fullText) + '</span>';
     }
-    var safeCreator = String(creatorName || '').trim();
-    if (safeCreator) {
-        return '<span title="项目创建者：' + esc(safeCreator) + '">全部协作者 <span class="item-owner-creator">(' + esc(safeCreator) + ')</span></span>';
-    }
-    return '<span>全部协作者</span>';
+    return '<span title="版本与分享：所有协作者">所有协作者</span>';
 }
 window.renderItemOwnersCellHtml = renderItemOwnersCellHtml;
 
@@ -2884,6 +2880,16 @@ function toggleItemOwnersDropdown(e) {
     }
 }
 
+function onItemCollaborationScopeChange() {
+    var scope = document.getElementById('itemCollaborationScope');
+    var selection = document.getElementById('itemOwnersSelection');
+    var isSelected = scope && scope.value === 'selected';
+    if (selection) selection.hidden = !isSelected;
+    if (typeof clearFieldError === 'function') clearFieldError(document.getElementById('itemOwnersTrigger'));
+    if (!isSelected) clearItemOwnersSelection();
+    else onItemOwnersChange();
+}
+
 function onItemOwnersChange() {
     var optionsEl = document.getElementById('itemOwnersOptions');
     var hiddenEl = document.getElementById('itemCollaborators');
@@ -2908,7 +2914,7 @@ function onItemOwnersChange() {
     }
 
     if (selectedNames.length === 0) {
-        tagsWrap.innerHTML = '<span class="item-owner-placeholder">全部协作者</span>';
+        tagsWrap.innerHTML = '<span class="item-owner-placeholder">选择协作成员</span>';
     } else if (selectedNames.length <= 3) {
         var html = '';
         selectedNames.forEach(function(name) {
@@ -2918,6 +2924,7 @@ function onItemOwnersChange() {
     } else {
         tagsWrap.innerHTML = '<span class="badge-tag badge-primary">' + esc(selectedNames[0]) + ' 等 ' + selectedNames.length + ' 人</span>';
     }
+    if (selectedNames.length > 0 && typeof clearFieldError === 'function') clearFieldError(document.getElementById('itemOwnersTrigger'));
 }
 
 function clearItemOwnersSelection() {
@@ -2937,6 +2944,11 @@ function setItemOwnersSelection(collaboratorsStr, canEditOwners) {
     var optionsEl = document.getElementById('itemOwnersOptions');
     var hiddenEl = document.getElementById('itemCollaborators');
     var selectedIds = parseOwnerIds(collaboratorsStr);
+    var scope = document.getElementById('itemCollaborationScope');
+    var selection = document.getElementById('itemOwnersSelection');
+    if (scope) scope.value = selectedIds.length ? 'selected' : 'all';
+    if (selection) selection.hidden = selectedIds.length === 0;
+    if (typeof clearFieldError === 'function') clearFieldError(document.getElementById('itemOwnersTrigger'));
     if (hiddenEl) hiddenEl.value = selectedIds.join(',');
     if (group) {
         group.setAttribute('data-can-edit-owners', canEditOwners ? '1' : '0');
@@ -2975,6 +2987,8 @@ function setItemOwnersSelection(collaboratorsStr, canEditOwners) {
 function syncAuthorSelectOptions() {
     var optionsEl = document.getElementById('itemOwnersOptions');
     if (!optionsEl || typeof cachedUsersMap === 'undefined') return;
+    var scope = document.getElementById('itemCollaborationScope');
+    var previousScope = scope ? scope.value : 'all';
 
     var curSelected = [];
     optionsEl.querySelectorAll('input.item-owner-cb:checked').forEach(function(cb) {
@@ -3003,6 +3017,10 @@ function syncAuthorSelectOptions() {
     optionsEl.innerHTML = html;
     var group = document.getElementById('itemOwnersGroup');
     setItemOwnersSelection(curSelected.join(','), !!group && group.getAttribute('data-can-edit-owners') === '1');
+    if (scope && previousScope === 'selected') {
+        scope.value = 'selected';
+        onItemCollaborationScopeChange();
+    }
     var typeEl = document.getElementById('itemType');
     if (typeEl) toggleItemType(typeEl.value);
 }
@@ -3342,7 +3360,17 @@ function handleItemSave(e) {
     var submittedCollaborators = null;
     if (ownersGroup && ownersGroup.style && ownersGroup.style.display !== 'none' && ownersInput) {
         hasSubmittedCollaborators = true;
-        submittedCollaborators = ownersInput.value || '';
+        var scopeSelect = document.getElementById('itemCollaborationScope');
+        var scopeValue = scopeSelect ? scopeSelect.value : 'all';
+        submittedCollaborators = scopeValue === 'selected' ? (ownersInput.value || '') : '';
+        if (scopeValue === 'selected' && !submittedCollaborators) {
+            if (btn) btn.disabled = false;
+            if (typeof setFieldError === 'function') {
+                setFieldError(document.getElementById('itemOwnersTrigger'), document.getElementById('itemCollaboratorsError'), '请至少选择一位协作成员');
+            } else showToast('请至少选择一位协作成员', 'warning');
+            return;
+        }
+        fd.append('collaboration_scope', scopeValue);
         fd.append('collaborators', submittedCollaborators);
     }
 
@@ -6361,7 +6389,7 @@ function openQuickUploadModal() {
     var $sel = $('#uploadItemSelect');
     if (!$sel.length || !$sel.find('option').length) {
         if ($('.item-row[data-type="project"]').length > 0) {
-            showToast('暂无可发布版本的项目，请新建项目或联系项目创建者将您设为负责人', 'warning');
+            showToast('暂无可发布版本的项目，请新建项目或联系创建者授权协作', 'warning');
             return;
         }
         setQuickCreateFlow(createQuickCreateFlow('upload', true));

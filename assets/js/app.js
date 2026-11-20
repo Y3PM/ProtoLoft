@@ -1857,7 +1857,7 @@ function handleSaveProfile(e) {
                             $row.find('td').eq(colIdx).html(renderItemOwnersCellHtml(collabStr, cName));
                         }
                     } else if (isCreatorRow && !collabStr) {
-                        $row.find('td').eq(colIdx).html('<span title="默认全部协作者可发版；项目归属：' + esc(newName) + '">全部协作者 <span class="item-owner-creator">(' + esc(newName) + ')</span></span>');
+                        $row.find('td').eq(colIdx).text('所有协作者');
                     }
                 });
 

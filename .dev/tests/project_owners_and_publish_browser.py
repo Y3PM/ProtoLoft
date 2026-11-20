@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Chrome E2E: 项目负责人默认全部协作者、多选指定负责人及协作者悬浮/发布版本验证"""
+"""Chrome E2E: 方案 A：协作权限模式、成员多选与发版入口验证"""
 import argparse
 import json
 import os
@@ -37,7 +37,7 @@ def main():
         })
         assert ed_a.get('success') and ed_b.get('success')
 
-        artifact_dir = ROOT / '.dev' / 'tmp' / 'project-owners-verify'
+        artifact_dir = ROOT / '.dev' / 'tmp' / 'collaboration-scope-a-verify'
         artifact_dir.mkdir(parents=True, exist_ok=True)
         fixture = {
             'base': base,

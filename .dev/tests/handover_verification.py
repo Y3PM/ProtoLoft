@@ -203,7 +203,7 @@ def main():
         assert 'data-creator-name="李四"' in home_after, "Index item node should now have creator-name 李四"
         # 控制中心表格中的负责人列与 DOM 属性
         assert f'id="admin-item-row-{item_id}"' in home_after and f'data-created-by="{editorB_id}"' in home_after, "Admin item row must carry data-created-by attribute"
-        assert '全部协作者' in home_after and '(李四)' in home_after, "Overview table should show 全部协作者 (李四) as open project owner"
+        assert '所有协作者' in home_after, "Overview table should show all-collaborator scope separately from creator metadata"
         # 验证没有残留 "-" 或空
         assert '<td style="padding:9px 12px;color:var(--text-2);">-</td>' not in home_after, "Overview table should not show empty dash"
         # 验证负责人多选框中包含李四
@@ -239,7 +239,7 @@ def main():
         st, home_c, _ = admin.request('index.php')
         # 必须兜底显示 editorc@protoloft.local，而不是 "-" 或空
         assert 'data-creator-name="editorc@protoloft.local"' in home_c, "Creator name should fallback to email when name is empty"
-        assert '(editorc@protoloft.local)' in home_c, "Table TD should fallback to email"
+        assert '所有协作者' in home_c, "Scope cell must stay separate from creator email"
         passed_count += 1
         print(" [✓] 6. 姓名为空时邮箱兜底验证通过: 成功展示为 editorc@protoloft.local，杜绝破损")
 

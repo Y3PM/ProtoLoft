@@ -69,6 +69,15 @@ def main():
 
         open_id = project(a, 'Open')
         check('new project defaults to all collaborators', row(open_id)['collaborators'] == '')
+        empty_selection = save(a, open_id, collaboration_scope='selected', collaborators='')
+        check('explicit selected scope requires a member', not empty_selection['success'] and '至少选择一位' in empty_selection['message'])
+        check('invalid selection preserves existing open scope', row(open_id)['collaborators'] == '')
+        check('invalid collaboration mode rejected', not save(a, open_id, collaboration_scope='invalid')['success'])
+        new_empty = a.api('item_save', {'category_id': folder, 'name': 'Empty selection', 'type': 'project', 'collaboration_scope': 'selected'})
+        check('new project cannot silently open an empty selected scope', not new_empty['success'])
+        check('explicit selected scope saves the chosen members', save(a, open_id, collaboration_scope='selected', collaborators=str(ids['a']))['success'] and row(open_id)['collaborators'] == str(ids['a']))
+        check('another editor cannot clear explicit selected scope', not save(b, open_id, collaboration_scope='all')['success'])
+        check('explicit all scope clears stale selected members', save(a, open_id, collaboration_scope='all', collaborators=str(ids['a']))['success'] and row(open_id)['collaborators'] == '')
         version = publish(b, open_id, 'B version', rp=True)
         check('another collaborator can publish to open project', version > 0)
         check('another collaborator can manage open project sharing', b.api('item_save_share', {'id': open_id, 'access_password': '123'})['success'])
@@ -88,6 +97,7 @@ def main():
 
         limited = project(a, 'Limited', str(ids['b']))
         check('creator outside selected scope cannot publish', not a.api('version_check_name', {'item_id': limited, 'version_name': 'V1'})['success'])
+        check('empty selected edit preserves a restricted project', not save(a, limited, collaboration_scope='selected', collaborators='')['success'] and row(limited)['collaborators'] == str(ids['b']))
         check('selected owner can publish', publish(b, limited, 'V1') > 0)
         check('creator can retain control of scope', save(a, limited, collaborators=str(ids['b']))['success'])
         check('selected owner can edit basic config', save(b, limited)['success'])

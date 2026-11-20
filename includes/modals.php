@@ -21,17 +21,9 @@ $renderItemOwnersCell = function($item, $usersMap) {
             }
         }
         $fullText = implode('、', $names);
-        return '<span title="' . htmlspecialchars($fullText, ENT_QUOTES, 'UTF-8') . '">' . htmlspecialchars($fullText) . '</span>';
+        return '<span title="版本与分享：仅' . htmlspecialchars($fullText, ENT_QUOTES, 'UTF-8') . '">仅' . htmlspecialchars($fullText) . '</span>';
     }
-    $creatorName = trim((string)($item['creator_name'] ?? ''));
-    if ($creatorName === '' && !empty($item['created_by'])) {
-        $cu = $usersMap[(int)$item['created_by']] ?? null;
-        if ($cu) $creatorName = !empty($cu['name']) ? $cu['name'] : $cu['email'];
-    }
-    if ($creatorName !== '') {
-        return '<span title="项目创建者：' . htmlspecialchars($creatorName, ENT_QUOTES, 'UTF-8') . '">全部协作者 <span class="item-owner-creator">(' . htmlspecialchars($creatorName) . ')</span></span>';
-    }
-    return '<span>全部协作者</span>';
+    return '<span title="版本与分享：所有协作者">所有协作者</span>';
 };
 ?>
 <?php if ($canManage): ?>
@@ -344,20 +336,21 @@ $renderItemOwnersCell = function($item, $usersMap) {
             </div>
 
             <div class="m-form-group item-owners-group" id="itemOwnersGroup">
-                <label class="m-label" id="itemOwnersLabel">
-                    <span>项目负责人</span>
-                </label>
+                <label class="m-label" for="itemCollaborationScope">协作权限</label>
+                <select id="itemCollaborationScope" class="m-select" onchange="onItemCollaborationScopeChange()" aria-controls="itemOwnersSelection">
+                    <option value="all">所有协作者可管理版本和分享</option>
+                    <option value="selected">仅指定成员可管理版本和分享</option>
+                </select>
                 <input type="hidden" id="itemCollaborators" value="">
-                <button type="button" id="itemOwnersTrigger" class="m-input m-input-trigger" aria-labelledby="itemOwnersLabel" aria-expanded="false" aria-controls="itemOwnersMenu" onclick="toggleItemOwnersDropdown(event)">
+                <div id="itemOwnersSelection" class="item-owners-selection" hidden>
+                <label class="m-label" id="itemOwnersLabel">协作成员</label>
+                <button type="button" id="itemOwnersTrigger" class="m-input m-input-trigger" aria-labelledby="itemOwnersLabel" aria-describedby="itemCollaboratorsError" data-error-target="itemCollaboratorsError" aria-expanded="false" aria-controls="itemOwnersMenu" onclick="toggleItemOwnersDropdown(event)">
                     <span id="itemOwnersTags" class="item-owners-tags"></span>
                     <i class="ri-arrow-down-s-line item-owners-arrow"></i>
                 </button>
                 <div id="itemOwnersMenu" class="mcp-dropdown-menu" role="group" aria-labelledby="itemOwnersLabel" style="display:none;" onclick="event.stopPropagation()">
                     <div class="mcp-dropdown-header">
-                        <span>选择负责人</span>
-                        <div class="mcp-dropdown-tools">
-                            <button type="button" class="inline-action-btn is-primary" onclick="clearItemOwnersSelection()">全部协作者</button>
-                        </div>
+                        <span>选择协作成员</span>
                     </div>
                     <div id="itemOwnersOptions" class="mcp-dropdown-options">
                         <?php foreach ($allUsers as $u): ?>
@@ -369,6 +362,8 @@ $renderItemOwnersCell = function($item, $usersMap) {
                             </label>
                         <?php endforeach; ?>
                     </div>
+                </div>
+                <div id="itemCollaboratorsError" class="field-error-tip" role="alert"></div>
                 </div>
             </div>
 
@@ -1225,7 +1220,7 @@ $renderItemOwnersCell = function($item, $usersMap) {
                                 <tr style="background:var(--canvas);text-align:left;color:var(--text-2);border-bottom:1px solid var(--border);">
                                     <th style="padding:9px 12px;">项目</th>
                                     <th style="padding:9px 12px;">所属文件夹</th>
-                                    <th style="padding:9px 12px;">负责人</th>
+                                    <th style="padding:9px 12px;">协作权限</th>
                                     <th style="padding:9px 12px;">当前版本</th>
                                     <th style="padding:9px 12px;">历史版本</th>
                                     <th style="padding:9px 12px;text-align:right;">操作</th>
@@ -1352,7 +1347,7 @@ $renderItemOwnersCell = function($item, $usersMap) {
                                     <th style="padding:9px 12px;width:14%;">所属文件夹</th>
                                     <th style="padding:9px 12px;width:12%;">打开方式</th>
                                     <th style="padding:9px 12px;width:28%;">目标地址</th>
-                                    <th style="padding:9px 12px;width:10%;">负责人</th>
+                                    <th style="padding:9px 12px;width:10%;">创建者</th>
                                     <th style="padding:9px 12px;text-align:right;width:12%;">操作</th>
                                 </tr>
                             </thead>
