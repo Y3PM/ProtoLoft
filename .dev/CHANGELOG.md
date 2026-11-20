@@ -7,6 +7,13 @@
 
 ## 发布前修复（全新版本，未发布）
 
+- 2026-11-19：全面优化浏览器端加载性能、缓存复用与运行时功耗（保持原有视觉细节与覆盖发版即时可见）。
+  - **原型资产私有协商缓存**：在 `asset.php` 将 `Cache-Control: private, no-store` 调整为 `private, no-cache`，基于 `storage_dir` + 相对路径 + 文件大小/更新时间生成强 `ETag` 与 `Last-Modified`，命中 `If-None-Match` 返回 `304 Not Modified`；移除 `assets/js/app.js` 与 `share.php` 加载原型 `iframe` 时拼接的 `?t=Date.now()`。同名版本覆盖发布因 `storage_dir` 换新而自动失效缓存，未变更资产切回时直接走 `304` 零字节体复用。
+  - **分钟级低耗防泄密水印**：将 `assets/js/app.js` 与 `share.php` 水印时间精度调整为 `YYYY-M-D HH:MM` 并按分钟级低频更新，在 `assets/js/watermark.js` 增加同文本早退缓存、最宽数字宽度缓存、CSS `--watermark-ink` 色值缓存与 Canvas 缓冲区复用，消除每秒主线程 PNG 编码与样式重算；同步调整 `.dev/tests/copy_consistency_frontend.js` 与 `.dev/tests/watermark_layout_browser.js` 分钟级断言。
+  - **首屏资源与 HTML 体积瘦身**：抽离并合并极简标准化重置规则至 `assets/css/app.css`，从 `index.php`、`install.php` 移除未使用率近 99% 的 `bootstrap.min.css` 引用；将 `jquery.min.js` 从 `<head>` 移至页面底部避免阻塞渲染；`echarts.min.js` 改为脱离首屏同步加载，并在 `assets/js/admin.js` 中按控制中心按钮悬停/聚焦预热与打开控制中心时按需加载；消除 `includes/modals.php` 中 `#admin-item-row-{id}` 与左侧树重复输出的 `data-versions` JSON（打开控制台及版本同步时由 `hydrateAdminRowVersions` 共享内存引用），并将 `DASHBOARD_DATA.annos` 改为 SQL 聚合计数；在 `.htaccess` 添加 `<IfModule mod_deflate.c>` 压缩与 `<IfModule mod_expires.c>` 静态资源缓存规则。
+  - **重复请求、注入与轮询收敛**：在 `assets/js/annotation.js` 避免 `updateContext` 初次加载 `iframe` 时重发 `list_annotations`，并将 `iframe` 内 `click`/`mousedown` 并发 8 定时器收敛为 `AnnoState.isOpen` 下的单一防抖探测；在 `includes/zip_handler.php` 仅向潜在入口页或含 Axure 播放器特征的 HTML 注入完整 Sitemap 增强（普通子页面仅在用到 `ri-` 图标时注入轻量字体规则），并在 `app.js`/`share.php`/`zip_handler.php` 中对已注入或非 Axure 完成页提前终止空轮询；为左侧项目搜索 `handleSearch` 增加 `120 ms` 防抖与内存索引。
+  - **验证结果**：已通过 `php -l` 语法检查、`node --check`、`git diff --check`、全量自动化套件 `python3 -B .dev/tests/run_all_tests.py --php /Users/yyy/.local/bin/php`（25/25 套全部 PASS，可识别断言 1,188 项 100% 通过），以及无头 Chrome（CDP 1440×900，20 项目/35 版本/50 批注沙箱）实测对比与 4 界面截图目视验收（登录页/工作台/控制中心/分享页视觉一致、工作台首屏传输降至 `1,580.3 KB`、登录页 FCP 由 `556 ms` 降至 `332 ms`、5 秒空闲期 `RecalcStyle` 与 `ScriptDuration` 降至 `0`、同名覆盖发版即时拉取新版）；尚未在真实公网/FTP 服务器（`mod_deflate` 实际压测）与 PHP 7.0 环境运行，未更新 FTP。
+
 - 2026-11-17：统一成员管理角色下拉为权限由低到高顺序（审阅人 → 协作者 → 管理员）。
   - 在 `includes/modals.php` 将「添加成员（`#newRole`）」与「编辑成员（`#editUserRole`）」角色下拉选项顺序由旧序调整为 `viewer（审阅人）→ editor（协作者）→ admin（管理员）`（`openAddUserModal` 保持默认预选 `editor` 不变）；核查待审批入驻下拉（`#pendingRole_*`）与申请加入协作单选卡（`index.php`、`includes/login_modal.php`），二者已按 `viewer → editor` 递增排列。
   - 在 `.dev/tests/copy_consistency_frontend.js` 增补成员弹窗角色升序断言；已通过 `php -l includes/modals.php`、`git diff --check`、`node .dev/tests/copy_consistency_frontend.js`（47/47）及 `python3 -B .dev/tests/run_all_tests.py`（PHP 8.3.20 下 25/25 套通过，可识别 1,111 项断言 100% PASS）；尚未提交 GitHub 与部署 FTP，真实浏览器效果待用户验收。

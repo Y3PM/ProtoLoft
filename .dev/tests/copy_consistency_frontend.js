@@ -189,7 +189,7 @@ const check = (name, condition) => { assert(condition, name); passed++; console.
   vm.runInContext(extract(app, 'updateWorkspaceWatermarkImage'), wmContext);
   vm.runInContext(extract(app, 'renderWorkspaceWatermark'), wmContext);
   wmContext.renderWorkspaceWatermark(true);
-  check('workspace watermark format matches name@datetime without extraneous separators', /^张工@\d{4}-\d{1,2}-\d{1,2} \d{2}:\d{2}:\d{2}$/.test(watermarkDrawnText));
+  check('workspace watermark format matches name@datetime without extraneous separators', /^张工@\d{4}-\d{1,2}-\d{1,2} \d{2}:\d{2}$/.test(watermarkDrawnText));
   check('workspace watermark schedules real-time interval timer', typeof wmIntervalFn === 'function');
   wmContext.renderWorkspaceWatermark(false);
   check('disabling watermark cancels interval timer', clearedTimers === 1);

@@ -12,10 +12,18 @@ async function verify(page, selector, label) {
     size: el.style.backgroundSize, pointer: getComputedStyle(el).pointerEvents }));
   check(label + ' paints a repeating tile and permits pointer events through',
     before.image.startsWith('url("data:image/png') && before.pointer === 'none');
-  await page.waitForFunction(({ selector, before }) => document.querySelector(selector).style.backgroundImage !== before,
-    { selector, before: before.image });
-  check(label + ' refreshes seconds without changing tile pitch',
-    await page.locator(selector).evaluate((el, size) => el.style.backgroundSize === size, before.size));
+  const pitchOk = await page.locator(selector).evaluate((el, size) => {
+    const nextMin = new Date(Date.now() + 60000);
+    if (el.id === 'watermarkOverlay' && typeof updateWorkspaceWatermarkImage === 'function') {
+      updateWorkspaceWatermarkImage(nextMin);
+    } else if (el.id === 'shareWatermarkOverlay' && typeof updateShareWatermarkImage === 'function') {
+      updateShareWatermarkImage(nextMin);
+    }
+    return el.style.backgroundImage !== '' && el.style.backgroundSize === size;
+  }, before.size);
+  const afterImage = await page.locator(selector).evaluate(el => el.style.backgroundImage);
+  check(label + ' refreshes minutes without changing tile pitch',
+    pitchOk && afterImage !== before.image);
   const pixels = await page.locator(selector).evaluate(el => {
     return new Promise(resolve => {
       const img = new Image();

@@ -1869,6 +1869,7 @@ function handleVersionUpload(e) {
 // 通用分片上传辅助函数
 function syncPublishedVersion(itemId, version) {
     if (!version) return;
+    if (typeof hydrateAdminRowVersions === 'function') hydrateAdminRowVersions(itemId);
     var latest = [];
     $('#admin-item-row-' + itemId + ', #item-node-' + itemId).each(function() {
         var $node = $(this);
@@ -4874,9 +4875,32 @@ function checkHasPendingUsers() {
     return false;
 }
 
+function hydrateAdminRowVersions(targetItemId) {
+    if (typeof $ !== 'function') return;
+    var selector = targetItemId ? ('#overviewTableProjects tbody tr#admin-item-row-' + targetItemId) : '#overviewTableProjects tbody tr[data-item-id]';
+    $(selector).each(function() {
+        var $row = $(this);
+        if ($row.data('versions') !== undefined) return;
+        var itemId = $row.attr('data-item-id');
+        if (!itemId) return;
+        var $treeNode = $('#item-node-' + itemId);
+        if ($treeNode.length) {
+            var vers = $treeNode.data('versions');
+            if (typeof vers === 'string') {
+                try { vers = JSON.parse(vers); } catch(e) { vers = []; }
+                $treeNode.data('versions', vers);
+            }
+            if (Array.isArray(vers)) {
+                $row.data('versions', vers);
+            }
+        }
+    });
+}
+
 function openAdminConsole(defaultTab, subTab) {
     var modal = document.getElementById('adminConsoleModal');
     if (!modal) return;
+    hydrateAdminRowVersions();
     if (!defaultTab) {
         if (checkHasPendingUsers()) {
             defaultTab = 'users';
@@ -4962,7 +4986,54 @@ function switchAdminTab(tabKey, subTab) {
 
 /* ===================== 个人设置与自主改密 (已统一下沉至 app.js 全员共享) ===================== */
 
-// 数据概览 ECharts 现代图表渲染与自适应
+// 数据概览 ECharts 按需 + 空闲懒加载与现代图表渲染
+var _echartsLoadPromise = null;
+function ensureEchartsLoaded() {
+    if (typeof echarts !== 'undefined') return Promise.resolve(echarts);
+    if (_echartsLoadPromise) return _echartsLoadPromise;
+    var url = (typeof ECHARTS_SCRIPT_URL !== 'undefined' && ECHARTS_SCRIPT_URL) ? ECHARTS_SCRIPT_URL : 'assets/js/echarts.min.js';
+    _echartsLoadPromise = new Promise(function(resolve) {
+        if (typeof document === 'undefined' || !document.createElement) {
+            resolve(null);
+            return;
+        }
+        var script = document.createElement('script');
+        script.src = url;
+        script.async = true;
+        script.onload = function() {
+            resolve(typeof echarts !== 'undefined' ? echarts : null);
+        };
+        script.onerror = function() {
+            _echartsLoadPromise = null;
+            resolve(null);
+        };
+        (document.head || document.body || document.documentElement).appendChild(script);
+    });
+    return _echartsLoadPromise;
+}
+
+if (typeof document !== 'undefined' && typeof document.addEventListener === 'function') {
+    var _echartsPrefetchBound = false;
+    var prefetchEchartsOnIntent = function() {
+        if (_echartsPrefetchBound) return;
+        var btn = document.querySelector('button[onclick*="openAdminConsole"]');
+        if (!btn) return;
+        _echartsPrefetchBound = true;
+        var warm = function() {
+            if (typeof ECHARTS_SCRIPT_URL !== 'undefined' && typeof echarts === 'undefined') {
+                ensureEchartsLoaded();
+            }
+        };
+        btn.addEventListener('mouseenter', warm, { once: true, passive: true });
+        btn.addEventListener('focus', warm, { once: true, passive: true });
+    };
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', prefetchEchartsOnIntent);
+    } else {
+        prefetchEchartsOnIntent();
+    }
+}
+
 var chartAnnotationDonut = null;
 var chartTrend = null;
 var currentTrendRange = '7d';
@@ -4970,7 +5041,12 @@ var currentAnnoProjFilter = 0;
 var currentAnnoVerFilter = 0;
 
 function renderAnnotationDashboard() {
-    if (typeof echarts === 'undefined') return;
+    if (typeof echarts === 'undefined') {
+        ensureEchartsLoaded().then(function(ec) {
+            if (ec) renderAnnotationDashboard();
+        });
+        return;
+    }
     var donutDom = document.getElementById('chartAnnotationDonut');
     var detailDom = document.getElementById('annoDetailBox');
     if (!donutDom) return;
@@ -4988,14 +5064,16 @@ function renderAnnotationDashboard() {
         list = list.filter(function(a) { return parseInt(a.ver_id, 10) === currentAnnoVerFilter; });
     }
 
-    var total = list.length;
+    var total = 0;
     var pending = 0;
     var resolved = 0;
     for (var i = 0; i < list.length; i++) {
+        var cnt = (typeof list[i].cnt === 'number') ? list[i].cnt : (parseInt(list[i].cnt, 10) || 1);
+        total += cnt;
         if (parseInt(list[i].status, 10) === 1) {
-            resolved++;
+            resolved += cnt;
         } else {
-            pending++;
+            pending += cnt;
         }
     }
     var rate = (total > 0) ? Math.round((resolved / total) * 100) : 100;
@@ -5138,8 +5216,16 @@ function onAnnoVersionFilterChange(val) {
 window.onAnnoVersionFilterChange = onAnnoVersionFilterChange;
 
 function renderDashboardCharts(range) {
-    if (typeof echarts === 'undefined') return;
     if (range) currentTrendRange = range;
+    if (typeof echarts === 'undefined') {
+        ensureEchartsLoaded().then(function(ec) {
+            if (ec) {
+                renderDashboardCharts();
+                resizeDashboardCharts();
+            }
+        });
+        return;
+    }
 
     var data = window.DASHBOARD_DATA || {};
 
@@ -5877,6 +5963,7 @@ function handleVersionEditSubmit(e) {
         renderVersionManageView();
 
         // 3. 同步 DOM 节点缓存 (后台控制中心表格行与左侧树节点)
+        if (typeof hydrateAdminRowVersions === 'function') hydrateAdminRowVersions(itemId);
         $('#admin-item-row-' + itemId + ', #item-node-' + itemId).each(function() {
             var $node = $(this);
             var versions = $node.data('versions') || [];
@@ -5957,6 +6044,7 @@ function handleSetDefaultVersion(verId, itemId) {
             showToast('已设为默认版本', 'success');
             if (isAdminConsoleOpen()) {
                 markAdminConsoleChanged();
+                if (typeof hydrateAdminRowVersions === 'function') hydrateAdminRowVersions(itemId);
                 var defaultVerName = '';
                 $('#admin-item-row-' + itemId + ', #item-node-' + itemId).each(function() {
                     var $node = $(this);
@@ -6012,6 +6100,7 @@ function handleDeleteVersion(verId, verName, itemId) {
                     showToast('版本已删除', 'success');
                     if (isAdminConsoleOpen()) {
                         markAdminConsoleChanged();
+                        if (typeof hydrateAdminRowVersions === 'function') hydrateAdminRowVersions(itemId);
                         var latest = [];
                         var newDefaultName = '-';
                         $('#admin-item-row-' + itemId + ', #item-node-' + itemId).each(function() {
@@ -6252,6 +6341,7 @@ function syncVersionRpState(itemId, verId, rpFile, rpSize, updatedAt) {
     }
 
     // 1.1 同步后台控制台行中的 data-versions
+    if (typeof hydrateAdminRowVersions === 'function') hydrateAdminRowVersions(itemId);
     var $adminRow = $('#admin-item-row-' + itemId);
     if ($adminRow.length) {
         var adminVers = $adminRow.data('versions') || [];

@@ -13,8 +13,7 @@ if (is_installed()) {
     <head>
         <meta charset="UTF-8">
         <title>系统已安装</title>
-        <link rel="stylesheet" href="assets/css/bootstrap.min.css">
-        <link rel="stylesheet" href="assets/css/app.css?v=<?php echo APP_VERSION; ?>">
+        <link rel="stylesheet" href="assets/css/app.css?v=<?php echo APP_VERSION . '.' . filemtime(__DIR__ . '/assets/css/app.css'); ?>">
     </head>
     <body class="page-standalone">
         <div class="standalone-brand">
@@ -352,7 +351,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <title>立象原型 - 安装向导</title>
     <link rel="icon" href="assets/images/favicon.svg?v=<?php echo substr(sha1_file(ROOT_PATH . '/assets/images/favicon.svg'), 0, 12); ?>" type="image/svg+xml">
     <link rel="alternate icon" href="assets/images/favicon.png?v=<?php echo substr(sha1_file(ROOT_PATH . '/assets/images/favicon.png'), 0, 12); ?>" type="image/png">
-    <link rel="stylesheet" href="assets/css/bootstrap.min.css">
     <link rel="stylesheet" href="assets/css/remixicon.css">
     <link rel="stylesheet" href="assets/css/app.css?v=<?php echo APP_VERSION . '.' . filemtime(__DIR__ . '/assets/css/app.css'); ?>">
     <style>

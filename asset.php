@@ -6,7 +6,7 @@ require_installed();
 header('X-Content-Type-Options: nosniff');
 header('X-Frame-Options: SAMEORIGIN');
 header("Content-Security-Policy: frame-ancestors 'self'");
-header('Cache-Control: private, no-store');
+header('Cache-Control: private, no-cache');
 
 $path = $_SERVER['PATH_INFO'] ?? ($_SERVER['ORIG_PATH_INFO'] ?? '');
 if ($path === '' && !empty($_SERVER['REQUEST_URI'])) {
@@ -47,6 +47,39 @@ if (!isset($types[$ext])) { http_response_code(403); exit; }
 $file = Storage::filePath($version, $relative);
 if (!$file) { http_response_code(404); exit; }
 session_write_close();
+$size = @filesize($file);
+$mtime = @filemtime($file);
+$etag = '"' . substr(sha1(($version['storage_dir'] ?? '') . '|' . $relative . '|' . (string)$size . '|' . (string)$mtime), 0, 24) . '"';
+header('ETag: ' . $etag);
+if ($mtime !== false) {
+    header('Last-Modified: ' . gmdate('D, d M Y H:i:s', $mtime) . ' GMT');
+}
+$ifNoneMatch = trim((string)($_SERVER['HTTP_IF_NONE_MATCH'] ?? ''));
+$etagMatched = false;
+if ($ifNoneMatch !== '') {
+    if ($ifNoneMatch === '*') {
+        $etagMatched = true;
+    } else {
+        foreach (explode(',', $ifNoneMatch) as $candidate) {
+            $candidate = trim($candidate);
+            if (strpos($candidate, 'W/') === 0) $candidate = substr($candidate, 2);
+            if ($candidate === $etag) {
+                $etagMatched = true;
+                break;
+            }
+        }
+    }
+}
+if (!$etagMatched && $ifNoneMatch === '' && $mtime !== false && !empty($_SERVER['HTTP_IF_MODIFIED_SINCE'])) {
+    $since = strtotime((string)$_SERVER['HTTP_IF_MODIFIED_SINCE']);
+    if ($since !== false && $since >= $mtime) {
+        $etagMatched = true;
+    }
+}
+if ($etagMatched) {
+    http_response_code(304);
+    exit;
+}
 header('Content-Type: ' . $types[$ext]);
-header('Content-Length: ' . filesize($file));
+if ($size !== false) header('Content-Length: ' . $size);
 if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'HEAD') readfile($file);

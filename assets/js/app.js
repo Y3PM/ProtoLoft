@@ -594,8 +594,7 @@ function selectItem(itemId, el, targetVerName, isUserDirectClick) {
         $('#placeholder').hide();
         $('#noVersionPlaceholder').hide();
         $('#myFrame').show();
-        var sep = href.indexOf('?') > -1 ? '&' : '?';
-        $('#myFrame').attr('src', href + sep + 't=' + new Date().getTime());
+        $('#myFrame').attr('src', href);
         updateTopActionsState(true, type);
 
         // 静默上报工作台原型访问审计日志
@@ -738,8 +737,7 @@ function onTopVersionChange(selectEl) {
 
     // 重新加载 iframe
     if (href) {
-        var sep = href.indexOf('?') > -1 ? '&' : '?';
-        $('#myFrame').attr('src', href + sep + 't=' + new Date().getTime());
+        $('#myFrame').attr('src', href);
 
         // 静默上报工作台原型访问审计日志
         try {
@@ -887,6 +885,12 @@ function copyShareUrl(itemId) {
 function reloadIframe() {
     var iframe = document.getElementById('myFrame');
     if (iframe && iframe.style.display !== 'none' && iframe.src && iframe.src.indexOf('about:blank') === -1) {
+        try {
+            if (iframe.contentWindow && iframe.contentWindow.location) {
+                iframe.contentWindow.location.reload();
+                return;
+            }
+        } catch(e) {}
         iframe.src = iframe.src;
     }
 }
@@ -1050,43 +1054,99 @@ function highlightSearchMatches(text, tokens) {
     return safeText.replace(regex, '<mark class="search-highlight">$1</mark>');
 }
 
+// 搜索防抖与内存索引，避免百级项目输入时反复遍历/解析 DOM
+var _searchDebounceTimer = null;
+var _sidebarSearchCache = null;
+var _sidebarSearchCacheNodeCount = -1;
+
+function getSidebarSearchIndex() {
+    var rows = document.querySelectorAll('.item-row');
+    if (_sidebarSearchCache && _sidebarSearchCacheNodeCount === rows.length) {
+        return _sidebarSearchCache;
+    }
+    var list = [];
+    for (var i = 0; i < rows.length; i++) {
+        var row = rows[i];
+        var $row = $(row);
+        var name = ($row.data('name') || '').toString();
+        var creator = ($row.data('creator-name') || '').toString();
+        var catGroup = row.closest ? row.closest('.category-group') : $row.closest('.category-group')[0];
+        var catNameEl = catGroup ? catGroup.querySelector('.cat-name-text') : null;
+        var catName = catNameEl ? (catNameEl.textContent || '').trim() : '';
+        var versionsData = $row.data('versions');
+        var versionTexts = [];
+        if (versionsData) {
+            if (typeof versionsData === 'string') {
+                try { versionsData = JSON.parse(versionsData); } catch(e) { versionsData = []; }
+            }
+            if (Array.isArray(versionsData)) {
+                for (var vi = 0; vi < versionsData.length; vi++) {
+                    var v = versionsData[vi];
+                    if (v && v.version_name) versionTexts.push(v.version_name);
+                    if (v && v.creator_name) versionTexts.push(v.creator_name);
+                }
+            }
+        }
+        list.push({
+            row: row,
+            $row: $row,
+            name: name,
+            titleEl: row.querySelector('.item-title'),
+            haystack: (name + ' ' + catName + ' ' + creator + ' ' + versionTexts.join(' ')).toLowerCase()
+        });
+    }
+    _sidebarSearchCache = list;
+    _sidebarSearchCacheNodeCount = rows.length;
+    return list;
+}
+
 // 清空搜索
 function clearSearch() {
+    if (_searchDebounceTimer) {
+        clearTimeout(_searchDebounceTimer);
+        _searchDebounceTimer = null;
+    }
     var $input = $('#searchKeyword');
     $input.val('');
-    $('#searchClearBtn').hide();
-    $('#searchEmptyState').hide();
-
-    $('.item-row').each(function() {
-        var $row = $(this);
-        $row.show();
-        var origName = $row.data('name');
-        if (origName !== undefined) {
-            $row.find('.item-title').text(origName);
-        }
-    });
-
-    $('.category-group').show();
+    executeSearch('');
     $input.focus();
 }
 
-// 关键词即时搜索 (支持多词空格拆分、项目名/分类名/历史所有版本号/作者全维度匹配、折叠自动展开与安全高亮)
+// 关键词即时搜索入口（带 120ms 防抖，清空立即响应）
 function handleSearch(kw) {
+    kw = (kw || '').trim();
+    if (_searchDebounceTimer) {
+        clearTimeout(_searchDebounceTimer);
+        _searchDebounceTimer = null;
+    }
+    if (!kw) {
+        executeSearch('');
+        return;
+    }
+    $('#searchClearBtn').show();
+    _searchDebounceTimer = setTimeout(function() {
+        _searchDebounceTimer = null;
+        executeSearch(kw);
+    }, 120);
+}
+
+// 执行搜索匹配与高亮
+function executeSearch(kw) {
     kw = (kw || '').trim();
     var $clearBtn = $('#searchClearBtn');
     var $emptyState = $('#searchEmptyState');
+    var indexList = getSidebarSearchIndex();
 
     if (!kw) {
         $clearBtn.hide();
         $emptyState.hide();
-        $('.item-row').each(function() {
-            var $row = $(this);
-            $row.show();
-            var origName = $row.data('name');
-            if (origName !== undefined) {
-                $row.find('.item-title').text(origName);
+        for (var i = 0; i < indexList.length; i++) {
+            var entry = indexList[i];
+            entry.row.style.display = '';
+            if (entry.titleEl && entry.name !== undefined) {
+                entry.titleEl.textContent = entry.name;
             }
-        });
+        }
         $('.category-group').show();
         return;
     }
@@ -1097,70 +1157,44 @@ function handleSearch(kw) {
     var tokens = kw.toLowerCase().split(/\s+/).filter(Boolean);
     var totalMatches = 0;
 
-    $('.item-row').each(function() {
-        var $row = $(this);
-        var name = ($row.data('name') || '').toString();
-        var creator = ($row.data('creator-name') || '').toString();
-        var catName = ($row.closest('.category-group').find('.cat-name-text').text() || '').trim();
-
-        // 提取该项目历史所有版本号与版本创建者
-        var versionsData = $row.data('versions');
-        var versionTexts = [];
-        if (versionsData) {
-            if (typeof versionsData === 'string') {
-                try {
-                    versionsData = JSON.parse(versionsData);
-                } catch(e) {
-                    versionsData = [];
-                }
-            }
-            if (Array.isArray(versionsData)) {
-                for (var i = 0; i < versionsData.length; i++) {
-                    var v = versionsData[i];
-                    if (v && v.version_name) versionTexts.push(v.version_name);
-                    if (v && v.creator_name) versionTexts.push(v.creator_name);
-                }
-            }
-        }
-
-        // 综合检索文本池 (全部转小写)
-        var haystack = (name + ' ' + catName + ' ' + creator + ' ' + versionTexts.join(' ')).toLowerCase();
-
-        // 所有词元必须全部包含 (AND 逻辑)
+    for (var j = 0; j < indexList.length; j++) {
+        var item = indexList[j];
         var isMatch = tokens.length > 0 && tokens.every(function(t) {
-            return haystack.indexOf(t) > -1;
+            return item.haystack.indexOf(t) > -1;
         });
 
         if (isMatch) {
-            $row.show();
+            item.row.style.display = '';
             totalMatches++;
-            $row.find('.item-title').html(highlightSearchMatches(name, tokens));
+            if (item.titleEl) {
+                item.titleEl.innerHTML = highlightSearchMatches(item.name, tokens);
+            }
         } else {
-            $row.hide();
-            $row.find('.item-title').text(name);
+            item.row.style.display = 'none';
+            if (item.titleEl) {
+                item.titleEl.textContent = item.name;
+            }
         }
-    });
+    }
 
-    // 智能展开/隐藏分类组 (通过 style.display 物理检测，彻底规避父级 display:none 导致 :visible 误判的 Bug)
+    // 智能展开/隐藏分类组
     $('.category-group').each(function() {
         var $cat = $(this);
+        var rows = this.querySelectorAll('.item-row');
         var matchCountInCat = 0;
-        $cat.find('.item-row').each(function() {
-            if (this.style.display !== 'none') {
+        for (var k = 0; k < rows.length; k++) {
+            if (rows[k].style.display !== 'none') {
                 matchCountInCat++;
+                break;
             }
-        });
-
+        }
         if (matchCountInCat > 0) {
-            // 命中项所在分类组：强制展开并显示
             $cat.show().removeClass('collapsed');
         } else {
-            // 无匹配项分类组：整组隐藏
             $cat.hide();
         }
     });
 
-    // 空状态提示
     if (totalMatches === 0) {
         $emptyState.show();
     } else {
@@ -1542,17 +1576,17 @@ $(document).on('keydown', function(e) {
     }
 });
 
-// 动态渲染工作台内部防泄密水印 (秒级实时心跳 + 切后台智能休眠)
+// 动态渲染工作台内部防泄密水印 (分钟级更新 + 同分钟零重绘 + 切后台智能休眠)
 var workspaceWatermarkCanvas = null;
 var workspaceWatermarkTimer = null;
 
-function updateWorkspaceWatermarkImage() {
+function updateWorkspaceWatermarkImage(customDate) {
     var $overlay = $('#watermarkOverlay');
     if (!$overlay.length || $overlay.is(':hidden')) return;
     var uName = (typeof CURRENT_USER !== 'undefined' && CURRENT_USER && (CURRENT_USER.name || CURRENT_USER.email)) ? (CURRENT_USER.name || CURRENT_USER.email) : '立象成员';
-    var now = new Date();
+    var now = customDate instanceof Date ? customDate : new Date();
     var pad = function(n) { return n < 10 ? '0' + n : n; };
-    var timeStr = now.getFullYear() + '-' + (now.getMonth() + 1) + '-' + now.getDate() + ' ' + pad(now.getHours()) + ':' + pad(now.getMinutes()) + ':' + pad(now.getSeconds());
+    var timeStr = now.getFullYear() + '-' + (now.getMonth() + 1) + '-' + now.getDate() + ' ' + pad(now.getHours()) + ':' + pad(now.getMinutes());
     var text = uName + '@' + timeStr;
 
     if (!workspaceWatermarkCanvas) {
@@ -1575,10 +1609,11 @@ function renderWorkspaceWatermark(enabled) {
     $overlay.show();
     updateWorkspaceWatermarkImage();
     if (!workspaceWatermarkTimer) {
+        // 每 15 秒轻量核对一次分钟字符串；同一分钟内由 watermark.js 缓存直接跳过，跨分钟才重绘一次
         workspaceWatermarkTimer = setInterval(function() {
             if (typeof document !== 'undefined' && document.hidden) return;
             updateWorkspaceWatermarkImage();
-        }, 1000);
+        }, 15000);
     }
 }
 window.renderWorkspaceWatermark = renderWorkspaceWatermark;
@@ -2012,6 +2047,8 @@ function setupAxureSitemapAutoNumbering(targetWindow) {
     try {
         doc = targetWindow.document;
         if (!doc) return;
+        // 若原型自身已注入并运行 Sitemap 编号脚本，则宿主不再重复轮询与监听
+        if (doc.getElementById('protoloft-axure-sitemap-autonum')) return;
     } catch(e) {
         return;
     }
@@ -2375,15 +2412,21 @@ function setupAxureSitemapAutoNumbering(targetWindow) {
         return seqOk && fitOk;
     }
 
-    runAndFit();
-    var attempts = 0;
-    var timer = setInterval(function() {
-        attempts++;
-        if (runAndFit() || attempts >= 45) clearInterval(timer);
-    }, 60);
+    var doneInitial = runAndFit();
+    if (!doneInitial && !(doc.readyState === 'complete' && !isAxureEnvironment())) {
+        var attempts = 0;
+        var timer = setInterval(function() {
+            attempts++;
+            if (runAndFit() || attempts >= 45 || (doc.readyState === 'complete' && !isAxureEnvironment())) {
+                clearInterval(timer);
+            }
+        }, 60);
+    }
+
+    if (!isAxureEnvironment() && doc.readyState === 'complete') return;
 
     try {
-        var host = doc.getElementById('sitemapHost') || doc.getElementById('sitemapTreeContainer') || doc.body;
+        var host = doc.getElementById('sitemapHost') || doc.getElementById('sitemapTreeContainer');
         if (host && targetWindow.MutationObserver && !host.__autonumObserved) {
             host.__autonumObserved = true;
             var deb = null;

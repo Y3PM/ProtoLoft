@@ -84,6 +84,70 @@
     --bg-axure-dots: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10'%3E%3Crect width='1' height='1' fill='%2394a3b8' opacity='0.35'/%3E%3C/svg%3E");
 }
 
+/* ===================== 基础标准化重置 (替代冗余第三方样式库) ===================== */
+*, *::before, *::after {
+    box-sizing: border-box;
+}
+html {
+    -webkit-text-size-adjust: 100%;
+}
+body {
+    margin: 0;
+    font-size: 14px;
+    line-height: 1.428571429;
+}
+input, button, select, textarea {
+    margin: 0;
+    font-family: inherit;
+    font-size: inherit;
+    line-height: inherit;
+}
+button, html input[type="button"], input[type="reset"], input[type="submit"] {
+    cursor: pointer;
+    -webkit-appearance: button;
+}
+a {
+    color: var(--primary);
+    text-decoration: none;
+}
+img {
+    border: 0;
+    vertical-align: middle;
+}
+table {
+    border-collapse: collapse;
+    border-spacing: 0;
+}
+h1, h2, h3, h4, h5, h6 {
+    font-weight: 500;
+    line-height: 1.1;
+    color: inherit;
+}
+h1, h2, h3 {
+    margin-top: 20px;
+    margin-bottom: 10px;
+}
+h4, h5, h6 {
+    margin-top: 10px;
+    margin-bottom: 10px;
+}
+h3 { font-size: 24px; }
+h4 { font-size: 18px; }
+p { margin: 0 0 10px; }
+ul, ol { margin-top: 0; margin-bottom: 10px; }
+code, kbd, pre, samp {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    font-size: 1em;
+}
+code {
+    padding: 2px 4px;
+    font-size: 90%;
+    color: var(--danger-text);
+    white-space: nowrap;
+    background-color: var(--danger-subtle);
+    border-radius: 4px;
+}
+
 /* ===================== 全屏独立页面规范 (登录/安装/项目密码) ===================== */
 body.page-standalone {
     width: 100%;

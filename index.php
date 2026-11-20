@@ -71,7 +71,6 @@ if (!$isSiteAuthorized) {
         <meta name="csrf-token" content="<?php echo htmlspecialchars(get_csrf_token(), ENT_QUOTES, 'UTF-8'); ?>">
         <title><?php echo htmlspecialchars(!empty($companyName) ? ($companyName . ' - 账号登录') : '立象原型 - 账号登录'); ?></title>
         <link rel="icon" href="<?php echo htmlspecialchars($favUrl); ?>" type="<?php echo $favType; ?>">
-        <link rel="stylesheet" href="assets/css/bootstrap.min.css">
         <link rel="stylesheet" href="assets/css/remixicon.css">
         <link rel="stylesheet" href="assets/css/app.css?v=<?php echo APP_VERSION . '.' . filemtime(__DIR__ . '/assets/css/app.css'); ?>">
     </head>
@@ -759,10 +758,8 @@ foreach ($cats as $cat) {
     <title><?php echo htmlspecialchars($siteTitle); ?></title>
     <meta name="csrf-token" content="<?php echo get_csrf_token(); ?>">
     <link rel="icon" href="<?php echo htmlspecialchars($favUrl); ?>" type="<?php echo $favType; ?>">
-    <link rel="stylesheet" href="assets/css/bootstrap.min.css">
     <link rel="stylesheet" href="assets/css/remixicon.css">
     <link rel="stylesheet" href="assets/css/app.css?v=<?php echo APP_VERSION . '.' . filemtime(__DIR__ . '/assets/css/app.css'); ?>">
-    <script src="assets/js/jquery.min.js"></script>
 </head>
 <?php
     $bodyClasses = [];
@@ -1236,6 +1233,7 @@ $verSuffix = function($relPath) {
     return APP_VERSION . '.' . (file_exists($full) ? filemtime($full) : '0');
 };
 ?>
+<script src="assets/js/jquery.min.js"></script>
 <script src="assets/js/mcp.js?v=<?php echo $verSuffix('assets/js/mcp.js'); ?>"></script>
 <script src="assets/js/watermark.js?v=<?php echo $verSuffix('assets/js/watermark.js'); ?>"></script>
 <script src="assets/js/ver-picker.js?v=<?php echo $verSuffix('assets/js/ver-picker.js'); ?>"></script>
@@ -1245,7 +1243,7 @@ $verSuffix = function($relPath) {
 <script src="assets/js/annotation.js?v=<?php echo $verSuffix('assets/js/annotation.js'); ?>"></script>
 <?php endif; ?>
 <?php if ($canManage): ?>
-    <script src="assets/js/echarts.min.js?v=<?php echo APP_VERSION; ?>"></script>
+    <script>var ECHARTS_SCRIPT_URL = 'assets/js/echarts.min.js?v=<?php echo APP_VERSION; ?>';</script>
 <?php endif; ?>
 <?php if (Auth::canShare()): ?>
     <script src="assets/js/share.js?v=<?php echo $verSuffix('assets/js/share.js'); ?>"></script>

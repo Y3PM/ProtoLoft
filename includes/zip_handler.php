@@ -139,13 +139,44 @@ class ZipHandler {
         $content = file_get_contents($filePath);
         if ($content === false) return;
 
-        // 幂等性检测：若已全量注入则跳过；若为旧版注入则更新
-        if (strpos($content, 'protoloft-axure-sitemap-autonum') !== false) {
+        // 幂等性检测：若已全量注入则跳过
+        if (strpos($content, 'protoloft-axure-sitemap-autonum') !== false || strpos($content, 'protoloft-remixicon-only') !== false) {
             return;
         }
 
         // 计算当前 HTML 文件相对系统根目录的相对路径，实现离线内网自给自足
         $fontUrl = app_base_path() . '/assets/fonts/remixicon.woff2';
+
+        // 仅对潜在入口页或明确包含 Axure 播放器/目录树特征的 HTML 注入完整 Sitemap 增强，
+        // 避免向几十上百个普通业务子页面重复灌入 ~20KB 播放器脚本与样式。
+        $baseName = strtolower(basename($filePath));
+        $isEntryCandidate = in_array($baseName, ['start.html', 'start_with_pages.html', 'index.html', 'home.html', 'default.html'], true);
+        $hasAxurePlayerMarker = (
+            stripos($content, 'sitemapHost') !== false ||
+            stripos($content, 'sitemapTree') !== false ||
+            stripos($content, 'axplayer') !== false ||
+            stripos($content, 'axure/player') !== false ||
+            stripos($content, 'start_c_') !== false
+        );
+
+        if (!$isEntryCandidate && !$hasAxurePlayerMarker) {
+            if (preg_match('/class=[\'"][^\'"]*\bri-/', $content)) {
+                $iconOnly = <<<EOD
+<!-- [ProtoLoft RemixIcon Support] -->
+<style id="protoloft-remixicon-only">
+@font-face { font-family: "remixicon"; src: url("{$fontUrl}") format("woff2"); font-display: swap; }
+[class^="ri-"], [class*=" ri-"] { font-family: 'remixicon' !important; font-style: normal; -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
+</style>
+EOD;
+                if (stripos($content, '</head>') !== false) {
+                    $content = preg_replace('/<\/head>/i', $iconOnly . "\n</head>", $content, 1);
+                } else {
+                    $content = $iconOnly . "\n" . $content;
+                }
+                file_put_contents($filePath, $content);
+            }
+            return;
+        }
 
         $enhancement = <<<EOD
 <!-- [ProtoLoft Prototype Enhancement] -->
@@ -556,44 +587,51 @@ class ZipHandler {
         var fitOk = seqOk ? fitLeftPanelWidth() : false;
         return seqOk && fitOk;
     }
-    if(document.readyState === 'loading'){
-        document.addEventListener('DOMContentLoaded', runAndFit);
-    } else {
-        runAndFit();
-    }
-    var attempts = 0;
-    var timer = setInterval(function(){
-        attempts++;
-        if(runAndFit() || attempts >= 45) clearInterval(timer);
-    }, 60);
-    try {
-        var host = document.getElementById('sitemapHost') || document.getElementById('sitemapTreeContainer') || document.body;
-        if(host && window.MutationObserver && !host.__autonumObserved){
-            host.__autonumObserved = true;
-            var deb = null;
-            var obs = new MutationObserver(function(muts){
-                var hit = false;
-                var needFitOnly = false;
-                for(var m=0; m<muts.length; m++){
-                    var t = muts[m].target;
-                    if(!t || t.nodeType !== 1) continue;
-                    if(muts[m].type === 'attributes'){
-                        if(t.tagName === 'UL' || t.classList.contains('sitemapTree')){ needFitOnly = true; }
-                    } else if(t.classList.contains('sitemapTree') || t.classList.contains('sitemapNode') || t.id === 'sitemapTreeContainer'){
-                        hit = true; break;
-                    }
+    function startWatchers(){
+        var done = runAndFit();
+        if(!done && !(document.readyState === 'complete' && !isAxureEnvironment())){
+            var attempts = 0;
+            var timer = setInterval(function(){
+                attempts++;
+                if(runAndFit() || attempts >= 45 || (document.readyState === 'complete' && !isAxureEnvironment())){
+                    clearInterval(timer);
                 }
-                if(hit || needFitOnly){
-                    if(deb) clearTimeout(deb);
-                    deb = setTimeout(function(){
-                        if(hit) run();
-                        fitLeftPanelWidth();
-                    }, 120);
-                }
-            });
-            obs.observe(host, { childList: true, subtree: true, attributes: true, attributeFilter: ['style'] });
+            }, 60);
         }
-    } catch(e){}
+        try {
+            var host = document.getElementById('sitemapHost') || document.getElementById('sitemapTreeContainer');
+            if(host && window.MutationObserver && !host.__autonumObserved){
+                host.__autonumObserved = true;
+                var deb = null;
+                var obs = new MutationObserver(function(muts){
+                    var hit = false;
+                    var needFitOnly = false;
+                    for(var m=0; m<muts.length; m++){
+                        var t = muts[m].target;
+                        if(!t || t.nodeType !== 1) continue;
+                        if(muts[m].type === 'attributes'){
+                            if(t.tagName === 'UL' || t.classList.contains('sitemapTree')){ needFitOnly = true; }
+                        } else if(t.classList.contains('sitemapTree') || t.classList.contains('sitemapNode') || t.id === 'sitemapTreeContainer'){
+                            hit = true; break;
+                        }
+                    }
+                    if(hit || needFitOnly){
+                        if(deb) clearTimeout(deb);
+                        deb = setTimeout(function(){
+                            if(hit) run();
+                            fitLeftPanelWidth();
+                        }, 120);
+                    }
+                });
+                obs.observe(host, { childList: true, subtree: true, attributes: true, attributeFilter: ['style'] });
+            }
+        } catch(e){}
+    }
+    if(document.readyState === 'loading'){
+        document.addEventListener('DOMContentLoaded', startWatchers);
+    } else {
+        startWatchers();
+    }
 })();
 </script>
 EOD;

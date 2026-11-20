@@ -612,7 +612,6 @@ Auth::recordAccessLog($item['id'], $item['name'], $curVerName, 'share');
     <link rel="icon" href="<?php echo htmlspecialchars($faviconUrl); ?>" type="<?php echo $favType; ?>">
     <link rel="stylesheet" href="assets/css/app.css?v=<?php echo APP_VERSION . '.' . filemtime(__DIR__ . '/assets/css/app.css'); ?>">
     <link rel="stylesheet" href="assets/css/remixicon.css">
-    <script src="assets/js/jquery.min.js"></script>
     <style>
         html, body {
             margin: 0;
@@ -876,6 +875,7 @@ Auth::recordAccessLog($item['id'], $item['name'], $curVerName, 'share');
     </main>
 </div>
 
+<script src="assets/js/jquery.min.js"></script>
 <?php if ($isWatermarkActive): ?>
 <script src="assets/js/watermark.js?v=<?php echo APP_VERSION . '.' . filemtime(__DIR__ . '/assets/js/watermark.js'); ?>"></script>
 <script src="assets/js/ver-picker.js?v=<?php echo APP_VERSION . '.' . filemtime(__DIR__ . '/assets/js/ver-picker.js'); ?>"></script>
@@ -950,8 +950,7 @@ Auth::recordAccessLog($item['id'], $item['name'], $curVerName, 'share');
 
         // 切换 iframe 页面
         if (href) {
-            var sep = href.indexOf('?') > -1 ? '&' : '?';
-            $('#shareFrame').attr('src', href + sep + 't=' + new Date().getTime());
+            $('#shareFrame').attr('src', href);
         }
 
         // 更新地址栏 URL (无刷新极简短码)
@@ -968,6 +967,12 @@ Auth::recordAccessLog($item['id'], $item['name'], $curVerName, 'share');
     function reloadShareFrame() {
         var frame = document.getElementById('shareFrame');
         if (frame && frame.src) {
+            try {
+                if (frame.contentWindow && frame.contentWindow.location) {
+                    frame.contentWindow.location.reload();
+                    return;
+                }
+            } catch(e) {}
             frame.src = frame.src;
         }
     }
@@ -1130,21 +1135,36 @@ Auth::recordAccessLog($item['id'], $item['name'], $curVerName, 'share');
         var canvas = document.createElement('canvas');
         var pad = function(n) { return n < 10 ? '0' + n : n; };
 
-        function drawWatermark() {
-            var now = new Date();
-            var timeStr = now.getFullYear() + '-' + (now.getMonth() + 1) + '-' + now.getDate() + ' ' + pad(now.getHours()) + ':' + pad(now.getMinutes()) + ':' + pad(now.getSeconds());
+        function drawWatermark(customDate) {
+            var now = customDate instanceof Date ? customDate : new Date();
+            var timeStr = now.getFullYear() + '-' + (now.getMonth() + 1) + '-' + now.getDate() + ' ' + pad(now.getHours()) + ':' + pad(now.getMinutes());
             var text = wmUser + '@' + timeStr;
             ProtoLoftWatermark.draw(canvas, el, text);
         }
 
+        var timer = null;
+        function scheduleNextMinute() {
+            if (timer) clearTimeout(timer);
+            var now = new Date();
+            var delay = Math.max(1000, (60 - now.getSeconds()) * 1000 - now.getMilliseconds() + 50);
+            timer = setTimeout(function() {
+                timer = null;
+                if (typeof document === 'undefined' || !document.hidden) {
+                    drawWatermark();
+                }
+                scheduleNextMinute();
+            }, delay);
+        }
+
+        window.updateShareWatermarkImage = drawWatermark;
         drawWatermark();
-        var timer = setInterval(function() {
-            if (typeof document !== 'undefined' && document.hidden) return;
-            drawWatermark();
-        }, 1000);
+        scheduleNextMinute();
         if (typeof document !== 'undefined' && typeof document.addEventListener === 'function') {
             document.addEventListener('visibilitychange', function() {
-                if (!document.hidden) drawWatermark();
+                if (!document.hidden) {
+                    drawWatermark();
+                    if (!timer) scheduleNextMinute();
+                }
             });
         }
     })();
@@ -1159,6 +1179,7 @@ function setupAxureSitemapAutoNumbering(targetWindow) {
     try {
         doc = targetWindow.document;
         if (!doc) return;
+        if (doc.getElementById('protoloft-axure-sitemap-autonum')) return;
     } catch(e) { return; }
 
     function isAxureEnvironment() {
@@ -1520,15 +1541,21 @@ function setupAxureSitemapAutoNumbering(targetWindow) {
         return seqOk && fitOk;
     }
 
-    runAndFit();
-    var attempts = 0;
-    var timer = setInterval(function() {
-        attempts++;
-        if (runAndFit() || attempts >= 45) clearInterval(timer);
-    }, 60);
+    var doneInitial = runAndFit();
+    if (!doneInitial && !(doc.readyState === 'complete' && !isAxureEnvironment())) {
+        var attempts = 0;
+        var timer = setInterval(function() {
+            attempts++;
+            if (runAndFit() || attempts >= 45 || (doc.readyState === 'complete' && !isAxureEnvironment())) {
+                clearInterval(timer);
+            }
+        }, 60);
+    }
+
+    if (!isAxureEnvironment() && doc.readyState === 'complete') return;
 
     try {
-        var host = doc.getElementById('sitemapHost') || doc.getElementById('sitemapTreeContainer') || doc.body;
+        var host = doc.getElementById('sitemapHost') || doc.getElementById('sitemapTreeContainer');
         if (host && targetWindow.MutationObserver && !host.__autonumObserved) {
             host.__autonumObserved = true;
             var deb = null;

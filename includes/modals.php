@@ -796,28 +796,22 @@ $allUsers = $db->query("SELECT id, email, name, role FROM users WHERE status = 1
                     }
                 } catch (\Exception $e) {}
 
-                // 全站批注待办与评审闭环数据
+                // 全站批注待办与评审闭环数据 (仅聚合计数与必要筛选字段，避免全表详情拖慢首屏 HTML)
                 $dashboardAnnoList = [];
                 $projectFilterList = [];
                 try {
                     $annoRows = $db->query("
-                        SELECT a.id, a.item_id, a.ver_id, a.page_title, a.status, a.created_at,
-                               i.name as item_name, v.version_name
-                        FROM annotations a
-                        LEFT JOIN items i ON a.item_id = i.id
-                        LEFT JOIN versions v ON a.ver_id = v.id
-                        ORDER BY a.created_at DESC
+                        SELECT item_id, ver_id, status, COUNT(*) as cnt
+                        FROM annotations
+                        GROUP BY item_id, ver_id, status
                     ")->fetchAll();
                     if ($annoRows) {
                         foreach ($annoRows as $ar) {
                             $dashboardAnnoList[] = [
-                                'id' => (int)$ar['id'],
                                 'item_id' => (int)$ar['item_id'],
-                                'item_name' => $ar['item_name'] ?? '未命名项目',
                                 'ver_id' => (int)$ar['ver_id'],
-                                'ver_name' => $ar['version_name'] ?? '默认版本',
-                                'page_title' => !empty($ar['page_title']) ? $ar['page_title'] : '未命名子页面',
-                                'status' => (int)$ar['status']
+                                'status' => (int)$ar['status'],
+                                'cnt' => (int)$ar['cnt']
                             ];
                         }
                     }
@@ -1255,7 +1249,6 @@ $allUsers = $db->query("SELECT id, email, name, role FROM users WHERE status = 1
                                         data-name="<?php echo htmlspecialchars($it['name']); ?>" 
                                         data-created-by="<?php echo (int)($it['created_by'] ?? 0); ?>"
                                         data-creator-name="<?php echo htmlspecialchars($it['creator_name'] ?? ''); ?>"
-                                        data-versions="<?php echo htmlspecialchars(json_encode($vList), ENT_QUOTES, 'UTF-8'); ?>"
                                         style="border-bottom:1px solid var(--border);">
                                         <td style="padding:9px 12px;font-weight:600;color:var(--text-1);">
                                             <?php echo htmlspecialchars($it['name']); ?>

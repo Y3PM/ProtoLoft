@@ -257,7 +257,8 @@
         filterMode: 'page', // 'page': 仅当前页面, 'all': 本版本全部
         statusFilter: 'all', // 'all', 'pending', 'resolved'
         list: [],
-        pendingCount: 0
+        pendingCount: 0,
+        loadedKey: ''
     };
 
     function syncComposer() {
@@ -388,7 +389,9 @@
                 updateActiveContext(true);
             }
             startContextWatcher();
-            window.loadAnnotations();
+            if (AnnoState.loadedKey !== (AnnoState.itemId + ':' + AnnoState.verId)) {
+                window.loadAnnotations(true);
+            }
             if (AnnoState.statusFilter === 'previous') loadPreviousAnnotations();
             var input = document.getElementById('annoNewInput');
             if (input && typeof CURRENT_USER !== 'undefined' && CURRENT_USER) {
@@ -529,6 +532,7 @@
         if (isChanged) {
             AnnoState.list = [];
             AnnoState.pendingCount = 0;
+            AnnoState.loadedKey = '';
             var input = document.getElementById('annoNewInput');
             if (input) input.value = '';
             var body = document.getElementById('annoListBody');
@@ -542,7 +546,7 @@
         window.switchAnnoStatusFilter(status);
 
         if (AnnoState.itemId) {
-            window.loadAnnotations();
+            window.loadAnnotations(isChanged);
         } else {
             renderAnnotationList();
         }
@@ -552,10 +556,14 @@
         if (!AnnoState.itemId || (AnnoState.itemType !== 'link' && !AnnoState.verId)) {
             AnnoState.list = [];
             AnnoState.pendingCount = 0;
+            AnnoState.loadedKey = '';
             updateHeaderBadge();
             renderAnnotationList();
             return;
         }
+
+        var ctxKey = AnnoState.itemId + ':' + AnnoState.verId;
+        AnnoState.loadedKey = ctxKey;
 
         var url = 'api.php?action=list_annotations&item_id=' + AnnoState.itemId;
         if (AnnoState.verId) url += '&ver_id=' + AnnoState.verId;
@@ -572,11 +580,15 @@
                 AnnoState.list = res.data.list || [];
                 AnnoState.pendingCount = parseInt(res.data.pending_count, 10) || 0;
                 AnnoState.verId = res.data.ver_id || AnnoState.verId;
+                AnnoState.loadedKey = AnnoState.itemId + ':' + AnnoState.verId;
                 updateHeaderBadge();
                 renderAnnotationList();
             }
         })
         .catch(function(err) {
+            if (contextSnapshot === contextSequence && AnnoState.loadedKey === ctxKey) {
+                AnnoState.loadedKey = '';
+            }
             console.error('[Anno] 加载批注失败:', err);
         });
     };
@@ -1238,7 +1250,7 @@
         var fd = new FormData();fd.append('id',id);
         apiFetch('review_annotation',fd).then(function(res) {
             if (!res.success) throw new Error(res.message || '复核失败');
-            window.loadAnnotations();
+            window.loadAnnotations(true);
         }).catch(function(e) {showToast(e.message || '复核失败','error');});
     };
     window.togglePreviousAnnotations = function() {
@@ -1307,7 +1319,7 @@
         apiFetch('carry_annotation',fd).then(function(res) {
             if (sequence !== contextSequence) return;
             if (!res.success) throw new Error(res.message || '引用失败');
-            window.focusAnnotation(parseInt(res.data.id,10));window.loadAnnotations();showToast('已引用到当前版本','success');
+            window.focusAnnotation(parseInt(res.data.id,10));window.loadAnnotations(true);showToast('已引用到当前版本','success');
         }).catch(function(e) {if (sequence === contextSequence) showToast(e.message || '引用失败','error');});
     };
 
@@ -1743,7 +1755,9 @@
                 if (AnnoState.filterMode === 'page') {
                     renderAnnotationList();
                 }
-                window.loadAnnotations();
+                if (AnnoState.loadedKey !== (AnnoState.itemId + ':' + AnnoState.verId)) {
+                    window.loadAnnotations(true);
+                }
             }
         }
 
@@ -1779,25 +1793,29 @@
             } catch(e) {}
         }
 
+        var probeTimers = [];
+        function scheduleContextProbe() {
+            while (probeTimers.length) {
+                clearTimeout(probeTimers.pop());
+            }
+            probeTimers.push(setTimeout(function() { updateContext(false); }, 80));
+            probeTimers.push(setTimeout(function() { updateContext(false); }, 360));
+        }
+
         frame.addEventListener('load', function() {
             onIframeLoadOrChange();
             try {
-                if (frame.contentWindow) {
+                if (frame.contentWindow && !frame.contentWindow.__annoOuterBound) {
+                    frame.contentWindow.__annoOuterBound = true;
                     frame.contentWindow.addEventListener('hashchange', function() {
                         updateContext(false);
                     });
                     frame.contentWindow.addEventListener('click', function() {
-                        setTimeout(function() { updateContext(false); }, 50);
-                        setTimeout(function() { updateContext(false); }, 150);
-                        setTimeout(function() { updateContext(false); }, 350);
-                        setTimeout(function() { updateContext(false); }, 700);
+                        if (AnnoState.isOpen) scheduleContextProbe();
                     }, true);
                     frame.contentWindow.addEventListener('mousedown', function() {
                         bindFrameHotkeys(frame.contentWindow);
-                        setTimeout(function() { updateContext(false); }, 50);
-                        setTimeout(function() { updateContext(false); }, 150);
-                        setTimeout(function() { updateContext(false); }, 350);
-                        setTimeout(function() { updateContext(false); }, 700);
+                        if (AnnoState.isOpen) scheduleContextProbe();
                     }, true);
                 }
             } catch(e) {}
