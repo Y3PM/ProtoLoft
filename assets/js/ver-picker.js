@@ -243,6 +243,16 @@
                 var label = currentOpt ? getOptionLabel(currentOpt) : '';
                 triggerText.textContent = label || '请选择';
                 trigger.title = label || selectEl.getAttribute('title') || '';
+
+                var hasNewOpt = false;
+                for (var oi = 0; oi < opts.length; oi++) {
+                    if (opts[oi].getAttribute('data-is-new') === '1') {
+                        hasNewOpt = true;
+                        break;
+                    }
+                }
+                trigger.classList.toggle('has-new-ver', hasNewOpt);
+
                 if (inst.isOpen) {
                     inst.renderList();
                 }
@@ -271,6 +281,16 @@
                 checkIcon.setAttribute('aria-hidden', 'true');
 
                 btn.appendChild(nameSpan);
+
+                var isNew = (opt.getAttribute('data-is-new') === '1');
+                if (isNew) {
+                    btn.classList.add('has-new-tag');
+                    var newBadge = document.createElement('span');
+                    newBadge.className = 'ver-popover-item-new-tag';
+                    newBadge.textContent = '新';
+                    btn.appendChild(newBadge);
+                }
+
                 btn.appendChild(checkIcon);
 
                 if (!isDisabled) {

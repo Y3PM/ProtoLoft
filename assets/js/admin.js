@@ -1889,6 +1889,9 @@ function syncPublishedVersion(itemId, version) {
         renderVersionManageView();
     }
     syncDashboardVersion(itemId, version.id, version.version_name);
+    if (typeof refreshCategoryTreeNewBadges === 'function') {
+        refreshCategoryTreeNewBadges();
+    }
 }
 
 function uploadFileChunks(file, fileType, uploadId, CHUNK_SIZE, onChunkUploaded) {
@@ -6282,6 +6285,9 @@ function handleVersionEditSubmit(e) {
                 }
             }
         }
+        if (typeof refreshCategoryTreeNewBadges === 'function') {
+            refreshCategoryTreeNewBadges();
+        }
     }).catch(function(err) {
         if (saveBtn) {
             saveBtn.disabled = false;
@@ -6324,6 +6330,9 @@ function handleSetDefaultVersion(verId, itemId) {
                         v.is_default = (parseInt(v.id, 10) === parseInt(verId, 10)) ? 1 : 0;
                     });
                     renderVersionManageView();
+                }
+                if (typeof refreshCategoryTreeNewBadges === 'function') {
+                    refreshCategoryTreeNewBadges();
                 }
             } else {
                 window.location.hash = '#item=' + itemId;
@@ -6383,6 +6392,9 @@ function handleDeleteVersion(verId, verName, itemId) {
                             renderVersionManageView();
                         }
                         syncDashboardRemoveVersion(itemId, verId);
+                        if (typeof refreshCategoryTreeNewBadges === 'function') {
+                            refreshCategoryTreeNewBadges();
+                        }
                     } else {
                         window.location.hash = '#item=' + itemId;
                         window.location.reload();
@@ -6656,6 +6668,9 @@ function syncVersionRpState(itemId, verId, rpFile, rpSize, updatedAt) {
                 updateTopRpButtons(rpFile, currentVerName, itemId, verId);
             }
         }
+    }
+    if (typeof refreshCategoryTreeNewBadges === 'function') {
+        refreshCategoryTreeNewBadges();
     }
 }
 

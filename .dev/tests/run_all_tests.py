@@ -28,6 +28,10 @@ GRAY = "\033[90m"
 
 SUITES = [
     {
+        "id": "new_version_badge", "name": "新版本提示虚线红点与切版消除",
+        "cmd": ["node", str(TESTS_DIR / "new_version_badge_regression.js")], "needs_php": False, "type": "node"
+    },
+    {
         "id": "version_modal_frontend", "name": "版本卡片、筛选分页与操作权限",
         "cmd": ["node", str(TESTS_DIR / "version_modal_frontend_regression.js")], "needs_php": False, "type": "node"
     },

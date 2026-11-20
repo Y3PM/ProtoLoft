@@ -367,6 +367,85 @@ function showConfirm(options, callback, isDangerShort) {
 
 window.showConfirm = showConfirm;
 
+// ==========================================
+// 新版本时效与已读管理 (3天 TTL + 虚线红点 + 顶栏下拉新标 + 切换即消)
+// ==========================================
+var NEW_VERSION_TTL = 3 * 24 * 60 * 60 * 1000; // 72 小时
+
+function parseVerDate(timeStr) {
+    if (!timeStr) return 0;
+    var s = String(timeStr).trim().replace(/-/g, '/');
+    var t = Date.parse(s);
+    return isNaN(t) ? 0 : t;
+}
+
+function getReadVersionIds() {
+    try {
+        var raw = localStorage.getItem('protoloft_read_versions');
+        return raw ? JSON.parse(raw) : [];
+    } catch(e) {
+        return [];
+    }
+}
+
+function isVersionRead(verId) {
+    if (!verId) return true;
+    var ids = getReadVersionIds();
+    return ids.indexOf(parseInt(verId, 10)) !== -1;
+}
+
+function markVersionAsRead(verId) {
+    var idNum = parseInt(verId, 10);
+    if (!idNum) return;
+    var ids = getReadVersionIds();
+    if (ids.indexOf(idNum) === -1) {
+        ids.push(idNum);
+        if (ids.length > 500) ids = ids.slice(ids.length - 500);
+        try {
+            localStorage.setItem('protoloft_read_versions', JSON.stringify(ids));
+        } catch(e) {}
+    }
+}
+
+function isVersionNew(v) {
+    if (!v || !v.id) return false;
+    var t = parseVerDate(v.updated_at || v.created_at);
+    if (!t) return false;
+    var now = Date.now();
+    if (now - t > NEW_VERSION_TTL || t - now > 86400000) return false;
+    return !isVersionRead(v.id);
+}
+
+function getItemNewVersion(versions) {
+    if (!Array.isArray(versions) || !versions.length) return null;
+    for (var i = 0; i < versions.length; i++) {
+        if (isVersionNew(versions[i])) {
+            return versions[i];
+        }
+    }
+    return null;
+}
+
+function refreshCategoryTreeNewBadges() {
+    $('#categoryTree .item-row').each(function() {
+        var $el = $(this);
+        var rawVers = $el.data('versions');
+        var vers = [];
+        if (typeof rawVers === 'string') {
+            try { vers = JSON.parse(rawVers); } catch(e) { vers = []; }
+        } else if (Array.isArray(rawVers)) {
+            vers = rawVers;
+        }
+        var newVer = getItemNewVersion(vers);
+        if (newVer) {
+            $el.addClass('has-new-ver').attr('data-new-ver-id', newVer.id);
+        } else {
+            $el.removeClass('has-new-ver').removeAttr('data-new-ver-id');
+        }
+    });
+}
+window.refreshCategoryTreeNewBadges = refreshCategoryTreeNewBadges;
+
 // 工作台目录树动效规范：折叠与展开由 toggleCategory 原生精确控制，不挂载外部绝对定位重排
 function initWorkbenchFluidAnimations() {
     // No-op: 遵循 Linear 原则，目录树采用原生 CSS/WAAPI 驱动，避免双重过渡抖动
@@ -375,6 +454,7 @@ window.initWorkbenchFluidAnimations = initWorkbenchFluidAnimations;
 
 $(document).ready(function() {
     initWorkbenchFluidAnimations();
+    refreshCategoryTreeNewBadges();
     // 检查是否有跨页面持久化待展示的 Toast
     try {
         var pending = sessionStorage.getItem('pending_toast');
@@ -461,6 +541,14 @@ function selectItem(itemId, el, targetVerName, isUserDirectClick) {
         }
     }
 
+    // 检查是否有未读新版本 (仅用户手动点击到对应版本才消除，防止首屏自动选中与深链静默消点)
+    var newVer = typeof getItemNewVersion === 'function' ? getItemNewVersion(versions) : null;
+    if (Boolean(isUserDirectClick) && newVer && currentVer && parseInt(currentVer.id, 10) === parseInt(newVer.id, 10)) {
+        if (typeof markVersionAsRead === 'function') markVersionAsRead(currentVer.id);
+        $el.removeClass('has-new-ver').removeAttr('data-new-ver-id');
+        newVer = typeof getItemNewVersion === 'function' ? getItemNewVersion(versions) : null;
+    }
+
     var href = (type === 'link') ? $el.data('href') : (currentVer ? currentVer.entry_file : '');
     var ver = currentVer ? currentVer.version_name : '';
     var rp = currentVer ? (currentVer.rp_file || '') : '';
@@ -480,15 +568,17 @@ function selectItem(itemId, el, targetVerName, isUserDirectClick) {
     var $barVerSelect = $('#barVerSelect');
 
     if (versions.length > 1) {
-        $barVer.hide();
+        $barVer.hide().removeClass('has-new-ver');
         $barVerSelect.empty();
         for (var i = 0; i < versions.length; i++) {
             var v = versions[i];
+            var isThisNew = typeof isVersionNew === 'function' ? isVersionNew(v) : false;
             var $opt = $('<option>')
                 .val(v.entry_file)
                 .text(v.version_name)
                 .attr('data-ver-id', v.id)
                 .attr('data-ver', v.version_name)
+                .attr('data-is-new', isThisNew ? '1' : '0')
                 .data('ver', v.version_name)
                 .data('ver-id', v.id)
                 .data('token', v.token || '')
@@ -507,11 +597,19 @@ function selectItem(itemId, el, targetVerName, isUserDirectClick) {
     } else if (versions.length === 1) {
         $barVerSelect.hide();
         if (typeof syncVersionPicker === 'function') syncVersionPicker('barVerSelect');
-        $barVer.html('<i class="ri-git-branch-line"></i> ' + esc(versions[0].version_name)).show();
+        var v0IsNew = typeof isVersionNew === 'function' ? isVersionNew(versions[0]) : false;
+        if (Boolean(isUserDirectClick) && v0IsNew && currentVer && parseInt(currentVer.id, 10) === parseInt(versions[0].id, 10)) {
+            if (typeof markVersionAsRead === 'function') markVersionAsRead(versions[0].id);
+            $el.removeClass('has-new-ver').removeAttr('data-new-ver-id');
+            v0IsNew = false;
+        }
+        $barVer.html('<i class="ri-git-branch-line"></i> ' + esc(versions[0].version_name))
+            .toggleClass('has-new-ver', v0IsNew)
+            .show();
     } else {
         $barVerSelect.hide();
         if (typeof syncVersionPicker === 'function') syncVersionPicker('barVerSelect');
-        $barVer.hide();
+        $barVer.hide().removeClass('has-new-ver');
     }
 
     // 顶部栏版本管理快捷入口联动 (严格判断当前项目是否有编辑权限)
@@ -698,6 +796,23 @@ function onTopVersionChange(selectEl) {
     var author = $opt.data('creator');
     var token = $opt.data('token') || '';
     var shareCode = $opt.data('share-code') || '';
+
+    // 切换到对应新版本时的消除逻辑 (只有点击到对应版本的时候才全部消失)
+    if ($opt.attr('data-is-new') === '1' || (typeof isVersionNew === 'function' && isVersionNew({ id: verId, updated_at: time }))) {
+        if (typeof markVersionAsRead === 'function') markVersionAsRead(verId);
+        $opt.attr('data-is-new', '0');
+        var $curItem = $('#item-node-' + currentSelectedItemId);
+        if ($curItem.length) {
+            var itemVers = $curItem.data('versions');
+            if (typeof itemVers === 'string') {
+                try { itemVers = JSON.parse(itemVers); } catch(e) { itemVers = []; }
+            }
+            if (typeof getItemNewVersion !== 'function' || !getItemNewVersion(itemVers)) {
+                $curItem.removeClass('has-new-ver').removeAttr('data-new-ver-id');
+            }
+        }
+        if (typeof syncVersionPicker === 'function') syncVersionPicker(selectEl);
+    }
 
     var $item = $('#item-node-' + currentSelectedItemId);
     $item.data('href', href).data('ver', ver).data('ver-id', verId).data('rp', rp).data('time', time).data('token', token).data('share-code', shareCode);

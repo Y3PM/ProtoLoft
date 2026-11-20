@@ -57,6 +57,8 @@
     --warning-text: #92400e;
     --warning-subtle: #fffbeb;
     --warning-border: #fde68a;
+    --new-ver: #f43f5e;
+    --new-ver-subtle: rgba(244, 63, 94, 0.1);
 
     /* 圆角 */
     --radius-sm: 6px;
@@ -735,6 +737,22 @@ body, html {
 
 .item-row.is-hidden-item {
     opacity: 0.65;
+}
+
+.item-row.has-new-ver::before {
+    content: '';
+    position: absolute;
+    left: -11px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background-color: var(--new-ver);
+    box-shadow: 0 0 0 1.5px var(--surface, #fff);
+    z-index: 2;
+    pointer-events: none;
+    transition: transform 0.2s ease, opacity 0.2s ease;
 }
 
 .item-name-wrap {
@@ -5068,6 +5086,49 @@ button.user-badge { border:0; background-color:transparent; text-align:left; fon
 
 .ver-popover-item.is-selected .ver-popover-check {
     opacity: 1;
+}
+
+.top-ver-trigger.has-new-ver,
+.current-ver-tag.has-new-ver {
+    position: relative;
+}
+
+.top-ver-trigger.has-new-ver::after,
+.current-ver-tag.has-new-ver::after {
+    content: '';
+    position: absolute;
+    top: -2px;
+    right: -2px;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background-color: var(--new-ver);
+    box-shadow: 0 0 0 1.5px var(--surface, #fff);
+    z-index: 2;
+    pointer-events: none;
+    transition: transform 0.2s ease, opacity 0.2s ease;
+}
+
+.ver-popover-item.has-new-tag .ver-popover-item-name {
+    flex: 0 1 auto;
+}
+
+.ver-popover-item-new-tag {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: 16px;
+    padding: 0 4px;
+    font-size: 10px;
+    font-weight: 600;
+    line-height: 1;
+    color: var(--new-ver);
+    background-color: var(--new-ver-subtle);
+    border-radius: 3px;
+    margin-left: 6px;
+    margin-right: auto;
+    flex-shrink: 0;
+    pointer-events: none;
 }
 
 @media (prefers-reduced-motion: reduce) {
