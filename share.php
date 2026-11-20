@@ -1179,14 +1179,14 @@ function setupAxureSitemapAutoNumbering(targetWindow) {
     try {
         doc = targetWindow.document;
         if (!doc) return;
-        if (doc.getElementById('protoloft-axure-sitemap-autonum')) return;
     } catch(e) { return; }
 
     function isAxureEnvironment() {
         try {
-            if (targetWindow.$axure) return true;
+            if (targetWindow.$axure || targetWindow['$axure']) return true;
             if (doc.getElementById('sitemapHost') || doc.getElementById('sitemapTreeContainer')) return true;
-            if (doc.querySelector && doc.querySelector('.sitemapTree, .sitemapNode')) return true;
+            if (doc.getElementById('leftPanel') || doc.getElementById('lsplitbar')) return true;
+            if (doc.querySelector && doc.querySelector('.sitemapTree, .sitemapNode, .leftPanel, #lsplitbar, script[src*="axure"], script[src*="player"], link[href*="axure"]')) return true;
         } catch(e) {}
         return false;
     }
@@ -1542,20 +1542,18 @@ function setupAxureSitemapAutoNumbering(targetWindow) {
     }
 
     var doneInitial = runAndFit();
-    if (!doneInitial && !(doc.readyState === 'complete' && !isAxureEnvironment())) {
+    if (!doneInitial) {
         var attempts = 0;
         var timer = setInterval(function() {
             attempts++;
-            if (runAndFit() || attempts >= 45 || (doc.readyState === 'complete' && !isAxureEnvironment())) {
+            if (runAndFit() || attempts >= 45) {
                 clearInterval(timer);
             }
         }, 60);
     }
 
-    if (!isAxureEnvironment() && doc.readyState === 'complete') return;
-
     try {
-        var host = doc.getElementById('sitemapHost') || doc.getElementById('sitemapTreeContainer');
+        var host = doc.getElementById('sitemapHost') || doc.getElementById('sitemapTreeContainer') || doc.body;
         if (host && targetWindow.MutationObserver && !host.__autonumObserved) {
             host.__autonumObserved = true;
             var deb = null;

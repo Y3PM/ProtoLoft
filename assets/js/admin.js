@@ -1842,6 +1842,9 @@ function handleVersionUpload(e) {
         if (!res) return;
         if (res.success) {
             if (typeof resetQuickCreateFlow === 'function') resetQuickCreateFlow();
+            if (res.data && res.data.version && res.data.version.id && typeof markVersionAsRead === 'function') {
+                markVersionAsRead(res.data.version.id);
+            }
             if (isAdminConsoleOpen()) {
                 closeModal('uploadModal');
                 markAdminConsoleChanged();
@@ -1869,6 +1872,9 @@ function handleVersionUpload(e) {
 // 通用分片上传辅助函数
 function syncPublishedVersion(itemId, version) {
     if (!version) return;
+    if (version.id && typeof markVersionAsRead === 'function') {
+        markVersionAsRead(version.id);
+    }
     if (typeof hydrateAdminRowVersions === 'function') hydrateAdminRowVersions(itemId);
     var latest = [];
     $('#admin-item-row-' + itemId + ', #item-node-' + itemId).each(function() {

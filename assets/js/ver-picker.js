@@ -367,12 +367,16 @@
             },
 
             selectOptionIndex: function(optIdx) {
+                var isNewOpt = false;
+                if (selectEl.options && selectEl.options[optIdx]) {
+                    isNewOpt = (selectEl.options[optIdx].getAttribute('data-is-new') === '1');
+                }
                 var changed = (selectEl.selectedIndex !== optIdx);
                 selectEl.selectedIndex = optIdx;
                 selectEl.classList.remove('m-input-error');
                 inst.close(true);
                 inst.syncFromSelect();
-                if (changed) {
+                if (changed || isNewOpt) {
                     var ev;
                     try {
                         ev = new Event('change', { bubbles: true });

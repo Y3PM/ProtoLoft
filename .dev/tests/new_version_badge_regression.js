@@ -16,8 +16,8 @@ const configPhp = fs.readFileSync(path.join(ROOT, 'includes/config.php'), 'utf-8
 console.log('[*] 开始执行新版本标识自动化回归测试 (增强版)...');
 
 // 1. 版本号升级回归
-assert(configPhp.includes("define('APP_VERSION', '3.1.1');"), "config.php 版本号应升为 3.1.1");
-console.log('  ✓ PASS: 系统常量 APP_VERSION 正确升至 3.1.1');
+assert(configPhp.includes("define('APP_VERSION', '3.1.3');"), "config.php 版本号应升为 3.1.3");
+console.log('  ✓ PASS: 系统常量 APP_VERSION 正确升至 3.1.3');
 
 // 2. CSS 样式契约与设计系统令牌映射 (严守铁律 3)
 assert(appCss.includes('--new-ver: #f43f5e;'), ":root 必须声明 --new-ver 状态色令牌");
@@ -37,16 +37,19 @@ assert(appJs.includes('protoloft_read_versions'), "缺少已读版本 localStora
 assert(appJs.includes('Boolean(isUserDirectClick) && newVer && currentVer'), "selectItem 缺少 isUserDirectClick 用户物理点击门控");
 console.log('  ✓ PASS: app.js 严守 isUserDirectClick 用户物理点击门控');
 
-// 4. admin.js 会话内状态同步回调
+// 4. admin.js 会话内状态同步回调与发版人天然已读
 assert(adminJs.includes('refreshCategoryTreeNewBadges'), "admin.js 缺少 refreshCategoryTreeNewBadges 回调支持");
-console.log('  ✓ PASS: admin.js 覆盖会话内发版与版本操作红点自愈同步');
+assert(adminJs.includes('markVersionAsRead(res.data.version.id)'), "admin.js 发版成功缺少发版人 markVersionAsRead 调用");
+assert(adminJs.includes('markVersionAsRead(version.id)'), "admin.js syncPublishedVersion 缺少 markVersionAsRead 调用");
+console.log('  ✓ PASS: admin.js 覆盖会话内发版与版本操作红点自愈同步且发版人天然已读');
 
-// 5. ver-picker.js 选项与触发器联动
+// 5. ver-picker.js 选项与触发器联动 (支持已选新项点击即消)
 assert(verPickerJs.includes("opts[oi].getAttribute('data-is-new') === '1'"), "ver-picker.js 缺少 data-is-new 选项检测");
 assert(verPickerJs.includes("trigger.classList.toggle('has-new-ver'"), "ver-picker.js 缺少顶栏触发器 has-new-ver 联动");
 assert(verPickerJs.includes('ver-popover-item-new-tag'), "ver-picker.js 缺少 ver-popover-item-new-tag 标签渲染");
 assert(verPickerJs.includes("newBadge.textContent = '新';"), "ver-picker.js 新标签文案应为'新'");
-console.log('  ✓ PASS: ver-picker.js 自定义选择器完整联动新标与顶栏红点');
+assert(verPickerJs.includes('changed || isNewOpt'), "ver-picker.js 必须支持对带有新标的已选项点击派发消点");
+console.log('  ✓ PASS: ver-picker.js 自定义选择器完整联动新标且支持点击已选新版本立即消除');
 
 // 6. 从 app.js 真实源码动态正则提取函数进行仿真执行 (拒绝手抄副本)
 const parseVerDateMatch = appJs.match(/function parseVerDate\([\s\S]*?^}/m);

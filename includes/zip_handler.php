@@ -579,7 +579,8 @@ EOD;
         try {
             if(window['$' + 'axure']) return true;
             if(document.getElementById('sitemapHost') || document.getElementById('sitemapTreeContainer')) return true;
-            if(document.querySelector && document.querySelector('.sitemapTree, .sitemapNode')) return true;
+            if(document.getElementById('leftPanel') || document.getElementById('lsplitbar')) return true;
+            if(document.querySelector && document.querySelector('.sitemapTree, .sitemapNode, .leftPanel, #lsplitbar, script[src*="axure"], script[src*="player"], link[href*="axure"]')) return true;
         } catch(e){}
         return false;
     }
@@ -607,7 +608,7 @@ EOD;
             }, 60);
         }
         try {
-            var host = document.getElementById('sitemapHost') || document.getElementById('sitemapTreeContainer');
+            var host = document.getElementById('sitemapHost') || document.getElementById('sitemapTreeContainer') || document.body;
             if(host && window.MutationObserver && !host.__autonumObserved){
                 host.__autonumObserved = true;
                 var deb = null;
