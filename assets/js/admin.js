@@ -2803,14 +2803,37 @@ function getOwnerDisplayName(uid) {
     return '成员 #' + idNum;
 }
 
+function canEditorsShare() {
+    var group = document.getElementById('itemOwnersGroup');
+    return !group || group.getAttribute('data-editor-share') !== '0';
+}
+
+function syncItemCollaborationSharePermission(allowed) {
+    var group = document.getElementById('itemOwnersGroup');
+    if (!group) return;
+    group.setAttribute('data-editor-share', allowed ? '1' : '0');
+    var scope = document.getElementById('itemCollaborationScope');
+    if (scope) {
+        var all = scope.querySelector('option[value="all"]');
+        var selected = scope.querySelector('option[value="selected"]');
+        if (all) all.textContent = '所有协作者可管理版本' + (allowed ? '和分享' : '');
+        if (selected) selected.textContent = '仅指定成员可管理版本' + (allowed ? '和分享' : '');
+    }
+    $('#overviewTableProjects tbody tr[data-item-id]').each(function() {
+        var $row = $(this);
+        $row.find('td').eq(2).html(renderItemOwnersCellHtml($row.attr('data-collaborators') || ''));
+    });
+}
+
 function renderItemOwnersCellHtml(collaboratorsStr, creatorName) {
+    var actions = canEditorsShare() ? '版本与分享' : '版本';
     var ids = parseOwnerIds(collaboratorsStr);
     if (ids.length > 0) {
         var names = ids.map(getOwnerDisplayName);
         var fullText = names.join('、');
-        return '<span title="版本与分享：仅' + esc(fullText) + '">仅' + esc(fullText) + '</span>';
+        return '<span title="' + actions + '：仅' + esc(fullText) + '">仅' + esc(fullText) + '</span>';
     }
-    return '<span title="版本与分享：所有协作者">所有协作者</span>';
+    return '<span title="' + actions + '：所有协作者">所有协作者</span>';
 }
 window.renderItemOwnersCellHtml = renderItemOwnersCellHtml;
 
@@ -4687,7 +4710,9 @@ function autoSaveRolePermissions() {
     checkboxes.forEach(function(input) {
         fd.append(input.name, input.checked ? '1' : '0');
     });
-    return queueAutoSave('save_role_permissions', fd);
+    return queueAutoSave('save_role_permissions', fd, function(saved) {
+        syncItemCollaborationSharePermission(saved.get('perm_editor_share') === '1');
+    });
 }
 window.autoSaveRolePermissions = autoSaveRolePermissions;
 

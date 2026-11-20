@@ -37,7 +37,7 @@ def main():
         })
         assert ed_a.get('success') and ed_b.get('success')
 
-        artifact_dir = ROOT / '.dev' / 'tmp' / 'collaboration-scope-a-verify'
+        artifact_dir = ROOT / '.dev' / 'tmp' / 'collaboration-share-copy-verify'
         artifact_dir.mkdir(parents=True, exist_ok=True)
         fixture = {
             'base': base,

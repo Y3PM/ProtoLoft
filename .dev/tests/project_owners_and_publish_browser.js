@@ -107,6 +107,52 @@ function check(label, value) {
         check('控制中心以权限表达全员协作，创建者仍自动记录', openRowText.includes('所有协作者') && !openRowText.includes('测试超管') && await adminPage.locator('#overviewTableProjects tr:has-text("全员开放原型")').getAttribute('data-created-by') === String(fixture.adminId));
         check('控制中心表格正确展示多选指定负责人姓名', lockRowText.includes('仅测试超管、协作者A'));
         await adminPage.screenshot({ animations: 'disabled', path: path.join(fixture.artifacts, '03-admin-console-owners-table.png') });
+        // A permission-save reply may arrive while a project draft is open.
+        await adminPage.locator('#nav-roles').click();
+        let releaseShareSave;
+        let shareSaveSeen;
+        const heldShareSave = new Promise(resolve => { releaseShareSave = resolve; });
+        const shareSaveStarted = new Promise(resolve => { shareSaveSeen = resolve; });
+        await adminPage.route('**/api.php', async route => {
+            if ((route.request().postData() || '').includes('save_role_permissions')) {
+                shareSaveSeen();
+                await heldShareSave;
+            }
+            await route.continue();
+        });
+        await adminPage.locator('#permEditorShare').uncheck();
+        await shareSaveStarted;
+        check('分享授权尚未保存时不提前改写权限文案', (await adminPage.locator('#itemCollaborationScope option[value="all"]').textContent()).includes('和分享'));
+        await adminPage.locator('#nav-overview').click();
+        await adminPage.locator('#overviewTableProjects tr:has-text("专属锁定原型") button[title="编辑属性"]').click();
+        await adminPage.locator('#itemOwnersTrigger').click();
+        await adminPage.locator(`#itemOwnersOptions input[value="${fixture.editorBId}"]`).check();
+        const memberDraft = await adminPage.locator('#itemCollaborators').inputValue();
+        const roleSaved = adminPage.waitForResponse(r => r.url().includes('api.php') && (r.request().postData() || '').includes('save_role_permissions'));
+        releaseShareSave();
+        check('协作者分享授权保存成功', (await (await roleSaved).json()).success);
+        await adminPage.waitForFunction(() => document.querySelector('#itemCollaborationScope option[value="all"]').textContent === '所有协作者可管理版本');
+        check('关闭协作者分享授权后管理员看到的两项文案均只含版本',
+            (await adminPage.locator('#itemCollaborationScope option[value="selected"]').textContent()) === '仅指定成员可管理版本'
+            && await adminPage.locator('#itemOwnersGroup').getAttribute('data-editor-share') === '0');
+        check('分享授权回包不改变指定模式和成员草稿', await adminPage.locator('#itemCollaborationScope').inputValue() === 'selected' && await adminPage.locator('#itemCollaborators').inputValue() === memberDraft);
+        await adminPage.locator('#itemModalTitle').click();
+        await adminPage.screenshot({ animations: 'disabled', path: path.join(fixture.artifacts, '09-sharing-disabled-copy.png') });
+        await adminPage.locator('#itemModal .close-x').click();
+        await adminPage.unroute('**/api.php');
+        check('关闭分享授权后列表提示即时去除分享', await adminPage.locator('#overviewTableProjects tr:has-text("全员开放原型") td').nth(2).locator('span').getAttribute('title') === '版本：所有协作者');
+        await adminPage.reload();
+        await openProjects(adminPage);
+        await adminPage.locator('#overviewTableProjects tr:has-text("专属锁定原型") button[title="编辑属性"]').click();
+        check('重新加载的管理员表单按协作者授权显示仅版本', (await adminPage.locator('#itemCollaborationScope option[value="all"]').textContent()) === '所有协作者可管理版本');
+        await adminPage.locator('#itemModal .close-x').click();
+        await adminPage.locator('#nav-roles').click();
+        const roleEnabled = adminPage.waitForResponse(r => r.url().includes('api.php') && (r.request().postData() || '').includes('save_role_permissions'));
+        await adminPage.locator('#permEditorShare').check();
+        check('重新授权协作者分享保存成功', (await (await roleEnabled).json()).success);
+        await adminPage.waitForFunction(() => document.getElementById('itemOwnersGroup').getAttribute('data-editor-share') === '1');
+        await adminPage.locator('#nav-overview').click();
+        check('重新授权后表单选项与列表提示即时恢复分享', (await adminPage.locator('#itemCollaborationScope option[value="all"]').textContent()) === '所有协作者可管理版本和分享' && await adminPage.locator('#overviewTableProjects tr:has-text("全员开放原型") td').nth(2).locator('span').getAttribute('title') === '版本与分享：所有协作者');
         await adminSession.ctx.close();
 
         // 2. 协作者 B 登录，测试悬浮上传、发布版本弹窗与受保护项目隔离

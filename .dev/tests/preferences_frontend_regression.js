@@ -91,5 +91,33 @@ function harness(){
   dropdown.toggleAdminDropdown();position.top=700;panel.bottom=1200;dropdown.window.innerHeight=760;
   dropdown.toggleAdminDropdown();
   check('dropdown placement also respects the viewport bottom',menu.getBoundingClientRect().bottom<=position.top && menu.getBoundingClientRect().top>=panel.top);
+  // Role-copy changes follow acknowledged snapshots, including rapid reversals and failures.
+  h=harness();
+  const shareAttr={'data-editor-share':'1'};
+  const allOption={textContent:'所有协作者可管理版本和分享'};
+  const selectedOption={textContent:'仅指定成员可管理版本和分享'};
+  const shareCheckbox={name:'perm_editor_share',checked:false};
+  h.nodes.itemOwnersGroup={getAttribute:key=>shareAttr[key],setAttribute:(key,value)=>shareAttr[key]=value};
+  h.nodes.itemCollaborationScope={value:'selected',querySelector:q=>q.includes('value="all"')?allOption:selectedOption};
+  h.nodes.rolePermissionsForm={querySelectorAll:()=>[shareCheckbox]};
+  h.c.$=()=>({each(){}});
+  h.c.CURRENT_USER={role:'admin'};
+  for(const name of ['canEditorsShare','syncItemCollaborationSharePermission']){
+    const start=admin.indexOf('function '+name+'(');
+    vm.runInContext(admin.slice(start,admin.indexOf('\n}',start)+2),h.c);
+  }
+  first=h.c.autoSaveRolePermissions();
+  check('unacknowledged role edit leaves collaboration copy unchanged',allOption.textContent.includes('和分享'));
+  shareCheckbox.checked=true;h.c.autoSaveRolePermissions();
+  await h.finish(0);
+  check('role copy uses saved payload despite a newer checkbox draft',allOption.textContent==='所有协作者可管理版本' && selectedOption.textContent==='仅指定成员可管理版本');
+  check('role copy follows editor permission even for administrator',!h.c.canEditorsShare());
+  check('role copy update preserves selected collaboration mode',h.nodes.itemCollaborationScope.value==='selected');
+  await h.finish(1);await first;
+  check('latest role acknowledgement restores sharing copy',allOption.textContent==='所有协作者可管理版本和分享' && h.c.canEditorsShare());
+  shareCheckbox.checked=false;first=h.c.autoSaveRolePermissions();await h.finish(2,false);await first;
+  check('failed permission save retains last confirmed sharing copy',allOption.textContent.includes('和分享') && h.c.canEditorsShare());
+  first=h.c.autoSaveRolePermissions();await h.finish(3);await first;
+  check('successful permission retry updates collaboration copy',allOption.textContent==='所有协作者可管理版本' && !h.c.canEditorsShare());
   console.log(JSON.stringify({passed,scope:'actual autosave and shared transport with controlled network'}));
 })().catch(e=>{console.error(e);process.exitCode=1});

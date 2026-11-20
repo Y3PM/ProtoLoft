@@ -8,7 +8,9 @@ $allUsersMap = [];
 foreach ($db->query("SELECT id, email, name, role, status FROM users")->fetchAll() as $uRow) {
     $allUsersMap[(int)$uRow['id']] = $uRow;
 }
-$renderItemOwnersCell = function($item, $usersMap) {
+$editorShareAllowed = Auth::getSetting('perm_editor_share', '1') !== '0';
+$renderItemOwnersCell = function($item, $usersMap) use ($editorShareAllowed) {
+    $actions = $editorShareAllowed ? '版本与分享' : '版本';
     $collabIds = Auth::parseItemCollaborators($item);
     if (!empty($collabIds)) {
         $names = [];
@@ -21,9 +23,9 @@ $renderItemOwnersCell = function($item, $usersMap) {
             }
         }
         $fullText = implode('、', $names);
-        return '<span title="版本与分享：仅' . htmlspecialchars($fullText, ENT_QUOTES, 'UTF-8') . '">仅' . htmlspecialchars($fullText) . '</span>';
+        return '<span title="' . $actions . '：仅' . htmlspecialchars($fullText, ENT_QUOTES, 'UTF-8') . '">仅' . htmlspecialchars($fullText) . '</span>';
     }
-    return '<span title="版本与分享：所有协作者">所有协作者</span>';
+    return '<span title="' . $actions . '：所有协作者">所有协作者</span>';
 };
 ?>
 <?php if ($canManage): ?>
@@ -335,11 +337,11 @@ $renderItemOwnersCell = function($item, $usersMap) {
                 <input type="text" id="itemName" class="m-input" placeholder="输入项目名称" required maxlength="40">
             </div>
 
-            <div class="m-form-group item-owners-group" id="itemOwnersGroup">
+            <div class="m-form-group item-owners-group" id="itemOwnersGroup" data-editor-share="<?php echo $editorShareAllowed ? '1' : '0'; ?>">
                 <label class="m-label" for="itemCollaborationScope">协作权限</label>
                 <select id="itemCollaborationScope" class="m-select" onchange="onItemCollaborationScopeChange()" aria-controls="itemOwnersSelection">
-                    <option value="all">所有协作者可管理版本和分享</option>
-                    <option value="selected">仅指定成员可管理版本和分享</option>
+                    <option value="all">所有协作者可管理版本<?php echo $editorShareAllowed ? '和分享' : ''; ?></option>
+                    <option value="selected">仅指定成员可管理版本<?php echo $editorShareAllowed ? '和分享' : ''; ?></option>
                 </select>
                 <input type="hidden" id="itemCollaborators" value="">
                 <div id="itemOwnersSelection" class="item-owners-selection" hidden>
