@@ -65,6 +65,8 @@ python3 -B .dev/tests/dropdown_sync_regression_browser.py --php /path/to/php --p
 
 ## 交接方式
 
+2026-11-20 最新：[可发版统计记录](docs/reviews/2026-11-20-publishable-project-count.md)。团队列使用 `publishable_project_count`，与发版范围一致；原 `item_count` 继续独立供交接使用，不得用可发版数量替代资产归属或删除保护。已完成 FTP 四文件回读及 HTTPS 3/3 检查。
+
 2026-11-20 最新：[外发授权文案记录](docs/reviews/2026-11-20-collaboration-share-copy.md)。协作权限选择器及列表提示跟随协作者外发授权，角色保存成功后即时更新；不以管理员个人分享特权替代协作者配置。已完成 FTP 两项文件校验和 HTTPS 3/3 检查。
 
 2026-11-20 最新：[协作权限更新记录](docs/reviews/2026-11-20-collaboration-scope-a.md)。采用已确认方案 A：先选所有协作者或指定成员，指定模式才显示名单且至少选一人；项目列表按权限范围表达。已部署 FTP，程序文件 5/5 回读及匿名 HTTPS 5/5 检查通过。

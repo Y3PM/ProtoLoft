@@ -36,8 +36,17 @@ def main():
             'role': 'editor'
         })
         assert ed_a.get('success') and ed_b.get('success')
+        for email, name, role, inactive in [
+            ('viewer@test.com', '审阅人', 'viewer', False),
+            ('paused@test.com', '停用协作者', 'editor', True),
+        ]:
+            added = admin.api('user_add', {'email': email, 'name': name, 'password': PASS_WORD, 'role': role})
+            assert added['success'], added
+            if inactive:
+                changed = admin.api('user_update', {'id': added['data'], 'status': 3})
+                assert changed['success'], changed
 
-        artifact_dir = ROOT / '.dev' / 'tmp' / 'collaboration-share-copy-verify'
+        artifact_dir = ROOT / '.dev' / 'tmp' / 'publishable-project-count-verify'
         artifact_dir.mkdir(parents=True, exist_ok=True)
         fixture = {
             'base': base,

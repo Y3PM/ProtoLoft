@@ -107,6 +107,17 @@ function check(label, value) {
         check('控制中心以权限表达全员协作，创建者仍自动记录', openRowText.includes('所有协作者') && !openRowText.includes('测试超管') && await adminPage.locator('#overviewTableProjects tr:has-text("全员开放原型")').getAttribute('data-created-by') === String(fixture.adminId));
         check('控制中心表格正确展示多选指定负责人姓名', lockRowText.includes('仅测试超管、协作者A'));
         await adminPage.screenshot({ animations: 'disabled', path: path.join(fixture.artifacts, '03-admin-console-owners-table.png') });
+        await adminPage.locator('#nav-users').click();
+        await adminPage.waitForFunction(id => cachedUsersMap[id] && cachedUsersMap[id].publishable_project_count === 2, fixture.adminId);
+        const countCell = (page, email) => page.locator(`#userTableBody tr:has-text("${email}") td`).nth(2);
+        check('团队表头准确显示可发版项目', (await adminPage.locator('#userBoxActive thead').innerText()).includes('可发版项目'));
+        check('管理员可发版数量包含全部原型项目', (await countCell(adminPage, 'admin@test.com').innerText()) === '2 个');
+        check('指定协作者计入开放和指定项目', (await countCell(adminPage, 'editora@test.com').innerText()) === '2 个');
+        check('其他协作者只计入可发布的开放项目', (await countCell(adminPage, 'editorb@test.com').innerText()) === '1 个');
+        check('审阅人可发版数量显示横线', (await countCell(adminPage, 'viewer@test.com').innerText()) === '—');
+        check('停用协作者可发版数量显示横线', (await countCell(adminPage, 'paused@test.com').innerText()) === '—');
+        await adminPage.screenshot({ animations: 'disabled', path: path.join(fixture.artifacts, '10-team-publishable-projects.png') });
+
         // A permission-save reply may arrive while a project draft is open.
         await adminPage.locator('#nav-roles').click();
         let releaseShareSave;
@@ -202,6 +213,9 @@ function check(label, value) {
             (await bLockRow.locator('button[title="发布新版本"]').count()) === 0
             && (await bLockRow.innerText()).includes('受保护'));
         await bPage.screenshot({ animations: 'disabled', path: path.join(fixture.artifacts, '05-editor-b-console-permissions.png') });
+        await bPage.locator('#nav-users').click();
+        await bPage.waitForFunction(id => cachedUsersMap[id] && cachedUsersMap[id].publishable_project_count === 1, fixture.editorBId);
+        check('协作者只读成员列表的数量与自身发布下拉一致', (await countCell(bPage, 'editorb@test.com').innerText()) === (await bPage.locator('#uploadItemSelect option').count()) + ' 个');
         await bPage.locator('#adminConsoleModal .close-x').click();
 
         // 3. 当管理员把唯一开放项目也锁定为仅 [协作者A] 后，协作者B点击「发布版本」提示不可发版而不误跳新建项目
@@ -308,8 +322,10 @@ function check(label, value) {
         await openProjects(adminFinalPage);
         await adminFinalPage.locator('#nav-users').click();
         const handoverButton = adminFinalPage.locator('#userTableBody tr:has-text("editorb@test.com") button[title="工作交接"]');
+        check('停用成员零可发版仍显示可用的工作交接入口', (await countCell(adminFinalPage, 'editorb@test.com').innerText()) === '—' && await handoverButton.isVisible());
         await handoverButton.click();
         await adminFinalPage.locator('#userHandoverModal').waitFor({ state: 'visible' });
+        check('交接弹窗使用独立记录数量而非零可发版数量', (await adminFinalPage.locator('#handoverDescText').innerText()).includes('1') && (await adminFinalPage.locator('#handoverDescText').innerText()).includes('项目或链接'));
         await adminFinalPage.locator('#handoverToUserId').selectOption(String(fixture.adminId));
         const handed = adminFinalPage.waitForResponse(r => r.url().includes('api.php') && (r.request().postData() || '').includes('user_handover'));
         await adminFinalPage.locator('#btnHandoverSubmit').click();

@@ -1027,10 +1027,19 @@ class Auth {
         $db = DB::getInstance();
         $stmt = $db->query("SELECT id, email, name, role, is_owner, status, department, webhook_url, created_at, (SELECT COUNT(*) FROM items WHERE created_by = users.id OR (type = 'project' AND instr(',' || collaborators || ',', ',' || users.id || ',') > 0)) as item_count FROM users WHERE status NOT IN (0, 2) ORDER BY is_owner DESC, id ASC");
         $rows = $stmt->fetchAll();
+        $projects = $db->query("SELECT id, type, collaborators FROM items WHERE type = 'project'")->fetchAll();
         foreach ($rows as &$row) {
             $row['username'] = $row['email'];
             $row['display_name'] = $row['name'];
+            // item_count 仅服务于交接：归属与指定关系不因账号停用或发版范围变化而消失。
             $row['item_count'] = (int)$row['item_count'];
+            $row['publishable_project_count'] = 0;
+            if ((int)$row['status'] === 1 && in_array($row['role'], ['admin', 'editor'], true)) {
+                // 与发版下拉复用同一鉴权判断；全员协作项目计入，外链不计入。
+                foreach ($projects as $project) {
+                    if (self::canEditItem($project, $row)) $row['publishable_project_count']++;
+                }
+            }
         }
         return $rows;
     }
@@ -1297,7 +1306,7 @@ class Auth {
             $itemCount = (int)$stmtItems->fetchColumn();
             if ($itemCount > 0) {
                 $db->rollBack();
-                return ['success' => false, 'message' => "该成员名下仍有 {$itemCount} 个负责项目，请先完成工作交接再删除"];
+                return ['success' => false, 'message' => "该成员仍有 {$itemCount} 个项目或链接需要交接，请先完成工作交接再删除"];
             }
 
             $db->prepare("DELETE FROM settings WHERE key = ?")->execute(['admin_token_' . $id]);

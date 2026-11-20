@@ -19,6 +19,7 @@ switch ($action) {
                     'role' => $u['role'],
                     'status' => (int)($u['status'] ?? 1),
                     'item_count' => (int)($u['item_count'] ?? 0),
+                    'publishable_project_count' => (int)($u['publishable_project_count'] ?? 0),
                     'is_owner' => !empty($u['is_owner']) ? 1 : 0,
                     'created_at' => $u['created_at']
                 ];

@@ -3746,7 +3746,7 @@ function loadUserList() {
             var nameText = esc(u.name || u.display_name || '未命名');
             var emailText = esc(u.email || u.username || '-');
             var deptText = esc(u.department || u.apply_remark || '-');
-            var itemCount = parseInt(u.item_count || 0, 10);
+            var publishableCount = parseInt(u.publishable_project_count || 0, 10);
             var webhookBadge = u.webhook_url ? '<i class="ri-robot-line" title="已配置个人机器人 Webhook" style="font-size:12px;color:var(--primary);margin-left:5px;cursor:help;"></i>' : '';
 
             var actionButtons = '';
@@ -3784,7 +3784,7 @@ function loadUserList() {
                     </td>
                     <td style="padding:10px 12px;">${roleBadge} ${statusBadge}</td>
                     <td style="padding:10px 12px;font-size:12.5px;">
-                        ${itemCount > 0 ? `<span style="font-weight:600;color:var(--text-1);">${itemCount} 个</span>` : '<span style="color:var(--text-3);">—</span>'}
+                        ${publishableCount > 0 ? `<span style="font-weight:600;color:var(--text-1);">${publishableCount} 个</span>` : '<span style="color:var(--text-3);">—</span>'}
                     </td>
                     <td style="padding:10px 12px;color:var(--text-2);font-size:12.5px;">${deptText}</td>
                     <td style="padding:10px 12px;color:var(--text-3);font-size:12px;">${esc(u.created_at)}</td>
@@ -4089,13 +4089,13 @@ function openHandoverModal(fromId) {
     var fromName = fromUser.name || '';
     var count = parseInt(fromUser.item_count || 0, 10);
     if (!count || parseInt(count, 10) <= 0) {
-        showToast('该成员名下暂无负责的项目，无需交接', 'info', 2500);
+        showToast('该成员暂无需要交接的项目或链接', 'info', 2500);
         return;
     }
     document.getElementById('handoverFromUserId').value = fromId;
     var descEl = document.getElementById('handoverDescText');
     if (descEl) {
-        descEl.innerHTML = '将 <strong>' + esc(fromName) + '</strong> 名下的 <strong>' + count + '</strong> 个负责项目交接给接管人。';
+        descEl.innerHTML = '交接 <strong>' + esc(fromName) + '</strong> 关联的 <strong>' + count + '</strong> 个项目或链接的归属及指定协作权限。';
     }
     var $select = $('#handoverToUserId');
     $select.empty().append('<option value="">-- 选择接管成员 --</option>');
