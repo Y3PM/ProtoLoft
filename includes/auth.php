@@ -14,6 +14,7 @@ class Auth {
         $stmt = $db->prepare("SELECT value FROM settings WHERE key = ?");
         $stmt->execute([$key]);
         $row = $stmt->fetch();
+        $stmt->closeCursor();
         if ($row && $row['value'] !== null && $row['value'] !== '') {
             return $row['value'];
         }
@@ -133,13 +134,21 @@ class Auth {
 
         // 同 IP 登录失败限速, 防在线爆破 (15 分钟窗口)
         if (!self::checkThrottle('login', 10, 900)) {
-            self::recordLoginLog($email, 0, '触发防爆破限速拦截');
+            self::recordLoginLog($email, 0, '触发 IP 防爆破限速拦截');
             return ['success' => false, 'message' => '失败次数过多，请 15 分钟后再试'];
+        }
+
+        // 同账号登录失败限速, 防分布式代理池多 IP 定向爆破 (15 分钟窗口)
+        $accountThrottleScope = 'login_account_' . strtolower(trim($email));
+        if (!self::checkThrottle($accountThrottleScope, 10, 900, false)) {
+            self::recordLoginLog($email, 0, '触发账号防爆破限速拦截');
+            return ['success' => false, 'message' => '该账号失败次数过多，请 15 分钟后再试'];
         }
         $db = DB::getInstance();
         $stmt = $db->prepare("SELECT * FROM users WHERE email = ?");
         $stmt->execute([$email]);
         $user = $stmt->fetch();
+        $stmt->closeCursor();
 
         if ($user && password_verify($password, $user['password_hash'])) {
             // 待审批与停用拦截
@@ -156,7 +165,6 @@ class Auth {
                 return ['success' => false, 'message' => '账号已被停用'];
             }
 
-            self::clearThrottle('login');
             app_regenerate_session($rememberMe);
             $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
             $_SESSION['user_id'] = (int)$user['id'];
@@ -190,6 +198,7 @@ class Auth {
                 }
             }
 
+            self::clearThrottle($accountThrottleScope, false);
             self::recordLoginLog($user['email'], 1, '登录成功' . ($rememberMe ? ' (记住30天)' : ' (单次会话)'));
             if (session_status() === PHP_SESSION_ACTIVE) {
                 @session_write_close();
@@ -203,6 +212,7 @@ class Auth {
             ]];
         }
         self::recordThrottleFailure('login');
+        self::recordThrottleFailure($accountThrottleScope, 900, false);
         self::recordLoginLog($email, 0, '邮箱或密码错误');
         return ['success' => false, 'message' => '邮箱或密码错误'];
     }
@@ -360,6 +370,7 @@ class Auth {
             $stmt = $db->prepare("SELECT id, email, name, role, is_owner, status, department, webhook_url, is_first_login, auth_version, created_at FROM users WHERE id = ?");
             $stmt->execute([$userId]);
             $row = $stmt->fetch();
+            $stmt->closeCursor();
             if ($row && (int)$row['status'] === 1
                 && (!$fromSession || (isset($_SESSION['auth_version']) && (int)$_SESSION['auth_version'] === (int)$row['auth_version']))) {
                 if (!$fromSession && $matchedTokenFromCookie !== null) {
@@ -877,8 +888,10 @@ class Auth {
      */
     public static function rotateItemShareToken($itemId) {
         $itemId = (int)$itemId;
+        $db = DB::getInstance();
+        $db->beginTransaction();
         try {
-            $db = DB::getInstance();
+            $db->exec('UPDATE items SET id = id WHERE 0');
             // 清理 share_codes 旧数据
             $stmt = $db->prepare("DELETE FROM share_codes WHERE item_id = ?");
             $stmt->execute([$itemId]);
@@ -887,9 +900,11 @@ class Auth {
             $newCode = self::generateShortCode(8);
             $db->prepare("UPDATE items SET share_code = ? WHERE id = ?")->execute([$newCode, $itemId]);
             $db->prepare("INSERT INTO share_codes (code, item_id, ver_id) VALUES (?, ?, 0)")->execute([$newCode, $itemId]);
-
+            $db->commit();
             return $newCode;
-        } catch (Exception $e) {
+        } catch (Throwable $e) {
+            if ($db->inTransaction()) $db->rollBack();
+            error_log('rotateItemShareToken error: ' . $e->getMessage());
             return '';
         }
     }
@@ -987,6 +1002,7 @@ class Auth {
         $stmt = $db->prepare("SELECT value FROM settings WHERE key = ?");
         $stmt->execute([$key]);
         $row = $stmt->fetch();
+        $stmt->closeCursor();
         if (!$row) return true;
         $data = json_decode($row['value'], true);
         if (!is_array($data) || !isset($data['ts'], $data['c'])) return true;
@@ -1000,6 +1016,7 @@ class Auth {
         $stmt = $db->prepare("SELECT value FROM settings WHERE key = ?");
         $stmt->execute([$key]);
         $row = $stmt->fetch();
+        $stmt->closeCursor();
         $data = $row ? json_decode($row['value'], true) : null;
         $now = time();
         if (!is_array($data) || !isset($data['ts'], $data['c']) || $now - (int)$data['ts'] > $windowSeconds) {
@@ -1014,9 +1031,9 @@ class Auth {
         self::recordThrottleFailure($scope, $windowSeconds, $byIp);
     }
 
-    public static function clearThrottle($scope) {
+    public static function clearThrottle($scope, $byIp = true) {
         $db = DB::getInstance();
-        $key = 'throttle_' . hash('sha256', $scope . '|' . self::getClientIp());
+        $key = 'throttle_' . hash('sha256', $scope . '|' . ($byIp ? self::getClientIp() : ''));
         $db->prepare("DELETE FROM settings WHERE key = ?")->execute([$key]);
     }
 
@@ -1073,11 +1090,17 @@ class Auth {
         if (mb_strlen($webhookUrl, 'UTF-8') > 1000) {
             return ['success' => false, 'message' => 'Webhook 地址不能超过 1000 个字符'];
         }
+        $trimmedWb = trim($webhookUrl);
+        if ($trimmedWb !== '' && !Webhook::isAllowedUrl($trimmedWb)) {
+            return ['success' => false, 'message' => '请使用企微、飞书或钉钉的 HTTPS 机器人地址'];
+        }
 
         // 检查邮箱冲突
         $check = $db->prepare("SELECT id FROM users WHERE email = ?");
         $check->execute([$email]);
-        if ($check->fetch()) {
+        $hasUser = (bool)$check->fetch();
+        $check->closeCursor();
+        if ($hasUser) {
             return ['success' => false, 'message' => '该邮箱已被注册或使用'];
         }
 
@@ -1100,6 +1123,7 @@ class Auth {
         $stmtCurr = $db->prepare("SELECT id, email, name, role, is_owner, status FROM users WHERE id = ?");
         $stmtCurr->execute([(int)$id]);
         $targetUser = $stmtCurr->fetch();
+        $stmtCurr->closeCursor();
         if (!$targetUser) {
             return ['success' => false, 'message' => '用户不存在'];
         }
@@ -1175,7 +1199,9 @@ class Auth {
             }
             $chkEmail = $db->prepare("SELECT id FROM users WHERE email = ? AND id != ?");
             $chkEmail->execute([$cleanEmail, (int)$id]);
-            if ($chkEmail->fetch()) {
+            $hasDupEmail = (bool)$chkEmail->fetch();
+            $chkEmail->closeCursor();
+            if ($hasDupEmail) {
                 return ['success' => false, 'message' => '该邮箱已被其他账号使用'];
             }
             $fields[] = "email = ?";
@@ -1234,6 +1260,14 @@ class Auth {
 
         // 如果修改的对象是当前登录用户自己，即时同步当前内存缓存与 Session
         if ($currUser && (int)$currUser['id'] === (int)$id) {
+            if ($changingPassword) {
+                app_regenerate_session(!empty($_SESSION['remember_me']));
+                $newVer = (int)$currUser['auth_version'] + 1;
+                $_SESSION['auth_version'] = $newVer;
+                if (self::$cachedUser) {
+                    self::$cachedUser['auth_version'] = $newVer;
+                }
+            }
             if ($name !== null) {
                 $_SESSION['user_name'] = trim($name);
                 $_SESSION['display_name'] = trim($name);
@@ -1273,6 +1307,7 @@ class Auth {
         $stmt = $db->prepare("SELECT id, email, role, is_owner FROM users WHERE id = ?");
         $stmt->execute([$id]);
         $targetUser = $stmt->fetch();
+        $stmt->closeCursor();
         if (!$targetUser) {
             return ['success' => false, 'message' => '该用户不存在或已被删除'];
         }
@@ -1303,6 +1338,7 @@ class Auth {
             $stmtItems = $db->prepare("SELECT COUNT(*) FROM items WHERE created_by = ? OR (type = 'project' AND instr(',' || collaborators || ',', ?) > 0)");
             $stmtItems->execute([$id, ',' . $id . ',']);
             $itemCount = (int)$stmtItems->fetchColumn();
+            $stmtItems->closeCursor();
             if ($itemCount > 0) {
                 $db->rollBack();
                 return ['success' => false, 'message' => "该成员仍有 {$itemCount} 个项目或链接需要交接，请先完成工作交接再删除"];
@@ -1344,6 +1380,7 @@ class Auth {
         $stmtFrom = $db->prepare("SELECT id, email, name, role, is_owner FROM users WHERE id = ?");
         $stmtFrom->execute([$fromUserId]);
         $fromUser = $stmtFrom->fetch();
+        $stmtFrom->closeCursor();
         if (!$fromUser) {
             return ['success' => false, 'message' => '原成员不存在'];
         }
@@ -1360,6 +1397,7 @@ class Auth {
         $stmtTo = $db->prepare("SELECT id, email, name, role, status FROM users WHERE id = ?");
         $stmtTo->execute([$toUserId]);
         $toUser = $stmtTo->fetch();
+        $stmtTo->closeCursor();
         if (!$toUser || !in_array($toUser['role'], ['admin', 'editor']) || (int)$toUser['status'] !== 1) {
             return ['success' => false, 'message' => '接管人必须是正常状态的管理员或协作者'];
         }
@@ -1370,10 +1408,12 @@ class Auth {
             // 同时交接创建者归属与指定负责人资格；默认开放项目不会因此变为指定模式。
             $stmtTo->execute([$toUserId]);
             $toUser = $stmtTo->fetch();
+            $stmtTo->closeCursor();
             if (!$toUser || !in_array($toUser['role'], ['admin', 'editor'], true) || (int)$toUser['status'] !== 1) throw new DomainException('接管人成员状态已变化');
             $stmtHandoverItems = $db->prepare("SELECT id, created_by, collaborators FROM items WHERE created_by = ? OR (type = 'project' AND instr(',' || collaborators || ',', ?) > 0)");
             $stmtHandoverItems->execute([$fromUserId, ',' . $fromUserId . ',']);
             $handoverItems = $stmtHandoverItems->fetchAll();
+            $stmtHandoverItems->closeCursor();
             $projectCount = count($handoverItems);
 
             if ($projectCount > 0) {
@@ -1447,6 +1487,7 @@ class Auth {
             $stmtOwner = $db->prepare('SELECT * FROM users WHERE id = ?');
             $stmtOwner->execute([(int)$currUser['id']]);
             $ownerRow = $stmtOwner->fetch();
+            $stmtOwner->closeCursor();
             if (!$ownerRow || !(int)$ownerRow['is_owner'] || $ownerRow['role'] !== 'admin' || (int)$ownerRow['status'] !== 1) {
                 throw new DomainException('主管理员权限已变更，请刷新后重试');
             }
@@ -1458,6 +1499,7 @@ class Auth {
             $stmtTarget = $db->prepare("SELECT id, email, name, role, status FROM users WHERE id = ?");
             $stmtTarget->execute([$targetUserId]);
             $targetUser = $stmtTarget->fetch();
+            $stmtTarget->closeCursor();
             if (!$targetUser || $targetUser['role'] !== 'admin' || (int)$targetUser['status'] !== 1) {
                 throw new DomainException('移交目标必须是状态正常的管理员');
             }
@@ -1554,6 +1596,7 @@ class Auth {
         $stmt = $db->prepare("SELECT id, email, password_hash FROM users WHERE id = ?");
         $stmt->execute([(int)$currUser['id']]);
         $userRow = $stmt->fetch();
+        $stmt->closeCursor();
         if (!$userRow) {
             return ['success' => false, 'message' => '用户账号不存在'];
         }

@@ -97,7 +97,9 @@ class McpAccess {
         $stmt->execute([$primaryId, $idsJson, $publish ? 1 : 0, $user['id']]);
         $check = $db->prepare('SELECT id FROM mcp_tokens WHERE user_id = ?');
         $check->execute([$user['id']]);
-        if (!$check->fetchColumn()) throw new DomainException('尚未生成凭据');
+        $hasToken = (bool)$check->fetchColumn();
+        $check->closeCursor();
+        if (!$hasToken) throw new DomainException('尚未生成凭据');
         return ['project_id' => $primaryId, 'project_ids' => $ids, 'can_publish' => $publish ? 1 : 0];
     }
     public static function authenticate() {
@@ -107,6 +109,7 @@ class McpAccess {
         $stmt = $db->prepare('SELECT t.* FROM mcp_tokens t JOIN users u ON u.id = t.user_id WHERE t.token_hash = ? AND t.expires_at > ? AND u.status = 1 AND t.auth_version = u.auth_version');
         $stmt->execute([hash('sha256', $m[1]), time()]);
         $access = $stmt->fetch();
+        $stmt->closeCursor();
         if (!$access) throw new DomainException('MCP 凭据已失效，请在个人设置中重新创建');
         self::$current = $access;
         Auth::setRequestUser($access['user_id']);
@@ -121,6 +124,7 @@ class McpAccess {
         $stmt = DB::getInstance()->prepare('SELECT t.* FROM mcp_tokens t JOIN users u ON u.id=t.user_id WHERE t.id=? AND t.token_hash=? AND t.expires_at>? AND u.status=1 AND t.auth_version=u.auth_version');
         $stmt->execute([self::$current['id'], self::$current['token_hash'], time()]);
         $access = $stmt->fetch();
+        $stmt->closeCursor();
         if (!$access) throw new DomainException('MCP 凭据已失效，发布已终止');
         Auth::setRequestUser($access['user_id']);
         self::project($access, $itemId, true);

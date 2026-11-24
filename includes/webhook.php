@@ -198,9 +198,12 @@ class Webhook {
         $author = self::mdEscape($rawAuthor, true);
         $content = self::mdEscape($rawContent);
 
-        // 安全防爆截断：正文超过 400 字自动截断，防止触发企微/钉钉/飞书单条字符上限
+        // 安全防爆截断：正文超过 400 字、页面超过 200 字自动截断，防止触发企微/钉钉/飞书单条字符上限
         if (mb_strlen($content, 'utf-8') > 400) {
             $content = mb_substr($content, 0, 400, 'utf-8') . '...';
+        }
+        if (mb_strlen($page, 'utf-8') > 200) {
+            $page = mb_substr($page, 0, 200, 'utf-8') . '...';
         }
 
         // 统一组装属性行 [标签, 值, 语义类型]；存在结构化 fields 时跳过“内容”标签，逐行平铺展示

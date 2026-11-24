@@ -33,7 +33,9 @@ switch ($action) {
             $db->exec('UPDATE items SET id = id WHERE 0');
             $stmt = $db->prepare('SELECT * FROM categories WHERE id = ?');
             $stmt->execute([$catId]);
-            if (!$stmt->fetch()) throw new DomainException('文件夹不存在');
+            $hasCat = (bool)$stmt->fetch();
+            $stmt->closeCursor();
+            if (!$hasCat) throw new DomainException('文件夹不存在');
             $stmt = $db->prepare('SELECT * FROM items WHERE category_id = ?');
             $stmt->execute([$catId]);
             $rows = $stmt->fetchAll();
@@ -97,6 +99,7 @@ switch ($action) {
         $watermarkEnabled = !empty($_POST['watermark_enabled']) ? 1 : 0;
 
         if (empty($name)) jsonResponse(false, null, '项目/外链名称不能为空');
+        if (!mb_check_encoding($name, 'UTF-8')) jsonResponse(false, null, '项目/外链名称编码无效');
         if (mb_strlen($name, 'UTF-8') > 40) jsonResponse(false, null, '项目/外链名称不能超过 40 个字符');
         if (mb_strlen($linkUrl, 'UTF-8') > 2000) jsonResponse(false, null, '外链地址不能超过 2000 个字符');
         if (mb_strlen($webhookUrl, 'UTF-8') > 1000) jsonResponse(false, null, 'Webhook 地址不能超过 1000 个字符');
@@ -112,7 +115,9 @@ switch ($action) {
 
         $category = $db->prepare('SELECT id FROM categories WHERE id = ?');
         $category->execute([$catId]);
-        if (!$category->fetchColumn()) jsonResponse(false, null, '所属文件夹不存在');
+        $hasCat = (bool)$category->fetchColumn();
+        $category->closeCursor();
+        if (!$hasCat) jsonResponse(false, null, '所属文件夹不存在');
         $currentUser = Auth::getCurrentUser();
         $db->beginTransaction();
         try {
@@ -122,6 +127,7 @@ switch ($action) {
                 $oldItemStmt = $db->prepare("SELECT * FROM items WHERE id = ?");
                 $oldItemStmt->execute([$itemId]);
                 $oldItem = $oldItemStmt->fetch();
+                $oldItemStmt->closeCursor();
                 if (!$oldItem) {
                     jsonResponse(false, null, '未找到指定项目');
                 }
@@ -163,7 +169,9 @@ switch ($action) {
                 if (Auth::isAdmin() && isset($_POST['created_by'])) {
                     $owner = $db->prepare("SELECT id FROM users WHERE id = ? AND status = 1 AND role IN ('admin', 'editor')");
                     $owner->execute([$finalAuthorId]);
-                    if (!$owner->fetchColumn()) jsonResponse(false, null, '负责人必须是正常成员');
+                    $hasOwner = (bool)$owner->fetchColumn();
+                    $owner->closeCursor();
+                    if (!$hasOwner) jsonResponse(false, null, '负责人必须是正常成员');
                 }
 
                 $nextSort = (int)($oldItem['sort_order'] ?? 0);
@@ -171,6 +179,7 @@ switch ($action) {
                     $minSortStmt = $db->prepare("SELECT MIN(sort_order) as m FROM items WHERE category_id = ?");
                     $minSortStmt->execute([$catId]);
                     $minSort = $minSortStmt->fetch()['m'] ?? null;
+                    $minSortStmt->closeCursor();
                     $nextSort = ($minSort === null) ? 10 : ((int)$minSort - 10);
                 }
 
@@ -185,6 +194,7 @@ switch ($action) {
                 $minSortStmt = $db->prepare("SELECT MIN(sort_order) as m FROM items WHERE category_id = ?");
                 $minSortStmt->execute([$catId]);
                 $minSort = $minSortStmt->fetch()['m'] ?? null;
+                $minSortStmt->closeCursor();
                 $nextSort = ($minSort === null) ? 10 : ((int)$minSort - 10);
 
                 $initialUid = (int)($currentUser['id'] ?? 0);
@@ -225,6 +235,7 @@ switch ($action) {
         $stmtItem = $db->prepare("SELECT * FROM items WHERE id = ?");
         $stmtItem->execute([$itemId]);
         $item = $stmtItem->fetch();
+        $stmtItem->closeCursor();
         if (!$item) jsonResponse(false, null, '未找到指定项目');
         if (($item['type'] ?? '') === 'link') jsonResponse(false, null, '链接类型不支持配置群通知');
         if (!Auth::canManageItemConfig($item)) jsonResponse(false, null, '您无权配置该项目的 Webhook');
@@ -262,6 +273,7 @@ switch ($action) {
         $curr = $db->prepare("SELECT * FROM items WHERE id = ?");
         $curr->execute([$itemId]);
         $row = $curr->fetch();
+        $curr->closeCursor();
         if ($row) {
             if (!Auth::canManageItemConfig($row)) {
                 jsonResponse(false, null, '您不是该项目的创建者或指定协作成员，无权修改其可见性');
@@ -286,7 +298,9 @@ switch ($action) {
             if ($catId > 0) {
                 $cat = $db->prepare('SELECT id FROM categories WHERE id = ?');
                 $cat->execute([$catId]);
-                if (!$cat->fetchColumn()) throw new DomainException('目标文件夹不存在');
+                $hasCat = (bool)$cat->fetchColumn();
+                $cat->closeCursor();
+                if (!$hasCat) throw new DomainException('目标文件夹不存在');
             }
             foreach ($ids as $id) {
                 $row = Auth::getItem($id);

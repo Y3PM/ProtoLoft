@@ -136,13 +136,9 @@ switch ($action) {
             }
         }
 
-        $stmt = $db->prepare("SELECT id, status FROM users WHERE email = ?");
-        $stmt->execute([$email]);
-        $existingUser = $stmt->fetch();
+        $existingUser = DB::row("SELECT id, status FROM users WHERE email = ?", [$email]);
         if ($existingUser) {
-            if ((int)$existingUser['status'] === 0) jsonResponse(false, null, '申请正在审核，请等待管理员处理');
-            if ((int)$existingUser['status'] === 1) jsonResponse(false, null, '该邮箱已注册，请登录');
-            jsonResponse(false, null, '该邮箱已有账号记录，请联系管理员');
+            jsonResponse(false, null, '该邮箱已提交申请或已存在账号，如有疑问请直接登录或联系管理员');
         }
 
         $pHash = password_hash($p, PASSWORD_DEFAULT);

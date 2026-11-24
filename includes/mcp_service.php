@@ -150,6 +150,7 @@ class McpService {
             $annoId=(int)$args['annotation_id'];
             $stmt=$db->prepare('SELECT * FROM annotations WHERE id=?');$stmt->execute([$annoId]);
             $anno=$stmt->fetch();
+            $stmt->closeCursor();
             if(!$anno)throw new DomainException('未找到指定批注');
             $item=Auth::getItem((int)$anno['item_id']);
             if(!$item||!Auth::canViewItem($item))throw new DomainException('无权访问此项目的批注');
@@ -158,7 +159,7 @@ class McpService {
             $targetStatus=($args['status']??'resolved')==='resolved'?1:0;
             $curUser=Auth::getCurrentUser();
             $resolverName=$targetStatus===1?(!empty($curUser['name'])?$curUser['name']:(!empty($curUser['email'])?$curUser['email']:'AI 协同助手')):'';
-            $resolvedAt=$targetStatus===1?date('Y-m-d H:i:s'):null;
+            $resolvedAt=$targetStatus===1?gmdate('Y-m-d H:i:s'):null;
 
             $update=$db->prepare('UPDATE annotations SET status=?, resolved_by=?, resolved_at=? WHERE id=?');
             $update->execute([$targetStatus,$resolverName,$resolvedAt,$annoId]);
@@ -175,6 +176,7 @@ class McpService {
                 try{
                     $uStmt=$db->prepare('SELECT webhook_url FROM users WHERE id=?');$uStmt->execute([(int)$anno['user_id']]);
                     $wbUrl=trim($uStmt->fetchColumn()?:'');
+                    $uStmt->closeCursor();
                     if(!empty($wbUrl)){
                         Webhook::send($wbUrl,'annotation_resolve',[
                             'item_name'=>$item['name']??'原型项目',

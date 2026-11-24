@@ -129,10 +129,10 @@ FORBIDDEN_PATTERNS = [
 def extract_version() -> str:
     config_file = ROOT / 'includes' / 'config.php'
     if not config_file.exists():
-        return '3.1.3'
+        return '3.1.4'
     content = config_file.read_text(encoding='utf-8')
     match = re.search(r"define\('APP_VERSION',\s*'([^']+)'\)", content)
-    return match.group(1) if match else '3.1.3'
+    return match.group(1) if match else '3.1.4'
 
 
 def sha256_file(filepath: Path) -> str:

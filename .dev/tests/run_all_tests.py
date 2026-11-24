@@ -194,6 +194,27 @@ SUITES = [
         "cmd": ["python3", "-B", str(TESTS_DIR / "password_policy_regression.py")],
         "needs_php": True,
         "type": "python"
+    },
+    {
+        "id": "storage_precision",
+        "name": "控制中心存储空间数据精度与极小值保护",
+        "cmd": ["python3", "-B", str(TESTS_DIR / "storage_precision_regression.py")],
+        "needs_php": False,
+        "type": "python"
+    },
+    {
+        "id": "concurrent_collision",
+        "name": "多账号协同并发写入快照锁冲突防御 (P1-1)",
+        "cmd": ["python3", "-B", str(TESTS_DIR / "concurrent_collision_regression.py")],
+        "needs_php": True,
+        "type": "python"
+    },
+    {
+        "id": "p2_p3_defects",
+        "name": "审查缺陷专项验证 (P2安全体验与P3全项治理)",
+        "cmd": ["python3", "-B", str(TESTS_DIR / "p2_p3_regression.py")],
+        "needs_php": True,
+        "type": "python"
     }
 ]
 

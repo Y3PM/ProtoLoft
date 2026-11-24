@@ -469,11 +469,19 @@ $(document).ready(function() {
         }
     } catch(e) {}
 
-    initHashRoute();
+    try {
+        initHashRoute();
+    } catch(e) {
+        console.error('initHashRoute failed:', e);
+    }
 
     // 全局防泄密水印初始就绪
     if (typeof GLOBAL_WATERMARK_ENABLED !== 'undefined' && GLOBAL_WATERMARK_ENABLED) {
-        renderWorkspaceWatermark(true);
+        try {
+            renderWorkspaceWatermark(true);
+        } catch(e) {
+            console.error('renderWorkspaceWatermark failed:', e);
+        }
     }
 });
 
@@ -489,7 +497,7 @@ function selectItem(itemId, el, targetVerName, isUserDirectClick) {
         if (target === '_blank') {
             // 只有是工作台用户手动点击才直接在新标签页打开并 return
             if (isUserDirectClick) {
-                window.open(linkHref, '_blank');
+                window.open(linkHref, '_blank', 'noopener,noreferrer');
                 return;
             }
         }
@@ -1070,18 +1078,27 @@ function toggleCategory(headerEl, e) {
     }
 
     var currentHeight = 0;
+    var interruptedDirection = items._animDirection || null;
     // 中断可能正在运行的动画并捕获当前实际瞬时高度，彻底清除内联样式残留
     if (items._currentAnim) {
         var rect = items.getBoundingClientRect();
         currentHeight = rect.height > 0 ? Math.round(rect.height) : 0;
         try { items._currentAnim.cancel(); } catch(err) {}
         items._currentAnim = null;
+        items._animDirection = null;
         items.style.height = '';
         items.style.overflow = '';
         items.style.display = '';
     }
 
-    var isCollapsed = group.classList.contains('collapsed');
+    var isCollapsed;
+    if (interruptedDirection === 'collapsing') {
+        isCollapsed = true; // 上次正收起被中断，此次反向展开
+    } else if (interruptedDirection === 'expanding') {
+        isCollapsed = false; // 上次正展开被中断，此次反向收起
+    } else {
+        isCollapsed = group.classList.contains('collapsed');
+    }
     var easing = 'cubic-bezier(0.16, 1, 0.3, 1)';
     var duration = 180;
 
@@ -1090,6 +1107,7 @@ function toggleCategory(headerEl, e) {
         items.style.overflow = '';
         items.style.display = '';
         items._currentAnim = null;
+        items._animDirection = null;
     };
 
     if (isCollapsed) {
@@ -1100,6 +1118,7 @@ function toggleCategory(headerEl, e) {
         var targetHeight = items.scrollHeight;
         var startH = currentHeight > 0 ? currentHeight : 0;
 
+        items._animDirection = 'expanding';
         var anim = items.animate([
             { height: startH + 'px', opacity: startH > 0 ? Math.min(1, startH / Math.max(1, targetHeight)) : 0 },
             { height: targetHeight + 'px', opacity: 1 }
@@ -1121,6 +1140,7 @@ function toggleCategory(headerEl, e) {
         items.style.display = 'block';
         items.style.overflow = 'hidden';
 
+        items._animDirection = 'collapsing';
         var anim = items.animate([
             { height: startHeight + 'px', opacity: 1 },
             { height: '0px', opacity: 0 }
@@ -1157,17 +1177,36 @@ function escapeSearchHtml(str) {
 
 function highlightSearchMatches(text, tokens) {
     if (!text) return '';
-    var safeText = escapeSearchHtml(text);
-    if (!tokens || !tokens.length) return safeText;
+    var rawText = String(text);
+    if (!tokens || !tokens.length) return escapeSearchHtml(rawText);
 
-    var safeTokens = tokens
-        .map(function(t) { return escapeSearchRegExp(escapeSearchHtml(t)); })
+    var rawTokens = tokens
+        .map(function(t) { return escapeSearchRegExp(String(t)); })
         .filter(function(t) { return t.length > 0; });
 
-    if (!safeTokens.length) return safeText;
+    if (!rawTokens.length) return escapeSearchHtml(rawText);
 
-    var regex = new RegExp('(' + safeTokens.join('|') + ')', 'gi');
-    return safeText.replace(regex, '<mark class="search-highlight">$1</mark>');
+    var regex = new RegExp('(' + rawTokens.join('|') + ')', 'gi');
+    var result = '';
+    var lastIndex = 0;
+    var match;
+
+    while ((match = regex.exec(rawText)) !== null) {
+        if (match.index > lastIndex) {
+            result += escapeSearchHtml(rawText.substring(lastIndex, match.index));
+        }
+        result += '<mark class="search-highlight">' + escapeSearchHtml(match[0]) + '</mark>';
+        lastIndex = regex.lastIndex;
+        if (regex.lastIndex === match.index) {
+            regex.lastIndex++;
+        }
+    }
+
+    if (lastIndex < rawText.length) {
+        result += escapeSearchHtml(rawText.substring(lastIndex));
+    }
+
+    return result;
 }
 
 // 搜索防抖与内存索引，避免百级项目输入时反复遍历/解析 DOM
@@ -1452,6 +1491,15 @@ window.addEventListener('hashchange', function(event) {
     else if (/[?&]vid=[1-9][0-9]*/.test(incoming)) initHashRoute();
 });
 
+function safeDecodeURIComponent(str) {
+    if (!str) return '';
+    try {
+        return decodeURIComponent(str);
+    } catch(e) {
+        return String(str);
+    }
+}
+
 function initHashRoute() {
     var hash = window.location.hash;
     var annotationMatch = hash.match(/(?:^#|&)annotation=([1-9][0-9]*)/);
@@ -1462,7 +1510,7 @@ function initHashRoute() {
         // 1. 尝试自愈直链回弹 (来自安全守卫的直达还原)
         var mDirect = hash.match(/direct=([^&]+)/);
         if (mDirect && mDirect[1]) {
-            var rawPath = decodeURIComponent(mDirect[1]);
+            var rawPath = safeDecodeURIComponent(mDirect[1]);
             var matchedEl = null;
             $('.item-row').each(function() {
                 var href = $(this).data('href') || '';
@@ -1493,7 +1541,7 @@ function initHashRoute() {
                 }
                 var mV = hash.match(/[?&]v=([^&]+)/);
                 if (!mId && mV && mV[1]) {
-                    targetVer = decodeURIComponent(mV[1]);
+                    targetVer = safeDecodeURIComponent(mV[1]);
                 }
                 $target.closest('.category-group').removeClass('collapsed');
                 selectItem(parseInt(m[1]), $target[0], targetVer, false, true);
@@ -1612,6 +1660,10 @@ function modalKeyboardBoundary(e) {
             var trigger = document.getElementById('adminMultiSelectTrigger');
             trigger.setAttribute('aria-expanded', 'false');
             trigger.focus();
+        } else if (typeof window.closeAllVersionPickers === 'function' && window.closeAllVersionPickers()) {
+            e.preventDefault();
+            e.stopImmediatePropagation();
+            return;
         } else closeModal(top.id);
         e.preventDefault();
         e.stopImmediatePropagation();
@@ -1980,13 +2032,23 @@ function handleSaveProfile(e) {
                 if (typeof currentSelectedItemId !== 'undefined' && currentSelectedItemId) {
                     var $curNode = $('#item-node-' + currentSelectedItemId);
                     if ($curNode.length && $curNode.data('type') === 'link' && parseInt($curNode.attr('data-created-by'), 10) === myUid) {
+                        $curNode.attr('data-creator-name', newName);
+                        $curNode.data('creator-name', newName);
                         var $barTime = $('#barTime');
                         if ($barTime.length) {
-                            var curHtml = $barTime.html();
-                            if (curHtml) {
-                                $barTime.html(curHtml.replace(/@([^\s·<]+)/, '@' + esc(newName)));
+                            var itemTime = $curNode.data('time') || '';
+                            var metaHtml = '';
+                            if (newName && itemTime) {
+                                metaHtml = '<i class="ri-user-line" style="margin-right:3px;font-size:12px;opacity:0.85;"></i>@' + esc(newName) + ' · 更新于 ' + esc(itemTime);
+                            } else if (newName) {
+                                metaHtml = '<i class="ri-user-line" style="margin-right:3px;font-size:12px;opacity:0.85;"></i>@' + esc(newName);
+                            } else if (itemTime) {
+                                metaHtml = '<i class="ri-time-line" style="margin-right:3px;font-size:12px;opacity:0.85;"></i>更新于 ' + esc(itemTime);
+                            }
+                            if (metaHtml) {
+                                $barTime.html(metaHtml).show();
                             } else {
-                                $barTime.html('<i class="ri-user-line" style="margin-right:3px;font-size:12px;opacity:0.85;"></i>@' + esc(newName)).show();
+                                $barTime.hide().empty();
                             }
                         }
                     }

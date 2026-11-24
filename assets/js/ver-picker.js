@@ -101,14 +101,10 @@
         // 捕获阶段优先拦截 ESC，避免关闭下拉时连带关掉所在弹窗
         document.addEventListener('keydown', function(e) {
             if (e.key !== 'Escape') return;
-            for (var i = 0; i < instances.length; i++) {
-                if (instances[i].isOpen) {
-                    instances[i].close(true);
-                    e.preventDefault();
-                    if (typeof e.stopImmediatePropagation === 'function') e.stopImmediatePropagation();
-                    else e.stopPropagation();
-                    return;
-                }
+            if (global.closeAllVersionPickers && global.closeAllVersionPickers()) {
+                e.preventDefault();
+                if (typeof e.stopImmediatePropagation === 'function') e.stopImmediatePropagation();
+                else e.stopPropagation();
             }
         }, true);
 
@@ -560,6 +556,17 @@
         });
         bodyObserver.observe(document.body, { childList: true, subtree: true });
     }
+
+    global.closeAllVersionPickers = function() {
+        var closedAny = false;
+        for (var i = 0; i < instances.length; i++) {
+            if (instances[i].isOpen) {
+                instances[i].close(true);
+                closedAny = true;
+            }
+        }
+        return closedAny;
+    };
 
     global.syncVersionPicker = function(target) {
         if (!target) {

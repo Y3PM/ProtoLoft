@@ -5,6 +5,9 @@
 require_once __DIR__ . '/includes/config.php';
 require_once __DIR__ . '/includes/password_policy.php';
 
+header('X-Frame-Options: SAMEORIGIN');
+header("Content-Security-Policy: frame-ancestors 'self'");
+
 // 检查是否已安装
 if (is_installed()) {
     ?>
@@ -310,17 +313,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         // 建表与内置基础数据
                         DB::initTables();
 
-                        // 写入系统设置 (企业定制信息)
-                        if (!empty($siteTitle)) {
-                            Auth::setSetting('site_title', $siteTitle);
-                        }
-                        Auth::setSetting('allowed_email_domains', $allowedDomains);
-
-                        // 创建首任主管理员 (is_owner = 1，拥有最高所有权)
                         $db = DB::getInstance();
-                        $pHash = password_hash($adminPass, PASSWORD_DEFAULT);
-                        $stmtAdmin = $db->prepare("INSERT INTO users (email, name, password_hash, role, is_owner, status) VALUES (?, ?, ?, 'admin', 1, 1)");
-                        $stmtAdmin->execute([$adminEmail, $adminName, $pHash]);
+                        $db->beginTransaction();
+                        try {
+                            // 写入系统设置 (企业定制信息)
+                            if (!empty($siteTitle)) {
+                                Auth::setSetting('site_title', $siteTitle);
+                            }
+                            Auth::setSetting('allowed_email_domains', $allowedDomains);
+
+                            // 创建首任主管理员 (is_owner = 1，拥有最高所有权)
+                            $pHash = password_hash($adminPass, PASSWORD_DEFAULT);
+                            $stmtAdmin = $db->prepare("INSERT INTO users (email, name, password_hash, role, is_owner, status) VALUES (?, ?, ?, 'admin', 1, 1)");
+                            $stmtAdmin->execute([$adminEmail, $adminName, $pHash]);
+
+                            $db->commit();
+                        } catch (Exception $e) {
+                            if ($db->inTransaction()) {
+                                $db->rollBack();
+                            }
+                            throw $e;
+                        }
 
                         // 生成锁定文件并销毁一次性安装密钥
                         file_put_contents(LOCK_FILE, json_encode([

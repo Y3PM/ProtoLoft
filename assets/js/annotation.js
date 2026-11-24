@@ -1110,6 +1110,11 @@
                     showToast(res.message || '操作失败', 'error');
                 }
             }
+        })
+        .catch(function(err) {
+            if (typeof showToast === 'function') {
+                showToast((err && err.message) || '网络请求失败，请稍后重试', 'error');
+            }
         });
     };
 
@@ -1130,6 +1135,11 @@
                 } else {
                     if (typeof showToast === 'function') showToast(res.message || '删除失败', 'error');
                 }
+            })
+            .catch(function(err) {
+                if (typeof showToast === 'function') {
+                    showToast((err && err.message) || '删除失败，请稍后重试', 'error');
+                }
             });
         };
 
@@ -1141,8 +1151,8 @@
                 isDanger: true,
                 onConfirm: doDelete
             });
-        } else if (typeof showToast === 'function') {
-            showToast('确认组件未就绪，请刷新页面后重试', 'warning');
+        } else if (window.confirm('确定删除此批注及其全部回复？')) {
+            doDelete();
         }
     };
 

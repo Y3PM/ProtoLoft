@@ -15,6 +15,9 @@ require_once __DIR__ . '/includes/auth.php';
 // 确保已安装
 require_installed();
 
+header('X-Frame-Options: SAMEORIGIN');
+header("Content-Security-Policy: frame-ancestors 'self'");
+
 // 初始化数据库
 $db = DB::getInstance();
 
@@ -133,6 +136,7 @@ if ($shareCode !== '') {
 $stmt = $db->prepare("SELECT * FROM items WHERE id = ?");
 $stmt->execute([$itemId]);
 $item = $stmt->fetch();
+$stmt->closeCursor();
 
 // 1. 项目不存在处理
 if (!$item) {
@@ -550,7 +554,7 @@ if (!$isProjectAuthPassed) {
             <div class="auth-sub"><?php echo htmlspecialchars($item['name']); ?></div>
             <form method="POST" autocomplete="off">
                 <div style="margin-bottom: 18px; position:relative; display:flex; align-items:center;">
-                    <input type="text" id="shareProjPwdInput" name="project_password" class="form-control" placeholder="输入项目访问密码" autocomplete="off" data-lpignore="true" data-1p-ignore="true" style="-webkit-text-security: disc; text-security: disc; padding-right: 38px;" autofocus required>
+                    <input type="password" id="shareProjPwdInput" name="project_password" class="form-control" placeholder="输入项目访问密码" autocomplete="new-password" data-lpignore="true" data-1p-ignore="true" style="padding-right: 38px;" autofocus required>
                     <button type="button" onclick="toggleShareProjPwdMask(this)" style="position:absolute;right:8px;background:none;border:none;color:var(--text-3);cursor:pointer;padding:4px 6px;font-size:16px;display:flex;align-items:center;" title="显示/隐藏密码">
                         <i class="ri-eye-line"></i>
                     </button>
@@ -565,17 +569,11 @@ if (!$isProjectAuthPassed) {
             function toggleShareProjPwdMask(btnEl) {
                 var input = document.getElementById('shareProjPwdInput');
                 if (!input) return;
-                var isMasked = input.style.webkitTextSecurity !== 'none';
-                if (isMasked) {
-                    input.style.webkitTextSecurity = 'none';
-                    input.style.textSecurity = 'none';
-                } else {
-                    input.style.webkitTextSecurity = 'disc';
-                    input.style.textSecurity = 'disc';
-                }
+                var isPassword = (input.type === 'password');
+                input.type = isPassword ? 'text' : 'password';
                 var icon = btnEl ? btnEl.querySelector('i') : null;
                 if (icon) {
-                    icon.className = isMasked ? 'ri-eye-off-line' : 'ri-eye-line';
+                    icon.className = isPassword ? 'ri-eye-off-line' : 'ri-eye-line';
                 }
             }
         </script>
@@ -934,7 +932,7 @@ Auth::recordAccessLog($item['id'], $item['name'], $curVerName, 'share');
         if ($rpBtn.length) {
             if (rp) {
                 var downloadUrl = 'api.php?action=download_rp&item_id=' + currentItemId + (verId ? '&ver_id=' + verId : '');
-                var safeItemName = <?php echo json_encode(preg_replace('/[\\\\\\/:*?"<>|]/', '_', trim($item['name'] ?? 'prototype')), JSON_UNESCAPED_UNICODE); ?> || 'prototype';
+                var safeItemName = <?php echo json_encode(preg_replace('/[\\\\\\/:*?"<>|]/', '_', trim($item['name'] ?? 'prototype')), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_UNESCAPED_UNICODE) ?: '""'; ?> || 'prototype';
                 var safeVerName = ver ? ('_' + String(ver).replace(/[\\/:*?"<>|]/g, '_').trim()) : '';
                 var dlName = safeItemName + safeVerName + '.rp';
                 $rpBtn.attr('href', downloadUrl).attr('download', dlName).show();
@@ -1131,11 +1129,12 @@ Auth::recordAccessLog($item['id'], $item['name'], $curVerName, 'share');
     (function initShareWatermark() {
         var el = document.getElementById('shareWatermarkOverlay');
         if (!el) return;
-        var wmUser = <?php echo json_encode(!empty($currentUser['name']) ? $currentUser['name'] : (!empty($currentUser['email']) ? $currentUser['email'] : '访客')); ?>;
+        var wmUser = <?php echo json_encode(!empty($currentUser['name']) ? $currentUser['name'] : (!empty($currentUser['email']) ? $currentUser['email'] : '访客'), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_UNESCAPED_UNICODE) ?: '""'; ?>;
         var canvas = document.createElement('canvas');
         var pad = function(n) { return n < 10 ? '0' + n : n; };
 
         function drawWatermark(customDate) {
+            if (typeof ProtoLoftWatermark === 'undefined' || typeof ProtoLoftWatermark.draw !== 'function') return;
             var now = customDate instanceof Date ? customDate : new Date();
             var timeStr = now.getFullYear() + '-' + (now.getMonth() + 1) + '-' + now.getDate() + ' ' + pad(now.getHours()) + ':' + pad(now.getMinutes());
             var text = wmUser + '@' + timeStr;
@@ -1607,14 +1606,14 @@ $(document).ready(function() {
 <?php if ($canAnnotate): ?>
 <script>
     window.GUEST_ANNOTATION_ENABLED = true;
-    window.CSRF_TOKEN = <?php echo json_encode(get_csrf_token()); ?>;
+    window.CSRF_TOKEN = <?php echo json_encode(get_csrf_token(), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>;
     <?php if ($currentUser): ?>
     window.CURRENT_USER = <?php echo json_encode([
         'id' => (int)$currentUser['id'],
         'name' => $currentUser['name'] ?? '',
         'email' => $currentUser['email'] ?? '',
         'role' => $currentUser['role'] ?? 'guest'
-    ], JSON_UNESCAPED_UNICODE); ?>;
+    ], JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_UNESCAPED_UNICODE); ?>;
     <?php endif; ?>
 </script>
 <script src="assets/js/annotation.js?v=<?php echo APP_VERSION; ?>"></script>

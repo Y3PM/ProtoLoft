@@ -44,6 +44,73 @@ class DB {
     }
 
     /**
+     * 结构化单行查询助手（执行后在 finally 中 100% 确保 closeCursor 释放快照读锁）
+     * @param string $sql SQL 语句
+     * @param array $params 绑定参数
+     * @return array|null 关联数组或 null
+     */
+    public static function row($sql, $params = []) {
+        $db = self::getInstance();
+        $stmt = $db->prepare($sql);
+        try {
+            $stmt->execute($params);
+            $row = $stmt->fetch(PDO::FETCH_ASSOC);
+            return $row !== false ? $row : null;
+        } finally {
+            $stmt->closeCursor();
+        }
+    }
+
+    /**
+     * 结构化单值查询助手（执行后在 finally 中 100% 确保 closeCursor 释放快照读锁）
+     * @param string $sql SQL 语句
+     * @param array $params 绑定参数
+     * @param int $columnNumber 列序号（默认第 0 列）
+     * @return mixed|null 标量值或 null
+     */
+    public static function value($sql, $params = [], $columnNumber = 0) {
+        $db = self::getInstance();
+        $stmt = $db->prepare($sql);
+        try {
+            $stmt->execute($params);
+            $val = $stmt->fetchColumn($columnNumber);
+            return $val !== false ? $val : null;
+        } finally {
+            $stmt->closeCursor();
+        }
+    }
+
+    /**
+     * 结构化多行查询助手
+     * @param string $sql SQL 语句
+     * @param array $params 绑定参数
+     * @return array 关联数组列表
+     */
+    public static function all($sql, $params = []) {
+        $db = self::getInstance();
+        $stmt = $db->prepare($sql);
+        try {
+            $stmt->execute($params);
+            return $stmt->fetchAll(PDO::FETCH_ASSOC);
+        } finally {
+            $stmt->closeCursor();
+        }
+    }
+
+    /**
+     * 结构化写操作执行助手
+     * @param string $sql SQL 语句
+     * @param array $params 绑定参数
+     * @return int 受影响行数
+     */
+    public static function run($sql, $params = []) {
+        $db = self::getInstance();
+        $stmt = $db->prepare($sql);
+        $stmt->execute($params);
+        return $stmt->rowCount();
+    }
+
+    /**
      * 全新版本标准 Schema 一次性定稿建表
      */
     public static function initTables($pdo = null) {

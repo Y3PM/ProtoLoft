@@ -257,14 +257,14 @@ def main():
         pending_result=guest.api('register_visitor',reg_fields)
         check('optional department permits a new application',pending_result['success'])
         duplicate=guest.api('register_visitor',reg_fields)
-        check('pending applicant is told to wait instead of login',not duplicate['success'] and '等待管理员' in duplicate['message'] and '登录' not in duplicate['message'])
+        check('pending applicant gets uniform anti-probing response',not duplicate['success'] and '已提交申请或已存在账号' in duplicate['message'])
         duplicate=guest.api('register_visitor',{**reg_fields,'email':'viewer@example.com'})
-        check('enabled member is directed to login',not duplicate['success'] and duplicate['message']=='该邮箱已注册，请登录')
+        check('enabled member gets uniform anti-probing response',not duplicate['success'] and '已提交申请或已存在账号' in duplicate['message'])
         pending_id=pending_result['data']['id']
         for status in [2,3]:
             db.execute('UPDATE users SET status=? WHERE id=?',(status,pending_id));db.commit()
             duplicate=guest.api('register_visitor',reg_fields)
-            check('rejected or disabled applicant is directed to administrator',not duplicate['success'] and '请联系管理员' in duplicate['message'])
+            check('rejected or disabled applicant gets uniform anti-probing response',not duplicate['success'] and '已提交申请或已存在账号' in duplicate['message'])
         db.execute("INSERT OR REPLACE INTO settings (key,value) VALUES ('allowed_email_domains','example.com')");db.commit()
         denied_domain=guest.api('register_visitor',{**reg_fields,'email':'external@outside.example'})
         check('full email input does not bypass allowed domain policy',not denied_domain['success'] and '允许的后缀' in denied_domain['message'])

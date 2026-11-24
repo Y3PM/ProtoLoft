@@ -10,6 +10,9 @@ require_once __DIR__ . '/includes/mailer.php';
 // 确保已安装
 require_installed();
 
+header('X-Frame-Options: SAMEORIGIN');
+header("Content-Security-Policy: frame-ancestors 'self'");
+
 // 1. 全站身份认证与登录守卫检查 (纯粹双轨制：工作台严密私有化，进入必须账号登录)
 $currentUser = Auth::getCurrentUser();
 $canManage = Auth::canManage();
@@ -1211,7 +1214,7 @@ foreach ($cats as $cat) {
         'role' => $currentUser['role'],
         'is_owner' => (int)$currentUser['is_owner'],
         'is_first_login' => (int)($currentUser['is_first_login'] ?? 0)
-    ] : null); ?>;
+    ] : null, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_UNESCAPED_UNICODE); ?>;
     var SYS_HAS_GLOBAL_WEBHOOK = <?php echo !empty(Auth::getSetting('global_webhook_url', '')) ? 'true' : 'false'; ?>;
     var GLOBAL_WATERMARK_ENABLED = <?php echo Auth::getSetting('global_watermark_enabled', '0') === '1' ? 'true' : 'false'; ?>;
     var PENDING_USER_COUNT = <?php echo (int)$pendingUserCount; ?>;

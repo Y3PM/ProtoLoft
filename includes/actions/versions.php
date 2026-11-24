@@ -85,6 +85,7 @@ switch ($action) {
         $check = $db->prepare('SELECT * FROM versions WHERE item_id = ? AND version_name = ?');
         $check->execute([$itemId, $name]);
         $existing = $check->fetch();
+        $check->closeCursor();
         if ($existing && !Auth::canDeleteVersion($existing)) jsonResponse(false, null, '该版本由他人发布，您无权覆盖');
         $overwriteToken = $_POST['overwrite_token'] ?? '';
         if (!is_string($overwriteToken)) jsonResponse(false, null, '替换确认无效，请重试');
@@ -98,9 +99,11 @@ switch ($action) {
         $mergedZip = null;
         $mergedRp = null;
         $committed = false;
+        $cleanupChunks = false;
         try {
             if (!mkdir($stage, 0700, true)) throw new DomainException('无法创建版本目录');
             $mergedZip = Storage::mergeChunks($zipId, 'zip', $uid);
+            $cleanupChunks = true;
             $zip = ZipHandler::extractZip($mergedZip, $stage, '');
             if (!$zip['success']) throw new DomainException($zip['message']);
             $entry = ltrim($zip['entry_file'], '/');
@@ -129,12 +132,15 @@ switch ($action) {
             if (!$freshItem || !Auth::canEditItem($freshItem)) throw new DomainException('项目已变更，请刷新后重试');
             $check->execute([$itemId, $name]);
             $freshVersion = $check->fetch();
+            $check->closeCursor();
             if (($existing ? (int)$existing['id'] : 0) !== ($freshVersion ? (int)$freshVersion['id'] : 0)
                 || ($freshVersion && $freshVersion['storage_dir'] !== $existing['storage_dir'])) throw new DomainException('版本已更新，请刷新后重试');
             if ($freshVersion && !Auth::canDeleteVersion($freshVersion)) throw new DomainException('无权覆盖此版本');
             $hasDefault = $db->prepare('SELECT 1 FROM versions WHERE item_id = ? AND is_default = 1 LIMIT 1');
             $hasDefault->execute([$itemId]);
-            $makeDefault = !empty($_POST['is_default']) || ($existing && (int)$existing['is_default'] === 1) || !$hasDefault->fetchColumn();
+            $hasDefaultVal = (bool)$hasDefault->fetchColumn();
+            $hasDefault->closeCursor();
+            $makeDefault = !empty($_POST['is_default']) || ($existing && (int)$existing['is_default'] === 1) || !$hasDefaultVal;
             if ($makeDefault) $db->prepare('UPDATE versions SET is_default = 0 WHERE item_id = ?')->execute([$itemId]);
             if ($existing) {
                 $db->prepare('UPDATE versions SET entry_file = ?, rp_file = ?, storage_dir = ?, file_size = ?, rp_size = ?, changelog = ?, is_default = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?')
@@ -156,9 +162,11 @@ switch ($action) {
             if ($mergedZip) @unlink($mergedZip);
             if ($mergedRp) @unlink($mergedRp);
             if (!$committed) Storage::removeTree($stage, PROTOTYPES_PATH);
+            if ($committed || $cleanupChunks) {
+                Storage::removeTree(Storage::chunkDir($zipId, $uid), CHUNKS_PATH);
+                if ($rpId !== '') Storage::removeTree(Storage::chunkDir($rpId, $uid), CHUNKS_PATH);
+            }
         }
-        Storage::removeTree(Storage::chunkDir($zipId, $uid), CHUNKS_PATH);
-        if ($rpId !== '') Storage::removeTree(Storage::chunkDir($rpId, $uid), CHUNKS_PATH);
         $pendingCleanup = Storage::collectGarbage($db);
         $uniqueHooks = [];
         if ($notifyItem && !empty($item['webhook_url'])) {
@@ -222,6 +230,8 @@ switch ($action) {
             $stmt = $db->prepare('SELECT * FROM versions WHERE id = ?');
             $stmt->execute([$id]);
             $version = $stmt->fetch();
+            $stmt->closeCursor();
+            $stmt->closeCursor();
             if (!$version) throw new DomainException('版本不存在');
             $item = Auth::getItem($version['item_id']);
             if (!$item || !Auth::canEditItem($item)) throw new DomainException('无权操作此项目');
@@ -229,13 +239,16 @@ switch ($action) {
 
             $check = $db->prepare('SELECT id FROM versions WHERE item_id = ? AND version_name = ? AND id != ?');
             $check->execute([$version['item_id'], $name, $id]);
-            if ($check->fetch()) throw new DomainException('该项目已存在同名版本');
+            $hasDup = (bool)$check->fetch();
+            $check->closeCursor();
+            if ($hasDup) throw new DomainException('该项目已存在同名版本');
 
             $db->prepare('UPDATE versions SET version_name = ?, changelog = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?')
                 ->execute([$name, $changelog, $id]);
 
             $stmt->execute([$id]);
             $freshVersion = $stmt->fetch();
+            $stmt->closeCursor();
             $db->commit();
             jsonResponse(true, [
                 'id' => $id,
@@ -246,6 +259,9 @@ switch ($action) {
             ], '版本信息已更新');
         } catch (Throwable $e) {
             if ($db->inTransaction()) $db->rollBack();
+            if ($e instanceof DomainException) {
+                throw $e;
+            }
             error_log('version_update: ' . $e->getMessage());
             jsonResponse(false, null, '版本信息更新失败');
         }
@@ -261,6 +277,7 @@ switch ($action) {
             $stmt = $db->prepare('SELECT * FROM versions WHERE id = ?');
             $stmt->execute([$id]);
             $version = $stmt->fetch();
+            $stmt->closeCursor();
             if (!$version) throw new DomainException('版本不存在');
             $item = Auth::getItem($version['item_id']);
             if (!$item || !Auth::canEditItem($item)) throw new DomainException('无权操作此项目');
@@ -296,6 +313,7 @@ switch ($action) {
         $stmt = $db->prepare('SELECT * FROM versions WHERE id = ?');
         $stmt->execute([$id]);
         $version = $stmt->fetch();
+        $stmt->closeCursor();
         if (!$version) jsonResponse(false, null, '版本不存在');
         if (!Auth::canDeleteVersion($version)) jsonResponse(false, null, '只有版本发布者或管理员可修改 RP 底稿');
         $item = Auth::getItem($version['item_id']);
@@ -311,8 +329,10 @@ switch ($action) {
         $backupDest = null;
         $destReplaced = false;
         $preserveBackupOnFailure = false;
+        $cleanupChunks = false;
         try {
             $mergedRp = Storage::mergeChunks($rpId, 'rp', $uid);
+            $cleanupChunks = true;
             $destFile = $stage . '/prototype.rp';
             $tempDest = $stage . '/prototype.rp.tmp.' . bin2hex(random_bytes(6));
             if (!copy($mergedRp, $tempDest)) throw new DomainException('底稿暂存失败');
@@ -323,6 +343,7 @@ switch ($action) {
             $stmtLock = $db->prepare('SELECT * FROM versions WHERE id = ?');
             $stmtLock->execute([$id]);
             $lockedVer = $stmtLock->fetch();
+            $stmtLock->closeCursor();
             if (!$lockedVer) throw new DomainException('版本已被移除');
             if (!Auth::canDeleteVersion($lockedVer) || !Auth::canEditItem(Auth::getItem($lockedVer['item_id']))) throw new DomainException('无权修改此版本底稿');
             if ($lockedVer['storage_dir'] !== $version['storage_dir']) throw new DomainException('版本已更新，请刷新后重试');
@@ -371,8 +392,8 @@ switch ($action) {
             if ($tempDest && file_exists($tempDest)) @unlink($tempDest);
             if ($backupDest && file_exists($backupDest) && !$preserveBackupOnFailure) @unlink($backupDest);
             if ($mergedRp && file_exists($mergedRp)) @unlink($mergedRp);
+            if ($cleanupChunks) Storage::removeTree(Storage::chunkDir($rpId, $uid), CHUNKS_PATH);
         }
-        Storage::removeTree(Storage::chunkDir($rpId, $uid), CHUNKS_PATH);
         $freshStmt = $db->prepare('SELECT * FROM versions WHERE id = ?');
         $freshStmt->execute([$id]);
         $freshVersion = Auth::versionForClient($freshStmt->fetch());
@@ -394,6 +415,7 @@ switch ($action) {
         $stmt = $db->prepare('SELECT * FROM versions WHERE id = ?');
         $stmt->execute([$id]);
         $version = $stmt->fetch();
+        $stmt->closeCursor();
         if (!$version) jsonResponse(false, null, '版本不存在');
         if (!Auth::canDeleteVersion($version)) jsonResponse(false, null, '只有版本发布者或管理员可移除 RP 底稿');
         $item = Auth::getItem($version['item_id']);
@@ -407,6 +429,7 @@ switch ($action) {
             $stmtLock = $db->prepare('SELECT * FROM versions WHERE id = ?');
             $stmtLock->execute([$id]);
             $lockedVer = $stmtLock->fetch();
+            $stmtLock->closeCursor();
             if (!$lockedVer) throw new DomainException('版本已被移除');
             if (!Auth::canDeleteVersion($lockedVer) || !Auth::canEditItem(Auth::getItem($lockedVer['item_id']))) throw new DomainException('无权移除此版本底稿');
             $version = $lockedVer;

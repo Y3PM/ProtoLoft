@@ -65,6 +65,8 @@ python3 -B .dev/tests/dropdown_sync_regression_browser.py --php /path/to/php --p
 
 ## 交接方式
 
+2026-11-24 最新：[全量代码审查与修复清单](docs/reviews/2026-11-24-code-review.md)。P1：WAL 模式下「已执行未读完的语句句柄在写入时仍存活」导致并发写入随机失败，登录、改密、RP 上传、同名覆盖发版均已用两人日常场景复现，共 25 处受影响；另有 3 个 P2、18 个 P3 和 9 项待拍板。清单含复现脚本位置、硬约束、验收标准与未覆盖范围，尚未开始修复。
+
 2026-11-20 最新：[发版贡献与成员排序记录](docs/reviews/2026-11-20-publication-count-and-member-order.md)。团队列已改为“发版数/项目数”，使用 `published_version_count` / `published_project_count`，按当前版本的原上传者及项目去重统计；覆盖不累加，交接/停用/降级不改写统计归属，删除版本后减少。成员按主管理员、管理员、协作者、审阅人，再按加入时间升序、ID 升序排列。`item_count` 仍只供资产交接与删除保护。已完成 FTP 四文件回读及匿名 HTTPS 3/3 检查。
 
 2026-11-20 历史（已由发版贡献统计替代）：[可发版统计记录](docs/reviews/2026-11-20-publishable-project-count.md)。团队列使用 `publishable_project_count`，与发版范围一致；原 `item_count` 继续独立供交接使用，不得用可发版数量替代资产归属或删除保护。已完成 FTP 四文件回读及 HTTPS 3/3 检查。

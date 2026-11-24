@@ -21,7 +21,7 @@ function check(title, condition) {
 // 1. 验证源码静态语法与安全约束
 console.log('[*] 1. 静态特征与语法规范验证');
 check('app.js 正确声明 selectItem isUserDirectClick 参数', appJs.includes('selectItem(itemId, el, targetVerName, isUserDirectClick)'));
-check('app.js 包含外链意图守卫', appJs.includes('if (isUserDirectClick) {') && appJs.includes('window.open(linkHref, \'_blank\');'));
+check('app.js 包含外链意图守卫', appJs.includes('if (isUserDirectClick) {') && appJs.includes("window.open(linkHref, '_blank', 'noopener,noreferrer');"));
 check('app.js 包含新标签页外链落地卡片渲染', appJs.includes('此项目配置为在新标签页中打开的外部链接资产') && appJs.includes('在新标签页打开'));
 check('app.js closeModal 拦截 adminConsoleModal 脏变动集中刷新', appJs.includes("id === 'adminConsoleModal' && window.adminConsoleChanged"));
 check('admin.js 声明全局 adminConsoleChanged 脏标记', adminJs.includes('window.adminConsoleChanged = false;'));

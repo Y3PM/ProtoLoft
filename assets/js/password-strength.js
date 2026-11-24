@@ -93,10 +93,16 @@
 
     function loadEstimator() {
         if (!estimator) {
+            var vQuery = '';
+            try {
+                vQuery = new URL(scriptUrl).search;
+            } catch (e) {}
+            if (!vQuery) vQuery = '?v=3.1.4';
+
             estimator = Promise.all(['core', 'language-common', 'language-en'].map(function (part) {
                 return new Promise(function (resolve, reject) {
                     var script = document.createElement('script');
-                    script.src = new URL('vendor/zxcvbn-ts/' + part + '.min.js', scriptUrl).href;
+                    script.src = new URL('vendor/zxcvbn-ts/' + part + '.min.js' + vQuery, scriptUrl).href;
                     script.onload = resolve;
                     script.onerror = reject;
                     document.head.appendChild(script);
@@ -114,6 +120,7 @@
                 });
                 return bundle.core.zxcvbn;
             }).catch(function () {
+                estimator = null;
                 return null;
             });
         }

@@ -162,14 +162,25 @@ function toggleCustomSharePanel(forceState) {
     }
 }
 
-// 专属分享随机密码
-function generateRandomCustomSharePwd() {
+// 专属分享随机密码 (6 位安全随机，crypto.getRandomValues 驱动)
+function generateSecureRandomSharePwd(length) {
+    length = length || 6;
     var chars = '23456789abcdefghkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ';
-    var pwd = '';
-    for (var i = 0; i < 4; i++) {
-        pwd += chars.charAt(Math.floor(Math.random() * chars.length));
+    var values = new Uint32Array(length);
+    if (window.crypto && window.crypto.getRandomValues) {
+        window.crypto.getRandomValues(values);
+    } else {
+        for (var j = 0; j < length; j++) values[j] = Math.floor(Math.random() * 0xFFFFFFFF);
     }
-    $('#customSharePwdInput').val(pwd);
+    var pwd = '';
+    for (var i = 0; i < length; i++) {
+        pwd += chars.charAt(values[i] % chars.length);
+    }
+    return pwd;
+}
+
+function generateRandomCustomSharePwd() {
+    $('#customSharePwdInput').val(generateSecureRandomSharePwd(6));
 }
 
 // 专属分享有效期限切换
@@ -322,12 +333,7 @@ function copyFromShareModal() {
 }
 
 function generateRandomSharePwd() {
-    var chars = '23456789abcdefghkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ';
-    var pwd = '';
-    for (var i = 0; i < 4; i++) {
-        pwd += chars.charAt(Math.floor(Math.random() * chars.length));
-    }
-    $('#sharePasswordInput').val(pwd);
+    $('#sharePasswordInput').val(generateSecureRandomSharePwd(6));
     saveShareSettingsFromModal(true);
 }
 

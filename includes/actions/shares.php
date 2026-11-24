@@ -12,6 +12,7 @@ switch ($action) {
         $itemStmt = $db->prepare("SELECT * FROM items WHERE id = ?");
         $itemStmt->execute([$itemId]);
         $itemRow = $itemStmt->fetch();
+        $itemStmt->closeCursor();
         if (!$itemRow) jsonResponse(false, null, '未找到指定项目');
         if (!Auth::canViewItem($itemRow)) {
             jsonResponse(false, null, '该项目已隐藏，无权查看分享设置');
@@ -52,6 +53,7 @@ switch ($action) {
         $itemStmt = $db->prepare("SELECT * FROM items WHERE id = ?");
         $itemStmt->execute([$itemId]);
         $itemRow = $itemStmt->fetch();
+        $itemStmt->closeCursor();
         if (!$itemRow) jsonResponse(false, null, '未找到指定项目');
         if (!Auth::canEditItem($itemRow)) {
             jsonResponse(false, null, '您不是该项目的创建者，无权修改其分享设置');
@@ -105,6 +107,7 @@ switch ($action) {
         $itemStmt = $db->prepare("SELECT * FROM items WHERE id = ?");
         $itemStmt->execute([$itemId]);
         $itemRow = $itemStmt->fetch();
+        $itemStmt->closeCursor();
         if (!$itemRow) jsonResponse(false, null, '未找到指定原型');
         if (!Auth::canEditItem($itemRow)) {
             jsonResponse(false, null, '您不是该原型的创建者，无权为其生成专属分享链接');
@@ -113,7 +116,9 @@ switch ($action) {
         if ($verId > 0) {
             $target = $db->prepare('SELECT 1 FROM versions WHERE id = ? AND item_id = ?');
             $target->execute([$verId, $itemId]);
-            if (!$target->fetchColumn()) jsonResponse(false, null, '版本不属于此项目');
+            $hasVer = (bool)$target->fetchColumn();
+            $target->closeCursor();
+            if (!$hasVer) jsonResponse(false, null, '版本不属于此项目');
         }
         $maxSharesLimit = (int)Auth::getSetting('max_custom_shares_per_item', '5');
         if ($maxSharesLimit < 1) $maxSharesLimit = 1;
@@ -168,6 +173,7 @@ switch ($action) {
         $itemStmt = $db->prepare("SELECT * FROM items WHERE id = ?");
         $itemStmt->execute([$itemId]);
         $itemRow = $itemStmt->fetch();
+        $itemStmt->closeCursor();
         if (!$itemRow) jsonResponse(false, null, '未找到指定原型');
         if (!Auth::canEditItem($itemRow)) {
             jsonResponse(false, null, '您不是该原型的创建者，无权修改分享设置');
@@ -202,6 +208,7 @@ switch ($action) {
         $item = $db->prepare("SELECT * FROM items WHERE id = ?");
         $item->execute([$itemId]);
         $row = $item->fetch();
+        $item->closeCursor();
         if (!$row) jsonResponse(false, null, '未找到指定项目');
         if (!Auth::canEditItem($row)) {
             jsonResponse(false, null, '您不是该项目的创建者，无权修改其分享状态');
@@ -211,14 +218,18 @@ switch ($action) {
         break;
 
     case 'item_rotate_share':
-        if (!Auth::isAdmin()) jsonResponse(false, null, '仅系统超级管理员有权执行重置安全短链操作');
+        if (!Auth::isAdmin()) jsonResponse(false, null, '仅系统管理员有权执行重置安全短链操作');
         $itemId = (int)($_POST['id'] ?? $_POST['item_id'] ?? 0);
         if ($itemId <= 0) jsonResponse(false, null, '无效的项目ID');
         $item = $db->prepare("SELECT * FROM items WHERE id = ?");
         $item->execute([$itemId]);
         $row = $item->fetch();
+        $item->closeCursor();
         if (!$row) jsonResponse(false, null, '未找到指定项目');
         $newCode = Auth::rotateItemShareToken($itemId);
+        if (empty($newCode)) {
+            jsonResponse(false, null, '重置安全短链失败，请稍后重试');
+        }
         jsonResponse(true, ['share_code' => $newCode], '已成功重置该原型的安全短链，所有历史外发链接已全部失效作废');
         break;
 }

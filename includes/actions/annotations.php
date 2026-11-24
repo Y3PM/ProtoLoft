@@ -89,6 +89,7 @@ switch ($action) {
         break;
 
     case 'list_annotations':
+        $curUser = Auth::getCurrentUser();
         $itemId = (int)($_GET['item_id'] ?? $_POST['item_id'] ?? 0);
         $verId = (int)($_GET['ver_id'] ?? $_POST['ver_id'] ?? 0);
         $pagePath = trim($_GET['page_path'] ?? $_POST['page_path'] ?? '');
@@ -103,12 +104,28 @@ switch ($action) {
             $verStmt = $db->prepare("SELECT id FROM versions WHERE item_id = ? ORDER BY is_default DESC, id DESC LIMIT 1");
             $verStmt->execute([$itemId]);
             $verId = (int)($verStmt->fetchColumn() ?: 0);
+            $verStmt->closeCursor();
         }
 
         requireAnnotationTarget($db, $itemId, $verId);
         $version = $isLink ? null : PrototypeContext::version($verId);
         $sql = "SELECT * FROM annotations WHERE item_id = ? AND ver_id = ?";
         $params = [$itemId, $verId];
+
+        // 访客可见性隔离：未登录访客仅允许查看本会话自身发表的批注，杜绝内部讨论外泄
+        if (!$curUser) {
+            $myAnnoIds = (!empty($_SESSION['guest_anno_ids']) && is_array($_SESSION['guest_anno_ids'])) ? array_map('intval', $_SESSION['guest_anno_ids']) : [];
+            if (empty($myAnnoIds)) {
+                jsonResponse(true, [
+                    'list' => [],
+                    'pending_count' => 0,
+                    'ver_id' => $verId
+                ]);
+                break;
+            }
+            $inIds = implode(',', $myAnnoIds);
+            $sql .= " AND id IN ($inIds) AND user_id = 0";
+        }
 
         if ($pagePath !== '') {
             $sql .= " AND page_path = ?";
@@ -148,9 +165,11 @@ switch ($action) {
         }
         unset($a);
 
-        $countStmt = $db->prepare("SELECT COUNT(*) FROM annotations WHERE item_id = ? AND ver_id = ? AND status = 0");
-        $countStmt->execute([$itemId, $verId]);
-        $pendingTotal = (int)$countStmt->fetchColumn();
+        if (!$curUser) {
+            $pendingTotal = (int)DB::value("SELECT COUNT(*) FROM annotations WHERE item_id = ? AND ver_id = ? AND status = 0 AND id IN ($inIds) AND user_id = 0", [$itemId, $verId]);
+        } else {
+            $pendingTotal = (int)DB::value("SELECT COUNT(*) FROM annotations WHERE item_id = ? AND ver_id = ? AND status = 0", [$itemId, $verId]);
+        }
 
         jsonResponse(true, [
             'list' => $annos,
@@ -178,9 +197,12 @@ switch ($action) {
             $verStmt = $db->prepare("SELECT id FROM versions WHERE item_id = ? ORDER BY is_default DESC, id DESC LIMIT 1");
             $verStmt->execute([$itemId]);
             $verId = (int)($verStmt->fetchColumn() ?: 0);
+            $verStmt->closeCursor();
         }
 
         requireAnnotationTarget($db, $itemId, $verId);
+        if (mb_strlen($pageTitle, 'UTF-8') > 200) jsonResponse(false, null, '页面名称最多 200 字符');
+        if (mb_strlen($pagePath, 'UTF-8') > 500) jsonResponse(false, null, '页面路径最多 500 字符');
         if (mb_strlen($content, 'UTF-8') > 1000) jsonResponse(false, null, '批注内容最多 1000 字');
 
         if ($curUser) {
@@ -194,8 +216,12 @@ switch ($action) {
                 jsonResponse(false, null, '发表太频繁，请稍后再试');
             }
             $rawGuestName = trim($_POST['guest_name'] ?? '');
-            if ($rawGuestName === '') $rawGuestName = '外部访客';
-            $authorName = mb_substr(preg_replace('/[\r\n\t]/', '', $rawGuestName), 0, 20, 'UTF-8');
+            $cleaned = mb_substr(preg_replace('/[\r\n\t]/', '', $rawGuestName), 0, 16, 'UTF-8');
+            if ($cleaned === '' || $cleaned === '外部访客' || $cleaned === '访客') {
+                $authorName = '[外部访客]';
+            } else {
+                $authorName = '[外部访客] ' . $cleaned;
+            }
             $authorDept = '访客';
             $userId = 0;
         }
@@ -209,6 +235,10 @@ switch ($action) {
 
         if (!$curUser) {
             Auth::hitThrottle('guest_anno_' . $itemId . '_' . ($_SERVER['REMOTE_ADDR'] ?? ''), 60);
+            if (!isset($_SESSION['guest_anno_ids']) || !is_array($_SESSION['guest_anno_ids'])) {
+                $_SESSION['guest_anno_ids'] = [];
+            }
+            $_SESSION['guest_anno_ids'][] = $annoId;
         }
         $createdTime = $db->query("SELECT created_at FROM annotations WHERE id = " . $annoId)->fetchColumn() ?: gmdate('Y-m-d H:i:s');
 
@@ -277,6 +307,7 @@ switch ($action) {
         $checkStmt = $db->prepare("SELECT a.*, i.name as item_name, v.version_name FROM annotations a LEFT JOIN items i ON a.item_id = i.id LEFT JOIN versions v ON a.ver_id = v.id WHERE a.id = ?");
         $checkStmt->execute([$annoId]);
         $anno = $checkStmt->fetch();
+        $checkStmt->closeCursor();
         if (!$anno) jsonResponse(false, null, '未找到对应的批注');
         requireAnnotationTarget($db, $anno['item_id'], $anno['ver_id']);
 
@@ -287,12 +318,20 @@ switch ($action) {
             $userId = (int)$curUser['id'];
         } else {
             if (!Auth::canGuestAnnotate()) jsonResponse(false, null, '未开放访客批注');
+            $myAnnoIds = (!empty($_SESSION['guest_anno_ids']) && is_array($_SESSION['guest_anno_ids'])) ? array_map('intval', $_SESSION['guest_anno_ids']) : [];
+            if (!in_array($annoId, $myAnnoIds, true)) {
+                jsonResponse(false, null, '无权回复此批注');
+            }
             if (!Auth::checkThrottle('guest_reply_' . $annoId . '_' . ($_SERVER['REMOTE_ADDR'] ?? ''), 15, 60)) {
                 jsonResponse(false, null, '回复太频繁，请稍后再试');
             }
             $rawGuestName = trim($_POST['guest_name'] ?? '');
-            if ($rawGuestName === '') $rawGuestName = '外部访客';
-            $authorName = mb_substr(preg_replace('/[\r\n\t]/', '', $rawGuestName), 0, 20, 'UTF-8');
+            $cleaned = mb_substr(preg_replace('/[\r\n\t]/', '', $rawGuestName), 0, 16, 'UTF-8');
+            if ($cleaned === '' || $cleaned === '外部访客' || $cleaned === '访客') {
+                $authorName = '[外部访客]';
+            } else {
+                $authorName = '[外部访客] ' . $cleaned;
+            }
             $authorDept = '访客';
             $userId = 0;
         }
@@ -347,6 +386,7 @@ switch ($action) {
         $stmt = $db->prepare("SELECT * FROM annotations WHERE id = ?");
         $stmt->execute([$annoId]);
         $anno = $stmt->fetch();
+        $stmt->closeCursor();
         if (!$anno) jsonResponse(false, null, '未找到指定批注');
         $annoItem = requireAnnotationTarget($db, $anno['item_id'], $anno['ver_id']);
 
@@ -358,7 +398,7 @@ switch ($action) {
 
         $newStatus = ((int)$anno['status'] === 1) ? 0 : 1;
         $resolverName = ($newStatus === 1) ? (!empty($curUser['name']) ? $curUser['name'] : ($curUser['email'] ?? '管理员')) : '';
-        $resolvedAt = ($newStatus === 1) ? date('Y-m-d H:i:s') : null;
+        $resolvedAt = ($newStatus === 1) ? gmdate('Y-m-d H:i:s') : null;
 
         $updateStmt = $db->prepare("UPDATE annotations SET status = ?, resolved_by = ?, resolved_at = ? WHERE id = ?");
         $updateStmt->execute([$newStatus, $resolverName, $resolvedAt, $annoId]);
@@ -369,10 +409,12 @@ switch ($action) {
                     $uStmt = $db->prepare("SELECT webhook_url FROM users WHERE id = ?");
                     $uStmt->execute([(int)$anno['user_id']]);
                     $userWb = trim($uStmt->fetchColumn() ?: '');
+                    $uStmt->closeCursor();
                     if (!empty($userWb)) {
                         $itemInfoStmt = $db->prepare("SELECT name FROM items WHERE id = ?");
                         $itemInfoStmt->execute([(int)$anno['item_id']]);
                         $itemName = $itemInfoStmt->fetchColumn() ?: '原型项目';
+                        $itemInfoStmt->closeCursor();
 
                         Webhook::send($userWb, 'annotation_resolve', [
                             'item_name' => $itemName,
@@ -406,6 +448,7 @@ switch ($action) {
         $stmt = $db->prepare("SELECT * FROM annotations WHERE id = ?");
         $stmt->execute([$annoId]);
         $anno = $stmt->fetch();
+        $stmt->closeCursor();
         if (!$anno) jsonResponse(false, null, '未找到指定批注');
         $annoItem = requireAnnotationTarget($db, $anno['item_id'], $anno['ver_id']);
 

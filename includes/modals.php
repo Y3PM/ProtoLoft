@@ -612,21 +612,32 @@ $renderItemOwnersCell = function($item, $usersMap) use ($editorShareAllowed) {
                     return number_format($b / 1073741824, 2) . ' GB';
                 };
 
+                $fmtStoragePct = function($b, $total) {
+                    if ($b <= 0 || $total <= 0) return '0%';
+                    $pct = ($b / $total) * 100;
+                    if ($pct < 0.05) {
+                        return '<0.1%';
+                    }
+                    return number_format($pct, 1) . '%';
+                };
+
+                $calcStorageBarWidth = function($b, $total) {
+                    if ($b <= 0 || $total <= 0) return 0;
+                    return max(0.5, round(($b / $total) * 100, 1));
+                };
+
                 $strTotalStorage = $fmtStorage($bytesTotal);
                 $strHtmlStorage = $fmtStorage($bytesHtml);
                 $strRpStorage = $fmtStorage($bytesRp);
                 $strOtherStorage = $fmtStorage($bytesOther);
 
-                $pctHtml = 0;
-                $pctRp = 0;
-                $pctOther = 0;
-                if ($bytesTotal > 0) {
-                    $pctHtml = $bytesHtml > 0 ? round(($bytesHtml / $bytesTotal) * 100, 1) : 0;
-                    $pctRp = $bytesRp > 0 ? round(($bytesRp / $bytesTotal) * 100, 1) : 0;
-                    if ($bytesOther > 0) {
-                        $pctOther = max(0, 100 - $pctHtml - $pctRp);
-                    }
-                }
+                $barWidthHtml = $calcStorageBarWidth($bytesHtml, $bytesTotal);
+                $barWidthRp = $calcStorageBarWidth($bytesRp, $bytesTotal);
+                $barWidthOther = $calcStorageBarWidth($bytesOther, $bytesTotal);
+
+                $lblHtmlPct = $fmtStoragePct($bytesHtml, $bytesTotal);
+                $lblRpPct = $fmtStoragePct($bytesRp, $bytesTotal);
+                $lblOtherPct = $fmtStoragePct($bytesOther, $bytesTotal);
 
                 // 近 30 天迭代发版数
                 $recentVerCount = 0;
@@ -1098,14 +1109,14 @@ $renderItemOwnersCell = function($item, $usersMap) use ($editorShareAllowed) {
 
                                 <!-- 分段彩色比例条 (5px) -->
                                 <div style="height:5px;background:#e2e8f0;border-radius:3px;overflow:hidden;display:flex;margin-bottom:12px;">
-                                    <?php if ($pctHtml > 0): ?>
-                                        <div style="width:<?php echo $pctHtml; ?>%;background:var(--primary);height:100%;transition:width 0.3s;" title="HTML 预览包: <?php echo $pctHtml; ?>%"></div>
+                                    <?php if ($barWidthHtml > 0): ?>
+                                        <div style="width:<?php echo $barWidthHtml; ?>%;background:var(--primary);height:100%;transition:width 0.3s;" title="HTML 预览包: <?php echo $lblHtmlPct; ?>"></div>
                                     <?php endif; ?>
-                                    <?php if ($pctRp > 0): ?>
-                                        <div style="width:<?php echo $pctRp; ?>%;background:#f59e0b;height:100%;transition:width 0.3s;" title="RP 源文件: <?php echo $pctRp; ?>%"></div>
+                                    <?php if ($barWidthRp > 0): ?>
+                                        <div style="width:<?php echo $barWidthRp; ?>%;background:#f59e0b;height:100%;transition:width 0.3s;" title="RP 源文件: <?php echo $lblRpPct; ?>"></div>
                                     <?php endif; ?>
-                                    <?php if ($pctOther > 0): ?>
-                                        <div style="width:<?php echo $pctOther; ?>%;background:#94a3b8;height:100%;transition:width 0.3s;" title="数据库与媒体: <?php echo $pctOther; ?>%"></div>
+                                    <?php if ($barWidthOther > 0): ?>
+                                        <div style="width:<?php echo $barWidthOther; ?>%;background:#94a3b8;height:100%;transition:width 0.3s;" title="数据库与媒体: <?php echo $lblOtherPct; ?>"></div>
                                     <?php endif; ?>
                                 </div>
                             </div>
@@ -1117,21 +1128,21 @@ $renderItemOwnersCell = function($item, $usersMap) use ($editorShareAllowed) {
                                         <span style="width:7px;height:7px;border-radius:50%;background:var(--primary);display:inline-block;"></span>
                                         <span>HTML 预览包</span>
                                     </span>
-                                    <span style="font-weight:600;color:var(--text-1);"><?php echo htmlspecialchars($strHtmlStorage); ?> <span style="font-weight:400;color:var(--text-3);font-size:11px;">(<?php echo $pctHtml; ?>%)</span></span>
+                                    <span style="font-weight:600;color:var(--text-1);"><?php echo htmlspecialchars($strHtmlStorage); ?> <span style="font-weight:400;color:var(--text-3);font-size:11px;">(<?php echo $lblHtmlPct; ?>)</span></span>
                                 </div>
                                 <div style="display:flex;justify-content:space-between;align-items:center;">
                                     <span style="color:var(--text-2);display:inline-flex;align-items:center;gap:6px;">
                                         <span style="width:7px;height:7px;border-radius:50%;background:var(--warning);display:inline-block;"></span>
                                         <span>RP 源文件</span>
                                     </span>
-                                    <span style="font-weight:600;color:var(--text-1);"><?php echo htmlspecialchars($strRpStorage); ?> <span style="font-weight:400;color:var(--text-3);font-size:11px;">(<?php echo $pctRp; ?>%)</span></span>
+                                    <span style="font-weight:600;color:var(--text-1);"><?php echo htmlspecialchars($strRpStorage); ?> <span style="font-weight:400;color:var(--text-3);font-size:11px;">(<?php echo $lblRpPct; ?>)</span></span>
                                 </div>
                                 <div style="display:flex;justify-content:space-between;align-items:center;">
                                     <span style="color:var(--text-2);display:inline-flex;align-items:center;gap:6px;">
                                         <span style="width:7px;height:7px;border-radius:50%;background:#94a3b8;display:inline-block;"></span>
                                         <span>数据库与媒体</span>
                                     </span>
-                                    <span style="font-weight:600;color:var(--text-1);"><?php echo htmlspecialchars($strOtherStorage); ?> <span style="font-weight:400;color:var(--text-3);font-size:11px;">(<?php echo $pctOther; ?>%)</span></span>
+                                    <span style="font-weight:600;color:var(--text-1);"><?php echo htmlspecialchars($strOtherStorage); ?> <span style="font-weight:400;color:var(--text-3);font-size:11px;">(<?php echo $lblOtherPct; ?>)</span></span>
                                 </div>
                             </div>
                         </div>

@@ -366,10 +366,10 @@ def run_tests(base_url, temp_dir):
     assert anno_res and anno_res.get('success'), f"访客发表批注失败: {anno_res}"
     anno_data = anno_res['data']
     anno_id = anno_data['id']
-    assert anno_data['author_name'] == '前端老张', f"作者称呼不符合预期: {anno_data['author_name']}"
+    assert anno_data['author_name'] == '[外部访客] 前端老张', f"作者称呼不符合预期: {anno_data['author_name']}"
     assert anno_data['author_dept'] == '访客', f"部门标识不符合预期: {anno_data['author_dept']}"
     assert anno_data['status'] == 0, "新批注初始状态应为待处理 (0)"
-    print(f"  ✓ 访客以「前端老张 (访客)」署名成功发表批注 #{anno_id}")
+    print(f"  ✓ 访客以「[外部访客] 前端老张 (访客)」署名成功发表批注 #{anno_id}")
 
     # 访客回复该批注
     reply_res = guest.api('reply_annotation', {
@@ -379,9 +379,9 @@ def run_tests(base_url, temp_dir):
     }, csrf=True)
     assert reply_res and reply_res.get('success'), f"访客发表回复失败: {reply_res}"
     reply_data = reply_res['data']
-    assert reply_data['author_name'] == 'UI小王', f"回复作者称呼不符合预期: {reply_data['author_name']}"
+    assert reply_data['author_name'] == '[外部访客] UI小王', f"回复作者称呼不符合预期: {reply_data['author_name']}"
     assert reply_data['author_dept'] == '访客'
-    print("  ✓ 访客以「UI小王 (访客)」署名成功回复批注")
+    print("  ✓ 访客以「[外部访客] UI小王 (访客)」署名成功回复批注")
 
     # 访客查看批注列表
     list_res = guest.api('list_annotations', {
@@ -393,8 +393,17 @@ def run_tests(base_url, temp_dir):
     assert len(annos) == 1, f"应包含 1 条批注，实际: {len(annos)}"
     target_a = annos[0]
     assert len(target_a['replies']) == 1, f"批注应包含 1 条回复，实际: {len(target_a['replies'])}"
-    assert target_a['replies'][0]['author_name'] == 'UI小王'
+    assert target_a['replies'][0]['author_name'] == '[外部访客] UI小王'
     print("  ✓ 访客成功拉取批注列表与跟帖回复树")
+
+    # 验证未在此会话发表过批注的其他外部访客，完全不可窥探已有批注
+    other_guest = TestClient(base_url)
+    other_html = other_guest.request(f'/share.php?s={share_code}')[1].decode('utf-8')
+    m_og_csrf = re.search(r'window\.CSRF_TOKEN\s*=\s*"([^"]+)"', other_html)
+    if m_og_csrf: other_guest.token = m_og_csrf.group(1)
+    other_list = other_guest.api('list_annotations', {'item_id': item_id, 'ver_id': ver_id}, csrf=True)
+    assert other_list and other_list.get('success') and len(other_list['data']['list']) == 0, f"新访客不应看到其他访客或内部批注: {other_list}"
+    print("  ✓ 未发表批注的外部访客隔离生效 (批注列表安全为空)")
 
     # 7. 访客越权防篡改防御
     print("▶ 7. 验证访客越权防篡改防御 (禁止删除与标记解决)...")
@@ -414,7 +423,7 @@ def run_tests(base_url, temp_dir):
     print("▶ 8. 管理员登录并在后台正常处理访客批注...")
     admin_list = admin.api('list_annotations', {'item_id': item_id, 'ver_id': ver_id})
     assert admin_list and admin_list.get('success')
-    assert admin_list['data']['list'][0]['author_name'] == '前端老张'
+    assert admin_list['data']['list'][0]['author_name'] == '[外部访客] 前端老张'
 
     tog_admin = admin.api('toggle_annotation_status', {'id': anno_id})
     assert tog_admin and tog_admin.get('success'), f"管理员切换批注状态失败: {tog_admin}"
