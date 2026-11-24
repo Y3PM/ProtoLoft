@@ -1,16 +1,25 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128">
-  <title>立象原型</title>
-  <!-- Approved full-elephant concept, optically enlarged by 8% for small tabs. -->
-  <path fill="#0076de" d="M28 0h72c17 0 28 11 28 28v72c0 17-11 28-28 28H28C11 128 0 117 0 100V28C0 11 11 0 28 0Z"/>
-  <g transform="matrix(.12233 0 0 .12343 -12.704 -13.883)">
-    <!-- Body, tail and rear leg. -->
-    <path fill="#fff" d="m567 423-80 132c-10 17-5 29 9 40l115 88-15 171H380c-15 0-25 10-26 25l-7 83c-1 12-9 19-22 19H224c-15 0-22-9-18-24l56-185c2-7 3-15 2-23l-13-93-12 61c-2 9-5 15-12 20l-51 36c-5 3-8 1-6-5l40-126c2-8 6-15 12-21l129-140c7-8 15-12 25-15Z"/>
-    <!-- One broad folded plane, with no fine facets. -->
-    <path fill="#b3cffd" d="m611 683-15 171H378Z"/>
-    <!-- Front leg. -->
-    <path fill="#fff" d="m611 683 110 82c11 8 18 19 22 33l45 160c5 15-3 23-18 23H648c-14 0-21-6-25-19l-27-108Z"/>
-    <!-- Ear, head and raised trunk form a single continuous silhouette. -->
-    <path fill="#fff" d="m634 354-129 204c-6 10-3 19 6 25l219 164c6 5 12 4 14-4l26-117 51 19 121 27c11 3 18 1 25-8l93-112c8-10 9-19 4-30l-41-85 48-47c5-5 4-8-3-7l-85 9c-19 2-29 15-25 35l22 100-71 33-66-145c-4-9-11-14-21-18l-160-54c-12-4-20-1-28 11Z"/>
-    <circle cx="1026" cy="310" r="59" fill="#fc5d48"/>
-  </g>
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="128px" height="128px" viewBox="0 0 128 128" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+    <title>favicon</title>
+    <g id="favicon" stroke="none" fill="none" fill-rule="evenodd" stroke-width="1">
+        <g id="立象原型">
+            <path d="M28,0 L100,0 C117,0 128,11 128,28 L128,100 C128,117 117,128 100,128 L28,128 C11,128 0,117 0,100 L0,28 C0,11 11,0 28,0 Z" id="路径" fill="#0076DE"></path>
+            <g id="编组" transform="translate(-35.94, 17.18)">
+                <polygon id="路径" fill="#FFFFFF" points="41.7396362 14.9609778 61.6693854 17.7930644 54.5769553 30.05172 63.2521948 35.0545276 35.94 73.2303768 35.94 19.0559542"></polygon>
+                <polygon id="路径" fill="#FFFFFF" points="66.4072953 36.8985657 65.9667018 73.8527136 42.7466153 70.734806"></polygon>
+                <polygon id="路径" fill="#FFFFFF" points="69.5619368 37.9998879 91.3966902 51.3552366 80.473128 98.9888989 69.5619368 108.460866"></polygon>
+                <polygon id="路径" fill="#FFFFFF" points="80.6958053 102.822494 84.5431755 111 71.2691299 111"></polygon>
+                <polygon id="路径" fill="#FFFFFF" points="92.4605932 60.1799731 105.511961 74.1825521 96.5306407 81.2896389 88.613223 76.5474322"></polygon>
+                <polygon id="路径" fill="#FFFFFF" points="106.377929 77.1448755 105.734639 94.2093519 94.6007701 90.3259699 98.0275274 83.4429244"></polygon>
+                <polygon id="路径" fill="#FFFFFF" points="76.7594122 4.384785 84.9349188 6.61286194 96.3079633 51.1436421 61.3079633 27.8540692"></polygon>
+                <polygon id="路径" fill="#FFFFFF" points="89.6576826 11.3016371 102.951172 11.3016371 115.148943 19.0559542 130.773472 53.9441579 115.148943 47.6958959 112.15517 42.0948643 116.64583 53.7201166 98.4639142 47.478078"></polygon>
+                <polygon id="路径" fill="#FFFFFF" points="127.754957 40.8004037 145.321727 45.5426105 133.532197 54.1557524"></polygon>
+                <polygon id="路径" fill="#FFFFFF" points="135.474439 40.1780668 147.251598 29.1751514 145.754711 42.9785826"></polygon>
+                <polygon id="路径" fill="#FFFFFF" points="136.971326 20.3504149 146.398001 26.4244225 139.97747 32.4237497"></polygon>
+                <polygon id="路径" fill="#FFFFFF" points="137.404309 17.9730881 140.831067 14.5377887 142.513518 21.0225387"></polygon>
+                <polygon id="路径" fill="#FFFFFF" points="142.513518 13.8325536 148.334302 14.1320109 143.800098 19.0559542"></polygon>
+                <ellipse id="椭圆形" fill="#FF5D47" cx="145.111421" cy="5.92464678" rx="5.88857939" ry="5.92464678"></ellipse>
+            </g>
+        </g>
+    </g>
 </svg>

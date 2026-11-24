@@ -2298,105 +2298,85 @@ function handleCategorySave(e) {
 // 控制中心家族化矢量微插画辅助生成器 (对齐 Linear 浅色工作台与立象原型图纸体系)
 function getConsoleFolderEmptySvg() {
     return '<svg width="120" height="96" viewBox="0 0 120 96" fill="none" xmlns="http://www.w3.org/2000/svg" style="display:block;margin:0 auto;">' +
-        '<circle cx="16" cy="18" r="1.5" fill="#cbd5e1"/>' +
-        '<circle cx="104" cy="18" r="1.5" fill="#cbd5e1"/>' +
-        '<circle cx="16" cy="78" r="1.5" fill="#cbd5e1"/>' +
-        '<circle cx="104" cy="78" r="1.5" fill="#cbd5e1"/>' +
-        '<rect x="34" y="24" width="56" height="44" rx="6" fill="#f8fafc" stroke="#cbd5e1" stroke-width="1.2" transform="rotate(-3 34 24)"/>' +
-        '<path d="M30 28C30 25 32 23 35 23H48L53 28H81C84 28 86 30 86 33V66C86 69 84 71 81 71H35C32 71 30 69 30 66V28Z" fill="#ffffff" stroke="#94a3b8" stroke-width="1.4"/>' +
-        '<line x1="36" y1="36" x2="80" y2="36" stroke="#f1f5f9" stroke-width="1"/>' +
-        '<rect x="38" y="42" width="22" height="3" rx="1.5" fill="#cbd5e1"/>' +
-        '<rect x="38" y="48" width="34" height="2.5" rx="1" fill="#f1f5f9"/>' +
-        '<rect x="38" y="54" width="26" height="2.5" rx="1" fill="#f1f5f9"/>' +
+        '<rect x="34" y="24" width="56" height="44" rx="6" fill="var(--canvas)" stroke="var(--border-strong)" stroke-width="1.2" transform="rotate(-3 34 24)"/>' +
+        '<path d="M30 28C30 25 32 23 35 23H48L53 28H81C84 28 86 30 86 33V66C86 69 84 71 81 71H35C32 71 30 69 30 66V28Z" fill="var(--surface)" stroke="var(--border-strong)" stroke-width="1.4"/>' +
+        '<line x1="36" y1="36" x2="80" y2="36" stroke="var(--surface-hover)" stroke-width="1"/>' +
+        '<rect x="38" y="42" width="22" height="3" rx="1.5" fill="var(--border-strong)"/>' +
+        '<rect x="38" y="48" width="34" height="2.5" rx="1" fill="var(--surface-hover)"/>' +
+        '<rect x="38" y="54" width="26" height="2.5" rx="1" fill="var(--surface-hover)"/>' +
         '<g transform="translate(68, 46)">' +
-            '<circle cx="14" cy="14" r="13" fill="#e6f4fe" stroke="#bce0fc" stroke-width="1.3"/>' +
-            '<path d="M14 9V19M9 14H19" stroke="#0076de" stroke-width="2" stroke-linecap="round"/>' +
+            '<circle cx="14" cy="14" r="13" fill="var(--primary-subtle)" stroke="var(--primary-border)" stroke-width="1.3"/>' +
+            '<path d="M14 9V19M9 14H19" stroke="var(--primary)" stroke-width="2" stroke-linecap="round"/>' +
         '</g>' +
     '</svg>';
 }
 
 function getConsoleProjectEmptySvg() {
     return '<svg width="120" height="96" viewBox="0 0 120 96" fill="none" xmlns="http://www.w3.org/2000/svg" style="display:block;margin:0 auto;">' +
-        '<circle cx="16" cy="18" r="1.5" fill="#cbd5e1"/>' +
-        '<circle cx="104" cy="18" r="1.5" fill="#cbd5e1"/>' +
-        '<circle cx="16" cy="78" r="1.5" fill="#cbd5e1"/>' +
-        '<circle cx="104" cy="78" r="1.5" fill="#cbd5e1"/>' +
-        '<rect x="34" y="20" width="56" height="46" rx="6" fill="#f8fafc" stroke="#cbd5e1" stroke-width="1.2" transform="rotate(3 62 43)"/>' +
-        '<rect x="30" y="24" width="56" height="46" rx="6" fill="#ffffff" stroke="#94a3b8" stroke-width="1.4"/>' +
-        '<line x1="30" y1="34" x2="86" y2="34" stroke="#f1f5f9" stroke-width="1"/>' +
-        '<circle cx="36" cy="29" r="1.5" fill="#e2e8f0"/>' +
-        '<circle cx="40.5" cy="29" r="1.5" fill="#e2e8f0"/>' +
-        '<circle cx="45" cy="29" r="1.5" fill="#e2e8f0"/>' +
-        '<rect x="37" y="40" width="18" height="4" rx="1.5" fill="#0076de" fill-opacity="0.2"/>' +
-        '<rect x="37" y="48" width="18" height="12" rx="3" fill="#f8fafc" stroke="#e2e8f0" stroke-width="1"/>' +
-        '<rect x="59" y="48" width="18" height="12" rx="3" fill="#f8fafc" stroke="#e2e8f0" stroke-width="1"/>' +
+        '<rect x="34" y="20" width="56" height="46" rx="6" fill="var(--canvas)" stroke="var(--border-strong)" stroke-width="1.2" transform="rotate(3 62 43)"/>' +
+        '<rect x="30" y="24" width="56" height="46" rx="6" fill="var(--surface)" stroke="var(--border-strong)" stroke-width="1.4"/>' +
+        '<line x1="30" y1="34" x2="86" y2="34" stroke="var(--surface-hover)" stroke-width="1"/>' +
+        '<circle cx="36" cy="29" r="1.5" fill="var(--border)"/>' +
+        '<circle cx="40.5" cy="29" r="1.5" fill="var(--border)"/>' +
+        '<circle cx="45" cy="29" r="1.5" fill="var(--border)"/>' +
+        '<rect x="37" y="40" width="18" height="4" rx="1.5" fill="var(--primary)" fill-opacity="0.2"/>' +
+        '<rect x="37" y="48" width="18" height="12" rx="3" fill="var(--canvas)" stroke="var(--border)" stroke-width="1"/>' +
+        '<rect x="59" y="48" width="18" height="12" rx="3" fill="var(--canvas)" stroke="var(--border)" stroke-width="1"/>' +
         '<g transform="translate(66, 44)">' +
-            '<circle cx="14" cy="14" r="13" fill="#e6f4fe" stroke="#bce0fc" stroke-width="1.3"/>' +
-            '<path d="M10 8L18 16L14 17L16 21L14 22L12 18L9 20Z" fill="#0076de" stroke="#ffffff" stroke-width="1" stroke-linejoin="round"/>' +
+            '<circle cx="14" cy="14" r="13" fill="var(--primary-subtle)" stroke="var(--primary-border)" stroke-width="1.3"/>' +
+            '<path d="M10 8L18 16L14 17L16 21L14 22L12 18L9 20Z" fill="var(--primary)" stroke="var(--surface)" stroke-width="1" stroke-linejoin="round"/>' +
         '</g>' +
     '</svg>';
 }
 
 function getConsoleLinkEmptySvg() {
     return '<svg width="120" height="96" viewBox="0 0 120 96" fill="none" xmlns="http://www.w3.org/2000/svg" style="display:block;margin:0 auto;">' +
-        '<circle cx="16" cy="18" r="1.5" fill="#cbd5e1"/>' +
-        '<circle cx="104" cy="18" r="1.5" fill="#cbd5e1"/>' +
-        '<circle cx="16" cy="78" r="1.5" fill="#cbd5e1"/>' +
-        '<circle cx="104" cy="78" r="1.5" fill="#cbd5e1"/>' +
-        '<rect x="34" y="20" width="56" height="46" rx="6" fill="#f8fafc" stroke="#cbd5e1" stroke-width="1.2" transform="rotate(-3 34 20)"/>' +
-        '<rect x="30" y="24" width="56" height="46" rx="6" fill="#ffffff" stroke="#94a3b8" stroke-width="1.4"/>' +
-        '<line x1="30" y1="34" x2="86" y2="34" stroke="#f1f5f9" stroke-width="1"/>' +
-        '<circle cx="36" cy="29" r="1.5" fill="#e2e8f0"/>' +
-        '<circle cx="40.5" cy="29" r="1.5" fill="#e2e8f0"/>' +
-        '<rect x="37" y="42" width="22" height="3" rx="1.5" fill="#cbd5e1"/>' +
-        '<rect x="37" y="49" width="34" height="2.5" rx="1" fill="#f1f5f9"/>' +
-        '<rect x="37" y="55" width="26" height="2.5" rx="1" fill="#f1f5f9"/>' +
+        '<rect x="34" y="20" width="56" height="46" rx="6" fill="var(--canvas)" stroke="var(--border-strong)" stroke-width="1.2" transform="rotate(-3 34 20)"/>' +
+        '<rect x="30" y="24" width="56" height="46" rx="6" fill="var(--surface)" stroke="var(--border-strong)" stroke-width="1.4"/>' +
+        '<line x1="30" y1="34" x2="86" y2="34" stroke="var(--surface-hover)" stroke-width="1"/>' +
+        '<circle cx="36" cy="29" r="1.5" fill="var(--border)"/>' +
+        '<circle cx="40.5" cy="29" r="1.5" fill="var(--border)"/>' +
+        '<rect x="37" y="42" width="22" height="3" rx="1.5" fill="var(--border-strong)"/>' +
+        '<rect x="37" y="49" width="34" height="2.5" rx="1" fill="var(--surface-hover)"/>' +
+        '<rect x="37" y="55" width="26" height="2.5" rx="1" fill="var(--surface-hover)"/>' +
         '<g transform="translate(66, 44)">' +
-            '<circle cx="14" cy="14" r="13" fill="#e6f4fe" stroke="#bce0fc" stroke-width="1.3"/>' +
-            '<path d="M11 17L17 11M17 11H12M17 11V16" stroke="#0076de" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>' +
+            '<circle cx="14" cy="14" r="13" fill="var(--primary-subtle)" stroke="var(--primary-border)" stroke-width="1.3"/>' +
+            '<path d="M11 17L17 11M17 11H12M17 11V16" stroke="var(--primary)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>' +
         '</g>' +
     '</svg>';
 }
 
 function getConsoleMemberEmptySvg() {
     return '<svg width="120" height="96" viewBox="0 0 120 96" fill="none" xmlns="http://www.w3.org/2000/svg" style="display:block;margin:0 auto;">' +
-        '<circle cx="16" cy="18" r="1.5" fill="#cbd5e1"/>' +
-        '<circle cx="104" cy="18" r="1.5" fill="#cbd5e1"/>' +
-        '<circle cx="16" cy="78" r="1.5" fill="#cbd5e1"/>' +
-        '<circle cx="104" cy="78" r="1.5" fill="#cbd5e1"/>' +
-        '<rect x="26" y="22" width="46" height="46" rx="6" fill="#f8fafc" stroke="#cbd5e1" stroke-width="1.2" transform="rotate(-6 26 22)"/>' +
-        '<circle cx="49" cy="36" r="4.5" fill="#e2e8f0"/>' +
-        '<path d="M43 45C43 42.5 46 40.5 49 40.5C52 40.5 55 42.5 55 45" fill="#cbd5e1"/>' +
-        '<rect x="36" y="24" width="48" height="46" rx="6" fill="#ffffff" stroke="#94a3b8" stroke-width="1.4"/>' +
-        '<line x1="36" y1="34" x2="84" y2="34" stroke="#f1f5f9" stroke-width="1"/>' +
-        '<circle cx="60" cy="29" r="1.75" fill="#e2e8f0"/>' +
-        '<circle cx="60" cy="42" r="5" fill="#e6f4fe"/>' +
-        '<path d="M54 51C54 48 57 46 60 46C63 46 66 48 66 51" fill="#bce0fc"/>' +
-        '<line x1="48" y1="58" x2="72" y2="58" stroke="#cbd5e1" stroke-width="1.5" stroke-linecap="round"/>' +
+        '<rect x="26" y="22" width="46" height="46" rx="6" fill="var(--canvas)" stroke="var(--border-strong)" stroke-width="1.2" transform="rotate(-6 26 22)"/>' +
+        '<circle cx="49" cy="36" r="4.5" fill="var(--border)"/>' +
+        '<path d="M43 45C43 42.5 46 40.5 49 40.5C52 40.5 55 42.5 55 45" fill="var(--border-strong)"/>' +
+        '<rect x="36" y="24" width="48" height="46" rx="6" fill="var(--surface)" stroke="var(--border-strong)" stroke-width="1.4"/>' +
+        '<line x1="36" y1="34" x2="84" y2="34" stroke="var(--surface-hover)" stroke-width="1"/>' +
+        '<circle cx="60" cy="29" r="1.75" fill="var(--border)"/>' +
+        '<circle cx="60" cy="42" r="5" fill="var(--primary-subtle)"/>' +
+        '<path d="M54 51C54 48 57 46 60 46C63 46 66 48 66 51" fill="var(--primary-border)"/>' +
+        '<line x1="48" y1="58" x2="72" y2="58" stroke="var(--border-strong)" stroke-width="1.5" stroke-linecap="round"/>' +
         '<g transform="translate(68, 46)">' +
-            '<circle cx="14" cy="14" r="13" fill="#e6f4fe" stroke="#bce0fc" stroke-width="1.3"/>' +
-            '<path d="M11 18V17C11 15.3431 12.3431 14 14 14C15.6569 14 17 15.3431 17 17V18" stroke="#0076de" stroke-width="1.4" stroke-linecap="round"/>' +
-            '<circle cx="14" cy="10.5" r="2.5" stroke="#0076de" stroke-width="1.4"/>' +
+            '<circle cx="14" cy="14" r="13" fill="var(--primary-subtle)" stroke="var(--primary-border)" stroke-width="1.3"/>' +
+            '<path d="M11 18V17C11 15.3431 12.3431 14 14 14C15.6569 14 17 15.3431 17 17V18" stroke="var(--primary)" stroke-width="1.4" stroke-linecap="round"/>' +
+            '<circle cx="14" cy="10.5" r="2.5" stroke="var(--primary)" stroke-width="1.4"/>' +
         '</g>' +
     '</svg>';
 }
 
 function getConsoleVersionDraftSvg() {
     return '<svg width="120" height="96" viewBox="0 0 120 96" fill="none" xmlns="http://www.w3.org/2000/svg" style="display:block;margin:0 auto 10px;">' +
-        '<circle cx="16" cy="18" r="1.5" fill="#cbd5e1"/>' +
-        '<circle cx="104" cy="18" r="1.5" fill="#cbd5e1"/>' +
-        '<circle cx="16" cy="78" r="1.5" fill="#cbd5e1"/>' +
-        '<circle cx="104" cy="78" r="1.5" fill="#cbd5e1"/>' +
-        '<rect x="34" y="20" width="56" height="48" rx="6" fill="#f8fafc" stroke="#cbd5e1" stroke-width="1.2" transform="rotate(-3 34 20)"/>' +
-        '<rect x="30" y="22" width="56" height="48" rx="6" fill="#ffffff" stroke="#94a3b8" stroke-width="1.4"/>' +
-        '<line x1="30" y1="33" x2="86" y2="33" stroke="#f1f5f9" stroke-width="1"/>' +
-        '<circle cx="36" cy="28" r="1.5" fill="#e2e8f0"/>' +
-        '<circle cx="41" cy="28" r="1.5" fill="#e2e8f0"/>' +
-        '<rect x="36" y="37" width="44" height="28" rx="4" fill="#f8fafc" stroke="#0076de" stroke-width="1.2" stroke-dasharray="3 3"/>' +
+        '<rect x="34" y="20" width="56" height="48" rx="6" fill="var(--canvas)" stroke="var(--border-strong)" stroke-width="1.2" transform="rotate(-3 34 20)"/>' +
+        '<rect x="30" y="22" width="56" height="48" rx="6" fill="var(--surface)" stroke="var(--border-strong)" stroke-width="1.4"/>' +
+        '<line x1="30" y1="33" x2="86" y2="33" stroke="var(--surface-hover)" stroke-width="1"/>' +
+        '<circle cx="36" cy="28" r="1.5" fill="var(--border)"/>' +
+        '<circle cx="41" cy="28" r="1.5" fill="var(--border)"/>' +
+        '<rect x="36" y="37" width="44" height="28" rx="4" fill="var(--canvas)" stroke="var(--primary)" stroke-width="1.2" stroke-dasharray="3 3"/>' +
         '<g transform="translate(68, 46)">' +
-            '<circle cx="14" cy="14" r="13" fill="#e6f4fe" stroke="#bce0fc" stroke-width="1.3"/>' +
-            '<path d="M14 9V17M14 9L10 13M14 9L18 13" stroke="#0076de" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>' +
-            '<path d="M9 19H19" stroke="#0076de" stroke-width="1.6" stroke-linecap="round"/>' +
+            '<circle cx="14" cy="14" r="13" fill="var(--primary-subtle)" stroke="var(--primary-border)" stroke-width="1.3"/>' +
+            '<path d="M14 9V17M14 9L10 13M14 9L18 13" stroke="var(--primary)" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>' +
+            '<path d="M9 19H19" stroke="var(--primary)" stroke-width="1.6" stroke-linecap="round"/>' +
         '</g>' +
     '</svg>';
 }
@@ -3521,7 +3501,7 @@ function handleItemSave(e) {
                         var linkUrl = fd.get('link_url') || '';
                         var linkTarget = fd.get('link_target') || '_blank';
                         var targetText = (linkTarget === '_blank') ? '新标签页' : '内嵌预览';
-                        var targetBadgeStyle = (linkTarget === '_blank') ? 'background:var(--primary-subtle);color:var(--primary);border:1px solid var(--primary-border);' : 'background:#f8fafc;color:var(--text-3);border:1px solid var(--border);';
+                        var targetBadgeStyle = (linkTarget === '_blank') ? 'background:var(--primary-subtle);color:var(--primary);border:1px solid var(--primary-border);' : 'background:var(--canvas);color:var(--text-3);border:1px solid var(--border);';
                         if ($tds.length >= 5) {
                             $tds.eq(0).html('<i class="ri-external-link-line" style="color:var(--primary);margin-right:4px;font-size:14px;vertical-align:-1px;"></i>' + esc(itemName));
                             $tds.eq(1).text(catText);
@@ -3585,7 +3565,7 @@ function handleItemSave(e) {
                             var linkUrl = fd.get('link_url') || '';
                             var linkTarget = fd.get('link_target') || '_blank';
                             var targetText = (linkTarget === '_blank') ? '新标签页' : '内嵌预览';
-                            var targetBadgeStyle = (linkTarget === '_blank') ? 'background:var(--primary-subtle);color:var(--primary);border:1px solid var(--primary-border);' : 'background:#f8fafc;color:var(--text-3);border:1px solid var(--border);';
+                            var targetBadgeStyle = (linkTarget === '_blank') ? 'background:var(--primary-subtle);color:var(--primary);border:1px solid var(--primary-border);' : 'background:var(--canvas);color:var(--text-3);border:1px solid var(--border);';
                             var newLinkData = {
                                 id: itemId,
                                 type: 'link',
@@ -3694,7 +3674,7 @@ function deleteItem(itemId) {
                             $('#overviewTableProjects tbody').html('<tr class="empty-projects-row"><td colspan="6" style="padding:44px 20px;text-align:center;">' +
                                 getConsoleProjectEmptySvg() +
                                 '<div style="font-weight:600;font-size:13.5px;color:var(--text-1);margin-top:10px;">暂无原型项目</div>' +
-                                '<div style="font-size:12px;color:var(--text-3);margin-top:3px;margin-bottom:14px;">点击上方「新建项目」或直接将 .zip 原型压缩包拖入工作台发布</div>' +
+                                '<div style="font-size:12px;color:var(--text-3);margin-top:3px;margin-bottom:14px;">万事俱备，点击下方创建团队的第一份图纸</div>' +
                                 '<button type="button" class="btn-primary btn-sm" onclick="openItemModal(0, 0, \'project\')"><i class="ri-add-line"></i> 新建项目</button>' +
                             '</td></tr>');
                         }
@@ -4557,7 +4537,7 @@ function resetToDefaultBg() {
     if (el) el.innerHTML = '<span style="color:var(--text-3);">默认 Axure 原型网点底纹</span>';
     var box = document.getElementById('previewBgImgWrap');
     if (box) {
-        box.innerHTML = '<div style="width:100%;height:100%;background-color:var(--canvas,#f8fafc);background-image:url(\"data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'8\' height=\'8\'%3E%3Crect width=\'1\' height=\'1\' fill=\'%2394a3b8\' opacity=\'0.5\'/%3E%3C/svg%3E\");background-size:8px 8px;display:flex;align-items:center;justify-content:center;color:var(--primary);font-size:13px;" title="默认 Axure 原型网点底纹"><i class="ri-grid-line"></i></div>';
+        box.innerHTML = '<div style="width:100%;height:100%;background-color:var(--canvas);background-image:url(\"data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'8\' height=\'8\'%3E%3Crect width=\'1\' height=\'1\' fill=\'%2394a3b8\' opacity=\'0.5\'/%3E%3C/svg%3E\");background-size:8px 8px;display:flex;align-items:center;justify-content:center;color:var(--primary);font-size:13px;" title="默认 Axure 原型网点底纹"><i class="ri-grid-line"></i></div>';
     }
 }
 
@@ -5303,8 +5283,23 @@ var chartTrend = null;
 var currentTrendRange = '7d';
 var currentAnnoProjFilter = 0;
 var currentAnnoVerFilter = 0;
+function getDashboardChartPalette() {
+    return {
+        primary: '#0076de',
+        success: '#16a34a',
+        warning: '#d97706',
+        border: '#e7eaf0',
+        borderStrong: '#d8dde6',
+        text1: '#182230',
+        text2: '#4e5b6e',
+        text3: '#667085',
+        canvas: '#f7f8fa',
+        surface: '#ffffff'
+    };
+}
 
 function renderAnnotationDashboard() {
+    var CHART_PALETTE = getDashboardChartPalette();
     if (typeof echarts === 'undefined') {
         ensureEchartsLoaded().then(function(ec) {
             if (ec) renderAnnotationDashboard();
@@ -5347,15 +5342,15 @@ function renderAnnotationDashboard() {
     var chartColors = [];
     if (total === 0) {
         chartData = [{ value: 1, name: '暂无批注' }];
-        chartColors = ['#e2e8f0'];
+        chartColors = [CHART_PALETTE.border];
     } else {
         if (pending > 0) {
             chartData.push({ value: pending, name: '待处理' });
-            chartColors.push('#f59e0b');
+            chartColors.push(CHART_PALETTE.warning);
         }
         if (resolved > 0) {
             chartData.push({ value: resolved, name: '已闭环' });
-            chartColors.push('#10b981');
+            chartColors.push(CHART_PALETTE.success);
         }
     }
 
@@ -5365,11 +5360,11 @@ function renderAnnotationDashboard() {
             show: total > 0,
             backgroundColor: 'rgba(15, 23, 42, 0.9)',
             borderColor: 'transparent',
-            textStyle: { color: '#fff', fontSize: 12 },
+            textStyle: { color: CHART_PALETTE.surface, fontSize: 12 },
             formatter: function(params) {
                 var pct = total > 0 ? Math.round((params.value / total) * 100) : 0;
                 return '<div style="font-weight:600;">' + esc(params.name) + '</div>' +
-                       '<div style="font-size:12px;color:#cbd5e1;">' + params.value + ' 条 (' + pct + '%)</div>';
+                       '<div style="font-size:12px;color:rgba(255,255,255,0.75);">' + params.value + ' 条 (' + pct + '%)</div>';
             }
         },
         title: {
@@ -5386,7 +5381,7 @@ function renderAnnotationDashboard() {
             color: chartColors,
             itemStyle: {
                 borderRadius: 3,
-                borderColor: '#fff',
+                borderColor: CHART_PALETTE.surface,
                 borderWidth: total > 0 ? 1 : 0
             }
         }]
@@ -5408,19 +5403,19 @@ function renderAnnotationDashboard() {
                 </div>
             `;
         } else {
-            var pendingColor = pending > 0 ? '#f59e0b' : 'var(--text-1)';
+            var pendingColor = pending > 0 ? 'var(--warning)' : 'var(--text-1)';
             detailDom.innerHTML = `
                 <div style="display:flex;flex-direction:column;gap:7px;padding-right:4px;">
                     <div style="display:flex;justify-content:space-between;align-items:center;">
                         <span style="font-size:11.5px;color:var(--text-2);display:inline-flex;align-items:center;gap:4px;">
-                            <span style="width:6px;height:6px;border-radius:50%;background:#f59e0b;display:inline-block;"></span>
+                            <span class="m-status-dot dot-warning"></span>
                             <span>待处理</span>
                         </span>
                         <span style="font-size:14px;font-weight:700;color:${pendingColor};">${pending} <span style="font-size:10.5px;font-weight:400;color:var(--text-3);">条</span></span>
                     </div>
                     <div style="display:flex;justify-content:space-between;align-items:center;">
                         <span style="font-size:11.5px;color:var(--text-2);display:inline-flex;align-items:center;gap:4px;">
-                            <span style="width:6px;height:6px;border-radius:50%;background:#10b981;display:inline-block;"></span>
+                            <span class="m-status-dot dot-success"></span>
                             <span>已闭环</span>
                         </span>
                         <span style="font-size:14px;font-weight:700;color:var(--success);">${resolved} <span style="font-size:10.5px;font-weight:400;color:var(--text-3);">条</span></span>
@@ -5499,6 +5494,7 @@ function renderDashboardCharts(range) {
     // 2. 查阅走势多角色堆叠面积图 (内部审阅人 / 管理与协作者 / 外发访客)
     var trendDom = document.getElementById('chartTrend');
     if (trendDom) {
+        var CHART_PALETTE = getDashboardChartPalette();
         if (!chartTrend) {
             chartTrend = echarts.init(trendDom);
         }
@@ -5521,21 +5517,21 @@ function renderDashboardCharts(range) {
             {
                 name: '外发访客',
                 data: valsShare,
-                color: '#f59e0b',
-                areaTop: 'rgba(245, 158, 11, 0.46)',
-                areaBottom: 'rgba(245, 158, 11, 0.20)'
+                color: CHART_PALETTE.warning,
+                areaTop: 'rgba(217, 119, 6, 0.46)',
+                areaBottom: 'rgba(217, 119, 6, 0.20)'
             },
             {
                 name: '内部审阅人',
                 data: valsViewer,
-                color: '#10b981',
-                areaTop: 'rgba(16, 185, 129, 0.46)',
-                areaBottom: 'rgba(16, 185, 129, 0.20)'
+                color: CHART_PALETTE.success,
+                areaTop: 'rgba(22, 163, 74, 0.46)',
+                areaBottom: 'rgba(22, 163, 74, 0.20)'
             },
             {
                 name: '管理与协作者',
                 data: valsEditor,
-                color: '#0076de',
+                color: CHART_PALETTE.primary,
                 areaTop: 'rgba(0, 118, 222, 0.46)',
                 areaBottom: 'rgba(0, 118, 222, 0.20)'
             }
@@ -5574,7 +5570,7 @@ function renderDashboardCharts(range) {
                 confine: true,
                 backgroundColor: 'rgba(15, 23, 42, 0.9)',
                 borderColor: 'transparent',
-                textStyle: { color: '#fff', fontSize: 12 },
+                textStyle: { color: CHART_PALETTE.surface, fontSize: 12 },
                 formatter: function(params) {
                     if (!params || !params.length) return '';
                     var idx = params[0].dataIndex;
@@ -5585,13 +5581,13 @@ function renderDashboardCharts(range) {
                         var ob = typeof tooltipOrder[b.seriesName] === 'number' ? tooltipOrder[b.seriesName] : 99;
                         return oa - ob;
                     });
-                    var html = '<div style="font-size:11.5px;color:#94a3b8;margin-bottom:4px;">' + esc(dateStr) + '</div>';
-                    html += '<div style="font-size:12.5px;font-weight:700;color:#fff;margin-bottom:4px;padding-bottom:4px;border-bottom:1px solid rgba(255,255,255,0.12);">累计查阅: ' + total + ' 次</div>';
+                    var html = '<div style="font-size:11.5px;color:rgba(255,255,255,0.65);margin-bottom:4px;">' + esc(dateStr) + '</div>';
+                    html += '<div style="font-size:12.5px;font-weight:700;color:' + CHART_PALETTE.surface + ';margin-bottom:4px;padding-bottom:4px;border-bottom:1px solid rgba(255,255,255,0.12);">累计查阅: ' + total + ' 次</div>';
                     for (var p = 0; p < ordered.length; p++) {
                         var item = ordered[p];
-                        html += '<div style="display:flex;align-items:center;justify-content:space-between;gap:12px;font-size:11.5px;color:#cbd5e1;margin-top:2px;">' +
+                        html += '<div style="display:flex;align-items:center;justify-content:space-between;gap:12px;font-size:11.5px;color:rgba(255,255,255,0.85);margin-top:2px;">' +
                                '<span>' + item.marker + ' ' + esc(item.seriesName) + '</span>' +
-                               '<span style="font-weight:600;color:#fff;">' + item.value + ' 次</span>' +
+                               '<span style="font-weight:600;color:' + CHART_PALETTE.surface + ';">' + item.value + ' 次</span>' +
                                '</div>';
                     }
                     return html;
@@ -5602,14 +5598,14 @@ function renderDashboardCharts(range) {
                 type: 'category',
                 data: labels,
                 boundaryGap: false,
-                axisLine: { lineStyle: { color: '#e2e8f0' } },
-                axisLabel: { color: '#94a3b8', fontSize: 10 }
+                axisLine: { lineStyle: { color: CHART_PALETTE.border } },
+                axisLabel: { color: CHART_PALETTE.text3, fontSize: 10 }
             },
             yAxis: {
                 type: 'value',
                 minInterval: 1,
-                splitLine: { lineStyle: { color: '#f1f5f9', type: 'dashed' } },
-                axisLabel: { color: '#94a3b8', fontSize: 10 }
+                splitLine: { lineStyle: { color: CHART_PALETTE.border, type: 'dashed' } },
+                axisLabel: { color: CHART_PALETTE.text3, fontSize: 10 }
             },
             series: trendSeries
         }, true);

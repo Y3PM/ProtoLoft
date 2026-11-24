@@ -131,7 +131,7 @@ const check = (name, condition) => { assert(condition, name); passed++; console.
       trend7d:{labels:['今日'],dates:['2026-11-06'],values_total:[6],values_viewer:[1],values_editor:[2],values_share:[3]}}},
     chartAnnotationDonut:null,chartTrend:null,currentTrendRange:'7d',currentAnnoProjFilter:0,currentAnnoVerFilter:0};
   vm.createContext(chartCtx);
-  for(const name of ['renderAnnotationDashboard','renderDashboardCharts','resizeDashboardCharts']) vm.runInContext(extract(admin,name),chartCtx);
+  for(const name of ['getDashboardChartPalette','renderAnnotationDashboard','renderDashboardCharts','resizeDashboardCharts']) vm.runInContext(extract(admin,name),chartCtx);
   chartCtx.renderDashboardCharts();
   check('review dashboard counts pending and resolved annotations',annoOptions.series[0].data[0].value===1 && annoOptions.series[0].data[1].value===2 && detailDom.innerHTML.includes('3 条'));
   check('role trend stacks share at bottom beneath viewer and manager/editor',JSON.stringify(trendOptions.series.map(x=>({name:x.name,data:x.data})))===JSON.stringify([{name:'外发访客',data:[3]},{name:'内部审阅人',data:[1]},{name:'管理与协作者',data:[2]}]));

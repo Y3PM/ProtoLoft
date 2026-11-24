@@ -53,80 +53,64 @@ $lockedVerId = 0;
 $isShortCodeMode = false;
 $customShareInfo = null;
 
+/**
+ * 统一渲染分享错误拦截卡片 (符合 Linear 设计系统防劣化铁律与色值令牌规范)
+ */
+function render_share_error_card($pageTitle, $cardTitle, $icon, $desc, $httpCode, $siteTitle, $faviconUrl, $favType, $tone = 'neutral', $btnText = '返回主页', $btnIcon = 'ri-home-4-line') {
+    http_response_code($httpCode);
+    $fullTitle = htmlspecialchars($pageTitle) . ($siteTitle !== '' ? ' - ' . htmlspecialchars($siteTitle) : '');
+    $iconColor = 'var(--text-3)';
+    if ($tone === 'danger') {
+        $iconColor = 'var(--danger)';
+    } elseif ($tone === 'warning') {
+        $iconColor = 'var(--warning)';
+    }
+    ?>
+    <!DOCTYPE html>
+    <html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title><?php echo $fullTitle; ?></title>
+        <link rel="icon" href="<?php echo htmlspecialchars($faviconUrl); ?>" type="<?php echo $favType; ?>">
+        <link rel="stylesheet" href="assets/css/remixicon.css">
+        <link rel="stylesheet" href="assets/css/app.css?v=<?php echo APP_VERSION . '.' . filemtime(__DIR__ . '/assets/css/app.css'); ?>">
+        <style>
+            * { margin:0; padding:0; box-sizing:border-box; }
+            body.share-error-body { min-height:100vh; display:flex; align-items:center; justify-content:center; background-color:var(--canvas); font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; color:var(--text-1); padding:20px; }
+            .share-error-card { text-align:center; background-color:var(--surface); border:1px solid var(--border); border-radius:var(--radius-lg, 12px); padding:48px 36px; max-width:420px; width:100%; box-shadow:0 8px 24px -10px rgba(16,24,40,0.08); }
+            .share-error-icon { font-size:48px; color:<?php echo $iconColor; ?>; margin-bottom:12px; display:inline-block; }
+            .share-error-title { font-size:18px; font-weight:650; margin-bottom:8px; color:var(--text-1); }
+            .share-error-desc { font-size:13px; color:var(--text-3); margin-bottom:24px; line-height:1.6; }
+            .share-error-btn { display:inline-flex; align-items:center; gap:6px; background-color:var(--primary); color:var(--surface); padding:9px 20px; border-radius:var(--radius-md, 8px); text-decoration:none; font-size:13.5px; font-weight:600; transition:background-color 0.15s ease; }
+            .share-error-btn:hover { background-color:var(--primary-hover); color:var(--surface); }
+        </style>
+    </head>
+    <body class="share-error-body">
+        <div class="share-error-card">
+            <i class="<?php echo htmlspecialchars($icon); ?> share-error-icon"></i>
+            <div class="share-error-title"><?php echo htmlspecialchars($cardTitle); ?></div>
+            <div class="share-error-desc"><?php echo htmlspecialchars($desc); ?></div>
+            <a href="index.php" class="share-error-btn"><i class="<?php echo htmlspecialchars($btnIcon); ?>"></i> <?php echo htmlspecialchars($btnText); ?></a>
+        </div>
+    </body>
+    </html>
+    <?php
+    exit;
+}
+
 if ($shareCode !== '') {
     $codeInfo = Auth::resolveShareCode($shareCode);
     if ($codeInfo) {
         if (!empty($codeInfo['is_revoked'])) {
-            http_response_code(403);
-            ?>
-            <!DOCTYPE html>
-            <html lang="zh-CN">
-            <head>
-                <meta charset="UTF-8">
-                <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                <title>专属分享链接已作废 - <?php echo htmlspecialchars($siteTitle); ?></title>
-                <link rel="icon" href="<?php echo htmlspecialchars($faviconUrl); ?>" type="<?php echo $favType; ?>">
-                <link rel="stylesheet" href="assets/css/remixicon.css">
-                <style>
-                    * { margin:0; padding:0; box-sizing:border-box; }
-                    body { min-height:100vh; display:flex; align-items:center; justify-content:center; background:#f7f8fa; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; color:#182230; }
-                    .empty-card { text-align:center; background:#fff; border:1px solid #e7eaf0; border-radius:12px; padding:48px 36px; max-width:420px; box-shadow:0 8px 24px -10px rgba(16,24,40,0.08); }
-                    .empty-icon { font-size:48px; color:#dc2626; margin-bottom:12px; }
-                    .empty-title { font-size:18px; font-weight:650; margin-bottom:8px; }
-                    .empty-desc { font-size:13px; color:#64748b; margin-bottom:24px; line-height:1.6; }
-                    .btn-home { display:inline-flex; align-items:center; gap:6px; background:#0076de; color:#fff; padding:9px 20px; border-radius:8px; text-decoration:none; font-size:13.5px; font-weight:600; }
-                    .btn-home:hover { background:#005bb5; }
-                </style>
-            </head>
-            <body>
-                <div class="empty-card">
-                    <i class="ri-forbid-2-line empty-icon"></i>
-                    <div class="empty-title">该专属分享链接已作废</div>
-                    <div class="empty-desc">该原型的专属外发分享链接已被管理人员作废吊销，请联系分享者获取最新专属有效链接。</div>
-                    <a href="index.php" class="btn-home"><i class="ri-home-4-line"></i> 返回主页</a>
-                </div>
-            </body>
-            </html>
-            <?php
-            exit;
+            render_share_error_card('专属分享链接已作废', '该专属分享链接已作废', 'ri-forbid-2-line', '该原型的专属外发分享链接已被管理人员作废吊销，请联系分享者获取最新专属有效链接。', 403, $siteTitle, $faviconUrl, $favType, 'danger');
         }
         $itemId = (int)$codeInfo['item_id'];
         $lockedVerId = (int)$codeInfo['ver_id'];
         $isShortCodeMode = true;
         $customShareInfo = $codeInfo;
     } else {
-        http_response_code(404);
-        ?>
-        <!DOCTYPE html>
-        <html lang="zh-CN">
-        <head>
-            <meta charset="UTF-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <title>分享直链已失效 - <?php echo htmlspecialchars($siteTitle); ?></title>
-            <link rel="icon" href="<?php echo htmlspecialchars($faviconUrl); ?>" type="<?php echo $favType; ?>">
-            <link rel="stylesheet" href="assets/css/remixicon.css">
-            <style>
-                * { margin:0; padding:0; box-sizing:border-box; }
-                body { min-height:100vh; display:flex; align-items:center; justify-content:center; background:#f7f8fa; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; color:#182230; }
-                .empty-card { text-align:center; background:#fff; border:1px solid #e7eaf0; border-radius:12px; padding:48px 36px; max-width:420px; box-shadow:0 8px 24px -10px rgba(16,24,40,0.08); }
-                .empty-icon { font-size:48px; color:#94a3b8; margin-bottom:12px; }
-                .empty-title { font-size:18px; font-weight:650; margin-bottom:8px; }
-                .empty-desc { font-size:13px; color:#64748b; margin-bottom:24px; line-height:1.6; }
-                .btn-home { display:inline-flex; align-items:center; gap:6px; background:#0076de; color:#fff; padding:9px 20px; border-radius:8px; text-decoration:none; font-size:13.5px; font-weight:600; }
-                .btn-home:hover { background:#005bb5; }
-            </style>
-        </head>
-        <body>
-            <div class="empty-card">
-                <i class="ri-link-unlink-m empty-icon"></i>
-                <div class="empty-title">链接已失效</div>
-                <div class="empty-desc">该分享链接已失效或已被移除</div>
-                <a href="index.php" class="btn-home"><i class="ri-home-4-line"></i> 返回主页</a>
-            </div>
-        </body>
-        </html>
-        <?php
-        exit;
+        render_share_error_card('分享直链已失效', '链接已失效', 'ri-link-unlink-m', '该专属分享链接不存在或已被删除，请核对链接地址或联系分享者重新提供。', 404, $siteTitle, $faviconUrl, $favType, 'neutral');
     }
 } else {
     $itemId = (int)($_GET['id'] ?? $_GET['item'] ?? 0);
@@ -140,111 +124,19 @@ $stmt->closeCursor();
 
 // 1. 项目不存在处理
 if (!$item) {
-    http_response_code(404);
-    ?>
-    <!DOCTYPE html>
-    <html lang="zh-CN">
-    <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>原型不存在或已移除 - <?php echo htmlspecialchars($siteTitle); ?></title>
-        <link rel="icon" href="<?php echo htmlspecialchars($faviconUrl); ?>" type="<?php echo $favType; ?>">
-        <link rel="stylesheet" href="assets/css/remixicon.css">
-        <style>
-            * { margin:0; padding:0; box-sizing:border-box; }
-            body { min-height:100vh; display:flex; align-items:center; justify-content:center; background:#f7f8fa; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; color:#182230; }
-            .empty-card { text-align:center; background:#fff; border:1px solid #e7eaf0; border-radius:12px; padding:48px 36px; max-width:420px; box-shadow:0 8px 24px -10px rgba(16,24,40,0.08); }
-            .empty-icon { font-size:48px; color:#94a3b8; margin-bottom:12px; }
-            .empty-title { font-size:18px; font-weight:650; margin-bottom:8px; }
-            .empty-desc { font-size:13px; color:#64748b; margin-bottom:24px; line-height:1.6; }
-            .btn-home { display:inline-flex; align-items:center; gap:6px; background:#0076de; color:#fff; padding:9px 20px; border-radius:8px; text-decoration:none; font-size:13.5px; font-weight:600; }
-            .btn-home:hover { background:#005bb5; }
-        </style>
-    </head>
-    <body>
-        <div class="empty-card">
-            <i class="ri-file-search-line empty-icon"></i>
-            <div class="empty-title">内容不存在</div>
-            <div class="empty-desc">项目不存在或已被移除</div>
-            <a href="index.php" class="btn-home"><i class="ri-home-4-line"></i> 返回主页</a>
-        </div>
-    </body>
-    </html>
-    <?php
-    exit;
+    render_share_error_card('原型不存在或已移除', '内容不存在', 'ri-file-search-line', '项目不存在或已被移除', 404, $siteTitle, $faviconUrl, $favType, 'neutral');
 }
 
 // 2. 隐藏状态拦截 (非登录管理员不可看)
 if ((int)$item['is_visible'] === 0 && !$canManage) {
-    http_response_code(403);
-    ?>
-    <!DOCTYPE html>
-    <html lang="zh-CN">
-    <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>原型暂未公开 - <?php echo htmlspecialchars($siteTitle); ?></title>
-        <link rel="icon" href="<?php echo htmlspecialchars($faviconUrl); ?>" type="<?php echo $favType; ?>">
-        <link rel="stylesheet" href="assets/css/remixicon.css">
-        <style>
-            * { margin:0; padding:0; box-sizing:border-box; }
-            body { min-height:100vh; display:flex; align-items:center; justify-content:center; background:#f7f8fa; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; color:#182230; }
-            .empty-card { text-align:center; background:#fff; border:1px solid #e7eaf0; border-radius:12px; padding:48px 36px; max-width:420px; box-shadow:0 8px 24px -10px rgba(16,24,40,0.08); }
-            .empty-icon { font-size:48px; color:#f59e0b; margin-bottom:12px; }
-            .empty-title { font-size:18px; font-weight:650; margin-bottom:8px; }
-            .empty-desc { font-size:13px; color:#64748b; margin-bottom:24px; line-height:1.6; }
-            .btn-home { display:inline-flex; align-items:center; gap:6px; background:#0076de; color:#fff; padding:9px 20px; border-radius:8px; text-decoration:none; font-size:13.5px; font-weight:600; }
-        </style>
-    </head>
-    <body>
-        <div class="empty-card">
-            <i class="ri-eye-off-line empty-icon"></i>
-            <div class="empty-title">暂未公开</div>
-            <div class="empty-desc">该项目暂未对外公开</div>
-            <a href="index.php" class="btn-home"><i class="ri-lock-line"></i> 管理员登录</a>
-        </div>
-    </body>
-    </html>
-    <?php
-    exit;
+    render_share_error_card('原型暂未公开', '暂未公开', 'ri-eye-off-line', '该项目暂未对外公开', 403, $siteTitle, $faviconUrl, $favType, 'warning', '管理员登录', 'ri-lock-line');
 }
 
 // 3. 检查默认公共直链是否已被管理员停用 (专属临时外发链接独立受控，不受此开关拦截)
 $isCustomShare = ($isShortCodeMode && !empty($customShareInfo) && (!empty($customShareInfo['is_custom']) || ($shareCode !== ($item['share_code'] ?? ''))));
 
 if (!$canManage && !$isCustomShare && Auth::isItemShareDisabled($item['id'])) {
-    http_response_code(403);
-    ?>
-    <!DOCTYPE html>
-    <html lang="zh-CN">
-    <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>公共直链已暂停 - <?php echo htmlspecialchars($siteTitle); ?></title>
-        <link rel="icon" href="<?php echo htmlspecialchars($faviconUrl); ?>" type="<?php echo $favType; ?>">
-        <link rel="stylesheet" href="assets/css/remixicon.css">
-        <style>
-            * { margin:0; padding:0; box-sizing:border-box; }
-            body { min-height:100vh; display:flex; align-items:center; justify-content:center; background:#f7f8fa; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; color:#182230; }
-            .empty-card { text-align:center; background:#fff; border:1px solid #e7eaf0; border-radius:12px; padding:48px 36px; max-width:420px; box-shadow:0 8px 24px -10px rgba(16,24,40,0.08); }
-            .empty-icon { font-size:48px; color:#f59e0b; margin-bottom:12px; }
-            .empty-title { font-size:18px; font-weight:650; margin-bottom:8px; }
-            .empty-desc { font-size:13px; color:#64748b; margin-bottom:24px; line-height:1.6; }
-            .btn-home { display:inline-flex; align-items:center; gap:6px; background:#0076de; color:#fff; padding:9px 20px; border-radius:8px; text-decoration:none; font-size:13.5px; font-weight:600; }
-            .btn-home:hover { background:#005bb5; }
-        </style>
-    </head>
-    <body>
-        <div class="empty-card">
-            <i class="ri-forbid-line empty-icon"></i>
-            <div class="empty-title">链接已暂停</div>
-            <div class="empty-desc">该链接已被暂停访问</div>
-            <a href="index.php" class="btn-home"><i class="ri-home-4-line"></i> 返回主页</a>
-        </div>
-    </body>
-    </html>
-    <?php
-    exit;
+    render_share_error_card('公共直链已暂停', '链接已暂停', 'ri-forbid-line', '该链接已被暂停访问', 403, $siteTitle, $faviconUrl, $favType, 'warning');
 }
 
 // 3.1 检查外链分享是否已过有效期 (仅针对非登录管理人员)
@@ -259,38 +151,7 @@ if ($isShortCodeMode && !empty($customShareInfo['expires_at'])) {
 if (!$canManage && !empty($effectiveExpiresAt)) {
     $expireTime = strtotime($effectiveExpiresAt);
     if ($expireTime !== false && $expireTime < time()) {
-        http_response_code(403);
-        ?>
-        <!DOCTYPE html>
-        <html lang="zh-CN">
-        <head>
-            <meta charset="UTF-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <title>分享链接已到期 - <?php echo htmlspecialchars($siteTitle); ?></title>
-            <link rel="icon" href="<?php echo htmlspecialchars($faviconUrl); ?>" type="<?php echo $favType; ?>">
-            <link rel="stylesheet" href="assets/css/remixicon.css">
-            <style>
-                * { margin:0; padding:0; box-sizing:border-box; }
-                body { min-height:100vh; display:flex; align-items:center; justify-content:center; background:#f7f8fa; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; color:#182230; }
-                .empty-card { text-align:center; background:#fff; border:1px solid #e7eaf0; border-radius:12px; padding:48px 36px; max-width:420px; box-shadow:0 8px 24px -10px rgba(16,24,40,0.08); }
-                .empty-icon { font-size:48px; color:#f59e0b; margin-bottom:12px; }
-                .empty-title { font-size:18px; font-weight:650; margin-bottom:8px; }
-                .empty-desc { font-size:13px; color:#64748b; margin-bottom:24px; line-height:1.6; }
-                .btn-home { display:inline-flex; align-items:center; gap:6px; background:#0076de; color:#fff; padding:9px 20px; border-radius:8px; text-decoration:none; font-size:13.5px; font-weight:600; }
-                .btn-home:hover { background:#005bb5; }
-            </style>
-        </head>
-        <body>
-            <div class="empty-card">
-                <i class="ri-time-line empty-icon"></i>
-                <div class="empty-title">链接已过期</div>
-                <div class="empty-desc">访问有效期截止于 <?php echo htmlspecialchars($effectiveExpiresAt); ?></div>
-                <a href="index.php" class="btn-home"><i class="ri-home-4-line"></i> 返回主页</a>
-            </div>
-        </body>
-        </html>
-        <?php
-        exit;
+        render_share_error_card('分享链接已到期', '链接已过期', 'ri-time-line', '访问有效期截止于 ' . $effectiveExpiresAt, 403, $siteTitle, $faviconUrl, $favType, 'warning');
     }
 }
 
@@ -364,38 +225,7 @@ if ($isShortCodeMode && $lockedVerId > 0) {
 
     // 若显式传入了版本参数但未找到对应版本 (参数被篡改或版本不存在)，且非管理员：直接拒止拦截
     if ($hasVerParam && !$curVersion && !$canManage) {
-        http_response_code(403);
-        ?>
-        <!DOCTYPE html>
-        <html lang="zh-CN">
-        <head>
-            <meta charset="UTF-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <title>需要安全授权 - <?php echo htmlspecialchars($siteTitle); ?></title>
-            <link rel="icon" href="<?php echo htmlspecialchars($faviconUrl); ?>" type="<?php echo $favType; ?>">
-            <link rel="stylesheet" href="assets/css/remixicon.css">
-            <style>
-                * { margin:0; padding:0; box-sizing:border-box; }
-                body { min-height:100vh; display:flex; align-items:center; justify-content:center; background:#f7f8fa; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; color:#182230; }
-                .empty-card { text-align:center; background:#fff; border:1px solid #e7eaf0; border-radius:12px; padding:48px 36px; max-width:420px; box-shadow:0 8px 24px -10px rgba(16,24,40,0.08); }
-                .empty-icon { font-size:48px; color:#dc2626; margin-bottom:12px; }
-                .empty-title { font-size:18px; font-weight:650; margin-bottom:8px; }
-                .empty-desc { font-size:13px; color:#64748b; margin-bottom:24px; line-height:1.6; }
-                .btn-home { display:inline-flex; align-items:center; gap:6px; background:#0076de; color:#fff; padding:9px 20px; border-radius:8px; text-decoration:none; font-size:13.5px; font-weight:600; }
-                .btn-home:hover { background:#005bb5; }
-            </style>
-        </head>
-        <body>
-            <div class="empty-card">
-                <i class="ri-shield-keyhole-line empty-icon"></i>
-                <div class="empty-title">访问凭证无效</div>
-                <div class="empty-desc">未携带有效凭证或链接不正确</div>
-                <a href="index.php" class="btn-home"><i class="ri-home-4-line"></i> 返回主页</a>
-            </div>
-        </body>
-        </html>
-        <?php
-        exit;
+        render_share_error_card('需要安全授权', '访问凭证无效', 'ri-shield-keyhole-line', '未携带有效凭证或链接不正确', 403, $siteTitle, $faviconUrl, $favType, 'danger');
     }
 }
 
@@ -411,38 +241,7 @@ if (!$isShortCodeMode) {
 
     // 若非登录管理员，且 Token 校验未通过：直接拦截拒止 (防止横向遍历、跨版本越权刺探或无凭证探测)
     if (!$canManage && !$isTokenValid) {
-        http_response_code(403);
-        ?>
-        <!DOCTYPE html>
-        <html lang="zh-CN">
-        <head>
-            <meta charset="UTF-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <title>需要安全授权 - <?php echo htmlspecialchars($siteTitle); ?></title>
-            <link rel="icon" href="<?php echo htmlspecialchars($faviconUrl); ?>" type="<?php echo $favType; ?>">
-            <link rel="stylesheet" href="assets/css/remixicon.css">
-            <style>
-                * { margin:0; padding:0; box-sizing:border-box; }
-                body { min-height:100vh; display:flex; align-items:center; justify-content:center; background:#f7f8fa; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; color:#182230; }
-                .empty-card { text-align:center; background:#fff; border:1px solid #e7eaf0; border-radius:12px; padding:48px 36px; max-width:420px; box-shadow:0 8px 24px -10px rgba(16,24,40,0.08); }
-                .empty-icon { font-size:48px; color:#dc2626; margin-bottom:12px; }
-                .empty-title { font-size:18px; font-weight:650; margin-bottom:8px; }
-                .empty-desc { font-size:13px; color:#64748b; margin-bottom:24px; line-height:1.6; }
-                .btn-home { display:inline-flex; align-items:center; gap:6px; background:#0076de; color:#fff; padding:9px 20px; border-radius:8px; text-decoration:none; font-size:13.5px; font-weight:600; }
-                .btn-home:hover { background:#005bb5; }
-            </style>
-        </head>
-        <body>
-            <div class="empty-card">
-                <i class="ri-shield-keyhole-line empty-icon"></i>
-                <div class="empty-title">访问凭证无效</div>
-                <div class="empty-desc">未携带有效凭证或链接不正确</div>
-                <a href="index.php" class="btn-home"><i class="ri-home-4-line"></i> 返回主页</a>
-            </div>
-        </body>
-        </html>
-        <?php
-        exit;
+        render_share_error_card('需要安全授权', '访问凭证无效', 'ri-shield-keyhole-line', '未携带有效凭证或链接不正确', 403, $siteTitle, $faviconUrl, $favType, 'danger');
     }
 }
 
@@ -616,7 +415,7 @@ Auth::recordAccessLog($item['id'], $item['name'], $curVerName, 'share');
             padding: 0;
             height: 100%;
             overflow: hidden;
-            background: #ffffff;
+            background-color: var(--surface);
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", "Microsoft YaHei", sans-serif;
             -webkit-font-smoothing: antialiased;
         }
@@ -628,8 +427,8 @@ Auth::recordAccessLog($item['id'], $item['name'], $curVerName, 'share');
         }
         .share-navbar {
             height: var(--topbar-height, 48px);
-            background: var(--surface, #ffffff);
-            border-bottom: 1px solid var(--border, #e7eaf0);
+            background-color: var(--surface);
+            border-bottom: 1px solid var(--border);
             display: flex;
             align-items: center;
             justify-content: space-between;
@@ -648,7 +447,7 @@ Auth::recordAccessLog($item['id'], $item['name'], $curVerName, 'share');
             align-items: center;
             gap: 8px;
             text-decoration: none;
-            color: var(--text-1, #182230);
+            color: var(--text-1);
             font-weight: 650;
             font-size: 13.5px;
             flex-shrink: 0;
@@ -661,13 +460,13 @@ Auth::recordAccessLog($item['id'], $item['name'], $curVerName, 'share');
         .share-divider {
             width: 1px;
             height: 16px;
-            background: var(--border, #e7eaf0);
+            background-color: var(--border);
             flex-shrink: 0;
         }
         .share-title {
             font-size: 14.5px;
             font-weight: 650;
-            color: var(--text-1, #182230);
+            color: var(--text-1);
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
@@ -681,7 +480,7 @@ Auth::recordAccessLog($item['id'], $item['name'], $curVerName, 'share');
         .share-viewport {
             flex: 1;
             position: relative;
-            background: #ffffff;
+            background-color: var(--surface);
             height: calc(100% - 48px);
             overflow: hidden;
         }
@@ -697,7 +496,7 @@ Auth::recordAccessLog($item['id'], $item['name'], $curVerName, 'share');
             align-items: center;
             justify-content: center;
             height: 100%;
-            color: var(--text-3, #94a3b8);
+            color: var(--text-3);
         }
     </style>
 </head>

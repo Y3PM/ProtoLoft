@@ -5139,3 +5139,112 @@ button.user-badge { border:0; background-color:transparent; text-align:left; fon
         transition: none !important;
     }
 }
+
+/* ==========================================================================
+   Linear 设计系统预设与规范收敛组件 (Q9 规范收口)
+   ========================================================================== */
+
+/* 弹窗底部操作栏 */
+.m-modal-footer {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-top: 20px;
+}
+.m-modal-footer.between {
+    justify-content: space-between;
+}
+
+/* 系统横幅与操作提示条 */
+.m-alert-tip {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 9px 12px;
+    border-radius: var(--radius-md, 6px);
+    font-size: 13px;
+    line-height: 1.5;
+    margin-bottom: 14px;
+}
+.m-alert-tip.is-success {
+    background-color: var(--success-subtle);
+    color: var(--success);
+    border: 1px solid var(--success-border);
+}
+.m-alert-tip.is-warning {
+    background-color: var(--warning-subtle);
+    color: var(--warning-text);
+    border: 1px solid var(--warning-border);
+}
+.m-alert-tip.is-danger {
+    background-color: var(--danger-subtle);
+    color: var(--danger-text);
+    border: 1px solid var(--danger-border);
+}
+
+/* 输入框内部域名后缀徽标 */
+.m-domain-badge {
+    position: absolute;
+    right: 8px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 12px;
+    color: var(--text-3);
+    background-color: var(--surface-hover);
+    border: 1px solid var(--border);
+    padding: 2px 8px;
+    border-radius: var(--radius-sm, 4px);
+    pointer-events: none;
+    line-height: 1.4;
+}
+
+/* 状态微点指示器 */
+.m-status-dot {
+    display: inline-block;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+.m-status-dot.dot-danger {
+    background-color: var(--danger);
+}
+.m-status-dot.dot-success {
+    background-color: var(--success);
+}
+.m-status-dot.dot-warning {
+    background-color: var(--warning);
+}
+.m-status-dot.dot-primary {
+    background-color: var(--primary);
+}
+.m-status-dot.dot-neutral {
+    background-color: var(--text-3);
+}
+
+/* 状态徽标小标签 */
+.m-badge-tag {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 8px;
+    font-size: 12px;
+    font-weight: 500;
+    border-radius: var(--radius-sm, 4px);
+    line-height: 1.4;
+}
+.m-badge-tag.tag-success {
+    color: var(--success);
+    background-color: var(--success-subtle);
+    border: 1px solid var(--success-border);
+}
+.m-badge-tag.tag-danger {
+    color: var(--danger);
+    background-color: var(--danger-subtle);
+    border: 1px solid var(--danger-border);
+}
+.m-badge-tag.tag-warning {
+    color: var(--warning-text);
+    background-color: var(--warning-subtle);
+    border: 1px solid var(--warning-border);
+}

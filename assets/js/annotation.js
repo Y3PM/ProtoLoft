@@ -627,29 +627,23 @@
      * 生成与系统主画布空状态图纸同构同源的家族化矢量微插画
      */
     function getAnnoEmptySvg(type) {
-        var baseCoords = '<circle cx="16" cy="18" r="1.5" fill="#cbd5e1"/>' +
-                         '<circle cx="104" cy="18" r="1.5" fill="#cbd5e1"/>' +
-                         '<circle cx="16" cy="78" r="1.5" fill="#cbd5e1"/>' +
-                         '<circle cx="104" cy="78" r="1.5" fill="#cbd5e1"/>';
-
         if (type === 'pending') {
             // 待处理空状态：待办清单画卷 + 晴空蓝时钟徽章 (严格呼应系统待处理 ri-time-line 语义)
             return '<svg width="120" height="96" viewBox="0 0 120 96" fill="none" xmlns="http://www.w3.org/2000/svg">' +
-                baseCoords +
-                '<rect x="32" y="20" width="56" height="50" rx="6" fill="#ffffff" stroke="#94a3b8" stroke-width="1.4"/>' +
-                '<line x1="32" y1="32" x2="88" y2="32" stroke="#f1f5f9" stroke-width="1"/>' +
-                '<rect x="38" y="25" width="20" height="3" rx="1.5" fill="#cbd5e1"/>' +
-                '<circle cx="41" cy="40" r="2.5" fill="#e6f4fe" stroke="#0076de" stroke-width="1"/>' +
-                '<line x1="47" y1="40" x2="74" y2="40" stroke="#cbd5e1" stroke-width="1.5" stroke-linecap="round"/>' +
-                '<circle cx="41" cy="49" r="2.5" fill="#e6f4fe" stroke="#0076de" stroke-width="1"/>' +
-                '<line x1="47" y1="49" x2="68" y2="49" stroke="#cbd5e1" stroke-width="1.5" stroke-linecap="round"/>' +
-                '<circle cx="41" cy="58" r="2.5" fill="#e6f4fe" stroke="#0076de" stroke-width="1"/>' +
-                '<line x1="47" y1="58" x2="62" y2="58" stroke="#cbd5e1" stroke-width="1.5" stroke-linecap="round"/>' +
+                '<rect x="32" y="20" width="56" height="50" rx="6" fill="var(--surface)" stroke="var(--border-strong)" stroke-width="1.4"/>' +
+                '<line x1="32" y1="32" x2="88" y2="32" stroke="var(--surface-hover)" stroke-width="1"/>' +
+                '<rect x="38" y="25" width="20" height="3" rx="1.5" fill="var(--border-strong)"/>' +
+                '<circle cx="41" cy="40" r="2.5" fill="var(--primary-subtle)" stroke="var(--primary)" stroke-width="1"/>' +
+                '<line x1="47" y1="40" x2="74" y2="40" stroke="var(--border-strong)" stroke-width="1.5" stroke-linecap="round"/>' +
+                '<circle cx="41" cy="49" r="2.5" fill="var(--primary-subtle)" stroke="var(--primary)" stroke-width="1"/>' +
+                '<line x1="47" y1="49" x2="68" y2="49" stroke="var(--border-strong)" stroke-width="1.5" stroke-linecap="round"/>' +
+                '<circle cx="41" cy="58" r="2.5" fill="var(--primary-subtle)" stroke="var(--primary)" stroke-width="1"/>' +
+                '<line x1="47" y1="58" x2="62" y2="58" stroke="var(--border-strong)" stroke-width="1.5" stroke-linecap="round"/>' +
                 '<!-- 晴空蓝待办时钟微徽章 -->' +
                 '<g transform="translate(68, 46)">' +
-                    '<circle cx="14" cy="14" r="13" fill="#e6f4fe" stroke="#bce0fc" stroke-width="1.3"/>' +
-                    '<circle cx="14" cy="14" r="8" stroke="#0076de" stroke-width="1.3" fill="none"/>' +
-                    '<path d="M14 10V14.5L17 16" stroke="#0076de" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>' +
+                    '<circle cx="14" cy="14" r="13" fill="var(--primary-subtle)" stroke="var(--primary-border)" stroke-width="1.3"/>' +
+                    '<circle cx="14" cy="14" r="8" stroke="var(--primary)" stroke-width="1.3" fill="none"/>' +
+                    '<path d="M14 10V14.5L17 16" stroke="var(--primary)" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>' +
                 '</g>' +
             '</svg>';
         }
@@ -657,17 +651,16 @@
         if (type === 'resolved') {
             // 已解决空状态：归档图纸画卷 + 翠绿对勾徽章 (严格呼应系统已解决 ri-check-line 语义)
             return '<svg width="120" height="96" viewBox="0 0 120 96" fill="none" xmlns="http://www.w3.org/2000/svg">' +
-                baseCoords +
-                '<rect x="32" y="22" width="56" height="48" rx="6" fill="#ffffff" stroke="#94a3b8" stroke-width="1.4"/>' +
-                '<line x1="32" y1="34" x2="88" y2="34" stroke="#f1f5f9" stroke-width="1"/>' +
-                '<rect x="38" y="27" width="22" height="3" rx="1.5" fill="#cbd5e1"/>' +
-                '<rect x="38" y="42" width="36" height="2.5" rx="1" fill="#f1f5f9"/>' +
-                '<rect x="38" y="49" width="28" height="2.5" rx="1" fill="#f1f5f9"/>' +
-                '<rect x="38" y="56" width="32" height="2.5" rx="1" fill="#f1f5f9"/>' +
+                '<rect x="32" y="22" width="56" height="48" rx="6" fill="var(--surface)" stroke="var(--border-strong)" stroke-width="1.4"/>' +
+                '<line x1="32" y1="34" x2="88" y2="34" stroke="var(--surface-hover)" stroke-width="1"/>' +
+                '<rect x="38" y="27" width="22" height="3" rx="1.5" fill="var(--border-strong)"/>' +
+                '<rect x="38" y="42" width="36" height="2.5" rx="1" fill="var(--surface-hover)"/>' +
+                '<rect x="38" y="49" width="28" height="2.5" rx="1" fill="var(--surface-hover)"/>' +
+                '<rect x="38" y="56" width="32" height="2.5" rx="1" fill="var(--surface-hover)"/>' +
                 '<!-- 翠绿完成对勾微徽章 -->' +
                 '<g transform="translate(68, 46)">' +
-                    '<circle cx="14" cy="14" r="13" fill="#f0fdf4" stroke="#86efac" stroke-width="1.3"/>' +
-                    '<path d="M9.5 14L12.5 17L18.5 11" stroke="#16a34a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>' +
+                    '<circle cx="14" cy="14" r="13" fill="var(--success-subtle)" stroke="var(--success-border)" stroke-width="1.3"/>' +
+                    '<path d="M9.5 14L12.5 17L18.5 11" stroke="var(--success)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>' +
                 '</g>' +
             '</svg>';
         }
@@ -675,40 +668,38 @@
         if (type === 'previous') {
             // 上版未决空状态：前后双层图纸画卷 + 时光虚线弧 + 清空对勾徽章
             return '<svg width="120" height="96" viewBox="0 0 120 96" fill="none" xmlns="http://www.w3.org/2000/svg">' +
-                baseCoords +
-                '<rect x="26" y="20" width="56" height="46" rx="6" fill="#f8fafc" stroke="#cbd5e1" stroke-width="1.2" transform="rotate(-6 26 20)"/>' +
-                '<line x1="28" y1="32" x2="68" y2="28" stroke="#cbd5e1" stroke-width="1.3" stroke-linecap="round"/>' +
-                '<line x1="29" y1="40" x2="58" y2="37" stroke="#e2e8f0" stroke-width="1.3" stroke-linecap="round"/>' +
-                '<rect x="28" y="24" width="56" height="46" rx="6" fill="#ffffff" stroke="#94a3b8" stroke-width="1.4"/>' +
-                '<line x1="28" y1="35" x2="84" y2="35" stroke="#f1f5f9" stroke-width="1"/>' +
-                '<rect x="34" y="28.5" width="22" height="3" rx="1.5" fill="#cbd5e1"/>' +
-                '<rect x="34" y="42" width="38" height="2.5" rx="1" fill="#f1f5f9"/>' +
-                '<rect x="34" y="48" width="28" height="2.5" rx="1" fill="#f1f5f9"/>' +
-                '<rect x="34" y="54" width="20" height="2.5" rx="1" fill="#f1f5f9"/>' +
-                '<path d="M86 20C94 26 96 36 90 44" stroke="#0076de" stroke-width="1.3" stroke-linecap="round" stroke-dasharray="2 3" opacity="0.65"/>' +
+                '<rect x="26" y="20" width="56" height="46" rx="6" fill="var(--canvas)" stroke="var(--border-strong)" stroke-width="1.2" transform="rotate(-6 26 20)"/>' +
+                '<line x1="28" y1="32" x2="68" y2="28" stroke="var(--border-strong)" stroke-width="1.3" stroke-linecap="round"/>' +
+                '<line x1="29" y1="40" x2="58" y2="37" stroke="var(--border)" stroke-width="1.3" stroke-linecap="round"/>' +
+                '<rect x="28" y="24" width="56" height="46" rx="6" fill="var(--surface)" stroke="var(--border-strong)" stroke-width="1.4"/>' +
+                '<line x1="28" y1="35" x2="84" y2="35" stroke="var(--surface-hover)" stroke-width="1"/>' +
+                '<rect x="34" y="28.5" width="22" height="3" rx="1.5" fill="var(--border-strong)"/>' +
+                '<rect x="34" y="42" width="38" height="2.5" rx="1" fill="var(--surface-hover)"/>' +
+                '<rect x="34" y="48" width="28" height="2.5" rx="1" fill="var(--surface-hover)"/>' +
+                '<rect x="34" y="54" width="20" height="2.5" rx="1" fill="var(--surface-hover)"/>' +
+                '<path d="M86 20C94 26 96 36 90 44" stroke="var(--primary)" stroke-width="1.3" stroke-linecap="round" stroke-dasharray="2 3" opacity="0.65"/>' +
                 '<g transform="translate(70, 48)">' +
-                    '<circle cx="14" cy="14" r="13" fill="#f0fdf4" stroke="#86efac" stroke-width="1.3"/>' +
-                    '<path d="M9.5 14L12.5 17L18.5 11" stroke="#16a34a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>' +
+                    '<circle cx="14" cy="14" r="13" fill="var(--success-subtle)" stroke="var(--success-border)" stroke-width="1.3"/>' +
+                    '<path d="M9.5 14L12.5 17L18.5 11" stroke="var(--success)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>' +
                 '</g>' +
             '</svg>';
         }
 
         // 默认（全部）：双层原型画卷 + 晴空蓝悬浮批注气泡
         return '<svg width="120" height="96" viewBox="0 0 120 96" fill="none" xmlns="http://www.w3.org/2000/svg">' +
-            baseCoords +
-            '<rect x="34" y="20" width="56" height="46" rx="6" fill="#f8fafc" stroke="#cbd5e1" stroke-width="1.2" transform="rotate(-4 34 20)"/>' +
-            '<rect x="30" y="24" width="56" height="46" rx="6" fill="#ffffff" stroke="#94a3b8" stroke-width="1.4"/>' +
-            '<line x1="30" y1="34" x2="86" y2="34" stroke="#f1f5f9" stroke-width="1"/>' +
-            '<circle cx="36" cy="29" r="1.5" fill="#e2e8f0"/>' +
-            '<circle cx="41" cy="29" r="1.5" fill="#e2e8f0"/>' +
-            '<rect x="37" y="40" width="28" height="4" rx="1.5" fill="#0076de" fill-opacity="0.18"/>' +
-            '<rect x="37" y="48" width="42" height="2.5" rx="1" fill="#f1f5f9"/>' +
-            '<rect x="37" y="54" width="32" height="2.5" rx="1" fill="#f1f5f9"/>' +
+            '<rect x="34" y="20" width="56" height="46" rx="6" fill="var(--canvas)" stroke="var(--border-strong)" stroke-width="1.2" transform="rotate(-4 34 20)"/>' +
+            '<rect x="30" y="24" width="56" height="46" rx="6" fill="var(--surface)" stroke="var(--border-strong)" stroke-width="1.4"/>' +
+            '<line x1="30" y1="34" x2="86" y2="34" stroke="var(--surface-hover)" stroke-width="1"/>' +
+            '<circle cx="36" cy="29" r="1.5" fill="var(--border)"/>' +
+            '<circle cx="41" cy="29" r="1.5" fill="var(--border)"/>' +
+            '<rect x="37" y="40" width="28" height="4" rx="1.5" fill="var(--primary)" fill-opacity="0.18"/>' +
+            '<rect x="37" y="48" width="42" height="2.5" rx="1" fill="var(--surface-hover)"/>' +
+            '<rect x="37" y="54" width="32" height="2.5" rx="1" fill="var(--surface-hover)"/>' +
             '<g transform="translate(64, 46)">' +
-                '<path d="M0 6C0 2.68629 2.68629 0 6 0H26C29.3137 0 32 2.68629 32 6V18C32 21.3137 29.3137 24 26 24H12L5 29V24H6C2.68629 24 0 21.3137 0 18V6Z" fill="#e6f4fe" stroke="#0076de" stroke-width="1.3"/>' +
-                '<circle cx="10" cy="12" r="1.8" fill="#0076de"/>' +
-                '<circle cx="16" cy="12" r="1.8" fill="#0076de"/>' +
-                '<circle cx="22" cy="12" r="1.8" fill="#0076de"/>' +
+                '<path d="M0 6C0 2.68629 2.68629 0 6 0H26C29.3137 0 32 2.68629 32 6V18C32 21.3137 29.3137 24 26 24H12L5 29V24H6C2.68629 24 0 21.3137 0 18V6Z" fill="var(--primary-subtle)" stroke="var(--primary)" stroke-width="1.3"/>' +
+                '<circle cx="10" cy="12" r="1.8" fill="var(--primary)"/>' +
+                '<circle cx="16" cy="12" r="1.8" fill="var(--primary)"/>' +
+                '<circle cx="22" cy="12" r="1.8" fill="var(--primary)"/>' +
             '</g>' +
         '</svg>';
     }

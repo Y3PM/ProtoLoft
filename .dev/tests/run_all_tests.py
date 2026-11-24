@@ -215,6 +215,13 @@ SUITES = [
         "cmd": ["python3", "-B", str(TESTS_DIR / "p2_p3_regression.py")],
         "needs_php": True,
         "type": "python"
+    },
+    {
+        "id": "q9_styles",
+        "name": "Q9 规范收口与设计系统令牌色值收敛",
+        "cmd": ["python3", "-B", str(TESTS_DIR / "q9_styles_regression.py")],
+        "needs_php": False,
+        "type": "python"
     }
 ]
 
@@ -286,7 +293,7 @@ def main():
         # 解析通过断言数量
         for line in stdout.splitlines():
             line_str = line.strip()
-            if line_str.startswith('PASS ') or line_str.startswith('  ✓ PASS:'):
+            if line_str.startswith('PASS ') or line_str.startswith('  ✓ PASS:') or line_str.startswith('  ✓ ['):
                 assert_count += 1
             elif 'ALL 6 BRAND & BOUNDARY SUITES PASSED' in line_str:
                 assert_count += 6

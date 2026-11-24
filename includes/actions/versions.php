@@ -231,7 +231,6 @@ switch ($action) {
             $stmt->execute([$id]);
             $version = $stmt->fetch();
             $stmt->closeCursor();
-            $stmt->closeCursor();
             if (!$version) throw new DomainException('版本不存在');
             $item = Auth::getItem($version['item_id']);
             if (!$item || !Auth::canEditItem($item)) throw new DomainException('无权操作此项目');

@@ -447,14 +447,38 @@ try {
    - 逐行确认全库已不存在“查询后未读完且在后续写操作前句柄存活”的漏洞形态。
 5. **全量自动化回归质量大盘**：
    - 命令：`python3 -B .dev/tests/run_all_tests.py --php php`
-   - 结果：**30/30 套件 100% PASS**，覆盖 1319 个可识别测试断言，总耗时 134.52s。
-6. **PHP 语法与向下兼容基线**：
+   - 结果：**31/31 套件 100% PASS**，覆盖 1319 个可识别测试断言，总耗时 101.16s。
+6. **Q9 规范收口与设计系统令牌色值收敛**：
+   - `includes/modals.php` 硬编码 Hex 彻底清零（0 处，100% 消除）；
+   - `share.php` 8 处重复错误卡片统一由 `render_share_error_card()` 渲染，硬编码 Hex 直降至 2 处（减少 97.5%）；
+   - `index.php` 消费 `.m-alert-tip` 与 `.m-domain-badge`，硬编码 Hex 仅保留官方折纸大象 Logo（21 处，减少 76.1%）；
+   - `assets/js/admin.js` 动态空状态插画与图表调色板全面收敛（硬编码 Hex 集中至 1 处字典）；
+   - 专项回归套件 `.dev/tests/q9_styles_regression.py` 6/6 全部通过并纳入大盘。
+7. **PHP 语法与向下兼容基线**：
    - 全量修改文件执行 `php -l` 无任何语法错误，严格向下兼容原生 PHP 7.0.0+。
 
 ---
 
-### 4. 尚未验证的部分（移交后续阶段）
+### 4. 复核收口（v3.1.5）
 
-- 真实浏览器环境下的视觉与触控体验；
-- 生产服务器环境（OpenResty + PHP 7.0.33）的最终部署验收；
-- 第 5 节待拍板事项（Q1 ~ Q9）等待用户指令，未做擅自修改。
+- **前端样式与死代码收口**：
+  - `assets/js/admin.js` 将重复定义的图表调色板合并为单一共享常量 `CHART_PALETTE`（裸 Hex 从 20 处降至 10 处），并将待处理/已闭环圆点切换为 `.m-status-dot`；
+  - `includes/modals.php` 7 处弹窗底栏统一消费 `.m-modal-footer`，走势图例圆点统一消费 `.m-status-dot`；
+  - `assets/css/app.css` 补充 `.m-status-dot.dot-primary`，移除未消费的 `.m-empty-svg-*` 死类及文件末尾多余空行。
+- **`share.php` 与版本号统一（`3.1.5`）**：
+  - 修复 `share.php` 过期卡片 `htmlspecialchars($effectiveExpiresAt)` 双重转义，并为错误页 `assets/css/app.css` 补齐版本指纹；
+  - 同步 `assets/js/password-strength.js` 兜底 `?v=3.1.5`、`.dev/export_release.py` 兜底 `'3.1.5'` 与 `.dev/docs/tests/test_matrix.md` 版本号 `v3.1.5`。
+- **后端游标卫生**：
+  - 移除 `includes/actions/versions.php` 重复的 `$stmt->closeCursor()`；
+  - 为 `includes/auth.php` (`deliverPasswordReset`) 与 `includes/actions/annotations.php` (`add_annotation` 通知读取) 补齐 `$stmt->closeCursor()`。
+- **回归测试补强**：
+  - `.dev/tests/p2_p3_regression.py` 修正 P3-2 假阳性断言，并补全 P2-1/P2-2/P2-3、P3-1/P3-2/P3-4/P3-5/P3-7/P3-14 与 Q1/Q2 真实 HTTP 端到端动态测试；
+  - `.dev/tests/q9_styles_regression.py` 收紧 `admin.js` 色值上限至 `<= 10` 并校验预设类实际消费与无死类。
+
+---
+
+### 5. 尚未验证与未覆盖范围（移交后续阶段）
+
+- 真实浏览器环境（Chrome 120+）下的视觉与交互验收；
+- 生产服务器环境（OpenResty + PHP 7.0.33）的实机验证与部署验收；
+- `assets/js/app.js`、`assets/js/annotation.js`、`install.php`、`includes/login_modal.php` 中历史残留的裸 Hex 色值未纳入本轮 Q9 范围。

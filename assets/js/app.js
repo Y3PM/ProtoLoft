@@ -722,52 +722,46 @@ function selectItem(itemId, el, targetVerName, isUserDirectClick) {
         updateTopActionsState(false, type);
         var isCanManage = $('body').hasClass('can-manage');
         var canEditEmptyProject = ($el && ($el.data('can-edit') === 1 || $el.data('can-edit') === '1'));
-        var actionHtml = (isCanManage && canEditEmptyProject)
+        var canPublishEmpty = isCanManage && canEditEmptyProject;
+        var actionHtml = canPublishEmpty
             ? '<div class="empty-state-actions"><button type="button" class="empty-state-btn" onclick="openUploadModal(' + itemId + ')"><i class="ri-upload-cloud-line"></i> 发布原型</button></div>'
             : '';
+        var emptyTitle = canPublishEmpty ? '把“象”装进仓库，拢共分几步？' : '冰箱已就位，大象还在路上';
+        var emptyDesc = canPublishEmpty ? '1. 点下方发布 &rarr; 2. 丢进 ZIP 包 &rarr; 3. 马上开工！' : '产品经理正在打包原型图纸，装进来就能直接看啦';
         $('#noVersionPlaceholder').html(
             '<div class="empty-state-box">' +
                 '<div class="empty-state-illustration">' +
-                    '<svg width="156" height="120" viewBox="0 0 156 120" fill="none" xmlns="http://www.w3.org/2000/svg">' +
-                        '<line x1="12" y1="94" x2="144" y2="94" stroke="#e2e8f0" stroke-width="1" stroke-dasharray="3 3"/>' +
-                        '<circle cx="18" cy="94" r="2" fill="#cbd5e1"/>' +
-                        '<circle cx="138" cy="94" r="2" fill="#cbd5e1"/>' +
-                        '<path d="M120 28 C 95 16, 68 28, 48 48" stroke="#ff5d47" stroke-width="1.5" stroke-linecap="round" stroke-dasharray="2.5 4" opacity="0.65"/>' +
-                        '<circle cx="78" cy="27" r="1.5" fill="#ff5d47" opacity="0.7"/>' +
-                        '<g transform="translate(18, 42)">' +
-                            '<rect x="0" y="8" width="52" height="44" rx="8" fill="#ffffff" stroke="#94a3b8" stroke-width="1.5"/>' +
-                            '<rect x="6" y="14" width="40" height="32" rx="5" fill="#f8fafc" stroke="#0076de" stroke-width="1.2" stroke-dasharray="3 3"/>' +
-                            '<g transform="translate(26, 30)">' +
-                                '<circle cx="0" cy="0" r="11" fill="#0076de"/>' +
-                                '<path d="M0 -5 L-5 0 H-2 V5 H2 V0 H5 Z" fill="#ffffff"/>' +
-                            '</g>' +
-                            '<line x1="26" y1="13" x2="26" y2="7" stroke="#0076de" stroke-width="1.5" stroke-linecap="round" stroke-dasharray="1.5 2.5"/>' +
-                        '</g>' +
-                        '<g transform="translate(74, 18) scale(0.64)">' +
-                            '<polygon points="16.3,51.15 16.64,59.63 9.89,65.51" fill="#68b5f8" />' +
-                            '<polygon points="17.51,75.89 18.2,89.21 3.32,85.06" fill="#68b5f8" />' +
-                            '<polygon points="2.97,86.97 11.97,89.21 6.61,96.48" fill="#68b5f8" />' +
-                            '<polygon points="17.85,49.42 34.46,31.78 31.87,78.66 19.76,88.52" fill="#0076de" />' +
-                            '<polygon points="36.71,31.43 64.22,34.72 54.36,47.35 33.77,76.93" fill="#0076de" />' +
-                            '<polygon points="57.47,50.46 57.47,78.49 36.71,76.24" fill="#68b5f8" />' +
-                            '<polygon points="59.2,49.94 76.85,60.67 68.02,99.94 59.2,107.55" fill="#0076de" />' +
+                    '<svg width="180" height="120" viewBox="0 0 180 120" fill="none" xmlns="http://www.w3.org/2000/svg">' +
+                        '<g transform="translate(5, 12.6) scale(0.86)">' +
+                            '<polygon points="15.5,51.52 16.0,59.8 9.89,65.51" fill="#68b5f8" />' +
+                            '<polygon points="17.01,75.89 17.7,89.21 3.32,85.06" fill="#68b5f8" />' +
+                            '<polygon points="2.97,87.47 11.47,89.71 6.61,96.48" fill="#68b5f8" />' +
+                            '<polygon points="17.85,49.42 34.4,31.09 31.17,78.75 19.76,88.52" fill="#0076de" />' +
+                            '<polygon points="36.71,31.43 59.62,34.17 54.77,47.51 33.87,77.38" fill="#0076de" />' +
+                            '<polygon points="56.65,49.06 56.29,78.75 37.31,76.74" fill="#68b5f8" />' +
+                            '<polygon points="58.79,49.86 76.85,60.67 68.02,98.94 58.79,106.54" fill="#0076de" />' +
                             '<polygon points="68.2,102.02 71.31,108.59 60.58,108.59" fill="#0076de" />' +
                             '<polygon points="77.71,67.76 88.26,79.01 81.0,84.72 74.6,80.91" fill="#68b5f8" />' +
-                            '<polygon points="88.96,80.39 88.44,95.1 79.44,91.98 82.21,86.45" fill="#0076de" />' +
-                            '<polygon points="72.69,28.66 80.82,60.5 57.12,46.48" fill="#68b5f8" />' +
-                            '<polygon points="74.77,28.49 86.19,28.49 96.05,34.72 108.68,62.75 96.05,57.73 93.63,53.23 97.26,62.57 81.86,57.21" fill="#0076de" />' +
-                            '<polygon points="105.74,52.19 120.44,56.0 110.41,62.92" fill="#68b5f8" />' +
-                            '<polygon points="112.48,52.19 122.0,42.85 120.79,54.44" fill="#0076de" />' +
-                            '<polygon points="113.69,35.76 121.31,41.64 117.33,45.27 116.12,45.96" fill="#68b5f8" />' +
-                            '<polygon points="114.04,33.85 116.81,31.09 117.67,36.8" fill="#68b5f8" />' +
-                            '<polygon points="118.02,30.74 122.52,30.74 118.71,34.72" fill="#0076de" />' +
+                            '<polygon points="88.96,81.39 88.44,95.1 79.44,91.98 82.21,86.45" fill="#0076de" />' +
+                            '<polygon points="72.44,26.23 80.82,60.5 57.61,46.41 65.15,24.17" fill="#68b5f8" />' +
+                            '<polygon points="75.44,28.49 86.19,28.49 96.05,34.72 108.68,62.75 96.05,57.73 93.63,53.23 97.26,62.57 82.56,57.55" fill="#0076de" />' +
+                            '<polygon points="106.24,52.19 120.44,56.0 110.91,62.92" fill="#68b5f8" />' +
+                            '<polygon points="112.48,51.69 122.0,42.85 120.79,53.94" fill="#0076de" />' +
+                            '<polygon points="113.69,35.76 121.31,40.64 116.12,45.46" fill="#68b5f8" />' +
+                            '<polygon points="114.04,33.85 116.81,31.09 118.17,36.3" fill="#68b5f8" />' +
+                            '<polygon points="118.17,30.52 122.88,30.76 119.21,34.72" fill="#0076de" />' +
                             '<circle cx="120.27" cy="24.17" r="10" fill="#ff5d47" fill-opacity="0.16" />' +
-                            '<circle cx="120.27" cy="24.17" r="4.8" fill="#ff5d47" />' +
+                            '<circle cx="120.27" cy="24.17" r="4.76" fill="#ff5d47" />' +
                         '</g>' +
+                        '<path d="M93 82 H114 M109.5 78 L114 82 L109.5 86" stroke="var(--primary)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" opacity="0.72"/>' +
+                        '<rect x="126" y="26" width="44" height="80" rx="7" fill="var(--surface)" stroke="var(--border-strong)" stroke-width="1.5"/>' +
+                        '<line x1="126" y1="48" x2="170" y2="48" stroke="var(--border)" stroke-width="1.2"/>' +
+                        '<line x1="133" y1="34" x2="133" y2="40" stroke="var(--border-strong)" stroke-width="1.6" stroke-linecap="round"/>' +
+                        '<rect x="132" y="54" width="32" height="46" rx="4" fill="var(--primary-subtle)" stroke="var(--primary)" stroke-width="1.2" stroke-dasharray="3 3"/>' +
                     '</svg>' +
                 '</div>' +
-                '<div class="empty-state-title">坑位已占，图纸未到</div>' +
-                '<div class="empty-state-desc">研发点进来直挠头。丢个 ZIP 上来，马上开工！</div>' +
+                '<div class="empty-state-title">' + emptyTitle + '</div>' +
+                '<div class="empty-state-desc">' + emptyDesc + '</div>' +
                 actionHtml +
             '</div>'
         ).show();

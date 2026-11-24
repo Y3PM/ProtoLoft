@@ -247,6 +247,7 @@ switch ($action) {
             $itemCreatorStmt = $db->prepare("SELECT created_by, collaborators, name FROM items WHERE id = ?");
             $itemCreatorStmt->execute([$itemId]);
             $itemRow = $itemCreatorStmt->fetch();
+            $itemCreatorStmt->closeCursor();
             $targetUids = [];
             $creatorId = (int)($itemRow['created_by'] ?? 0);
             if ($creatorId > 0) $targetUids[] = $creatorId;
@@ -262,6 +263,7 @@ switch ($action) {
                 $uStmt = $db->prepare("SELECT webhook_url FROM users WHERE id = ?");
                 $uStmt->execute([$tUid]);
                 $wbUrl = trim($uStmt->fetchColumn() ?: '');
+                $uStmt->closeCursor();
                 if (!empty($wbUrl)) {
                     Webhook::send($wbUrl, 'annotation_new', [
                         'item_name' => $itemRow['name'] ?? '原型项目',

@@ -75,7 +75,7 @@ $renderItemOwnersCell = function($item, $usersMap) use ($editorShareAllowed) {
                     </span>
                 </div>
                 <input type="text" id="uploadVerName" name="version_name" class="m-input" placeholder="如 V1.1.1、评审稿" required autocomplete="off" maxlength="30" oninput="onUploadVersionNameInput(this)">
-                <span id="uploadVersionHint" class="m-form-hint" hidden style="margin-top:4px;font-size:12px;color:var(--warning,#f59e0b);display:block;"></span>
+                <span id="uploadVersionHint" class="m-form-hint" hidden style="margin-top:4px;font-size:12px;color:var(--warning);display:block;"></span>
             </div>
 
             <div class="m-form-group">
@@ -180,7 +180,7 @@ $renderItemOwnersCell = function($item, $usersMap) use ($editorShareAllowed) {
                 </div>
             </div>
 
-            <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:20px;">
+            <div class="m-modal-footer">
                 <button type="button" class="btn-cancel btn-standard" onclick="closeModal('uploadModal')">取消</button>
                 <button type="submit" class="btn-primary btn-standard" id="btnUploadSubmit">发布</button>
             </div>
@@ -282,7 +282,7 @@ $renderItemOwnersCell = function($item, $usersMap) use ($editorShareAllowed) {
                 <textarea id="editVerChangelog" class="m-input" style="height:90px;resize:vertical;line-height:1.5;padding:8px 10px;" placeholder="选填，简述本次版本的核心变动..." maxlength="3000"></textarea>
             </div>
 
-            <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:20px;">
+            <div class="m-modal-footer">
                 <button type="button" class="btn-cancel btn-standard" onclick="closeModal('versionEditModal')">取消</button>
                 <button type="submit" id="btnSaveVerEdit" class="btn-primary btn-standard">保存</button>
             </div>
@@ -304,7 +304,7 @@ $renderItemOwnersCell = function($item, $usersMap) use ($editorShareAllowed) {
                 <input type="text" id="catName" class="m-input" placeholder="输入文件夹名称" required maxlength="20" data-error-target="catNameError" aria-errormessage="catNameError">
                 <div class="field-error-tip" id="catNameError" role="alert"></div>
             </div>
-            <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:20px;">
+            <div class="m-modal-footer">
                 <button type="button" class="btn-cancel btn-standard" onclick="closeModal('categoryModal')">取消</button>
                 <button type="submit" class="btn-primary btn-standard">保存</button>
             </div>
@@ -397,7 +397,7 @@ $renderItemOwnersCell = function($item, $usersMap) use ($editorShareAllowed) {
                 <div style="font-size:11.5px;color:var(--text-3);margin-top:5px;line-height:1.4;">接收该项目发版与新批注通知；钉钉/飞书安全设置勾选「自定义关键词」，填入：<strong>立象原型</strong></div>
             </div>
 
-            <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:20px;">
+            <div class="m-modal-footer">
                 <button type="button" class="btn-cancel btn-standard" onclick="closeModal('itemModal')">取消</button>
                 <button type="submit" class="btn-primary btn-standard" id="btnItemSubmit">保存</button>
             </div>
@@ -546,7 +546,7 @@ $renderItemOwnersCell = function($item, $usersMap) use ($editorShareAllowed) {
                 <button type="button" class="admin-nav-item" id="nav-users" onclick="switchAdminTab('users')">
                     <i class="ri-group-line"></i>
                     <span>团队成员</span>
-                    <span id="pendingUserBadge" style="<?php echo ($isAdmin && $pendingUserCount > 0) ? '' : 'display:none;'; ?>margin-left:auto;background:var(--warning);color:#fff;border-radius:10px;padding:1px 6px;font-size:11px;font-weight:600;"><?php echo $pendingUserCount; ?></span>
+                    <span id="pendingUserBadge" style="<?php echo ($isAdmin && $pendingUserCount > 0) ? '' : 'display:none;'; ?>margin-left:auto;background-color:var(--warning);color:var(--surface);border-radius:10px;padding:1px 6px;font-size:11px;font-weight:600;"><?php echo $pendingUserCount; ?></span>
                 </button>
                 <?php if ($isAdmin): ?>
                 <button type="button" class="admin-nav-item" id="nav-roles" onclick="switchAdminTab('roles')">
@@ -980,9 +980,9 @@ $renderItemOwnersCell = function($item, $usersMap) use ($editorShareAllowed) {
                                 <div style="display:flex;align-items:center;gap:8px;">
                                     <span style="font-size:13px;font-weight:600;color:var(--text-1);" id="trendChartTitle">查阅走势</span>
                                     <span style="font-size:10.5px;color:var(--text-3);display:inline-flex;align-items:center;gap:6px;">
-                                        <span style="display:inline-flex;align-items:center;gap:2px;"><i style="display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--success);"></i>内部审阅人</span>
-                                        <span style="display:inline-flex;align-items:center;gap:2px;"><i style="display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--primary);"></i>管理与协作者</span>
-                                        <span style="display:inline-flex;align-items:center;gap:2px;"><i style="display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--warning);"></i>外发访客</span>
+                                        <span style="display:inline-flex;align-items:center;gap:2px;"><i class="m-status-dot dot-success"></i>内部审阅人</span>
+                                        <span style="display:inline-flex;align-items:center;gap:2px;"><i class="m-status-dot dot-primary"></i>管理与协作者</span>
+                                        <span style="display:inline-flex;align-items:center;gap:2px;"><i class="m-status-dot dot-warning"></i>外发访客</span>
                                     </span>
                                 </div>
                                 <div class="trend-tab-group">
@@ -1108,15 +1108,15 @@ $renderItemOwnersCell = function($item, $usersMap) use ($editorShareAllowed) {
                                 </div>
 
                                 <!-- 分段彩色比例条 (5px) -->
-                                <div style="height:5px;background:#e2e8f0;border-radius:3px;overflow:hidden;display:flex;margin-bottom:12px;">
+                                <div style="height:5px;background-color:var(--border);border-radius:3px;overflow:hidden;display:flex;margin-bottom:12px;">
                                     <?php if ($barWidthHtml > 0): ?>
-                                        <div style="width:<?php echo $barWidthHtml; ?>%;background:var(--primary);height:100%;transition:width 0.3s;" title="HTML 预览包: <?php echo $lblHtmlPct; ?>"></div>
+                                        <div style="width:<?php echo $barWidthHtml; ?>%;background-color:var(--primary);height:100%;transition:width 0.3s;" title="HTML 预览包: <?php echo $lblHtmlPct; ?>"></div>
                                     <?php endif; ?>
                                     <?php if ($barWidthRp > 0): ?>
-                                        <div style="width:<?php echo $barWidthRp; ?>%;background:#f59e0b;height:100%;transition:width 0.3s;" title="RP 源文件: <?php echo $lblRpPct; ?>"></div>
+                                        <div style="width:<?php echo $barWidthRp; ?>%;background-color:var(--warning);height:100%;transition:width 0.3s;" title="RP 源文件: <?php echo $lblRpPct; ?>"></div>
                                     <?php endif; ?>
                                     <?php if ($barWidthOther > 0): ?>
-                                        <div style="width:<?php echo $barWidthOther; ?>%;background:#94a3b8;height:100%;transition:width 0.3s;" title="数据库与媒体: <?php echo $lblOtherPct; ?>"></div>
+                                        <div style="width:<?php echo $barWidthOther; ?>%;background-color:var(--text-3);height:100%;transition:width 0.3s;" title="数据库与媒体: <?php echo $lblOtherPct; ?>"></div>
                                     <?php endif; ?>
                                 </div>
                             </div>
@@ -1125,21 +1125,21 @@ $renderItemOwnersCell = function($item, $usersMap) use ($editorShareAllowed) {
                             <div style="display:flex;flex-direction:column;gap:6px;font-size:12px;">
                                 <div style="display:flex;justify-content:space-between;align-items:center;">
                                     <span style="color:var(--text-2);display:inline-flex;align-items:center;gap:6px;">
-                                        <span style="width:7px;height:7px;border-radius:50%;background:var(--primary);display:inline-block;"></span>
+                                        <span style="width:7px;height:7px;border-radius:50%;background-color:var(--primary);display:inline-block;"></span>
                                         <span>HTML 预览包</span>
                                     </span>
                                     <span style="font-weight:600;color:var(--text-1);"><?php echo htmlspecialchars($strHtmlStorage); ?> <span style="font-weight:400;color:var(--text-3);font-size:11px;">(<?php echo $lblHtmlPct; ?>)</span></span>
                                 </div>
                                 <div style="display:flex;justify-content:space-between;align-items:center;">
                                     <span style="color:var(--text-2);display:inline-flex;align-items:center;gap:6px;">
-                                        <span style="width:7px;height:7px;border-radius:50%;background:var(--warning);display:inline-block;"></span>
+                                        <span style="width:7px;height:7px;border-radius:50%;background-color:var(--warning);display:inline-block;"></span>
                                         <span>RP 源文件</span>
                                     </span>
                                     <span style="font-weight:600;color:var(--text-1);"><?php echo htmlspecialchars($strRpStorage); ?> <span style="font-weight:400;color:var(--text-3);font-size:11px;">(<?php echo $lblRpPct; ?>)</span></span>
                                 </div>
                                 <div style="display:flex;justify-content:space-between;align-items:center;">
                                     <span style="color:var(--text-2);display:inline-flex;align-items:center;gap:6px;">
-                                        <span style="width:7px;height:7px;border-radius:50%;background:#94a3b8;display:inline-block;"></span>
+                                        <span style="width:7px;height:7px;border-radius:50%;background-color:var(--text-3);display:inline-block;"></span>
                                         <span>数据库与媒体</span>
                                     </span>
                                     <span style="font-weight:600;color:var(--text-1);"><?php echo htmlspecialchars($strOtherStorage); ?> <span style="font-weight:400;color:var(--text-3);font-size:11px;">(<?php echo $lblOtherPct; ?>)</span></span>
@@ -1246,22 +1246,18 @@ $renderItemOwnersCell = function($item, $usersMap) use ($editorShareAllowed) {
                                 <?php if (empty($projectItems)): ?>
                                     <tr class="empty-projects-row"><td colspan="6" style="padding:44px 20px;text-align:center;">
                                         <svg width="120" height="96" viewBox="0 0 120 96" fill="none" xmlns="http://www.w3.org/2000/svg" style="display:block;margin:0 auto;">
-                                            <circle cx="16" cy="18" r="1.5" fill="#cbd5e1"/>
-                                            <circle cx="104" cy="18" r="1.5" fill="#cbd5e1"/>
-                                            <circle cx="16" cy="78" r="1.5" fill="#cbd5e1"/>
-                                            <circle cx="104" cy="78" r="1.5" fill="#cbd5e1"/>
-                                            <rect x="34" y="20" width="56" height="46" rx="6" fill="#f8fafc" stroke="#cbd5e1" stroke-width="1.2" transform="rotate(3 62 43)"/>
-                                            <rect x="30" y="24" width="56" height="46" rx="6" fill="#ffffff" stroke="#94a3b8" stroke-width="1.4"/>
-                                            <line x1="30" y1="34" x2="86" y2="34" stroke="#f1f5f9" stroke-width="1"/>
-                                            <circle cx="36" cy="29" r="1.5" fill="#e2e8f0"/>
-                                            <circle cx="40.5" cy="29" r="1.5" fill="#e2e8f0"/>
-                                            <circle cx="45" cy="29" r="1.5" fill="#e2e8f0"/>
-                                            <rect x="37" y="40" width="18" height="4" rx="1.5" fill="#0076de" fill-opacity="0.2"/>
-                                            <rect x="37" y="48" width="18" height="12" rx="3" fill="#f8fafc" stroke="#e2e8f0" stroke-width="1"/>
-                                            <rect x="59" y="48" width="18" height="12" rx="3" fill="#f8fafc" stroke="#e2e8f0" stroke-width="1"/>
+                                            <rect x="34" y="20" width="56" height="46" rx="6" fill="var(--canvas)" stroke="var(--border-strong)" stroke-width="1.2" transform="rotate(3 62 43)"/>
+                                            <rect x="30" y="24" width="56" height="46" rx="6" fill="var(--surface)" stroke="var(--border-strong)" stroke-width="1.4"/>
+                                            <line x1="30" y1="34" x2="86" y2="34" stroke="var(--surface-hover)" stroke-width="1"/>
+                                            <circle cx="36" cy="29" r="1.5" fill="var(--border)"/>
+                                            <circle cx="40.5" cy="29" r="1.5" fill="var(--border)"/>
+                                            <circle cx="45" cy="29" r="1.5" fill="var(--border)"/>
+                                            <rect x="37" y="40" width="18" height="4" rx="1.5" fill="var(--primary)" fill-opacity="0.2"/>
+                                            <rect x="37" y="48" width="18" height="12" rx="3" fill="var(--canvas)" stroke="var(--border)" stroke-width="1"/>
+                                            <rect x="59" y="48" width="18" height="12" rx="3" fill="var(--canvas)" stroke="var(--border)" stroke-width="1"/>
                                             <g transform="translate(66, 44)">
-                                                <circle cx="14" cy="14" r="13" fill="#e6f4fe" stroke="#bce0fc" stroke-width="1.3"/>
-                                                <path d="M10 8L18 16L14 17L16 21L14 22L12 18L9 20Z" fill="#0076de" stroke="#ffffff" stroke-width="1" stroke-linejoin="round"/>
+                                                <circle cx="14" cy="14" r="13" fill="var(--primary-subtle)" stroke="var(--primary-border)" stroke-width="1.3"/>
+                                                <path d="M10 8L18 16L14 17L16 21L14 22L12 18L9 20Z" fill="var(--primary)" stroke="var(--surface)" stroke-width="1" stroke-linejoin="round"/>
                                             </g>
                                         </svg>
                                         <div style="font-weight:600;font-size:13.5px;color:var(--text-1);margin-top:10px;">暂无原型项目</div>
@@ -1371,21 +1367,17 @@ $renderItemOwnersCell = function($item, $usersMap) use ($editorShareAllowed) {
                                 <?php if (empty($linkItems)): ?>
                                     <tr class="empty-links-row"><td colspan="6" style="padding:44px 20px;text-align:center;">
                                         <svg width="120" height="96" viewBox="0 0 120 96" fill="none" xmlns="http://www.w3.org/2000/svg" style="display:block;margin:0 auto;">
-                                            <circle cx="16" cy="18" r="1.5" fill="#cbd5e1"/>
-                                            <circle cx="104" cy="18" r="1.5" fill="#cbd5e1"/>
-                                            <circle cx="16" cy="78" r="1.5" fill="#cbd5e1"/>
-                                            <circle cx="104" cy="78" r="1.5" fill="#cbd5e1"/>
-                                            <rect x="34" y="20" width="56" height="46" rx="6" fill="#f8fafc" stroke="#cbd5e1" stroke-width="1.2" transform="rotate(-3 34 20)"/>
-                                            <rect x="30" y="24" width="56" height="46" rx="6" fill="#ffffff" stroke="#94a3b8" stroke-width="1.4"/>
-                                            <line x1="30" y1="34" x2="86" y2="34" stroke="#f1f5f9" stroke-width="1"/>
-                                            <circle cx="36" cy="29" r="1.5" fill="#e2e8f0"/>
-                                            <circle cx="40.5" cy="29" r="1.5" fill="#e2e8f0"/>
-                                            <rect x="37" y="42" width="22" height="3" rx="1.5" fill="#cbd5e1"/>
-                                            <rect x="37" y="49" width="34" height="2.5" rx="1" fill="#f1f5f9"/>
-                                            <rect x="37" y="55" width="26" height="2.5" rx="1" fill="#f1f5f9"/>
+                                            <rect x="34" y="20" width="56" height="46" rx="6" fill="var(--canvas)" stroke="var(--border-strong)" stroke-width="1.2" transform="rotate(-3 34 20)"/>
+                                            <rect x="30" y="24" width="56" height="46" rx="6" fill="var(--surface)" stroke="var(--border-strong)" stroke-width="1.4"/>
+                                            <line x1="30" y1="34" x2="86" y2="34" stroke="var(--surface-hover)" stroke-width="1"/>
+                                            <circle cx="36" cy="29" r="1.5" fill="var(--border)"/>
+                                            <circle cx="40.5" cy="29" r="1.5" fill="var(--border)"/>
+                                            <rect x="37" y="42" width="22" height="3" rx="1.5" fill="var(--border-strong)"/>
+                                            <rect x="37" y="49" width="34" height="2.5" rx="1" fill="var(--surface-hover)"/>
+                                            <rect x="37" y="55" width="26" height="2.5" rx="1" fill="var(--surface-hover)"/>
                                             <g transform="translate(66, 44)">
-                                                <circle cx="14" cy="14" r="13" fill="#e6f4fe" stroke="#bce0fc" stroke-width="1.3"/>
-                                                <path d="M11 17L17 11M17 11H12M17 11V16" stroke="#0076de" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                                                <circle cx="14" cy="14" r="13" fill="var(--primary-subtle)" stroke="var(--primary-border)" stroke-width="1.3"/>
+                                                <path d="M11 17L17 11M17 11H12M17 11V16" stroke="var(--primary)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
                                             </g>
                                         </svg>
                                         <div style="font-weight:600;font-size:13.5px;color:var(--text-1);margin-top:10px;">暂无外部链接</div>
@@ -1399,7 +1391,7 @@ $renderItemOwnersCell = function($item, $usersMap) use ($editorShareAllowed) {
                                         $canManageThisItem = Auth::canManageItemConfig($it, $currentUser);
                                         $canDeleteThisItem = Auth::canDeleteItem($it, $currentUser);
                                         $targetText = ($it['link_target'] === '_blank') ? '新标签页' : '内嵌预览';
-                                        $targetBadgeStyle = ($it['link_target'] === '_blank') ? 'background:var(--primary-subtle);color:var(--primary);border:1px solid var(--primary-border);' : 'background:#f8fafc;color:var(--text-3);border:1px solid var(--border);';
+                                        $targetBadgeStyle = ($it['link_target'] === '_blank') ? 'background:var(--primary-subtle);color:var(--primary);border:1px solid var(--primary-border);' : 'background:var(--canvas);color:var(--text-3);border:1px solid var(--border);';
                                     ?>
                                     <tr id="admin-item-row-<?php echo $it['id']; ?>" data-can-edit="<?php echo $canManageThisItem ? '1' : '0'; ?>"
                                         data-item-id="<?php echo $it['id']; ?>"
@@ -1477,19 +1469,15 @@ $renderItemOwnersCell = function($item, $usersMap) use ($editorShareAllowed) {
                                 <?php if (empty($cats)): ?>
                                     <tr class="empty-folders-row"><td colspan="4" style="padding:44px 20px;text-align:center;">
                                         <svg width="120" height="96" viewBox="0 0 120 96" fill="none" xmlns="http://www.w3.org/2000/svg" style="display:block;margin:0 auto;">
-                                            <circle cx="16" cy="18" r="1.5" fill="#cbd5e1"/>
-                                            <circle cx="104" cy="18" r="1.5" fill="#cbd5e1"/>
-                                            <circle cx="16" cy="78" r="1.5" fill="#cbd5e1"/>
-                                            <circle cx="104" cy="78" r="1.5" fill="#cbd5e1"/>
-                                            <rect x="34" y="24" width="56" height="44" rx="6" fill="#f8fafc" stroke="#cbd5e1" stroke-width="1.2" transform="rotate(-3 34 24)"/>
-                                            <path d="M30 28C30 25 32 23 35 23H48L53 28H81C84 28 86 30 86 33V66C86 69 84 71 81 71H35C32 71 30 69 30 66V28Z" fill="#ffffff" stroke="#94a3b8" stroke-width="1.4"/>
-                                            <line x1="36" y1="36" x2="80" y2="36" stroke="#f1f5f9" stroke-width="1"/>
-                                            <rect x="38" y="42" width="22" height="3" rx="1.5" fill="#cbd5e1"/>
-                                            <rect x="38" y="48" width="34" height="2.5" rx="1" fill="#f1f5f9"/>
-                                            <rect x="38" y="54" width="26" height="2.5" rx="1" fill="#f1f5f9"/>
+                                            <rect x="34" y="24" width="56" height="44" rx="6" fill="var(--canvas)" stroke="var(--border-strong)" stroke-width="1.2" transform="rotate(-3 34 24)"/>
+                                            <path d="M30 28C30 25 32 23 35 23H48L53 28H81C84 28 86 30 86 33V66C86 69 84 71 81 71H35C32 71 30 69 30 66V28Z" fill="var(--surface)" stroke="var(--border-strong)" stroke-width="1.4"/>
+                                            <line x1="36" y1="36" x2="80" y2="36" stroke="var(--surface-hover)" stroke-width="1"/>
+                                            <rect x="38" y="42" width="22" height="3" rx="1.5" fill="var(--border-strong)"/>
+                                            <rect x="38" y="48" width="34" height="2.5" rx="1" fill="var(--surface-hover)"/>
+                                            <rect x="38" y="54" width="26" height="2.5" rx="1" fill="var(--surface-hover)"/>
                                             <g transform="translate(68, 46)">
-                                                <circle cx="14" cy="14" r="13" fill="#e6f4fe" stroke="#bce0fc" stroke-width="1.3"/>
-                                                <path d="M14 9V19M9 14H19" stroke="#0076de" stroke-width="2" stroke-linecap="round"/>
+                                                <circle cx="14" cy="14" r="13" fill="var(--primary-subtle)" stroke="var(--primary-border)" stroke-width="1.3"/>
+                                                <path d="M14 9V19M9 14H19" stroke="var(--primary)" stroke-width="2" stroke-linecap="round"/>
                                             </g>
                                         </svg>
                                         <div style="font-weight:600;font-size:13.5px;color:var(--text-1);margin-top:10px;">暂无文件夹分类</div>
@@ -1538,7 +1526,7 @@ $renderItemOwnersCell = function($item, $usersMap) use ($editorShareAllowed) {
                             <?php if ($isAdmin): ?>
                             <button type="button" id="subtab-btn-pending-users" class="console-subtab-btn log-subtab-btn" onclick="switchUserSubTab('pending')">
                                 <span>入驻申请</span>
-                                <span id="pendingSubTabCount" style="<?php echo ($isAdmin && $pendingUserCount > 0) ? '' : 'display:none;'; ?>background:var(--warning);color:#fff;border-radius:10px;padding:1px 6px;font-size:11px;font-weight:600;line-height:1.2;"><?php echo $pendingUserCount; ?></span>
+                                <span id="pendingSubTabCount" style="<?php echo ($isAdmin && $pendingUserCount > 0) ? '' : 'display:none;'; ?>background-color:var(--warning);color:var(--surface);border-radius:10px;padding:1px 6px;font-size:11px;font-weight:600;line-height:1.2;"><?php echo $pendingUserCount; ?></span>
                             </button>
                             <?php endif; ?>
                         </div>
@@ -1616,7 +1604,7 @@ $renderItemOwnersCell = function($item, $usersMap) use ($editorShareAllowed) {
                                         <tr style="border-bottom:1px solid var(--border);">
                                             <td style="padding:11px 16px;font-weight:500;color:var(--text-1);">管理后台</td>
                                             <td style="padding:11px 12px;text-align:center;">
-                                                <i class="ri-check-line" style="color:var(--success,#16a34a);font-size:18px;font-weight:bold;"></i>
+                                                <i class="ri-check-line" style="color:var(--success);font-size:18px;font-weight:bold;"></i>
                                             </td>
                                             <td style="padding:11px 12px;text-align:center;">
                                                 <span style="color:var(--text-3);opacity:0.35;font-size:16px;">—</span>
@@ -1633,10 +1621,10 @@ $renderItemOwnersCell = function($item, $usersMap) use ($editorShareAllowed) {
                                         <tr style="border-bottom:1px solid var(--border);">
                                             <td style="padding:11px 16px;font-weight:500;color:var(--text-1);">管理项目与版本</td>
                                             <td style="padding:11px 12px;text-align:center;">
-                                                <i class="ri-check-line" style="color:var(--success,#16a34a);font-size:18px;font-weight:bold;"></i>
+                                                <i class="ri-check-line" style="color:var(--success);font-size:18px;font-weight:bold;"></i>
                                             </td>
                                             <td style="padding:11px 12px;text-align:center;">
-                                                <i class="ri-check-line" style="color:var(--success,#16a34a);font-size:18px;font-weight:bold;"></i>
+                                                <i class="ri-check-line" style="color:var(--success);font-size:18px;font-weight:bold;"></i>
                                             </td>
                                             <td style="padding:11px 12px;text-align:center;">
                                                 <span style="color:var(--text-3);opacity:0.35;font-size:16px;">—</span>
@@ -1650,10 +1638,10 @@ $renderItemOwnersCell = function($item, $usersMap) use ($editorShareAllowed) {
                                         <tr style="border-bottom:1px solid var(--border);">
                                             <td style="padding:11px 16px;font-weight:500;color:var(--text-1);">下载 RP 源文件</td>
                                             <td style="padding:11px 12px;text-align:center;">
-                                                <i class="ri-check-line" style="color:var(--success,#16a34a);font-size:18px;font-weight:bold;"></i>
+                                                <i class="ri-check-line" style="color:var(--success);font-size:18px;font-weight:bold;"></i>
                                             </td>
                                             <td style="padding:11px 12px;text-align:center;">
-                                                <i class="ri-check-line" style="color:var(--success,#16a34a);font-size:18px;font-weight:bold;"></i>
+                                                <i class="ri-check-line" style="color:var(--success);font-size:18px;font-weight:bold;"></i>
                                             </td>
                                             <td style="padding:11px 12px;text-align:center;">
                                                 <input type="checkbox" id="permViewerDownloadRp" name="perm_viewer_download_rp" value="1" <?php echo $viewerDownloadRp ? 'checked' : ''; ?> style="width:16px;height:16px;accent-color:var(--primary);cursor:pointer;vertical-align:middle;">
@@ -1667,7 +1655,7 @@ $renderItemOwnersCell = function($item, $usersMap) use ($editorShareAllowed) {
                                         <tr style="border-bottom:1px solid var(--border);">
                                             <td style="padding:11px 16px;font-weight:500;color:var(--text-1);">外发分享</td>
                                             <td style="padding:11px 12px;text-align:center;">
-                                                <i class="ri-check-line" style="color:var(--success,#16a34a);font-size:18px;font-weight:bold;"></i>
+                                                <i class="ri-check-line" style="color:var(--success);font-size:18px;font-weight:bold;"></i>
                                             </td>
                                             <td style="padding:11px 12px;text-align:center;">
                                                 <input type="checkbox" id="permEditorShare" name="perm_editor_share" value="1" <?php echo $editorShare ? 'checked' : ''; ?> style="width:16px;height:16px;accent-color:var(--primary);cursor:pointer;vertical-align:middle;">
@@ -1684,13 +1672,13 @@ $renderItemOwnersCell = function($item, $usersMap) use ($editorShareAllowed) {
                                         <tr>
                                             <td style="padding:11px 16px;font-weight:500;color:var(--text-1);">页面批注</td>
                                             <td style="padding:11px 12px;text-align:center;">
-                                                <i class="ri-check-line" style="color:var(--success,#16a34a);font-size:18px;font-weight:bold;"></i>
+                                                <i class="ri-check-line" style="color:var(--success);font-size:18px;font-weight:bold;"></i>
                                             </td>
                                             <td style="padding:11px 12px;text-align:center;">
-                                                <i class="ri-check-line" style="color:var(--success,#16a34a);font-size:18px;font-weight:bold;"></i>
+                                                <i class="ri-check-line" style="color:var(--success);font-size:18px;font-weight:bold;"></i>
                                             </td>
                                             <td style="padding:11px 12px;text-align:center;">
-                                                <i class="ri-check-line" style="color:var(--success,#16a34a);font-size:18px;font-weight:bold;"></i>
+                                                <i class="ri-check-line" style="color:var(--success);font-size:18px;font-weight:bold;"></i>
                                             </td>
                                             <td style="padding:11px 12px;text-align:center;">
                                                 <input type="checkbox" id="permGuestAnnotate" name="perm_guest_annotate" value="1" <?php echo (Auth::getSetting('perm_guest_annotate', '0') === '1') ? 'checked' : ''; ?> style="width:16px;height:16px;accent-color:var(--primary);cursor:pointer;vertical-align:middle;">
@@ -1762,7 +1750,7 @@ $renderItemOwnersCell = function($item, $usersMap) use ($editorShareAllowed) {
                                 <div class="settings-section-title"><i class="ri-equalizer-line"></i> 基础设置</div>
                             </div>
 
-                            <div class="settings-row" style="margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid var(--border-light, #f1f5f9);">
+                            <div class="settings-row" style="margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid var(--border);">
                                 <div class="settings-row-info">
                                     <label class="settings-row-label" for="settingGlobalWatermark">全站身份水印</label>
                                     <div style="font-size:12px;color:var(--text-3);margin-top:2px;">在原型预览中显示访问者信息与时间</div>
@@ -1775,7 +1763,7 @@ $renderItemOwnersCell = function($item, $usersMap) use ($editorShareAllowed) {
                                 </div>
                             </div>
 
-                            <div class="settings-row" style="margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid var(--border-light, #f1f5f9);">
+                            <div class="settings-row" style="margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid var(--border);">
                                 <div class="settings-row-info">
                                     <label class="settings-row-label" for="settingTimezone">系统时区</label>
                                 </div>
@@ -1810,7 +1798,7 @@ $renderItemOwnersCell = function($item, $usersMap) use ($editorShareAllowed) {
                                 </div>
                             </div>
 
-                            <div class="m-form-group" style="margin-bottom:0;margin-top:14px;padding-top:14px;border-top:1px solid var(--border-light, #f1f5f9);">
+                            <div class="m-form-group" style="margin-bottom:0;margin-top:14px;padding-top:14px;border-top:1px solid var(--border);">
                                 <label class="m-label" for="settingSiteBaseUrl">
                                     <span>站点访问地址</span>
                                     <span class="opt-tag">邮件找回密码需填写完整 HTTPS 地址</span>
@@ -2066,9 +2054,9 @@ $renderItemOwnersCell = function($item, $usersMap) use ($editorShareAllowed) {
                                             ?></td>
                                             <td style="padding:9px 12px;">
                                                 <?php if ((int)$l['status'] === 1): ?>
-                                                    <span class="badge-tag" style="color:var(--success);background:#f0fdf4;border:1px solid #bbf7d0;">成功</span>
+                                                    <span class="m-badge-tag tag-success">成功</span>
                                                 <?php else: ?>
-                                                    <span class="badge-tag" style="color:var(--danger);background:#fef2f2;border:1px solid #fecaca;">失败</span>
+                                                    <span class="m-badge-tag tag-danger">失败</span>
                                                 <?php endif; ?>
                                             </td>
                                             <td style="padding:9px 12px;font-family:ui-monospace,monospace;font-size:12px;color:var(--text-2);"><?php echo htmlspecialchars($l['ip']); ?></td>
@@ -2143,8 +2131,9 @@ $renderItemOwnersCell = function($item, $usersMap) use ($editorShareAllowed) {
             </div>
             <button type="button" onclick="closeModal('transferOwnerModal')" class="close-x" title="关闭"><i class="ri-close-line"></i></button>
         </div>
-        <div style="font-size:12.5px;color:var(--text-2);line-height:1.6;background:#fef3c7;color:#92400e;padding:10px 12px;border-radius:6px;border:1px solid #fde68a;margin-bottom:14px;">
-            <i class="ri-alert-line" style="vertical-align:middle;margin-right:2px;"></i> 移交后，接收人将成为主管理员，您将转为管理员。
+        <div class="m-alert-tip is-warning">
+            <i class="ri-alert-line" style="vertical-align:middle;margin-right:2px;font-size:15px;flex-shrink:0;"></i>
+            <span>移交后，接收人将成为主管理员，您将转为管理员。</span>
         </div>
         <form onsubmit="handleDoTransferOwner(event)" novalidate>
             <input type="hidden" id="transferTargetUserId" value="0">
@@ -2194,7 +2183,7 @@ $renderItemOwnersCell = function($item, $usersMap) use ($editorShareAllowed) {
                     <span>同时停用原成员账号</span>
                 </label>
             </div>
-            <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:20px;">
+            <div class="m-modal-footer">
                 <button type="button" class="btn-cancel btn-standard" onclick="closeModal('userHandoverModal')">取消</button>
                 <button type="submit" class="btn-primary btn-standard" id="btnHandoverSubmit">确认交接</button>
             </div>
@@ -2222,7 +2211,7 @@ $renderItemOwnersCell = function($item, $usersMap) use ($editorShareAllowed) {
                     <div style="position:relative;display:flex;align-items:center;">
                         <input type="text" id="newEmail" class="m-input" data-fixed-domain="<?php echo htmlspecialchars($fixedEmailDomain); ?>" placeholder="<?php echo $fixedEmailDomain ? '邮箱名' : '如：name@company.com'; ?>" required maxlength="100" data-error-target="newEmailError" aria-errormessage="newEmailError" style="flex:1;<?php echo $fixedEmailDomain ? ('padding-right:' . (mb_strlen($fixedEmailDomain)*8 + 32) . 'px;') : ''; ?>" oninput="handleEmailInputWithDomain(this, 'newUserDomainBadge')" autocomplete="off">
                         <?php if ($fixedEmailDomain): ?>
-                            <span id="newUserDomainBadge" style="position:absolute;right:8px;font-size:12px;color:var(--text-3);background:var(--bg-tag,#f1f5f9);border:1px solid var(--border-light,#e2e8f0);padding:2px 7px;border-radius:4px;pointer-events:none;user-select:none;">@<?php echo htmlspecialchars($fixedEmailDomain); ?></span>
+                            <span id="newUserDomainBadge" class="m-domain-badge">@<?php echo htmlspecialchars($fixedEmailDomain); ?></span>
                         <?php endif; ?>
                     </div>
                     <div class="field-error-tip" id="newEmailError" role="alert"></div>
@@ -2261,7 +2250,7 @@ $renderItemOwnersCell = function($item, $usersMap) use ($editorShareAllowed) {
                     <div style="font-size:11px;color:var(--text-3);margin-top:4px;line-height:1.4;">接收与该成员相关的批注回复与解决通知；钉钉/飞书安全设置勾选「自定义关键词」，填入：<strong>立象原型</strong></div>
                 </div>
             </div>
-            <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:20px;">
+            <div class="m-modal-footer">
                 <button type="button" class="btn-cancel btn-standard" onclick="closeModal('addUserModal')">取消</button>
                 <button type="submit" class="btn-primary btn-standard" id="btnUserAddSubmit">添加成员</button>
             </div>
@@ -2333,7 +2322,7 @@ $renderItemOwnersCell = function($item, $usersMap) use ($editorShareAllowed) {
                     <div style="font-size:11px;color:var(--text-3);margin-top:4px;line-height:1.4;">接收与该成员相关的批注回复与解决通知；钉钉/飞书安全设置勾选「自定义关键词」，填入：<strong>立象原型</strong></div>
                 </div>
             </div>
-            <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:20px;">
+            <div class="m-modal-footer">
                 <button type="button" class="btn-cancel btn-standard" onclick="closeModal('editUserModal')">取消</button>
                 <button type="submit" class="btn-primary btn-standard" id="btnUserUpdateSubmit">保存</button>
             </div>

@@ -92,11 +92,11 @@ if (!$isSiteAuthorized) {
 
             <!-- 人员账号登录面板 (作为首选默认主面板) -->
             <form id="adminLoginForm" onsubmit="submitAdminLogin(event)" autocomplete="on" style="<?php echo $initialAuthPane === 'login' ? '' : 'display:none;'; ?>">
-                <div id="adminLoginSuccessTip" style="display:none;margin-bottom:14px;padding:9px 12px;background:#ecfdf5;color:#047857;border:1px solid #a7f3d0;border-radius:6px;font-size:12.5px;line-height:1.5;align-items:center;gap:6px;"><i class="ri-checkbox-circle-fill" style="font-size:15px;color:#10b981;flex-shrink:0;"></i><span></span></div>
+                <div id="adminLoginSuccessTip" class="m-alert-tip is-success" style="display:none;"><i class="ri-checkbox-circle-fill" style="font-size:15px;color:var(--success);flex-shrink:0;"></i><span></span></div>
                 <div style="margin-bottom: 14px; position:relative; display:flex; align-items:center;">
                     <input type="text" id="adminLoginUser" name="username" class="form-control" data-fixed-domain="<?php echo htmlspecialchars($fixedEmailDomain); ?>" placeholder="<?php echo $fixedEmailDomain ? '邮箱名' : '工作邮箱'; ?>" autocomplete="username" required maxlength="100" style="<?php echo $fixedEmailDomain ? ('padding-right:' . (mb_strlen($fixedEmailDomain)*8 + 32) . 'px;') : ''; ?>" oninput="handleLockEmailInput(this, 'adminDomainBadge')">
                     <?php if ($fixedEmailDomain): ?>
-                        <span id="adminDomainBadge" style="position:absolute;right:8px;font-size:12px;color:var(--text-3);background:var(--bg-tag,#f1f5f9);border:1px solid var(--border-light,#e2e8f0);padding:2px 7px;border-radius:4px;pointer-events:none;user-select:none;">@<?php echo htmlspecialchars($fixedEmailDomain); ?></span>
+                        <span id="adminDomainBadge" class="m-domain-badge">@<?php echo htmlspecialchars($fixedEmailDomain); ?></span>
                     <?php endif; ?>
                 </div>
                 <div class="pwd-input-wrap" style="margin-bottom: 18px;">
@@ -125,7 +125,7 @@ if (!$isSiteAuthorized) {
                     <div style="position:relative; display:flex; align-items:center;">
                         <input type="text" id="regEmailInput" class="form-control" data-fixed-domain="<?php echo htmlspecialchars($fixedEmailDomain); ?>" placeholder="<?php echo $fixedEmailDomain ? '邮箱名' : '如：name@company.com'; ?>" autocomplete="email" required maxlength="100" data-error-target="regEmailError" aria-errormessage="regEmailError" style="<?php echo $fixedEmailDomain ? ('padding-right:' . (mb_strlen($fixedEmailDomain)*8 + 32) . 'px;') : ''; ?>" oninput="handleLockEmailInput(this, 'regLockDomainBadge')">
                         <?php if ($fixedEmailDomain): ?>
-                            <span id="regLockDomainBadge" style="position:absolute;right:8px;font-size:12px;color:var(--text-3);background:var(--bg-tag,#f1f5f9);border:1px solid var(--border-light,#e2e8f0);padding:2px 7px;border-radius:4px;pointer-events:none;user-select:none;">@<?php echo htmlspecialchars($fixedEmailDomain); ?></span>
+                            <span id="regLockDomainBadge" class="m-domain-badge">@<?php echo htmlspecialchars($fixedEmailDomain); ?></span>
                         <?php endif; ?>
                     </div>
                     <div class="field-error-tip" id="regEmailError" role="alert"></div>
@@ -173,7 +173,7 @@ if (!$isSiteAuthorized) {
                 </div>
                 <button type="submit" class="btn-submit" id="btnVisitorReg">申请加入</button>
                 <div class="error-tip" id="regErrorTip"></div>
-                <div id="regSuccessTip" style="display:none;margin-top:12px;padding:8px 12px;background:#ecfdf5;color:#047857;border:1px solid #a7f3d0;border-radius:6px;font-size:12.5px;line-height:1.5;"></div>
+                <div id="regSuccessTip" class="m-alert-tip is-success" style="display:none;margin-top:12px;"></div>
                 <div class="admin-login-link">
                     <span>已有账号？</span><a href="javascript:void(0)" onclick="toggleAuthPane('login')">返回登录</a>
                 </div>
@@ -183,12 +183,12 @@ if (!$isSiteAuthorized) {
             <!-- 找回密码面板 -->
             <form id="forgotPwdForm" onsubmit="submitForgotPwd(event)" style="display:none;">
                 <?php if ($mailResetEnabled): ?>
-                    <div id="forgotSuccessTip" style="display:none;margin-bottom:14px;padding:10px 12px;background:#ecfdf5;color:#047857;border:1px solid #a7f3d0;border-radius:6px;font-size:12.5px;line-height:1.5;align-items:center;gap:6px;"><i class="ri-checkbox-circle-fill" style="font-size:15px;color:#10b981;flex-shrink:0;"></i><span></span></div>
+                    <div id="forgotSuccessTip" class="m-alert-tip is-success" style="display:none;"><i class="ri-checkbox-circle-fill" style="font-size:15px;color:var(--success);flex-shrink:0;"></i><span></span></div>
                     <label class="m-label" for="forgotEmailInput">工作邮箱</label>
                     <div style="margin-bottom: 16px; position:relative; display:flex; align-items:center;">
                         <input type="text" id="forgotEmailInput" class="form-control" data-fixed-domain="<?php echo htmlspecialchars($fixedEmailDomain); ?>" placeholder="<?php echo $fixedEmailDomain ? '邮箱名' : '输入注册时的工作邮箱'; ?>" autocomplete="email" required maxlength="100" style="<?php echo $fixedEmailDomain ? ('padding-right:' . (mb_strlen($fixedEmailDomain)*8 + 32) . 'px;') : ''; ?>" oninput="handleLockEmailInput(this, 'forgotDomainBadge')">
                         <?php if ($fixedEmailDomain): ?>
-                            <span id="forgotDomainBadge" style="position:absolute;right:8px;font-size:12px;color:var(--text-3);background:var(--bg-tag,#f1f5f9);border:1px solid var(--border-light,#e2e8f0);padding:2px 7px;border-radius:4px;pointer-events:none;user-select:none;">@<?php echo htmlspecialchars($fixedEmailDomain); ?></span>
+                            <span id="forgotDomainBadge" class="m-domain-badge">@<?php echo htmlspecialchars($fixedEmailDomain); ?></span>
                         <?php endif; ?>
                     </div>
                     <button type="submit" class="btn-submit" id="btnForgotSubmit">发送重置邮件</button>
@@ -941,7 +941,7 @@ foreach ($cats as $cat) {
                         <?php if ($canManage): ?>
                             <button class="btn-act" onclick="openAdminConsole()" title="控制中心" style="position:relative;">
                                 <i class="ri-settings-3-line"></i>
-                                <span id="adminSettingsDot" style="<?php echo ($isAdmin && $pendingUserCount > 0) ? '' : 'display:none;'; ?>position:absolute;top:4px;right:4px;width:7px;height:7px;background:var(--danger,#dc2626);border-radius:50%;border:1.5px solid var(--surface,#fff);pointer-events:none;"></span>
+                                <span id="adminSettingsDot" style="<?php echo ($isAdmin && $pendingUserCount > 0) ? '' : 'display:none;'; ?>position:absolute;top:4px;right:4px;width:7px;height:7px;background-color:var(--danger);border-radius:50%;border:1.5px solid var(--surface);pointer-events:none;"></span>
                             </button>
                         <?php endif; ?>
                         <button class="btn-act" onclick="doLogout()" title="退出登录">
@@ -1018,54 +1018,44 @@ foreach ($cats as $cat) {
                     <div class="empty-state-box">
                         <div class="empty-state-illustration">
                             <svg width="148" height="118" viewBox="0 0 148 118" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                <!-- 辅助对齐网格与十字标 -->
-                                <line x1="8" y1="28" x2="140" y2="28" stroke="#e7eaf0" stroke-width="1" stroke-dasharray="3 3"/>
-                                <line x1="8" y1="92" x2="140" y2="92" stroke="#e7eaf0" stroke-width="1" stroke-dasharray="3 3"/>
-                                <line x1="28" y1="12" x2="28" y2="108" stroke="#e7eaf0" stroke-width="1" stroke-dasharray="3 3"/>
-                                <line x1="120" y1="12" x2="120" y2="108" stroke="#e7eaf0" stroke-width="1" stroke-dasharray="3 3"/>
-                                <circle cx="28" cy="28" r="2" fill="#cbd5e1"/>
-                                <circle cx="120" cy="28" r="2" fill="#cbd5e1"/>
-                                <circle cx="28" cy="92" r="2" fill="#cbd5e1"/>
-                                <circle cx="120" cy="92" r="2" fill="#cbd5e1"/>
-
                                 <!-- 纯白原型图纸画卷 (微倾斜立体阴影层) -->
-                                <rect x="18" y="22" width="76" height="74" rx="7" fill="#ffffff" stroke="#cbd5e1" stroke-width="1.5"/>
+                                <rect x="18" y="22" width="76" height="74" rx="7" fill="var(--surface)" stroke="var(--border-strong)" stroke-width="1.5"/>
                                 <!-- 图纸顶部标签栏 -->
-                                <line x1="18" y1="34" x2="94" y2="34" stroke="#f1f5f9" stroke-width="1"/>
-                                <circle cx="25" cy="28" r="1.75" fill="#e2e8f0"/>
-                                <circle cx="30" cy="28" r="1.75" fill="#e2e8f0"/>
-                                <circle cx="35" cy="28" r="1.75" fill="#e2e8f0"/>
+                                <line x1="18" y1="34" x2="94" y2="34" stroke="var(--surface-hover)" stroke-width="1"/>
+                                <circle cx="25" cy="28" r="1.75" fill="var(--border)"/>
+                                <circle cx="30" cy="28" r="1.75" fill="var(--border)"/>
+                                <circle cx="35" cy="28" r="1.75" fill="var(--border)"/>
 
                                 <!-- 原型线框骨架图景 -->
-                                <rect x="25" y="40" width="34" height="6" rx="2" fill="#0076de" fill-opacity="0.2"/>
-                                <rect x="25" y="50" width="56" height="2.5" rx="1" fill="#f1f5f9"/>
-                                <rect x="25" y="55.5" width="44" height="2.5" rx="1" fill="#f1f5f9"/>
-                                <rect x="25" y="63" width="28" height="24" rx="4" fill="#f8fafc" stroke="#e2e8f0" stroke-width="1"/>
-                                <rect x="28" y="66" width="22" height="10" rx="2" fill="#0076de" fill-opacity="0.12"/>
-                                <rect x="28" y="79" width="16" height="2" rx="1" fill="#cbd5e1"/>
-                                <rect x="58" y="63" width="28" height="24" rx="4" fill="#f8fafc" stroke="#e2e8f0" stroke-width="1"/>
-                                <rect x="61" y="66" width="22" height="10" rx="2" fill="#0076de" fill-opacity="0.12"/>
-                                <rect x="61" y="79" width="16" height="2" rx="1" fill="#cbd5e1"/>
+                                <rect x="25" y="40" width="34" height="6" rx="2" fill="var(--primary)" fill-opacity="0.2"/>
+                                <rect x="25" y="50" width="56" height="2.5" rx="1" fill="var(--surface-hover)"/>
+                                <rect x="25" y="55.5" width="44" height="2.5" rx="1" fill="var(--surface-hover)"/>
+                                <rect x="25" y="63" width="28" height="24" rx="4" fill="var(--canvas)" stroke="var(--border)" stroke-width="1"/>
+                                <rect x="28" y="66" width="22" height="10" rx="2" fill="var(--primary)" fill-opacity="0.12"/>
+                                <rect x="28" y="79" width="16" height="2" rx="1" fill="var(--border-strong)"/>
+                                <rect x="58" y="63" width="28" height="24" rx="4" fill="var(--canvas)" stroke="var(--border)" stroke-width="1"/>
+                                <rect x="61" y="66" width="22" height="10" rx="2" fill="var(--primary)" fill-opacity="0.12"/>
+                                <rect x="61" y="79" width="16" height="2" rx="1" fill="var(--border-strong)"/>
 
-                                <!-- 品牌官方折纸大象 (等比缩放嵌入右侧，带来生机与守护感) -->
-                                <g transform="translate(68, 20) scale(0.62)">
-                                    <polygon points="16.3,51.15 16.64,59.63 9.89,65.51" fill="#68b5f8" />
-                                    <polygon points="17.51,75.89 18.2,89.21 3.32,85.06" fill="#68b5f8" />
-                                    <polygon points="2.97,86.97 11.97,89.21 6.61,96.48" fill="#68b5f8" />
-                                    <polygon points="17.85,49.42 34.46,31.78 31.87,78.66 19.76,88.52" fill="#0076de" />
-                                    <polygon points="36.71,31.43 64.22,34.72 54.36,47.35 33.77,76.93" fill="#0076de" />
-                                    <polygon points="57.47,50.46 57.47,78.49 36.71,76.24" fill="#68b5f8" />
-                                    <polygon points="59.2,49.94 76.85,60.67 68.02,99.94 59.2,107.55" fill="#0076de" />
+                                <!-- 品牌官方折纸大象 (等比缩放嵌入右侧，底边与图纸框齐平) -->
+                                <g transform="translate(68, 28.7) scale(0.62)">
+                                    <polygon points="15.5,51.52 16.0,59.8 9.89,65.51" fill="#68b5f8" />
+                                    <polygon points="17.01,75.89 17.7,89.21 3.32,85.06" fill="#68b5f8" />
+                                    <polygon points="2.97,87.47 11.47,89.71 6.61,96.48" fill="#68b5f8" />
+                                    <polygon points="17.85,49.42 34.4,31.09 31.17,78.75 19.76,88.52" fill="#0076de" />
+                                    <polygon points="36.71,31.43 59.62,34.17 54.77,47.51 33.87,77.38" fill="#0076de" />
+                                    <polygon points="56.65,49.06 56.29,78.75 37.31,76.74" fill="#68b5f8" />
+                                    <polygon points="58.79,49.86 76.85,60.67 68.02,98.94 58.79,106.54" fill="#0076de" />
                                     <polygon points="68.2,102.02 71.31,108.59 60.58,108.59" fill="#0076de" />
                                     <polygon points="77.71,67.76 88.26,79.01 81.0,84.72 74.6,80.91" fill="#68b5f8" />
-                                    <polygon points="88.96,80.39 88.44,95.1 79.44,91.98 82.21,86.45" fill="#0076de" />
-                                    <polygon points="72.69,28.66 80.82,60.5 57.12,46.48" fill="#68b5f8" />
-                                    <polygon points="74.77,28.49 86.19,28.49 96.05,34.72 108.68,62.75 96.05,57.73 93.63,53.23 97.26,62.57 81.86,57.21" fill="#0076de" />
-                                    <polygon points="105.74,52.19 120.44,56.0 110.41,62.92" fill="#68b5f8" />
-                                    <polygon points="112.48,52.19 122.0,42.85 120.79,54.44" fill="#0076de" />
-                                    <polygon points="113.69,35.76 121.31,41.64 117.33,45.27 116.12,45.96" fill="#68b5f8" />
-                                    <polygon points="114.04,33.85 116.81,31.09 117.67,36.8" fill="#68b5f8" />
-                                    <polygon points="118.02,30.74 122.52,30.74 118.71,34.72" fill="#0076de" />
+                                    <polygon points="88.96,81.39 88.44,95.1 79.44,91.98 82.21,86.45" fill="#0076de" />
+                                    <polygon points="72.44,26.23 80.82,60.5 57.61,46.41 65.15,24.17" fill="#68b5f8" />
+                                    <polygon points="75.44,28.49 86.19,28.49 96.05,34.72 108.68,62.75 96.05,57.73 93.63,53.23 97.26,62.57 82.56,57.55" fill="#0076de" />
+                                    <polygon points="106.24,52.19 120.44,56.0 110.91,62.92" fill="#68b5f8" />
+                                    <polygon points="112.48,51.69 122.0,42.85 120.79,53.94" fill="#0076de" />
+                                    <polygon points="113.69,35.76 121.31,40.64 116.12,45.46" fill="#68b5f8" />
+                                    <polygon points="114.04,33.85 116.81,31.09 118.17,36.3" fill="#68b5f8" />
+                                    <polygon points="118.17,30.52 122.88,30.76 119.21,34.72" fill="#0076de" />
                                     <!-- 朱砂红灵感小球及其微波纹 -->
                                     <circle cx="120.27" cy="24.17" r="9" fill="#ff5d47" fill-opacity="0.14" />
                                     <circle cx="120.27" cy="24.17" r="4.76" fill="#ff5d47" />
@@ -1092,35 +1082,29 @@ foreach ($cats as $cat) {
                     <div class="empty-state-box">
                         <div class="empty-state-illustration">
                             <svg width="124" height="100" viewBox="0 0 124 100" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                <!-- 背景工程十字定位坐标 -->
-                                <circle cx="16" cy="18" r="1.5" fill="#cbd5e1"/>
-                                <circle cx="108" cy="18" r="1.5" fill="#cbd5e1"/>
-                                <circle cx="16" cy="82" r="1.5" fill="#cbd5e1"/>
-                                <circle cx="108" cy="82" r="1.5" fill="#cbd5e1"/>
-
                                 <!-- 后层微倾斜画卷（营造原型多页面景深感） -->
-                                <rect x="36" y="20" width="58" height="46" rx="6" fill="#f8fafc" stroke="#cbd5e1" stroke-width="1.2" transform="rotate(3 65 43)"/>
+                                <rect x="36" y="20" width="58" height="46" rx="6" fill="var(--canvas)" stroke="var(--border-strong)" stroke-width="1.2" transform="rotate(3 65 43)"/>
 
                                 <!-- 前层纯白原型画卷（绝对居中，中心 62, 50） -->
-                                <rect x="33" y="27" width="58" height="46" rx="6" fill="#ffffff" stroke="#94a3b8" stroke-width="1.5"/>
-                                <line x1="33" y1="38" x2="91" y2="38" stroke="#f1f5f9" stroke-width="1"/>
-                                <circle cx="39" cy="32.5" r="1.5" fill="#e2e8f0"/>
-                                <circle cx="43.5" cy="32.5" r="1.5" fill="#e2e8f0"/>
-                                <circle cx="48" cy="32.5" r="1.5" fill="#e2e8f0"/>
+                                <rect x="33" y="27" width="58" height="46" rx="6" fill="var(--surface)" stroke="var(--border-strong)" stroke-width="1.5"/>
+                                <line x1="33" y1="38" x2="91" y2="38" stroke="var(--surface-hover)" stroke-width="1"/>
+                                <circle cx="39" cy="32.5" r="1.5" fill="var(--border)"/>
+                                <circle cx="43.5" cy="32.5" r="1.5" fill="var(--border)"/>
+                                <circle cx="48" cy="32.5" r="1.5" fill="var(--border)"/>
 
                                 <!-- 线框骨架 -->
-                                <rect x="40" y="43" width="22" height="4" rx="1.5" fill="#0076de" fill-opacity="0.25"/>
-                                <rect x="40" y="50" width="44" height="2" rx="1" fill="#f1f5f9"/>
-                                <rect x="40" y="55" width="20" height="11" rx="2" fill="#f8fafc" stroke="#e2e8f0" stroke-width="1"/>
-                                <rect x="63" y="55" width="20" height="11" rx="2" fill="#f8fafc" stroke="#e2e8f0" stroke-width="1"/>
+                                <rect x="40" y="43" width="22" height="4" rx="1.5" fill="var(--primary)" fill-opacity="0.25"/>
+                                <rect x="40" y="50" width="44" height="2" rx="1" fill="var(--surface-hover)"/>
+                                <rect x="40" y="55" width="20" height="11" rx="2" fill="var(--canvas)" stroke="var(--border)" stroke-width="1"/>
+                                <rect x="63" y="55" width="20" height="11" rx="2" fill="var(--canvas)" stroke="var(--border)" stroke-width="1"/>
 
                                 <!-- 交互核心：画卷中央的聚焦涟漪 Focus Ring -->
-                                <circle cx="62" cy="54" r="16" fill="#0076de" fill-opacity="0.06" stroke="#0076de" stroke-width="1" stroke-dasharray="2 3"/>
-                                <circle cx="62" cy="54" r="8" fill="#0076de" fill-opacity="0.12"/>
+                                <circle cx="62" cy="54" r="16" fill="var(--primary)" fill-opacity="0.06" stroke="var(--primary)" stroke-width="1" stroke-dasharray="2 3"/>
+                                <circle cx="62" cy="54" r="8" fill="var(--primary)" fill-opacity="0.12"/>
 
                                 <!-- 优雅的晴空蓝检阅光标 (落点精准对齐中心 62, 54) -->
                                 <g transform="translate(56, 48)">
-                                    <path d="M0 0 L11 11 L6 12 L9 18.5 L6 19.8 L3 13.5 L-2.5 17 Z" fill="#0076de" stroke="#ffffff" stroke-width="1.5" stroke-linejoin="round"/>
+                                    <path d="M0 0 L11 11 L6 12 L9 18.5 L6 19.8 L3 13.5 L-2.5 17 Z" fill="var(--primary)" stroke="var(--surface)" stroke-width="1.5" stroke-linejoin="round"/>
                                 </g>
 
                                 <!-- 右上角点睛朱砂红灵感火花与光环 -->

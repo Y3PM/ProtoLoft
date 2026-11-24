@@ -1735,6 +1735,7 @@ class Auth {
             $stmt = $db->prepare("SELECT id, email, name, auth_version FROM users WHERE email = ? AND status = 1");
             $stmt->execute([$email]);
             $user = $stmt->fetch();
+            $stmt->closeCursor();
             if (!$user) {
                 $db->rollBack();
                 return;
