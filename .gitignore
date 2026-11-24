@@ -27,6 +27,9 @@ Thumbs.db
 # 老版本历史备份禁止上传
 现状/
 
+# 本地设计原稿目录（Sketch 等源文件，不纳入 Git）
+design/
+
 # 运行时 SQLite 数据库 (安装向导与启动时自动免配置生成)
 data/*.sqlite
 data/*.sqlite-journal
