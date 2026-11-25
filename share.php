@@ -593,7 +593,7 @@ Auth::recordAccessLog($item['id'], $item['name'], $curVerName, 'share');
             <button class="btn-tool" onclick="reloadShareFrame()" title="刷新"><span class="duo-icon-slot" data-duo-icon="rotate-cw"><i class="ri-refresh-line duo-rest-icon"></i></span> 刷新</button>
             <?php if ($canAnnotate): ?>
                 <button class="btn-tool" id="btnToggleAnnotation" onclick="toggleAnnotationDrawer()" title="页面批注与协作讨论 (快捷键 C)">
-                    <span class="duo-icon-slot" data-duo-icon="message-square"><i class="ri-chat-3-line duo-rest-icon"></i></span> 批注
+                    <span class="duo-icon-slot" data-duo-icon="message-circle"><i class="ri-chat-3-line duo-rest-icon"></i></span> 批注
                     <span id="annoHeaderBadge" class="anno-badge" style="display:none;">0</span>
                 </button>
             <?php endif; ?>
@@ -1415,7 +1415,7 @@ $(document).ready(function() {
     ], JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_UNESCAPED_UNICODE); ?>;
     <?php endif; ?>
 </script>
-<script src="assets/js/annotation.js?v=<?php echo APP_VERSION; ?>"></script>
+<script src="assets/js/annotation.js?v=<?php echo APP_VERSION . '.' . filemtime(__DIR__ . '/assets/js/annotation.js'); ?>"></script>
 <script>
     $(function() {
         if (typeof window.updateAnnoContext === 'function') {

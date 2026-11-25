@@ -5287,7 +5287,7 @@ button.user-badge { border:0; background-color:transparent; text-align:left; fon
     border: 1px solid var(--warning-border);
 }
 
-/* 方案A：关键操作按钮双色悬停动态图标（静止保留线性克制感，悬停平滑切出高对比双色面性 + 动效） */
+/* 方案A：关键操作按钮双色悬停动态图标（静止保留线性克制感，悬停快速切出高对比双色面性 + 动效） */
 .duo-icon-slot {
     position: relative;
     display: inline-flex;
@@ -5305,7 +5305,7 @@ button.user-badge { border:0; background-color:transparent; text-align:left; fon
     justify-content: center;
     font-size: 15px;
     line-height: 1;
-    transition: opacity 0.16s ease, transform 0.2s var(--ease-spring);
+    transition: opacity 0.07s ease;
 }
 .btn-sm .duo-icon-slot {
     width: 15px;
@@ -5324,10 +5324,10 @@ button.user-badge { border:0; background-color:transparent; text-align:left; fon
     pointer-events: none;
     z-index: 1;
     color: var(--primary-hover);
-    --kd-b: color-mix(in srgb, var(--primary) 54%, var(--surface));
+    --kd-a: var(--primary-hover);
+    --kd-b: color-mix(in srgb, var(--primary) 40%, var(--surface));
     opacity: 0;
-    transform: scale(0.84);
-    transition: opacity 0.16s ease, transform 0.22s var(--ease-spring);
+    transition: opacity 0.07s ease;
 }
 .duo-icon-svg {
     display: block;
@@ -5349,19 +5349,27 @@ button.user-badge { border:0; background-color:transparent; text-align:left; fon
     height: 18px;
 }
 
-/* 蓝色实底主按钮：悬停时切为纯白主色 + 64% 高对比柔白辅色 */
+/* 蓝色实底主按钮：内嵌符号用纯白立体主体 + 晴空蓝核心；外露及带缝箭头图标用纯白前景 + 亮天蓝衬底 */
 .btn-tool-primary .duo-icon-slot .duo-active-icon,
 .btn-primary .duo-icon-slot .duo-active-icon,
 .empty-state-btn .duo-icon-slot .duo-active-icon {
     color: var(--surface);
-    --kd-b: color-mix(in srgb, currentColor 64%, transparent);
+    --kd-a: var(--primary);
+    --kd-b: var(--surface);
 }
-.sidebar-empty-btn .duo-icon-slot .duo-active-icon {
-    color: var(--primary-hover);
-    --kd-b: color-mix(in srgb, var(--primary) 52%, var(--surface));
+:is(.btn-tool-primary, .btn-primary, .empty-state-btn) :is([data-duo-icon="cloud-upload"], [data-duo-icon="download"], [data-duo-icon="user-plus"], [data-duo-icon="copy"], [data-duo-icon="external-link"], [data-duo-icon="send"]) .duo-active-icon {
+    color: var(--surface);
+    --kd-a: var(--surface);
+    --kd-b: color-mix(in srgb, var(--surface) 46%, var(--primary));
+}
+.sidebar-empty-btn .duo-icon-slot .duo-active-icon,
+.btn-top-changelog .duo-icon-slot .duo-active-icon {
+    color: var(--surface);
+    --kd-a: var(--surface);
+    --kd-b: var(--primary);
 }
 
-/* 危险/删除按钮：悬停时切为深警示红主色 + 54% 饱满红辅色 */
+/* 危险/删除按钮：悬停时切为深警示红主色 + 44% 清晰红辅色 */
 .is-danger .duo-icon-slot .duo-active-icon,
 .is-danger.duo-hover-btn .duo-active-icon,
 .btn-ver-del .duo-icon-slot .duo-active-icon,
@@ -5369,19 +5377,18 @@ button.user-badge { border:0; background-color:transparent; text-align:left; fon
 .btn-danger-sm .duo-icon-slot .duo-active-icon,
 [data-duo-icon="trash"] .duo-active-icon {
     color: var(--danger-text);
-    --kd-b: color-mix(in srgb, var(--danger) 54%, var(--surface));
+    --kd-a: var(--danger-text);
+    --kd-b: color-mix(in srgb, var(--danger) 44%, var(--surface));
 }
 
 /* 通用触发器激活态（禁用态不触发） */
 :is(button, a, .btn-act, .btn-tool, .btn-top-changelog, .btn-top-ver-manage, .quick-add-item, .empty-state-btn, .sidebar-empty-btn, .btn-primary, .btn-cancel):not(:disabled):not([disabled]):not(.is-disabled):hover .duo-rest-icon,
 :is(button, a, .btn-act, .btn-tool, .btn-top-changelog, .btn-top-ver-manage, .quick-add-item, .empty-state-btn, .sidebar-empty-btn, .btn-primary, .btn-cancel):not(:disabled):not([disabled]):not(.is-disabled):focus-visible .duo-rest-icon {
     opacity: 0;
-    transform: scale(0.84);
 }
 :is(button, a, .btn-act, .btn-tool, .btn-top-changelog, .btn-top-ver-manage, .quick-add-item, .empty-state-btn, .sidebar-empty-btn, .btn-primary, .btn-cancel):not(:disabled):not([disabled]):not(.is-disabled):hover .duo-active-icon,
 :is(button, a, .btn-act, .btn-tool, .btn-top-changelog, .btn-top-ver-manage, .quick-add-item, .empty-state-btn, .sidebar-empty-btn, .btn-primary, .btn-cancel):not(:disabled):not([disabled]):not(.is-disabled):focus-visible .duo-active-icon {
     opacity: 1;
-    transform: scale(1);
 }
 @media (prefers-reduced-motion: reduce) {
     .duo-icon-slot .duo-rest-icon,

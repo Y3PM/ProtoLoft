@@ -1532,7 +1532,7 @@ $renderItemOwnersCell = function($item, $usersMap) use ($editorShareAllowed) {
                         </div>
                         <?php if ($isAdmin): ?>
                         <div id="activeUserActions">
-                            <button type="button" class="btn-primary btn-md" onclick="showAddUserBox()"><span class="duo-icon-slot" data-duo-icon="circle-plus"><i class="ri-user-add-line duo-rest-icon"></i></span> 添加成员</button>
+                            <button type="button" class="btn-primary btn-md" onclick="showAddUserBox()"><span class="duo-icon-slot" data-duo-icon="user-plus"><i class="ri-user-add-line duo-rest-icon"></i></span> 添加成员</button>
                         </div>
                         <?php endif; ?>
                     </div>

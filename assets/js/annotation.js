@@ -845,7 +845,7 @@
                     ${replyBoxHtml}
                     <div class="anno-card-actions">
                         <button type="button" class="anno-act-btn" data-anno-reply-toggle="${a.id}" onclick="toggleReplyInput(${a.id})">
-                            <span class="duo-icon-slot" data-duo-icon="message-square"><i class="ri-chat-1-line duo-rest-icon"></i></span> 回复 ${a.replies ? '(' + a.replies.length + ')' : ''}
+                            <span class="duo-icon-slot" data-duo-icon="message-circle"><i class="ri-chat-1-line duo-rest-icon"></i></span> 回复 ${a.replies ? '(' + a.replies.length + ')' : ''}
                         </button>
                         <button type="button" class="anno-act-btn" onclick="copyAnnotationLink(${a.id})">复制链接</button>
                         ${toggleBtnHtml}

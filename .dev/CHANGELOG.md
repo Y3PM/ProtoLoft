@@ -7,6 +7,15 @@
 
 ## 发布前修复（全新版本，未发布）
 
+- 2026-11-25（3.1.11 图标优化收口）：依据 Kubai Icons 双色规范，完成全站 30 款（104 处）悬停双色动态图标的全场景对比度、视觉体量、语义一致性与动效精细化优化：
+  - **独立主辅色与蓝底分组对比方案** (`assets/js/duo-icons.js`, `assets/css/app.css`)：分离 `--kd-a`（主层）与 `--kd-b`（辅层）变量；白/浅灰底（工具栏、列表中立操作）统一收敛为 `--primary-hover` + `40%` 浅蓝透明面，浅蓝底胶囊（侧栏引导、日志角标）采用晴空蓝主体配纯白高反差细节，危险红按钮采用 `--danger-text` + `44%` 透明面；蓝色主按钮按图标几何特征分为两类——内嵌符号类纯白衬底配品牌蓝细节，外露轮廓/带缝箭头类（`cloud-upload` / `download` / `user-plus` / `copy` / `external-link` / `send`）采用纯白前景配 `46%` 亮天蓝透明衬底，消除「发布版本」「下载 RP」等箭头过暗及白色糊底问题。
+  - **体量补偿、闪现消除与语义校准** (`assets/js/duo-icons.js`, `assets/css/app.css`, `includes/modals.php`, `assets/js/share.js`, `assets/js/annotation.js`, `index.php`, `share.php`)：
+    - 静止→激活悬停由 `scale(0.84)` 改为 `70ms` 纯透明交叉切换，消除缩放遮挡顿挫；为 `cloud-upload`（`1.16x`）、`link`（`1.12x`）、`key`（`1.10x`）补齐实体视觉体量，并收细 `cloud-upload`/`upload` 间隙；
+    - 修复引擎透明度 `a` 与描边进度 `w` 误用 `bezier(0.34,1.56,0.64,1)` 超调曲线导致的 `send` 飞出后闪现、`upload` 闪烁等异常，改为平滑 `EASE_BACK` 与先飞出再左侧柔入循环；
+    - 将控制中心「添加成员」升级为 `user-plus`；修复 `share.js` 复制状态切换丢失双色 DOM 结构问题；
+    - 将刷新 `rotate-cw` 升级为对称双弧+双箭头结构；将批注图标由 `message-square` 统一切换为与静止态一致的圆润气泡+三点跳动 `message-circle`（同步全库 `index.php` / `share.php` / `annotation.js` 引用）；将全屏 `maximize` 扩展至外缘并增强外扩动效，消除「显小误以为取消全屏」的问题；补充 `share.php` 中 `annotation.js` 的 `filemtime` 缓存戳。
+  - **验证**：`node -c`、`php -l`、全库 `message-square` 零残留检查、`.dev/export_release.py`（70 文件）及全量 `run_all_tests.py` 33/33 套全部通过；浏览器实景检查检视矩阵与真实工作台 Console 报错为 0。
+
 - 2026-11-25（3.1.11）：强化悬停双色动态图标的层次对比与整像素渲染清晰度，同时将个人头像重构为选择即保存。
   - **双色悬停图标对比度与清晰度优化**：在 `assets/js/duo-icons.js` 与 `assets/css/app.css` 中，将浅底辅层混色比例由 `34%` 提升至 `54%`、蓝色实底主按钮纯白辅层由 `42%` 提升至 `64%`、侧栏空状态按钮为 `52%`；前景主层分别收敛至 `var(--primary-hover)`（`#005bb5`）与 `var(--danger-text)`（`#b91c1c`），彻底避免浅背景吞掉辅色；同时打破 `1em` 随字号缩小限制，将 `.duo-icon-slot` 固定为 `16px × 16px`（静止态 `15px`，`.btn-sm` 内 `15px` / `14px`），解决小号文字按钮悬停糊边问题。
   - **个人头像选择即保存**：头像改为选择即保存，移除选板内的取消、保存及底栏；选板保留，支持继续换形换色。连续选择串行保存并合并中间值，旧响应不覆盖后续选择；收起不取消保存，失败恢复最近确认头像并提示，成功静默。
