@@ -199,7 +199,7 @@ SUITES = [
         "id": "storage_precision",
         "name": "控制中心存储空间数据精度与极小值保护",
         "cmd": ["python3", "-B", str(TESTS_DIR / "storage_precision_regression.py")],
-        "needs_php": False,
+        "needs_php": True,
         "type": "python"
     },
     {

@@ -17,15 +17,21 @@
   Q1 ~ Q6 (访客批注可见性隔离、注册防枚举、随机分享密码、字段上限、DB 结构化助手)
 """
 
+import concurrent.futures
+import hashlib
 import os
 import re
 import shutil
+import signal
 import socket
 import sqlite3
 import subprocess
 import sys
 import tempfile
 import time
+import urllib.error
+import urllib.parse
+import urllib.request
 import uuid
 
 from security_regression import ROOT, Client, PASS, zipped
@@ -156,7 +162,12 @@ def test_http_e2e_defects(php_bin):
             port = sock.getsockname()[1]
 
         log = open(os.path.join(fixture, 'server.log'), 'w', encoding='utf-8')
-        server = subprocess.Popen([php_bin, '-S', '127.0.0.1:' + str(port), '-t', fixture, os.path.join(fixture, 'router.php')], stdout=log, stderr=log)
+        env = os.environ.copy()
+        env['PHP_CLI_SERVER_WORKERS'] = '6'
+        server = subprocess.Popen(
+            [php_bin, '-S', '127.0.0.1:' + str(port), '-t', fixture, os.path.join(fixture, 'router.php')],
+            stdout=log, stderr=log, env=env, start_new_session=True
+        )
         base = 'http://127.0.0.1:' + str(port)
         guest = Client(base)
 
@@ -282,6 +293,7 @@ def test_http_e2e_defects(php_bin):
             'overwrite_token': ow_chk['data']['overwrite_token'],
         })
         assert_check("HTTP P3-5: 同名覆盖二次提交复用保留分片成功", ow_pub.get('success') is True)
+        ver2_id = ow_pub['data']['version_id']
 
         # P2-3 version_update 真实错误透传
         dup_upd = owner.api('version_update', {'id': ver2_id, 'version_name': 'V1.0'})
@@ -321,6 +333,41 @@ def test_http_e2e_defects(php_bin):
         assert_check("HTTP Q1: 访客批注强制追加 [外部访客] 前缀", g1_add.get('success') is True and g1_add['data']['author_name'].startswith('[外部访客]'), str(g1_add))
         g2_list = g2.api('list_annotations', {'item_id': item_id, 'ver_id': ver1_id})
         assert_check("HTTP Q1: 另一访客会话无法看到他人批注", g2_list.get('success') is True and len(g2_list['data']['list']) == 0, str(g2_list))
+
+        # R1 访客按编号调用 annotation_target / previous_annotations / reply_annotation 隔离验证
+        secret_note = 'INTERNAL_REVIEW_SECRET_R1_TOKEN'
+        own_anno_res = owner.api('add_annotation', {
+            'item_id': item_id,
+            'ver_id': ver1_id,
+            'page_path': 'index.html',
+            'page_title': '首页',
+            'content': secret_note,
+        })
+        assert_check("HTTP R1: 准备管理员内部批注成功", own_anno_res.get('success') is True)
+        internal_id = int(own_anno_res['data']['id'])
+
+        _, tgt_internal_body, _ = g2.request('/api.php?action=annotation_target&id=' + str(internal_id))
+        assert_check("HTTP R1: 访客调 annotation_target 读取内部批注被拒且不泄露正文",
+                     secret_note.encode('utf-8') not in tgt_internal_body and b'"success":false' in tgt_internal_body)
+
+        g1_own_id = int(g1_add['data']['id'])
+        _, tgt_g1_by_g1, _ = g1.request('/api.php?action=annotation_target&id=' + str(g1_own_id))
+        _, tgt_g1_by_g2, _ = g2.request('/api.php?action=annotation_target&id=' + str(g1_own_id))
+        assert_check("HTTP R1: 访客可调 annotation_target 读取自己发表的批注",
+                     b'"success":true' in tgt_g1_by_g1 and '访客意见'.encode('utf-8') in tgt_g1_by_g1)
+        assert_check("HTTP R1: 另一访客调 annotation_target 读取他人访客批注同样被拒",
+                     b'"success":false' in tgt_g1_by_g2 and '访客意见'.encode('utf-8') not in tgt_g1_by_g2)
+
+        owner.api('version_set_default', {'id': ver2_id})
+        g2.request('/share.php?s=' + share_code)
+        prev_res = g2.api('previous_annotations', {'ver_id': ver2_id})
+        prev_list = (prev_res.get('data') or {}).get('list') or []
+        assert_check("HTTP R1: 访客请求 previous_annotations 不会泄露旧版内部批注",
+                     prev_res.get('success') is True and all(secret_note not in (x.get('content') or '') for x in prev_list),
+                     str(prev_res))
+
+        rep_internal = g2.api('reply_annotation', {'annotation_id': internal_id, 'content': 'probe'})
+        assert_check("HTTP R1: 访客回复内部批注被拒绝", not rep_internal.get('success'))
 
         # P3-7 resolved_at UTC 时间基准
         anno_id = g1_add['data']['id']
@@ -373,15 +420,109 @@ def test_http_e2e_defects(php_bin):
         r11 = attacker.api('login', {'email': 'owner@example.com', 'password': 'Wrong-Password-4'}, csrf=False)
         assert_check("HTTP P2-2: 第 11 次登录请求被 IP 限速拦截（未被成功登录清零）",
                      (not r11.get('success')) and '失败次数过多' in r11.get('message', ''))
+
+        # R3 方案 C：未登录过的网段受账号锁拦截，近期成功登录网段豁免账号锁
+        tr_res = owner.api('user_add', {
+            'email': 'traveler@example.com',
+            'name': 'Traveler',
+            'password': PASS,
+            'role': 'editor',
+        })
+        assert_check("HTTP R3: 创建测试账号 traveler 成功", tr_res.get('success') is True)
+        db_t = sqlite3.connect(os.path.join(fixture, 'data', 'database.sqlite'))
+        db_t.execute("DELETE FROM settings WHERE key LIKE 'throttle_%'")
+        db_t.commit()
+        db_t.close()
+        for idx in range(10):
+            Client(base).api('login', {'email': 'traveler@example.com', 'password': 'Wrong-%d' % idx}, csrf=False)
+        # 清除 IP 限速但保留账号维度限速，模拟第 11 次来自从未登录过的新网络
+        ip_throttle_key = 'throttle_' + hashlib.sha256(b'login|127.0.0.1').hexdigest()
+        db_t = sqlite3.connect(os.path.join(fixture, 'data', 'database.sqlite'))
+        db_t.execute("DELETE FROM settings WHERE key = ?", (ip_throttle_key,))
+        db_t.commit()
+        db_t.close()
+        tr_blocked = Client(base).api('login', {'email': 'traveler@example.com', 'password': PASS}, csrf=False)
+        assert_check("HTTP R3: 从未成功登录过的新网络被账号锁拦截",
+                     (not tr_blocked.get('success')) and '该账号失败次数过多' in tr_blocked.get('message', ''), str(tr_blocked))
+
+        # 清空限速后让 traveler 正常登录一次记入常用网段，再模拟外部刷新账号错误次数至 10 次
+        db_t = sqlite3.connect(os.path.join(fixture, 'data', 'database.sqlite'))
+        db_t.execute("DELETE FROM settings WHERE key LIKE 'throttle_%'")
+        db_t.commit()
+        db_t.close()
+        tr_ok1 = Client(base).api('login', {'email': 'traveler@example.com', 'password': PASS}, csrf=False)
+        assert_check("HTTP R3: traveler 首次成功登录记入常用网段", tr_ok1.get('success') is True)
+        acc_key = 'throttle_' + hashlib.sha256(b'login_account_traveler@example.com|').hexdigest()
+        db_t = sqlite3.connect(os.path.join(fixture, 'data', 'database.sqlite'))
+        db_t.execute("INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)", (acc_key, '{"c":10,"ts":%d}' % int(time.time())))
+        db_t.commit()
+        db_t.close()
+        tr_trusted_ok = Client(base).api('login', {'email': 'traveler@example.com', 'password': PASS}, csrf=False)
+        assert_check("HTTP R3: 近期成功登录网段豁免账号维度锁，不被外部刷错锁死", tr_trusted_ok.get('success') is True, str(tr_trusted_ok))
+
+        # R2 并发压测：24 个并发错误登录与 24 个并发错误分享口令，实际校验次数均严格 <= 10 且零 500 错误
+        pwd_set = owner.api('item_save_share', {'id': item_id, 'share_enabled': 1, 'access_password': 'SharePwd!2026'})
+        assert_check("HTTP R2: 设置分享口令成功", pwd_set.get('success') is True)
+        db_t = sqlite3.connect(os.path.join(fixture, 'data', 'database.sqlite'))
+        db_t.execute("DELETE FROM settings WHERE key LIKE 'throttle_%' OR key LIKE 'login_trusted_nets_%'")
+        db_t.commit()
+        db_t.close()
+
+        def raw_post(path, fields):
+            req = urllib.request.Request(
+                base + path,
+                data=urllib.parse.urlencode(fields).encode('utf-8'),
+                headers={'Content-Type': 'application/x-www-form-urlencoded'}
+            )
+            try:
+                with urllib.request.urlopen(req, timeout=30) as resp:
+                    return resp.status, resp.read().decode('utf-8', 'replace')
+            except urllib.error.HTTPError as err:
+                return err.code, err.read().decode('utf-8', 'replace')
+
+        with concurrent.futures.ThreadPoolExecutor(max_workers=24) as pool:
+            login_outs = list(pool.map(
+                lambda i: raw_post('/api.php', {'action': 'login', 'email': 'owner@example.com', 'password': 'Nope-%d' % i}),
+                range(24)
+            ))
+        login_eval = sum(1 for st_c, bd in login_outs if st_c < 500 and '邮箱或密码错误' in bd)
+        login_5xx = sum(1 for st_c, _ in login_outs if st_c >= 500)
+        assert_check("HTTP R2: 24 并发错误登录仅校验 <=10 次且零 500 错误",
+                     login_5xx == 0 and 1 <= login_eval <= 10, f"eval={login_eval}, 5xx={login_5xx}")
+
+        with concurrent.futures.ThreadPoolExecutor(max_workers=24) as pool:
+            share_outs = list(pool.map(
+                lambda i: raw_post('/share.php?s=' + share_code, {'project_password': 'WrongPwd-%d' % i}),
+                range(24)
+            ))
+        share_eval = sum(1 for st_c, bd in share_outs if st_c == 200 and 'shareProjPwdInput' in bd)
+        share_429 = sum(1 for st_c, _ in share_outs if st_c == 429)
+        share_5xx = sum(1 for st_c, _ in share_outs if st_c >= 500)
+        assert_check("HTTP R2: 24 并发错误分享口令仅校验 <=10 次且其余 429 拦截",
+                     share_5xx == 0 and 1 <= share_eval <= 10 and share_429 >= 14,
+                     f"eval={share_eval}, 429={share_429}, 5xx={share_5xx}")
     finally:
         if log:
             log.close()
         if server and server.poll() is None:
-            server.terminate()
             try:
+                pgid = os.getpgid(server.pid)
+            except Exception:
+                pgid = None
+            try:
+                if pgid is not None:
+                    os.killpg(pgid, signal.SIGTERM)
+                else:
+                    server.terminate()
                 server.wait(timeout=5)
             except Exception:
-                server.kill()
+                try:
+                    if pgid is not None:
+                        os.killpg(pgid, signal.SIGKILL)
+                    else:
+                        server.kill()
+                except Exception:
+                    pass
         shutil.rmtree(fixture, ignore_errors=True)
 
 

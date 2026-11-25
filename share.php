@@ -110,7 +110,7 @@ if ($shareCode !== '') {
         $isShortCodeMode = true;
         $customShareInfo = $codeInfo;
     } else {
-        render_share_error_card('分享直链已失效', '链接已失效', 'ri-link-unlink-m', '该专属分享链接不存在或已被删除，请核对链接地址或联系分享者重新提供。', 404, $siteTitle, $faviconUrl, $favType, 'neutral');
+        render_share_error_card('分享链接已失效', '链接已失效', 'ri-link-unlink-m', '该分享链接不存在或已被删除，请核对链接地址或联系分享者重新提供。', 404, $siteTitle, $faviconUrl, $favType, 'neutral');
     }
 } else {
     $itemId = (int)($_GET['id'] ?? $_GET['item'] ?? 0);
@@ -280,14 +280,13 @@ $restoreShare = $restoreSecureShare || (is_string($receivedShareCookie) && hash_
 
 $passwordVerified = false;
 if (!$isProjectAuthPassed && !$restoreShare && $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['project_password'])) {
-    if (!Auth::checkThrottle('share_pwd_' . $sessionKey, 10, 900)) {
+    if (!Auth::reserveThrottleAttempt('share_pwd_' . $sessionKey, 10, 900)) {
         http_response_code(429); exit('尝试过多，请稍后重试');
     }
     $passwordVerified = is_string($_POST['project_password']) && hash_equals($projectPwd, $_POST['project_password']);
     if ($passwordVerified) {
         Auth::clearThrottle('share_pwd_' . $sessionKey);
     } else {
-        Auth::recordThrottleFailure('share_pwd_' . $sessionKey);
         $projectPwdError = '密码错误，请重新输入';
     }
 }

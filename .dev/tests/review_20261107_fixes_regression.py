@@ -361,8 +361,8 @@ def run_tests(php_bin):
         _, _, page_text = guest_client.request(f'/share.php?s={share_code}')
         assert_true('var currentVerId = ' in page_text, "访客成功进入专属分享主页")
 
-        # 提取访客会话中的 validToken
-        token_match = re.search(r'var currentToken = "([^"]+)";', page_text)
+        # 提取访客会话中的 CSRF Token
+        token_match = re.search(r'(?:window\.CSRF_TOKEN\s*=|var currentToken\s*=)\s*"([^"]+)"', page_text)
         if token_match:
             guest_client.token = token_match.group(1)
 
@@ -378,16 +378,29 @@ def run_tests(php_bin):
         assert_eq(len(member_prev['data']['list']), 1, "成员有权读取 V1 上期未决批注")
         assert_eq(member_prev['data']['list'][0]['content'], 'V1 内部核心敏感需求批注内容-机密', "成员能看到 V1 批注正文")
 
-        # 9. 核心守卫断言 (P1-F3): perm_guest_annotate=0 时 annotation_target 拒绝访客
-        # 首先确认在 perm_guest_annotate=1 时，访客能读取已授权的 V2 批注
-        g_target_v2_status, g_target_v2, _ = guest_client.request(f'/api.php?action=annotation_target&id={anno2_id}')
-        assert_true(g_target_v2.get('success'), "开启访客批注时，访客可读取授权版本批注")
+        # 9. 核心守卫断言 (P1-F3 + Q1/R1): 访客不能越权读取管理员内部批注；且仅当 perm_guest_annotate=1 时可读自己批注
+        g_target_internal_status, g_target_internal, _ = guest_client.request(f'/api.php?action=annotation_target&id={anno2_id}')
+        assert_eq(g_target_internal.get('success'), False, "Q1/R1: 即使开启访客批注，访客仍不可按编号读取内部批注")
+
+        g_own_res = guest_client.api('add_annotation', {
+            'item_id': item_id,
+            'ver_id': v2_id,
+            'page_path': 'index.html',
+            'page_title': '首页',
+            'content': '访客自身批注验证开关',
+            'guest_name': '访客甲'
+        })
+        assert_true(g_own_res.get('success'), f"开启访客批注时访客发表自身批注成功: {g_own_res}")
+        guest_anno2_id = g_own_res['data']['id']
+
+        g_target_v2_status, g_target_v2, _ = guest_client.request(f'/api.php?action=annotation_target&id={guest_anno2_id}')
+        assert_true(g_target_v2.get('success'), "开启访客批注时，访客可读取本人发表的授权版本批注")
 
         # 管理员关闭访客批注开关 perm_guest_annotate = 0
         client.api('save_role_permissions', {'perm_guest_annotate': '0'})
 
-        # 再次请求 V2 批注 target: 必须被集中鉴权拒绝
-        g_blocked_status, g_blocked_body, _ = guest_client.request(f'/api.php?action=annotation_target&id={anno2_id}')
+        # 再次请求自身 V2 批注 target: 必须被集中鉴权拒绝
+        g_blocked_status, g_blocked_body, _ = guest_client.request(f'/api.php?action=annotation_target&id={guest_anno2_id}')
         assert_eq(g_blocked_body.get('success'), False, "perm_guest_annotate=0 时 annotation_target 必须坚决拒绝访客")
         assert_true('不可访问' in g_blocked_body.get('message', ''), "提示信息必须为防越权模糊语义")
 

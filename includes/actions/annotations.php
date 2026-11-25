@@ -46,12 +46,21 @@ switch ($action) {
         $stmt = $db->prepare('SELECT * FROM versions WHERE item_id = ? AND id < ? ORDER BY id DESC LIMIT 1');
         $stmt->execute([$current['item_id'], $current['id']]);
         $previous = $stmt->fetch();
+        $stmt->closeCursor();
         $list = [];
         $hasPreviousAccess = ($previous && Collaboration::canAccessAnnotations($item, $previous));
         if ($hasPreviousAccess) {
-            $stmt = $db->prepare('SELECT * FROM annotations WHERE ver_id = ? AND status = 0 ORDER BY id LIMIT 100');
-            $stmt->execute([$previous['id']]);
-            foreach ($stmt->fetchAll() as $row) $list[] = Collaboration::decorate($row, $previous);
+            $guestIds = Collaboration::guestAnnotationIds();
+            if ($guestIds === null) {
+                $stmt = $db->prepare('SELECT * FROM annotations WHERE ver_id = ? AND status = 0 ORDER BY id LIMIT 100');
+                $stmt->execute([$previous['id']]);
+                foreach ($stmt->fetchAll() as $row) $list[] = Collaboration::decorate($row, $previous);
+            } elseif (!empty($guestIds)) {
+                $inIds = implode(',', $guestIds);
+                $stmt = $db->prepare("SELECT * FROM annotations WHERE ver_id = ? AND status = 0 AND user_id = 0 AND id IN ($inIds) ORDER BY id LIMIT 100");
+                $stmt->execute([$previous['id']]);
+                foreach ($stmt->fetchAll() as $row) $list[] = Collaboration::decorate($row, $previous);
+            }
         }
         jsonResponse(true, ['version_name' => $hasPreviousAccess ? $previous['version_name'] : '', 'list' => $list]);
         break;
@@ -113,9 +122,9 @@ switch ($action) {
         $params = [$itemId, $verId];
 
         // 访客可见性隔离：未登录访客仅允许查看本会话自身发表的批注，杜绝内部讨论外泄
-        if (!$curUser) {
-            $myAnnoIds = (!empty($_SESSION['guest_anno_ids']) && is_array($_SESSION['guest_anno_ids'])) ? array_map('intval', $_SESSION['guest_anno_ids']) : [];
-            if (empty($myAnnoIds)) {
+        $guestIds = Collaboration::guestAnnotationIds();
+        if ($guestIds !== null) {
+            if (empty($guestIds)) {
                 jsonResponse(true, [
                     'list' => [],
                     'pending_count' => 0,
@@ -123,7 +132,7 @@ switch ($action) {
                 ]);
                 break;
             }
-            $inIds = implode(',', $myAnnoIds);
+            $inIds = implode(',', $guestIds);
             $sql .= " AND id IN ($inIds) AND user_id = 0";
         }
 
@@ -320,8 +329,7 @@ switch ($action) {
             $userId = (int)$curUser['id'];
         } else {
             if (!Auth::canGuestAnnotate()) jsonResponse(false, null, '未开放访客批注');
-            $myAnnoIds = (!empty($_SESSION['guest_anno_ids']) && is_array($_SESSION['guest_anno_ids'])) ? array_map('intval', $_SESSION['guest_anno_ids']) : [];
-            if (!in_array($annoId, $myAnnoIds, true)) {
+            if (!Collaboration::canAccessAnnotationRecord($anno)) {
                 jsonResponse(false, null, '无权回复此批注');
             }
             if (!Auth::checkThrottle('guest_reply_' . $annoId . '_' . ($_SERVER['REMOTE_ADDR'] ?? ''), 15, 60)) {
@@ -349,7 +357,7 @@ switch ($action) {
 
         // 定向推送到原批注作者
         try {
-            if (!empty($anno['user_id']) && (int)$anno['user_id'] !== (int)$curUser['id']) {
+            if (!empty($anno['user_id']) && (int)$anno['user_id'] !== (int)($curUser['id'] ?? 0)) {
                 $uStmt = $db->prepare("SELECT webhook_url FROM users WHERE id = ?");
                 $uStmt->execute([(int)$anno['user_id']]);
                 $userWb = trim($uStmt->fetchColumn() ?: '');

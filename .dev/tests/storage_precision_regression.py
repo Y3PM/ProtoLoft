@@ -10,20 +10,21 @@
    - 验证返回 0%，杜绝 Division by zero 报错；
 4. 真实页面 includes/modals.php 代码结构静态与语法校验。
 """
+import argparse
 import subprocess
 import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent.parent
 
-def run_php(code: str) -> str:
-    cmd = ["php", "-r", code]
+def run_php(code: str, php_bin: str = "php") -> str:
+    cmd = [php_bin, "-r", code]
     res = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, cwd=str(ROOT))
     if res.returncode != 0:
         raise RuntimeError(f"PHP execution failed:\n{res.stderr}")
     return res.stdout.strip()
 
-def test_storage_percentage_logic():
+def test_storage_percentage_logic(php_bin: str = "php"):
     print(">>> 1. 测试存储计算与格式化逻辑...")
     php_snippet = r'''
     $fmtStoragePct = function($b, $total) {
@@ -69,7 +70,7 @@ def test_storage_percentage_logic():
     ]);
     '''
     import json
-    out = run_php(php_snippet)
+    out = run_php(php_snippet, php_bin)
     data = json.loads(out)
 
     # 断言 1: 杜绝 0.400000000000001%，必须是 0.4%
@@ -106,8 +107,11 @@ def test_modals_file_contract():
     print("  ✓ PASS: includes/modals.php 契约核验通过")
 
 if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--php', default='php')
+    args = parser.parse_args()
     try:
-        test_storage_percentage_logic()
+        test_storage_percentage_logic(args.php)
         test_modals_file_contract()
         print("\nAll storage precision tests passed successfully!")
     except Exception as e:

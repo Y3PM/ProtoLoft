@@ -36,16 +36,43 @@ class Collaboration {
         return Auth::hasShareAccess($item, $version);
     }
 
+    /** 获取未登录访客允许访问的批注 ID 列表；已登录成员返回 null 表示不限归属 */
+    public static function guestAnnotationIds() {
+        if (Auth::getCurrentUser()) {
+            return null;
+        }
+        if (empty($_SESSION['guest_anno_ids']) || !is_array($_SESSION['guest_anno_ids'])) {
+            return [];
+        }
+        return array_values(array_unique(array_filter(array_map('intval', $_SESSION['guest_anno_ids']), function ($id) {
+            return $id > 0;
+        })));
+    }
+
+    /** 判断当前请求者是否有权读取或回复指定批注记录 */
+    public static function canAccessAnnotationRecord($annotation) {
+        if (!$annotation) {
+            return false;
+        }
+        $guestIds = self::guestAnnotationIds();
+        if ($guestIds === null) {
+            return true;
+        }
+        return (int)($annotation['user_id'] ?? -1) === 0
+            && in_array((int)($annotation['id'] ?? 0), $guestIds, true);
+    }
+
     public static function target($id) {
         $stmt = DB::getInstance()->prepare('SELECT * FROM annotations WHERE id = ?');
         $stmt->execute([(int)$id]);
         $annotation = $stmt->fetch();
+        $stmt->closeCursor();
         if (!$annotation) throw new DomainException('批注不存在或不可访问');
         $item = Auth::getItem((int)$annotation['item_id']);
         if (!$item) throw new DomainException('批注不存在或不可访问');
 
         if (empty($annotation['ver_id'])) {
-            if (!self::canAccessAnnotations($item, null)) {
+            if (!self::canAccessAnnotations($item, null) || !self::canAccessAnnotationRecord($annotation)) {
                 throw new DomainException('批注不存在或不可访问');
             }
             $annotation = self::decorate($annotation, null);
@@ -54,7 +81,7 @@ class Collaboration {
         }
 
         $version = PrototypeContext::version($annotation['ver_id']);
-        if (!self::canAccessAnnotations($item, $version)) {
+        if (!self::canAccessAnnotations($item, $version) || !self::canAccessAnnotationRecord($annotation)) {
             throw new DomainException('批注不存在或不可访问');
         }
         $annotation = self::decorate($annotation, $version);

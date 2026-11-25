@@ -15,6 +15,7 @@ import json
 import os
 import re
 import shutil
+import signal
 import socket
 import subprocess
 import sys
@@ -144,7 +145,8 @@ def main():
             [php_bin, '-S', '127.0.0.1:%d' % port, '-t', str(temp)],
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
-            env=env
+            env=env,
+            start_new_session=True
         )
 
         for _ in range(50):
@@ -275,11 +277,24 @@ def main():
         print("\nALL 4 CONCURRENT COLLISION SUITES PASSED (12/12 ASSERTIONS OK)!")
     finally:
         if proc:
-            proc.terminate()
             try:
+                pgid = os.getpgid(proc.pid)
+            except Exception:
+                pgid = None
+            try:
+                if pgid is not None:
+                    os.killpg(pgid, signal.SIGTERM)
+                else:
+                    proc.terminate()
                 proc.wait(timeout=5)
             except Exception:
-                proc.kill()
+                try:
+                    if pgid is not None:
+                        os.killpg(pgid, signal.SIGKILL)
+                    else:
+                        proc.kill()
+                except Exception:
+                    pass
         shutil.rmtree(str(temp), ignore_errors=True)
 
 

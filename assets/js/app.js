@@ -1096,7 +1096,10 @@ function toggleCategory(headerEl, e) {
     var easing = 'cubic-bezier(0.16, 1, 0.3, 1)';
     var duration = 180;
 
-    var cleanUp = function() {
+    var cleanUp = function(ownerAnim) {
+        if (ownerAnim && items._currentAnim !== ownerAnim) {
+            return;
+        }
         items.style.height = '';
         items.style.overflow = '';
         items.style.display = '';
@@ -1123,10 +1126,10 @@ function toggleCategory(headerEl, e) {
         items._currentAnim = anim;
 
         anim.onfinish = function() {
-            cleanUp();
+            cleanUp(anim);
         };
         anim.oncancel = function() {
-            cleanUp();
+            cleanUp(anim);
         };
     } else {
         // 收起流程：从当前实际高度平滑卷缩收拢，消除全高突变
@@ -1146,10 +1149,10 @@ function toggleCategory(headerEl, e) {
 
         anim.onfinish = function() {
             group.classList.add('collapsed');
-            cleanUp();
+            cleanUp(anim);
         };
         anim.oncancel = function() {
-            cleanUp();
+            cleanUp(anim);
         };
     }
 }

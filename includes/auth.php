@@ -132,18 +132,27 @@ class Auth {
             }
         }
 
-        // 同 IP 登录失败限速, 防在线爆破 (15 分钟窗口)
-        if (!self::checkThrottle('login', 10, 900)) {
+        $accountThrottleScope = 'login_account_' . strtolower(trim($email));
+        $throttleRules = [
+            ['scope' => 'login', 'max' => 10, 'window' => 900, 'by_ip' => true],
+        ];
+        // R3 方案 C：近期成功登录过的常用网段豁免账号维度锁（仍受单 IP 限速保护），防恶意刷错锁死正常同事
+        $isTrustedNet = ($email !== '' && self::isTrustedLoginNetwork($email));
+        if (!$isTrustedNet) {
+            $throttleRules[] = ['scope' => $accountThrottleScope, 'max' => 10, 'window' => 900, 'by_ip' => false];
+        }
+
+        // R2：在单次写锁事务中一次性完成“检查 + 占位”，防止并发请求同时跳过阈值
+        $blockedScope = self::reserveThrottleRules($throttleRules);
+        if ($blockedScope === 'login') {
             self::recordLoginLog($email, 0, '触发 IP 防爆破限速拦截');
             return ['success' => false, 'message' => '失败次数过多，请 15 分钟后再试'];
         }
-
-        // 同账号登录失败限速, 防分布式代理池多 IP 定向爆破 (15 分钟窗口)
-        $accountThrottleScope = 'login_account_' . strtolower(trim($email));
-        if (!self::checkThrottle($accountThrottleScope, 10, 900, false)) {
+        if ($blockedScope !== null) {
             self::recordLoginLog($email, 0, '触发账号防爆破限速拦截');
             return ['success' => false, 'message' => '该账号失败次数过多，请 15 分钟后再试'];
         }
+
         $db = DB::getInstance();
         $stmt = $db->prepare("SELECT * FROM users WHERE email = ?");
         $stmt->execute([$email]);
@@ -151,16 +160,21 @@ class Auth {
         $stmt->closeCursor();
 
         if ($user && password_verify($password, $user['password_hash'])) {
+            // 密码正确即退还本次预占的 IP 次数，但不清空之前累计（保留 P2-2 防绕过语义）
+            self::releaseThrottleAttempt('login', true);
             // 待审批与停用拦截
             if ((int)$user['status'] === 0) {
+                if (!$isTrustedNet) self::releaseThrottleAttempt($accountThrottleScope, false);
                 self::recordLoginLog($email, 0, '账号审核中');
                 return ['success' => false, 'message' => '账号审核中，通过后即可登录'];
             }
             if ((int)$user['status'] === 2) {
+                if (!$isTrustedNet) self::releaseThrottleAttempt($accountThrottleScope, false);
                 self::recordLoginLog($email, 0, '账号申请已被驳回');
                 return ['success' => false, 'message' => '账号申请已被驳回'];
             }
             if ((int)$user['status'] !== 1) {
+                if (!$isTrustedNet) self::releaseThrottleAttempt($accountThrottleScope, false);
                 self::recordLoginLog($email, 0, '账号已被停用');
                 return ['success' => false, 'message' => '账号已被停用'];
             }
@@ -199,6 +213,7 @@ class Auth {
             }
 
             self::clearThrottle($accountThrottleScope, false);
+            self::recordTrustedLoginNetwork($email);
             self::recordLoginLog($user['email'], 1, '登录成功' . ($rememberMe ? ' (记住30天)' : ' (单次会话)'));
             if (session_status() === PHP_SESSION_ACTIVE) {
                 @session_write_close();
@@ -211,8 +226,6 @@ class Auth {
                 'is_owner' => !empty($user['is_owner']) ? 1 : 0
             ]];
         }
-        self::recordThrottleFailure('login');
-        self::recordThrottleFailure($accountThrottleScope, 900, false);
         self::recordLoginLog($email, 0, '邮箱或密码错误');
         return ['success' => false, 'message' => '邮箱或密码错误'];
     }
@@ -993,12 +1006,106 @@ class Auth {
         return preg_replace('/[^0-9a-fA-F:\.]/', '', $ip) ?: '127.0.0.1';
     }
 
+    private static function throttleKey($scope, $byIp = true) {
+        return 'throttle_' . hash('sha256', $scope . '|' . ($byIp ? self::getClientIp() : ''));
+    }
+
+    /**
+     * 提取客户端当前 IP 所属常用网段摘要（IPv4 按 /24，IPv6 按 /64）
+     */
+    private static function clientNetworkDigest() {
+        $ip = self::getClientIp();
+        $packed = @inet_pton($ip);
+        if ($packed === false) {
+            return hash('sha256', 'raw:' . $ip);
+        }
+        if (strlen($packed) === 4) {
+            return hash('sha256', 'v4:' . substr($packed, 0, 3));
+        }
+        if (strlen($packed) === 16) {
+            return hash('sha256', 'v6:' . substr($packed, 0, 8));
+        }
+        return hash('sha256', 'raw:' . $ip);
+    }
+
+    private static function trustedNetworksKey($email) {
+        return 'login_trusted_nets_' . hash('sha256', strtolower(trim((string)$email)));
+    }
+
+    /** 判断指定账号近期是否曾在当前网段成功登录（30 天有效） */
+    public static function isTrustedLoginNetwork($email) {
+        $email = strtolower(trim((string)$email));
+        if ($email === '') {
+            return false;
+        }
+        $raw = self::getSetting(self::trustedNetworksKey($email), '');
+        if ($raw === '') {
+            return false;
+        }
+        $nets = json_decode($raw, true);
+        if (!is_array($nets)) {
+            return false;
+        }
+        $digest = self::clientNetworkDigest();
+        $lastTs = isset($nets[$digest]) ? (int)$nets[$digest] : 0;
+        return $lastTs > 0 && (time() - $lastTs) <= 30 * 86400;
+    }
+
+    /** 记录或刷新账号近期成功登录过的网段（最多保留 8 个 30 天内常用网段） */
+    private static function recordTrustedLoginNetwork($email) {
+        $email = strtolower(trim((string)$email));
+        if ($email === '') {
+            return;
+        }
+        $key = self::trustedNetworksKey($email);
+        $now = time();
+        $digest = self::clientNetworkDigest();
+        $db = DB::getInstance();
+        $ownTx = !$db->inTransaction();
+        if ($ownTx) {
+            $db->beginTransaction();
+        }
+        try {
+            if ($ownTx) {
+                $db->exec('UPDATE settings SET key = key WHERE 0');
+            }
+            $stmt = $db->prepare("SELECT value FROM settings WHERE key = ?");
+            $stmt->execute([$key]);
+            $row = $stmt->fetch();
+            $stmt->closeCursor();
+
+            $nets = $row ? json_decode($row['value'], true) : [];
+            if (!is_array($nets)) {
+                $nets = [];
+            }
+            foreach ($nets as $netHash => $ts) {
+                if (!is_string($netHash) || ($now - (int)$ts) > 30 * 86400) {
+                    unset($nets[$netHash]);
+                }
+            }
+            $nets[$digest] = $now;
+            arsort($nets, SORT_NUMERIC);
+            if (count($nets) > 8) {
+                $nets = array_slice($nets, 0, 8, true);
+            }
+            $db->prepare("INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)")->execute([$key, json_encode($nets)]);
+            if ($ownTx) {
+                $db->commit();
+            }
+        } catch (Throwable $e) {
+            if ($ownTx && $db->inTransaction()) {
+                $db->rollBack();
+            }
+            throw $e;
+        }
+    }
+
     /**
      * 简易失败限速: 按 场景+IP 独立计数, 窗口过后自动重置
      */
     public static function checkThrottle($scope, $maxAttempts, $windowSeconds, $byIp = true) {
         $db = DB::getInstance();
-        $key = 'throttle_' . hash('sha256', $scope . '|' . ($byIp ? self::getClientIp() : ''));
+        $key = self::throttleKey($scope, $byIp);
         $stmt = $db->prepare("SELECT value FROM settings WHERE key = ?");
         $stmt->execute([$key]);
         $row = $stmt->fetch();
@@ -1010,21 +1117,153 @@ class Auth {
         return (int)$data['c'] < $maxAttempts;
     }
 
+    /**
+     * 在写锁事务中一次性校验并原子占位多条限速规则，任一超限则全部回滚
+     * @param array $rules [['scope' => string, 'max' => int, 'window' => int, 'by_ip' => bool], ...]
+     * @return string|null 全部通过并占位返回 null；首个超限规则返回对应 scope
+     */
+    private static function reserveThrottleRules(array $rules) {
+        if (empty($rules)) {
+            return null;
+        }
+        $db = DB::getInstance();
+        $ownTx = !$db->inTransaction();
+        if ($ownTx) {
+            $db->beginTransaction();
+        }
+        try {
+            if ($ownTx) {
+                $db->exec('UPDATE settings SET key = key WHERE 0');
+            }
+            $now = time();
+            $pendingWrites = [];
+            $selectStmt = $db->prepare("SELECT value FROM settings WHERE key = ?");
+            foreach ($rules as $rule) {
+                $scope = (string)$rule['scope'];
+                $max = (int)$rule['max'];
+                $window = (int)$rule['window'];
+                $byIp = !isset($rule['by_ip']) || (bool)$rule['by_ip'];
+                $key = self::throttleKey($scope, $byIp);
+
+                $selectStmt->execute([$key]);
+                $row = $selectStmt->fetch();
+                $selectStmt->closeCursor();
+
+                $data = $row ? json_decode($row['value'], true) : null;
+                if (!is_array($data) || !isset($data['ts'], $data['c']) || ($now - (int)$data['ts']) > $window) {
+                    $newCount = 1;
+                    $ts = $now;
+                } else {
+                    $curCount = (int)$data['c'];
+                    if ($curCount >= $max) {
+                        if ($ownTx) {
+                            $db->rollBack();
+                        }
+                        return $scope;
+                    }
+                    $newCount = $curCount + 1;
+                    $ts = (int)$data['ts'];
+                }
+                $pendingWrites[$key] = json_encode(['c' => $newCount, 'ts' => $ts]);
+            }
+
+            $saveStmt = $db->prepare("INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)");
+            foreach ($pendingWrites as $k => $v) {
+                $saveStmt->execute([$k, $v]);
+            }
+            if ($ownTx) {
+                $db->commit();
+            }
+            return null;
+        } catch (Throwable $e) {
+            if ($ownTx && $db->inTransaction()) {
+                $db->rollBack();
+            }
+            throw $e;
+        }
+    }
+
+    /** 单维度原子限速检查并占位（通过并占位返回 true，超限拦截返回 false） */
+    public static function reserveThrottleAttempt($scope, $maxAttempts, $windowSeconds, $byIp = true) {
+        return self::reserveThrottleRules([[
+            'scope' => $scope,
+            'max' => $maxAttempts,
+            'window' => $windowSeconds,
+            'by_ip' => $byIp,
+        ]]) === null;
+    }
+
+    /** 原子退还 1 次预占限速次数（不清除历史失败累计） */
+    public static function releaseThrottleAttempt($scope, $byIp = true) {
+        $db = DB::getInstance();
+        $key = self::throttleKey($scope, $byIp);
+        $ownTx = !$db->inTransaction();
+        if ($ownTx) {
+            $db->beginTransaction();
+        }
+        try {
+            if ($ownTx) {
+                $db->exec('UPDATE settings SET key = key WHERE 0');
+            }
+            $stmt = $db->prepare("SELECT value FROM settings WHERE key = ?");
+            $stmt->execute([$key]);
+            $row = $stmt->fetch();
+            $stmt->closeCursor();
+            if ($row) {
+                $data = json_decode($row['value'], true);
+                if (is_array($data) && isset($data['c'], $data['ts'])) {
+                    $next = max(0, (int)$data['c'] - 1);
+                    if ($next <= 0) {
+                        $db->prepare("DELETE FROM settings WHERE key = ?")->execute([$key]);
+                    } else {
+                        $data['c'] = $next;
+                        $db->prepare("INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)")->execute([$key, json_encode($data)]);
+                    }
+                }
+            }
+            if ($ownTx) {
+                $db->commit();
+            }
+        } catch (Throwable $e) {
+            if ($ownTx && $db->inTransaction()) {
+                $db->rollBack();
+            }
+            throw $e;
+        }
+    }
+
     public static function recordThrottleFailure($scope, $windowSeconds = 900, $byIp = true) {
         $db = DB::getInstance();
-        $key = 'throttle_' . hash('sha256', $scope . '|' . ($byIp ? self::getClientIp() : ''));
-        $stmt = $db->prepare("SELECT value FROM settings WHERE key = ?");
-        $stmt->execute([$key]);
-        $row = $stmt->fetch();
-        $stmt->closeCursor();
-        $data = $row ? json_decode($row['value'], true) : null;
-        $now = time();
-        if (!is_array($data) || !isset($data['ts'], $data['c']) || $now - (int)$data['ts'] > $windowSeconds) {
-            $data = ['c' => 1, 'ts' => $now];
-        } else {
-            $data['c'] = (int)$data['c'] + 1;
+        $key = self::throttleKey($scope, $byIp);
+        $ownTx = !$db->inTransaction();
+        if ($ownTx) {
+            $db->beginTransaction();
         }
-        self::setSetting($key, json_encode($data));
+        try {
+            if ($ownTx) {
+                $db->exec('UPDATE settings SET key = key WHERE 0');
+            }
+            $stmt = $db->prepare("SELECT value FROM settings WHERE key = ?");
+            $stmt->execute([$key]);
+            $row = $stmt->fetch();
+            $stmt->closeCursor();
+            $data = $row ? json_decode($row['value'], true) : null;
+            $now = time();
+            if (!is_array($data) || !isset($data['ts'], $data['c']) || $now - (int)$data['ts'] > $windowSeconds) {
+                $data = ['c' => 1, 'ts' => $now];
+            } else {
+                $data['c'] = (int)$data['c'] + 1;
+            }
+            $db->prepare("INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)")->execute([$key, json_encode($data)]);
+            if ($ownTx) {
+                $db->commit();
+            }
+        } catch (Throwable $e) {
+            if ($ownTx && $db->inTransaction()) {
+                $db->rollBack();
+            }
+            throw $e;
+        }
     }
 
     public static function hitThrottle($scope, $windowSeconds = 60, $byIp = true) {
@@ -1033,7 +1272,7 @@ class Auth {
 
     public static function clearThrottle($scope, $byIp = true) {
         $db = DB::getInstance();
-        $key = 'throttle_' . hash('sha256', $scope . '|' . ($byIp ? self::getClientIp() : ''));
+        $key = self::throttleKey($scope, $byIp);
         $db->prepare("DELETE FROM settings WHERE key = ?")->execute([$key]);
     }
 
@@ -1813,16 +2052,16 @@ class Auth {
 
     /** 通过一次性重置令牌重设登录密码。 */
     public static function resetPasswordByToken($rawToken, $newPassword) {
-        if (!self::checkThrottle('reset_pwd_confirm', 10, 900)) {
+        if (!self::reserveThrottleAttempt('reset_pwd_confirm', 10, 900)) {
             return ['success' => false, 'message' => '操作过于频繁，请稍后再试'];
         }
         $invalid = ['success' => false, 'message' => '重置链接无效或已过期，请重新申请'];
         if (!self::findPasswordReset($rawToken)) {
-            self::recordThrottleFailure('reset_pwd_confirm', 900);
             return $invalid;
         }
         $passwordError = app_password_length_error($newPassword);
         if ($passwordError !== '') {
+            self::releaseThrottleAttempt('reset_pwd_confirm', true);
             return ['success' => false, 'message' => $passwordError];
         }
 
@@ -1834,7 +2073,6 @@ class Auth {
             $user = self::findPasswordReset($rawToken);
             if (!$user) {
                 $db->rollBack();
-                self::recordThrottleFailure('reset_pwd_confirm', 900);
                 return $invalid;
             }
 

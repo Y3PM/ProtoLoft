@@ -482,3 +482,137 @@ try {
 - 真实浏览器环境（Chrome 120+）下的视觉与交互验收；
 - 生产服务器环境（OpenResty + PHP 7.0.33）的实机验证与部署验收；
 - `assets/js/app.js`、`assets/js/annotation.js`、`install.php`、`includes/login_modal.php` 中历史残留的裸 Hex 色值未纳入本轮 Q9 范围。
+
+---
+
+## 复核记录 · ZCode · 2026-11-25
+
+复核对象：`7d891b4`（含 `8638d87`、`b8200f3`），复核时工作区干净。复核只读，未改业务代码；本节与 `.dev/tmp/code-review-20261124/q1_q5_check.py` 是仅有的新增内容。
+
+**结论**：上一轮清单的 P1、P2、P3 与 v3.1.5 的样式收口成立。Q1–Q8 的落地中有 1 个确认的旁路漏洞、1 个未修复的残留问题、2 个需要用户知情或继续推进的事项，见 R1–R4。
+
+### 已验证成立
+
+| 项目 | 证据 |
+| --- | --- |
+| P1-1 并发写入 | `collision.py` 四个场景各 3/3 成功；25 处游标释放逐条核对，全库单行读取扫描无遗漏 |
+| P2-1、P2-2、P2-3、P3-1 | 真实请求复测通过 |
+| 全量回归 | 31/31 套件通过，1391 条可识别断言（PHP 8.3.20） |
+| 语法与兼容 | 15 个 PHP 文件 `php -l`、6 个 JS 文件 `node --check` 通过；7.1+ 语法、函数、尾逗号扫描无命中 |
+| 新增测试 | `concurrent_collision`、`p2_p3_defects`、`q9_styles` 在基线 `cf31135` 上均失败，在 HEAD 上通过 |
+| 前端浏览器实测 | ESC 收下拉、搜索高亮、改名后顶栏、密码强度库版本参数、畸形 hash 与水印、分享页删除批注、口令输入框均通过，页面无报错 |
+| 视觉检查 | 登录页、分享错误页、口令页、无版本空状态、控制中心截图检查正常 |
+| v3.1.5 样式收口 | 转义未被改坏；用到的 CSS 变量均已定义；当背景图使用的 SVG 未被误换成变量；图表色值与令牌逐一相等；三个品牌 SVG 无脚本与外链 |
+
+### 需要处理
+
+**R1 访客可按编号读取内部批注（Q1 旁路）**
+- 位置：`includes/collaboration.php:39-63`（`Collaboration::target()`），入口是 `includes/actions/annotations.php` 的 `annotation_target`。
+- 现象（已复现）：开启访客批注后，访客请求 `api.php?action=annotation_target&id=N` 可读到任意内部批注，实测返回作者、部门、正文与页面快照。编号连续，可逐条遍历。
+- 原因：`target()` 对访客只校验到「项目与版本」层；列表和回复做了归属校验，单条读取没有复用。
+- 修复：抽一个访客归属判断（`user_id` 为 0 且编号在 `$_SESSION['guest_anno_ids']` 内），列表、单条读取、回复三处共用。
+- 验收：`python3 -B .dev/tmp/code-review-20261124/q1_q5_check.py . <php>` 输出 `annotation_target(id) ... blocked`，并补进回归套件。
+
+**R2 限速计数在并发下丢更新**
+- 位置：`includes/auth.php` 的 `checkThrottle()` 与 `recordThrottleFailure()`，先读后写、无锁。
+- 数据：一轮 48 个并发请求中真正被拿去比对的次数，登录 18–33 次、分享口令 11–42 次，名义上限都是 10。
+- 更正：本文档第 6 节曾写「分享口令并发爆破放大已排除，不要改限速实现」，该结论是误判——当时崩溃的请求掩盖了被评估的次数。以本条为准。
+- 修复：把「检查 + 计数」放进同一个事务并用空写拿锁，`Auth::preparePasswordReset()` 已有同样写法可复用。登录建议先占位再校验、成功后退还，否则并行请求都能通过检查。
+- 验收：48 并发下被评估次数不超过 10。复现与验收脚本：`python3 -B .dev/tmp/code-review-20261124/throttle_burst.py . <php> login`（或 `share`）。
+
+**R3 按账号限速可被用来锁死任意账号（Q5 的副作用，需用户选择）**
+- 现象（已复现）：连续 10 次错误密码后，换一个网络用正确密码仍被拒，提示「该账号失败次数过多」。限速键不含 IP，且在校验密码之前拦截。主管理员同样适用；已登录的会话不受影响。
+- 选项：A 维持现状，接受可被锁死的风险；B 账号维度改为「账号 + IP」，锁死风险消失，但抵御多 IP 爆破的作用也随之消失；C 对近期成功登录过的网络豁免账号维度限速，兼顾两者，出差或换网络时仍可能被锁。
+- 未拍板前不要改。
+
+**R4 数据库助手只落地了一半（Q6）**
+- `DB::row()`、`DB::value()`、`DB::all()` 实现正确，但调用点只有 3 处；其余 90 余处仍是手写读取加释放游标，发版检查里也没有相应规则。第 5 节「彻底从语法架构层面消除隐患」的表述偏乐观。
+- 建议：后续迭代迁移调用点，并在 `.dev/export_release.py` 的 `FORBIDDEN_PATTERNS` 或测试里加门禁。
+
+**R5 并发回归套件每次运行泄漏 8 个 PHP 进程**
+- 位置：`.dev/tests/concurrent_collision_regression.py:143-148`（启动）、`:276-283`（收尾）。全项目只有这个套件用了 `PHP_CLI_SERVER_WORKERS`。
+- 现象：`php -S` 开多进程后会预派生 8 个子进程，收尾只对主进程调用 `terminate()`，子进程成为孤儿继续监听端口。复核时机器上积累了 592 个这样的进程（含我复现脚本留下的 432 个），已全部清理，文档根目录均为已删除的临时目录。
+- 修复：启动时加 `start_new_session=True`，结束时 `os.killpg(os.getpgid(proc.pid), signal.SIGTERM)`，超时再对整组发 `SIGKILL`。`.dev/tmp/code-review-20261124/` 下的三份脚本已按此写法改好，可照抄。
+- 验收：跑完套件后 `ps` 中不再有文档根目录为 `pl_collision_test_*` 的 `php -S` 进程。
+
+### 小项
+
+- **分类折叠三连击**（P3-17 未完全解决）：双击已正确反向；三连击从收起出发会停在收起。原因是被中断动画的 `oncancel` 晚到，清掉了新动画的方向标记。`assets/js/app.js` 的 `cleanUp` 只应在 `items._currentAnim === anim` 时执行。不是本次修复引入的。
+- `share.php` 的「链接已失效」页文案写「该专属分享链接」，默认主链接失效时也走这个页面，措辞不准确。
+- `AGENTS.md` 引用的空状态范例文案「坑位已占，图纸未到…」已不在代码中。
+- `storage_precision` 套件登记为不需要 PHP，但内部调用了 `php`；机器 PATH 里没有 `php` 时即使指定了 `--php` 也会报失败。
+- `design/` 在仓库根目录且已被忽略，发版白名单不含它；手工 FTP 上传时需与 `.dev/` 一样排除。
+- 记录以免误判：浏览器里访客第二次打开带口令的链接不会再次要口令，这是 30 天签名 Cookie 的既定行为；用全新会话请求时口令页正常出现，直读原型资源返回 403。
+
+### 未覆盖
+
+- PHP 7.0 实机与生产服务器；移动端视口。
+- 评审看板的环形图未截图，仅按代码核对了色值。
+- `assets/js/admin.js` 本轮按 diff 审阅，未逐行通读。
+
+---
+
+## 复核修复落地（v3.1.6 · 2026-11-25）
+
+根据上述复核与用户拍板结果，已于工作区完成 **R1、R2、R3（方案 C）、R5** 与其余小项修复，并同步迭代版本号至 **`v3.1.6`**：
+
+1. **R1 · 访客批注归属全面统一校验**：
+   - 在 `includes/collaboration.php` 提取 `Collaboration::guestAnnotationIds()` 与 `Collaboration::canAccessAnnotationRecord()`；
+   - 将单条读取 `Collaboration::target()`（同步补齐 `$stmt->closeCursor()`）及 `includes/actions/annotations.php` 中的 `list_annotations`、`previous_annotations`、`reply_annotation` 统一纳入访客归属约束（`user_id === 0` 且命中当前会话 `$_SESSION['guest_anno_ids']`），阻断访客按编号读取或回复内部批注与他人批注，并修复 `reply_annotation` 空用户数组下标读取隐患；
+   - 更新早期用例 `.dev/tests/review_20261107_fixes_regression.py` 对齐 Q1/R1 隔离契约（校验内部批注被拒 + 访客本人批注受 `perm_guest_annotate` 开关控制）。
+2. **R2 + R3（方案 C）· 单事务写锁限速与常用网段豁免**：
+   - 在 `includes/auth.php` 实现多维度原子占位/退还机制 `Auth::reserveThrottleRules()`、`Auth::reserveThrottleAttempt()`、`Auth::releaseThrottleAttempt()` 及事务化 `recordThrottleFailure()`（复用 `UPDATE settings SET key = key WHERE 0` 写锁并在事务嵌套时自动兼容），消除高并发丢更新；
+   - `Auth::login()` 改用事务先占位后验密，验密正确即退还本次 IP 占位（保留 P2-2 不清零历史错误语义）；`share.php` 口令校验与 `Auth::resetPasswordByToken()` 同步切为事务占位；
+   - 按用户选定的 **方案 C** 新增 `Auth::isTrustedLoginNetwork()` / `recordTrustedLoginNetwork()`（按 IPv4 `/24`、IPv6 `/64` 摘要记录最近 8 个 30 天内成功登录网段）：近期成功登录过的常用网段豁免账号锁死（仍受单 IP 10 次限速保护），从未登录过的新网络仍受 10 次账号锁保护。
+3. **R5 与工程体验小项**：
+   - `.dev/tests/concurrent_collision_regression.py` 及 `.dev/tests/p2_p3_regression.py` 对多进程 `php -S` 均以 `start_new_session=True` 启动并于 `finally` 使用 `os.killpg` 整组回收；
+   - `assets/js/app.js` 分类折叠 `cleanUp(ownerAnim)` 增加 `items._currentAnim === ownerAnim` 判定，修复三连击异步 `oncancel` 误清方向标记；
+   - `share.php` 失效页 404 文案改为兼容默认与专属分享的「该分享链接不存在或已被删除...」；
+   - `.dev/tests/storage_precision_regression.py` 支持 `--php` 参数并在 `.dev/tests/run_all_tests.py` 标记 `needs_php: True`；
+   - `AGENTS.md` 空状态范例文案同步更新，版本号同步至 `3.1.6`（`includes/config.php`、`assets/js/password-strength.js`、`.dev/export_release.py`、`.dev/docs/tests/test_matrix.md` 及相关测试断言）。
+   - **R4 处理说明**：本轮保持克制，未大规模重写其余 90 余处稳态手写查询（已通过游标扫描确认无漏释放风险）。
+
+### 验证与交付证据（v3.1.6）
+
+- **语法与格式检查**：`php -l`、`node --check` 与 `git diff --check` 均通过，退出码 `0`。
+- **复核专项与并发压测**：
+  - `python3 -B .dev/tmp/code-review-20261124/q1_q5_check.py . /Users/yyy/.local/bin/php`：`annotation_target(id)` 输出 `blocked`（`批注不存在或不可访问`），本机常用网段正确密码成功登录且 `previous_annotations` 返回 `0` 条、`reply` 内部批注被拒；
+  - `python3 -B .dev/tmp/code-review-20261124/throttle_burst.py . /Users/yyy/.local/bin/php login`：`48` 并发错误登录实际校验 `10` 次、当场拦截 `38` 次、`0` 个 5xx 错误；
+  - `python3 -B .dev/tmp/code-review-20261124/throttle_burst.py . /Users/yyy/.local/bin/php share`：`48` 并发错误分享口令实际校验 `10` 次、拦截 `38` 次、`0` 个 5xx 错误。
+- **全量自动化测试与进程检查**：
+  - `python3 -B .dev/tests/run_all_tests.py --php /Users/yyy/.local/bin/php`：**`31/31 ALL PASSED (100%)`**，可识别断言 **`1404` 项**，耗时 `106.08s`（含 `.dev/tests/p2_p3_regression.py` 新增 R1/R2/R3-C 真实 HTTP 断言共计 `85` 项）；
+  - `ps aux | grep 'php -S'` 确认测试产生的临时服务与派生 worker 进程 `0` 残留。
+- **发布包导出**：`python3 -B .dev/export_release.py` 导出 `68` 个生产文件至 `release/protoloft/` 与 `release/protoloft-v3.1.6.zip`（`1791.5 KB`，SHA-256：`8e4418678d07ebf8c70ea3e130cfa02c5b837c43191ed6678ff644c92fb9a709`）。
+- **待同步**：当前已完成本地修复与验证，尚未提交推送 GitHub 与更新线上 FTP。
+
+---
+
+## 复核确认 · ZCode · 2026-11-25（v3.1.6）
+
+复核对象：`7d891b4` 加工作区未提交的 19 项改动（复核时尚未提交）。以下数字均为独立重跑所得，未沿用上一节的记录。
+
+**结论：R1、R2、R3（方案 C）、R5 及各小项全部确认修复，未发现新缺陷。** R4 按说明暂缓。
+
+| 项目 | 独立验证结果 |
+| --- | --- |
+| R1 访客批注旁路 | `q1_q5_check.py`：`annotation_target(id)` 由「泄露」变为「已拦截」；列表、回复、上一版本三处隔离保持有效 |
+| R1 旧用例改动 | `review_20261107_fixes_regression.py` 放到修复前的 `7d891b4` 上，正好在 R1 断言处失败；当前通过。改动是收紧，不是放宽 |
+| R2 限速丢更新 | `throttle_burst.py`：48 并发与 120 并发下，登录和分享口令被比对次数都正好是 10，0 个服务端错误（修复前 18–42） |
+| R3 方案 C | 常用网段：10 次错误后正确密码可登录；从未登录过的网络：被拒；首次成功登录后转为常用网段 |
+| R5 进程泄漏 | 全量回归跑完后，临时目录的 `php -S` 进程为 0（修复前每次 8 个） |
+| 全量回归 | 31/31 套件通过，1404 条可识别断言（PHP 8.3.20） |
+| P1 回归 | 碰撞脚本四个场景仍各 3/3 通过 |
+| 折叠动画 | 浏览器内 1 至 5 次点击、从展开和收起两种状态出发，最终状态全部正确；被中断动画的迟到回调不再清掉新动画的状态 |
+| 语法与兼容 | 5 个 PHP 文件 `php -l`、2 个 JS 文件 `node --check` 通过；7.1+ 语法、函数、尾逗号扫描无命中 |
+
+### 残留提示（不阻塞）
+
+- **方案 C 的边界**：豁免按 IPv4 `/24`、IPv6 `/64` 归并。与常用出口同网段的地址同样享受豁免，只受单 IP 限速约束；从未登录过的网络仍可能被锁 15 分钟。这是方案的已知取舍。
+- **失败计数行没有过期清理**：`settings` 表里的 `throttle_*` 行只在成功或退还到 0 时删除，否则永久保留。按邮箱维度的行会随被尝试过的邮箱数量累积。
+- **`webhook_keyword` 套件**仍写死 `php`，且登记为不需要 PHP，与上一轮存储精度套件是同一类问题。
+- **测法提示**：内嵌浏览器在后台时动画帧和动画事件会被节流（本次实测完成事件延迟约 300 毫秒）。检查折叠这类动画时，要显式让动画播完并等足时间，否则会得到「单击不收起」的假象。
+
+### 未覆盖
+
+- PHP 7.0 实机与生产服务器。
+- 本轮样式与资源未变，没有重做截图检查。
