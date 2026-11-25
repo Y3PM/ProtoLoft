@@ -1,0 +1,53 @@
+{
+  "immediateAutosave": {
+    "busy": "true",
+    "disabledChoices": 0,
+    "footerPresent": false,
+    "pose": "rest",
+    "theme": "indigo"
+  },
+  "reopenedAutosave": {
+    "open": true,
+    "pose": "rest",
+    "theme": "indigo"
+  },
+  "persistedAutosave": {
+    "pose": "rest",
+    "theme": "indigo"
+  },
+  "keyboardLogo": {
+    "colorsHidden": true,
+    "pose": "leap",
+    "theme": "sky"
+  },
+  "keyboardAutosave": {
+    "open": true,
+    "pose": "shoulder",
+    "theme": "coral"
+  },
+  "failedAutosave": {
+    "label": "珊瑚橘 · 象首",
+    "notice": "测试保存失败",
+    "open": true,
+    "pose": "head",
+    "theme": "coral"
+  },
+  "escapedAutosave": {
+    "focus": "myProfileAvatarBtn",
+    "open": false,
+    "pose": "head",
+    "theme": "coral"
+  },
+  "finalAutosave": {
+    "colorCount": 6,
+    "footerPresent": false,
+    "pose": "head",
+    "shapeCount": 8,
+    "theme": "violet",
+    "viewport": {
+      "height": 720,
+      "width": 1280
+    }
+  },
+  "logs": []
+}

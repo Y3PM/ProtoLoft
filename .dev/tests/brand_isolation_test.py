@@ -60,7 +60,7 @@ def test_modals_php():
     assert 'class="admin-nav-github"' in c, "modals.php 控制中心底座缺少 admin-nav-github 样式类"
     assert 'ri-github-line' in c, "modals.php 控制中心底座缺少 GitHub 图标"
     cfg = read_file('includes/config.php')
-    assert "define('APP_VERSION', '3.1.6');" in cfg, "config.php APP_VERSION 应为 3.1.6"
+    assert "define('APP_VERSION', '3.1.11');" in cfg, "config.php APP_VERSION 应为 3.1.11"
     css = read_file('assets/css/app.css')
     assert '.admin-nav-github' in css, "app.css 缺少 .admin-nav-github 样式规则"
     print("PASS: includes/modals.php 品牌侵蚀项彻底剔除，企业信息边界清晰")

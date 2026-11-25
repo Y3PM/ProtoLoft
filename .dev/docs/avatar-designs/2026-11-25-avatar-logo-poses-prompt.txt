@@ -1,0 +1,24 @@
+Use case: logo-brand.
+Asset type: one new comparison contact sheet of six genuinely different elephant poses for ProtoLoft circular profile avatars.
+
+INPUT ROLES:
+Image 1 is the authoritative ProtoLoft logo identity: the actual blue origami elephant reaching for a small vermilion red ball.
+Image 2 is a previous concept sheet. The user likes ONLY its FIRST THREE avatars (01, 02, 03 across the top row). Use those three as the approved reference for visual language, brand fidelity, cleanliness, generous avatar scale and circular composition. Do not repeat the lower-row extreme crops or copy the old six designs.
+
+PRIMARY REQUEST:
+Invent six NEW, CLEARLY DIFFERENT POSES of this SAME logo elephant, not six crops, enlargements, or reflections of one pose. Pose and silhouette should visibly differ even at thumbnail scale. Keep the same recognizable angular origami character and construction language: the large triangular ear, wedge-shaped head, angular folded body and legs, the slender polygon-segmented trunk, and a single small red ball. Re-articulate the reference character naturally to make each new gesture. The new poses should feel like an authentic expanded brand family designed by the same designer, not generic stock origami elephants.
+
+LAYOUT:
+One clean landscape contact sheet, 3 columns x 2 rows, all six circular avatar fields equal size, consistent margins, pale icy blue flat circular backgrounds on a plain warm-white sheet. Avatar subjects large and clearly readable within their circles. Only small neutral labels "07", "08", "09", "10", "11", "12" centered below the circles. No title or other text.
+Top-left 07 — seated side view: the same elephant sits on angular folded haunches, forelegs planted neatly, head lifted and segmented trunk reaching up toward a single red ball. Compact calm triangular silhouette. Entire seated pose visible.
+Top-middle 08 — head-down portrait: a tight shoulder, ear and head portrait, the head visibly bowed and the segmented trunk pointing down and gently toward a small red ball near the lower-right. Deliberately different diagonal flow from the reference's raised-trunk pose, with large clear ear and head facets.
+Top-right 09 — looking back: a cropped upper-body portrait of the elephant gently turning its head back over its shoulder toward the left, prominent triangular ear and folded neck, segmented trunk angled up-left toward a small red ball. A turned, asymmetrical portrait rather than a horizontally mirrored original.
+Bottom-left 10 — quiet walking stride: full side silhouette facing left, a distinctive easy walking pose with one foreleg stepping and trunk extended forward with an angular tip, the single small red ball ahead at trunk height. Four-legged anatomy readable; strong uncluttered folds.
+Bottom-middle 11 — near-frontal portrait: elephant face and shoulders viewed from almost the front, two large angular folded ears of intentionally unequal visible size to give a slight three-quarter turn, central wedge-like head and a narrow segmented trunk bending toward one small red ball on the upper-right. No eyes or cartoon facial marks. Should remain recognizably from the same logo family.
+Bottom-right 12 — relaxed reclining side pose: elephant rests low with folded legs and a visibly horizontal angular body, head raised from that low posture and segmented trunk reaching to a small red ball nearby. Relaxed low silhouette distinct from sitting and walking. Compose the subject generously within the circle.
+
+STYLE AND INVARIANTS:
+Crisp FLAT filled vector-like polygons with clean paper-cut negative-space gaps, same two blues as the original (#0076DE and #68B5F8), original vermilion accent (#FF5D47). Each red ball is small and secondary, approximately 8–10% of the circle diameter. Only 2 solid elephant fill tones, no extra blues. Few confident large structural facets; preserve the irregular original geometry rather than a dense triangulated mesh. Sharp corners and thin even gaps, no drawn outlines. This is a raster concept preview intended for later faithful hand-built SVG reconstruction after user selection.
+
+AVOID:
+Do not show the same original raised-trunk elephant in all six circles with different cropping. No six similar poses. No generic rounded baby elephant, no added eyes, pupils, eyebrows, tusks or mouths, no smiling cartoon features. No curved smooth balloon trunk, rounded ears, decorative costumes or props. No extra balls. No gradients, shadows, 3D bevel, glossy shading, paper textures, photorealistic lighting, noisy tiny triangles, ornamental borders, extra text, UI controls, or color variations. Do not redesign the brand character into the rejected rounded/faceted mascot styles.

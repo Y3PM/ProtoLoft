@@ -1,0 +1,590 @@
+{
+  "definitions": [
+    "settings",
+    "log-out",
+    "file-text",
+    "history",
+    "download",
+    "upload",
+    "cloud-upload",
+    "rotate-cw",
+    "message-square",
+    "share",
+    "maximize",
+    "folder-plus",
+    "trash",
+    "pencil",
+    "layout-dashboard",
+    "send",
+    "repeat",
+    "circle-check",
+    "plus-square",
+    "circle-plus",
+    "copy",
+    "key",
+    "external-link",
+    "link",
+    "arrow-left-right",
+    "save",
+    "file-archive",
+    "folder-open",
+    "list-checks"
+  ],
+  "count": 29,
+  "references": [
+    {
+      "file": "index.php",
+      "line": 790,
+      "icon": "plus-square"
+    },
+    {
+      "file": "index.php",
+      "line": 795,
+      "icon": "cloud-upload"
+    },
+    {
+      "file": "index.php",
+      "line": 799,
+      "icon": "file-text"
+    },
+    {
+      "file": "index.php",
+      "line": 803,
+      "icon": "link"
+    },
+    {
+      "file": "index.php",
+      "line": 808,
+      "icon": "folder-plus"
+    },
+    {
+      "file": "index.php",
+      "line": 838,
+      "icon": "folder-plus"
+    },
+    {
+      "file": "index.php",
+      "line": 918,
+      "icon": "cloud-upload"
+    },
+    {
+      "file": "index.php",
+      "line": 942,
+      "icon": "settings"
+    },
+    {
+      "file": "index.php",
+      "line": 947,
+      "icon": "log-out"
+    },
+    {
+      "file": "index.php",
+      "line": 967,
+      "icon": "file-text"
+    },
+    {
+      "file": "index.php",
+      "line": 982,
+      "icon": "history"
+    },
+    {
+      "file": "index.php",
+      "line": 992,
+      "icon": "download"
+    },
+    {
+      "file": "index.php",
+      "line": 997,
+      "icon": "upload"
+    },
+    {
+      "file": "index.php",
+      "line": 1001,
+      "icon": "rotate-cw"
+    },
+    {
+      "file": "index.php",
+      "line": 1004,
+      "icon": "message-square"
+    },
+    {
+      "file": "index.php",
+      "line": 1009,
+      "icon": "share"
+    },
+    {
+      "file": "index.php",
+      "line": 1011,
+      "icon": "maximize"
+    },
+    {
+      "file": "index.php",
+      "line": 1070,
+      "icon": "folder-plus"
+    },
+    {
+      "file": "index.php",
+      "line": 1072,
+      "icon": "circle-plus"
+    },
+    {
+      "file": "index.php",
+      "line": 1169,
+      "icon": "send"
+    },
+    {
+      "file": "share.php",
+      "line": 551,
+      "icon": "file-text"
+    },
+    {
+      "file": "share.php",
+      "line": 589,
+      "icon": "download"
+    },
+    {
+      "file": "share.php",
+      "line": 593,
+      "icon": "rotate-cw"
+    },
+    {
+      "file": "share.php",
+      "line": 596,
+      "icon": "message-square"
+    },
+    {
+      "file": "share.php",
+      "line": 600,
+      "icon": "maximize"
+    },
+    {
+      "file": "share.php",
+      "line": 604,
+      "icon": "layout-dashboard"
+    },
+    {
+      "file": "share.php",
+      "line": 665,
+      "icon": "send"
+    },
+    {
+      "file": "includes/modals.php",
+      "line": 87,
+      "icon": "file-archive"
+    },
+    {
+      "file": "includes/modals.php",
+      "line": 88,
+      "icon": "folder-open"
+    },
+    {
+      "file": "includes/modals.php",
+      "line": 94,
+      "icon": "list-checks"
+    },
+    {
+      "file": "includes/modals.php",
+      "line": 106,
+      "icon": "file-text"
+    },
+    {
+      "file": "includes/modals.php",
+      "line": 246,
+      "icon": "cloud-upload"
+    },
+    {
+      "file": "includes/modals.php",
+      "line": 394,
+      "icon": "send"
+    },
+    {
+      "file": "includes/modals.php",
+      "line": 437,
+      "icon": "copy"
+    },
+    {
+      "file": "includes/modals.php",
+      "line": 439,
+      "icon": "external-link"
+    },
+    {
+      "file": "includes/modals.php",
+      "line": 462,
+      "icon": "save"
+    },
+    {
+      "file": "includes/modals.php",
+      "line": 477,
+      "icon": "plus-square"
+    },
+    {
+      "file": "includes/modals.php",
+      "line": 512,
+      "icon": "circle-check"
+    },
+    {
+      "file": "includes/modals.php",
+      "line": 1216,
+      "icon": "circle-plus"
+    },
+    {
+      "file": "includes/modals.php",
+      "line": 1225,
+      "icon": "circle-plus"
+    },
+    {
+      "file": "includes/modals.php",
+      "line": 1228,
+      "icon": "folder-plus"
+    },
+    {
+      "file": "includes/modals.php",
+      "line": 1266,
+      "icon": "circle-plus"
+    },
+    {
+      "file": "includes/modals.php",
+      "line": 1311,
+      "icon": "history"
+    },
+    {
+      "file": "includes/modals.php",
+      "line": 1320,
+      "icon": "cloud-upload"
+    },
+    {
+      "file": "includes/modals.php",
+      "line": 1324,
+      "icon": "rotate-cw"
+    },
+    {
+      "file": "includes/modals.php",
+      "line": 1338,
+      "icon": "pencil"
+    },
+    {
+      "file": "includes/modals.php",
+      "line": 1340,
+      "icon": "trash"
+    },
+    {
+      "file": "includes/modals.php",
+      "line": 1386,
+      "icon": "circle-plus"
+    },
+    {
+      "file": "includes/modals.php",
+      "line": 1420,
+      "icon": "copy"
+    },
+    {
+      "file": "includes/modals.php",
+      "line": 1442,
+      "icon": "pencil"
+    },
+    {
+      "file": "includes/modals.php",
+      "line": 1444,
+      "icon": "trash"
+    },
+    {
+      "file": "includes/modals.php",
+      "line": 1486,
+      "icon": "folder-plus"
+    },
+    {
+      "file": "includes/modals.php",
+      "line": 1510,
+      "icon": "pencil"
+    },
+    {
+      "file": "includes/modals.php",
+      "line": 1511,
+      "icon": "trash"
+    },
+    {
+      "file": "includes/modals.php",
+      "line": 1535,
+      "icon": "circle-plus"
+    },
+    {
+      "file": "includes/modals.php",
+      "line": 1861,
+      "icon": "send"
+    },
+    {
+      "file": "includes/modals.php",
+      "line": 2008,
+      "icon": "send"
+    },
+    {
+      "file": "includes/modals.php",
+      "line": 2025,
+      "icon": "rotate-cw"
+    },
+    {
+      "file": "includes/modals.php",
+      "line": 2026,
+      "icon": "trash"
+    },
+    {
+      "file": "includes/modals.php",
+      "line": 2247,
+      "icon": "send"
+    },
+    {
+      "file": "includes/modals.php",
+      "line": 2319,
+      "icon": "send"
+    },
+    {
+      "file": "includes/modals.php",
+      "line": 2393,
+      "icon": "send"
+    },
+    {
+      "file": "includes/modals.php",
+      "line": 2504,
+      "icon": "copy"
+    },
+    {
+      "file": "assets/js/annotation.js",
+      "line": 791,
+      "icon": "trash"
+    },
+    {
+      "file": "assets/js/annotation.js",
+      "line": 848,
+      "icon": "message-square"
+    },
+    {
+      "file": "assets/js/admin.js",
+      "line": 1891,
+      "icon": "history"
+    },
+    {
+      "file": "assets/js/admin.js",
+      "line": 2244,
+      "icon": "pencil"
+    },
+    {
+      "file": "assets/js/admin.js",
+      "line": 2245,
+      "icon": "trash"
+    },
+    {
+      "file": "assets/js/admin.js",
+      "line": 2450,
+      "icon": "folder-plus"
+    },
+    {
+      "file": "assets/js/admin.js",
+      "line": 2574,
+      "icon": "circle-plus"
+    },
+    {
+      "file": "assets/js/admin.js",
+      "line": 2611,
+      "icon": "circle-plus"
+    },
+    {
+      "file": "assets/js/admin.js",
+      "line": 2854,
+      "icon": "cloud-upload"
+    },
+    {
+      "file": "assets/js/admin.js",
+      "line": 2857,
+      "icon": "cloud-upload"
+    },
+    {
+      "file": "assets/js/admin.js",
+      "line": 3511,
+      "icon": "copy"
+    },
+    {
+      "file": "assets/js/admin.js",
+      "line": 3587,
+      "icon": "copy"
+    },
+    {
+      "file": "assets/js/admin.js",
+      "line": 3594,
+      "icon": "pencil"
+    },
+    {
+      "file": "assets/js/admin.js",
+      "line": 3595,
+      "icon": "trash"
+    },
+    {
+      "file": "assets/js/admin.js",
+      "line": 3623,
+      "icon": "history"
+    },
+    {
+      "file": "assets/js/admin.js",
+      "line": 3627,
+      "icon": "cloud-upload"
+    },
+    {
+      "file": "assets/js/admin.js",
+      "line": 3628,
+      "icon": "pencil"
+    },
+    {
+      "file": "assets/js/admin.js",
+      "line": 3629,
+      "icon": "trash"
+    },
+    {
+      "file": "assets/js/admin.js",
+      "line": 3678,
+      "icon": "circle-plus"
+    },
+    {
+      "file": "assets/js/admin.js",
+      "line": 3687,
+      "icon": "circle-plus"
+    },
+    {
+      "file": "assets/js/admin.js",
+      "line": 3746,
+      "icon": "key"
+    },
+    {
+      "file": "assets/js/admin.js",
+      "line": 3750,
+      "icon": "arrow-left-right"
+    },
+    {
+      "file": "assets/js/admin.js",
+      "line": 3759,
+      "icon": "pencil"
+    },
+    {
+      "file": "assets/js/admin.js",
+      "line": 3760,
+      "icon": "trash"
+    },
+    {
+      "file": "assets/js/admin.js",
+      "line": 4377,
+      "icon": "circle-check"
+    },
+    {
+      "file": "assets/js/admin.js",
+      "line": 5940,
+      "icon": "cloud-upload"
+    },
+    {
+      "file": "assets/js/admin.js",
+      "line": 5983,
+      "icon": "trash"
+    },
+    {
+      "file": "assets/js/admin.js",
+      "line": 5985,
+      "icon": "trash"
+    },
+    {
+      "file": "assets/js/admin.js",
+      "line": 6011,
+      "icon": "pencil"
+    },
+    {
+      "file": "assets/js/admin.js",
+      "line": 6013,
+      "icon": "repeat"
+    },
+    {
+      "file": "assets/js/admin.js",
+      "line": 6014,
+      "icon": "trash"
+    },
+    {
+      "file": "assets/js/admin.js",
+      "line": 6016,
+      "icon": "upload"
+    },
+    {
+      "file": "assets/js/admin.js",
+      "line": 6019,
+      "icon": "circle-check"
+    },
+    {
+      "file": "assets/js/admin.js",
+      "line": 6388,
+      "icon": "history"
+    },
+    {
+      "file": "assets/js/app.js",
+      "line": 691,
+      "icon": "external-link"
+    },
+    {
+      "file": "assets/js/app.js",
+      "line": 694,
+      "icon": "copy"
+    },
+    {
+      "file": "assets/js/app.js",
+      "line": 727,
+      "icon": "cloud-upload"
+    },
+    {
+      "file": "assets/js/share.js",
+      "line": 128,
+      "icon": "copy"
+    },
+    {
+      "file": "assets/js/share.js",
+      "line": 132,
+      "icon": "trash"
+    },
+    {
+      "file": "assets/js/share.js",
+      "line": 365,
+      "icon": "save"
+    },
+    {
+      "file": "assets/js/share.js",
+      "line": 382,
+      "icon": "save"
+    }
+  ],
+  "reference_count": 104,
+  "unmapped": [],
+  "unused": [],
+  "durations": {
+    "settings": 480,
+    "log-out": 480,
+    "file-text": 810,
+    "history": 590,
+    "download": 480,
+    "upload": 480,
+    "cloud-upload": 480,
+    "rotate-cw": 700,
+    "message-square": 700,
+    "share": 700,
+    "maximize": 480,
+    "folder-plus": 480,
+    "trash": 590,
+    "pencil": 920,
+    "layout-dashboard": 480,
+    "send": 810,
+    "repeat": 480,
+    "circle-check": 480,
+    "plus-square": 590,
+    "circle-plus": 590,
+    "copy": 590,
+    "key": 700,
+    "external-link": 700,
+    "link": 590,
+    "arrow-left-right": 590,
+    "save": 700,
+    "file-archive": 590,
+    "folder-open": 590,
+    "list-checks": 700
+  }
+}

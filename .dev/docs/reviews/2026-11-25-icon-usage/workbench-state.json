@@ -1,0 +1,131 @@
+{
+  "iconInventory": [
+    {
+      "active": "0",
+      "icon": "plus-square",
+      "label": "",
+      "ready": "1",
+      "rest": "1",
+      "size": 32
+    },
+    {
+      "active": "0",
+      "icon": "cloud-upload",
+      "label": "",
+      "ready": "1",
+      "rest": "1",
+      "size": 28
+    },
+    {
+      "active": "0",
+      "icon": "settings",
+      "label": "",
+      "ready": "1",
+      "rest": "1",
+      "size": 28
+    },
+    {
+      "active": "0",
+      "icon": "log-out",
+      "label": "",
+      "ready": "1",
+      "rest": "1",
+      "size": 28
+    },
+    {
+      "active": "0",
+      "icon": "file-text",
+      "label": "日志",
+      "ready": "1",
+      "rest": "1",
+      "size": 12
+    },
+    {
+      "active": "0",
+      "icon": "history",
+      "label": "版本",
+      "ready": "1",
+      "rest": "1",
+      "size": 12
+    },
+    {
+      "active": "0",
+      "icon": "upload",
+      "label": "补传 RP",
+      "ready": "1",
+      "rest": "1",
+      "size": 13
+    },
+    {
+      "active": "0",
+      "icon": "rotate-cw",
+      "label": "刷新",
+      "ready": "1",
+      "rest": "1",
+      "size": 13
+    },
+    {
+      "active": "0",
+      "icon": "message-square",
+      "label": "批注\n                    0",
+      "ready": "1",
+      "rest": "1",
+      "size": 13
+    },
+    {
+      "active": "0",
+      "icon": "share",
+      "label": "分享",
+      "ready": "1",
+      "rest": "1",
+      "size": 13
+    },
+    {
+      "active": "0",
+      "icon": "maximize",
+      "label": "全屏",
+      "ready": "1",
+      "rest": "1",
+      "size": 13
+    }
+  ],
+  "copyButtonState": {
+    "active": 0,
+    "html": "<i class=\"ri-file-copy-line\"></i> 复制",
+    "slots": 0
+  },
+  "createBefore": {
+    "active": 1,
+    "slots": 1
+  },
+  "createAfter": {
+    "active": 0,
+    "html": "<i class=\"ri-check-line\"></i> 创建并复制",
+    "slots": 0
+  },
+  "addMemberIcon": {
+    "activeIcon": "circle-plus",
+    "activeOpacity": "1",
+    "focusVisible": true,
+    "label": "添加成员",
+    "rest": "ri-user-add-line duo-rest-icon",
+    "svgSize": 13
+  },
+  "deleteIconState": {
+    "active": "1",
+    "color": "rgb(220, 38, 38)",
+    "ready": "1"
+  },
+  "annotationActiveState": {
+    "activeOpacity": "0.273165",
+    "background": "rgb(252, 252, 253)",
+    "className": "btn-tool",
+    "color": "rgb(65, 77, 95)",
+    "expanded": null,
+    "hovered": false,
+    "pressed": null,
+    "restOpacity": "0.726835",
+    "svgSize": 11.150146484375
+  },
+  "logs": []
+}

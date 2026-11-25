@@ -1,0 +1,20 @@
+{
+  "preservedDraft": {
+    "open": true,
+    "pose": "bow",
+    "saveEnabled": true,
+    "theme": "coral"
+  },
+  "persistedDraft": {
+    "pose": "bow",
+    "saveDisabled": true,
+    "theme": "coral"
+  },
+  "reopenedPicker": {
+    "focused": "迈步",
+    "open": true,
+    "pose": "walk",
+    "saveDisabled": true,
+    "theme": "coral"
+  }
+}

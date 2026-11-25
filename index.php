@@ -787,25 +787,25 @@ foreach ($cats as $cat) {
             </div>
             <?php if ($canManage): ?>
                 <div class="quick-add-wrap" id="quickAddWrap">
-                    <button class="btn-act" id="btnQuickAdd" onclick="toggleQuickAddMenu(event)" title="快速创建">
-                        <i class="ri-add-line" style="font-size:18px;"></i>
+                    <button class="btn-act duo-hover-btn" id="btnQuickAdd" data-duo-icon="plus-square" onclick="toggleQuickAddMenu(event)" title="快速创建">
+                        <i class="ri-add-line duo-rest-icon" style="font-size:18px;"></i>
                     </button>
                     <div class="quick-add-menu" id="quickAddMenu" onclick="event.stopPropagation()">
                         <button type="button" class="quick-add-item" onclick="closeQuickAddMenu();openQuickUploadModal();">
-                            <i class="ri-upload-cloud-line" style="color:var(--primary);"></i>
+                            <span class="duo-icon-slot" data-duo-icon="cloud-upload"><i class="ri-upload-cloud-line duo-rest-icon" style="color:var(--primary);"></i></span>
                             <span>发布版本</span>
                         </button>
                         <button type="button" class="quick-add-item" onclick="closeQuickAddMenu();openQuickItemModal('project');">
-                            <i class="ri-pages-line"></i>
+                            <span class="duo-icon-slot" data-duo-icon="file-text"><i class="ri-pages-line duo-rest-icon"></i></span>
                             <span>新建项目</span>
                         </button>
                         <button type="button" class="quick-add-item" onclick="closeQuickAddMenu();openQuickItemModal('link');">
-                            <i class="ri-links-line"></i>
+                            <span class="duo-icon-slot" data-duo-icon="link"><i class="ri-links-line duo-rest-icon"></i></span>
                             <span>新建链接</span>
                         </button>
                         <div class="quick-add-divider"></div>
                         <button type="button" class="quick-add-item" onclick="closeQuickAddMenu();openCategoryModal();">
-                            <i class="ri-folder-add-line"></i>
+                            <span class="duo-icon-slot" data-duo-icon="folder-plus"><i class="ri-folder-add-line duo-rest-icon"></i></span>
                             <span>新建文件夹</span>
                         </button>
                     </div>
@@ -835,7 +835,7 @@ foreach ($cats as $cat) {
                     <div class="sidebar-empty-desc"><?php echo $canManage ? '建个文件夹治愈强迫症' : '产品经理还在疯狂赶稿中…'; ?></div>
                     <?php if ($canManage): ?>
                         <button type="button" class="sidebar-empty-btn" onclick="openCategoryModal()">
-                            <i class="ri-folder-add-line"></i> 新建文件夹
+                            <span class="duo-icon-slot" data-duo-icon="folder-plus"><i class="ri-folder-add-line duo-rest-icon"></i></span> 新建文件夹
                         </button>
                     <?php endif; ?>
                 </div>
@@ -915,7 +915,7 @@ foreach ($cats as $cat) {
                                 <!-- 侧栏原地操作收敛: 仅保留核心高频发版，设为隐藏与删除等统一收归控制台项目管理 -->
                                 <?php if ($canManage && $it['type'] === 'project' && $canEditThisItem): ?>
                                     <div class="admin-controls" onclick="event.stopPropagation()">
-                                        <button class="btn-act" onclick="openUploadModal(<?php echo $it['id']; ?>, '<?php echo htmlspecialchars(addslashes($it['name'])); ?>')" title="发布版本"><i class="ri-upload-cloud-line"></i></button>
+                                        <button class="btn-act duo-hover-btn" data-duo-icon="cloud-upload" onclick="openUploadModal(<?php echo $it['id']; ?>, '<?php echo htmlspecialchars(addslashes($it['name'])); ?>')" title="发布版本"><i class="ri-upload-cloud-line duo-rest-icon"></i></button>
                                     </div>
                                 <?php endif; ?>
                             </li>
@@ -939,13 +939,13 @@ foreach ($cats as $cat) {
                     </button>
                     <div style="display:flex;align-items:center;gap:4px;flex-shrink:0;">
                         <?php if ($canManage): ?>
-                            <button class="btn-act" onclick="openAdminConsole()" title="控制中心" style="position:relative;">
-                                <i class="ri-settings-3-line"></i>
-                                <span id="adminSettingsDot" style="<?php echo ($isAdmin && $pendingUserCount > 0) ? '' : 'display:none;'; ?>position:absolute;top:4px;right:4px;width:7px;height:7px;background-color:var(--danger);border-radius:50%;border:1.5px solid var(--surface);pointer-events:none;"></span>
+                            <button class="btn-act duo-hover-btn" data-duo-icon="settings" onclick="openAdminConsole()" title="控制中心" style="position:relative;">
+                                <i class="ri-settings-3-line duo-rest-icon"></i>
+                                <span id="adminSettingsDot" style="<?php echo ($isAdmin && $pendingUserCount > 0) ? '' : 'display:none;'; ?>position:absolute;top:4px;right:4px;width:7px;height:7px;background-color:var(--danger);border-radius:50%;border:1.5px solid var(--surface);pointer-events:none;z-index:2;"></span>
                             </button>
                         <?php endif; ?>
-                        <button class="btn-act" onclick="doLogout()" title="退出登录">
-                            <i class="ri-logout-box-r-line"></i>
+                        <button class="btn-act duo-hover-btn" data-duo-icon="log-out" onclick="doLogout()" title="退出登录">
+                            <i class="ri-logout-box-r-line duo-rest-icon"></i>
                         </button>
                     </div>
                 </div>
@@ -964,7 +964,7 @@ foreach ($cats as $cat) {
                 </div>
                 <div class="top-changelog-wrap" id="barChangelogWrap" style="display:none;">
                     <button type="button" class="btn-top-changelog" id="barChangelogBtn" onclick="toggleTopChangelog(this)" title="查看更新日志">
-                        <i class="ri-file-list-2-line"></i> 日志
+                        <span class="duo-icon-slot" data-duo-icon="file-text"><i class="ri-file-list-2-line duo-rest-icon"></i></span> 日志
                     </button>
                     <div class="top-changelog-popover" id="topChangelogPopover" style="display:none;" onclick="event.stopPropagation()">
                         <div class="top-changelog-head">
@@ -979,7 +979,7 @@ foreach ($cats as $cat) {
                 </div>
                 <?php if ($canManage): ?>
                 <button type="button" class="btn-top-ver-manage" id="barBtnVerManage" style="display:none;" onclick="openCurrentVersionManage()" title="管理此项目的历史版本与底稿">
-                    <i class="ri-history-line"></i> 版本
+                    <span class="duo-icon-slot" data-duo-icon="history"><i class="ri-history-line duo-rest-icon"></i></span> 版本
                 </button>
                 <?php endif; ?>
                 <span class="current-proto-author" id="barAuthor" style="display:none;"></span>
@@ -989,26 +989,26 @@ foreach ($cats as $cat) {
             <div class="top-actions">
                 <!-- RP 源文件一键下载按钮 -->
                 <a href="javascript:void(0)" id="btnDownloadRp" class="btn-tool btn-tool-primary" style="display:none;" download>
-                    <i class="ri-download-cloud-2-line"></i> 下载 RP
+                    <span class="duo-icon-slot" data-duo-icon="download"><i class="ri-download-cloud-2-line duo-rest-icon"></i></span> 下载 RP
                 </a>
                 <!-- RP 快捷补传按钮 (仅有发版/管理权限且当前版本未上传 RP 时展示) -->
                 <?php if ($canManage): ?>
                 <button type="button" id="btnUploadRpQuick" class="btn-tool btn-tool-dashed" style="display:none;" title="此版本暂无 RP 底稿，点击补传" onclick="triggerQuickRpUpload()">
-                    <i class="ri-upload-2-line"></i> 补传 RP
+                    <span class="duo-icon-slot" data-duo-icon="upload"><i class="ri-upload-2-line duo-rest-icon"></i></span> 补传 RP
                 </button>
                 <input type="file" id="quickRpFileInput" accept=".rp" style="display:none;" onchange="handleQuickRpFileSelected(this)">
                 <?php endif; ?>
-                <button class="btn-tool" onclick="reloadIframe()" title="刷新"><i class="ri-refresh-line"></i> 刷新</button>
+                <button class="btn-tool" onclick="reloadIframe()" title="刷新"><span class="duo-icon-slot" data-duo-icon="rotate-cw"><i class="ri-refresh-line duo-rest-icon"></i></span> 刷新</button>
                 <?php if (Auth::canAnnotate()): ?>
                 <button class="btn-tool" id="btnToggleAnnotation" onclick="toggleAnnotationDrawer()" title="页面批注与协作讨论 (快捷键 C)">
-                    <i class="ri-chat-3-line"></i> 批注
+                    <span class="duo-icon-slot" data-duo-icon="message-square"><i class="ri-chat-3-line duo-rest-icon"></i></span> 批注
                     <span id="annoHeaderBadge" class="anno-badge" style="display:none;">0</span>
                 </button>
                 <?php endif; ?>
                 <?php if (Auth::canShare()): ?>
-                <button class="btn-tool" onclick="copyShareUrl()" title="分享"><i class="ri-share-forward-line"></i> 分享</button>
+                <button class="btn-tool" onclick="copyShareUrl()" title="分享"><span class="duo-icon-slot" data-duo-icon="share"><i class="ri-share-forward-line duo-rest-icon"></i></span> 分享</button>
                 <?php endif; ?>
-                <button class="btn-tool" onclick="toggleFullscreen()" title="全屏"><i class="ri-fullscreen-line"></i> 全屏</button>
+                <button class="btn-tool" onclick="toggleFullscreen()" title="全屏"><span class="duo-icon-slot" data-duo-icon="maximize"><i class="ri-fullscreen-line duo-rest-icon"></i></span> 全屏</button>
             </div>
         </div>
 
@@ -1067,9 +1067,9 @@ foreach ($cats as $cat) {
                         <?php if ($canManage): ?>
                             <div class="empty-state-actions">
                                 <?php if (empty($cats)): ?>
-                                <button type="button" class="empty-state-btn" onclick="openCategoryModal(0)"><i class="ri-folder-add-line"></i> 新建文件夹</button>
+                                <button type="button" class="empty-state-btn" onclick="openCategoryModal(0)"><span class="duo-icon-slot" data-duo-icon="folder-plus"><i class="ri-folder-add-line duo-rest-icon"></i></span> 新建文件夹</button>
                                 <?php else: ?>
-                                <button type="button" class="empty-state-btn" onclick="openQuickItemModal('project')"><i class="ri-add-line"></i> 新建项目</button>
+                                <button type="button" class="empty-state-btn" onclick="openQuickItemModal('project')"><span class="duo-icon-slot" data-duo-icon="circle-plus"><i class="ri-add-line duo-rest-icon"></i></span> 新建项目</button>
                                 <?php endif; ?>
                             </div>
                         <?php else: ?>
@@ -1166,7 +1166,7 @@ foreach ($cats as $cat) {
                         <div class="anno-footer-actions">
                             <span class="anno-hint-text"><kbd>⌘/Ctrl</kbd> + <kbd>Enter</kbd> 发送</span>
                             <button type="button" class="btn-primary btn-sm" id="btnSendAnno" onclick="submitNewAnnotation()">
-                                <i class="ri-send-plane-fill"></i> 发送
+                                <span class="duo-icon-slot" data-duo-icon="send"><i class="ri-send-plane-fill duo-rest-icon"></i></span> 发送
                             </button>
                         </div>
                     <?php else: ?>
@@ -1195,6 +1195,7 @@ foreach ($cats as $cat) {
         'username' => $currentUser['email'] ?? '',
         'display_name' => $currentUser['name'] ?? '',
         'webhook_url' => $currentUser['webhook_url'] ?? '',
+        'avatar' => $currentUser['avatar'] ?? 'leap-sky',
         'role' => $currentUser['role'],
         'is_owner' => (int)$currentUser['is_owner'],
         'is_first_login' => (int)($currentUser['is_first_login'] ?? 0)
@@ -1220,7 +1221,9 @@ $verSuffix = function($relPath) {
 <script src="assets/js/watermark.js?v=<?php echo $verSuffix('assets/js/watermark.js'); ?>"></script>
 <script src="assets/js/ver-picker.js?v=<?php echo $verSuffix('assets/js/ver-picker.js'); ?>"></script>
 <script src="assets/js/password-strength.js?v=<?php echo $verSuffix('assets/js/password-strength.js'); ?>" defer></script>
+<script src="assets/js/profile-avatars.js?v=<?php echo $verSuffix('assets/js/profile-avatars.js'); ?>"></script>
 <script src="assets/js/app.js?v=<?php echo $verSuffix('assets/js/app.js'); ?>"></script>
+<script src="assets/js/duo-icons.js?v=<?php echo $verSuffix('assets/js/duo-icons.js'); ?>"></script>
 <?php if (Auth::canAnnotate()): ?>
 <script src="assets/js/annotation.js?v=<?php echo $verSuffix('assets/js/annotation.js'); ?>"></script>
 <?php endif; ?>

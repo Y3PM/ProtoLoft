@@ -1,0 +1,39 @@
+{
+  "shareIconState": [
+    {
+      "icon": "file-text",
+      "lightFill": "color(srgb 0.66 0.817333 0.956)",
+      "ready": "1",
+      "size": "12px"
+    },
+    {
+      "icon": "rotate-cw",
+      "ready": "1",
+      "size": "13px"
+    },
+    {
+      "icon": "message-square",
+      "lightFill": "color(srgb 0.66 0.817333 0.956)",
+      "ready": "1",
+      "size": "13px"
+    },
+    {
+      "icon": "maximize",
+      "lightFill": "color(srgb 0.66 0.817333 0.956)",
+      "ready": "1",
+      "size": "13px"
+    },
+    {
+      "icon": "layout-dashboard",
+      "lightFill": "color(srgb 0.66 0.817333 0.956)",
+      "ready": "1",
+      "size": "13px"
+    }
+  ],
+  "shareFocusState": {
+    "active": "0.80249",
+    "focusVisible": true,
+    "rest": "0.19751"
+  },
+  "logs": []
+}

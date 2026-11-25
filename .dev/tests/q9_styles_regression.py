@@ -8,7 +8,7 @@
 3. index.php 组件内联硬编码色值清零，仅保留品牌官方折纸大象 Logo 几何图形 (<= 21 处)；
 4. share.php 8 处错误卡片完全收敛为 render_share_error_card()，硬编码 Hex <= 2 处；
 5. assets/css/app.css 具备 .m-modal-footer, .m-alert-tip, .m-domain-badge, .m-badge-tag 等标准 Linear 预设类；
-6. APP_VERSION 严格升级为 3.1.6。
+6. APP_VERSION 严格升级为 3.1.11。
 """
 
 import os
@@ -28,11 +28,11 @@ def check_q9_standards():
     config_path = os.path.join(BASE_DIR, 'includes', 'config.php')
     with open(config_path, 'r', encoding='utf-8') as f:
         config_content = f.read()
-    if "define('APP_VERSION', '3.1.6');" in config_content:
+    if "define('APP_VERSION', '3.1.11');" in config_content:
         passed += 1
-        print("  ✓ [1/6] 版本号已正确迭代为 3.1.6")
+        print("  ✓ [1/6] 版本号已正确迭代为 3.1.11")
     else:
-        print("  ✗ [1/6] 版本号未正确设置为 3.1.6")
+        print("  ✗ [1/6] 版本号未正确设置为 3.1.11")
 
     # 2. 验证 modals.php Hex 清零
     total += 1

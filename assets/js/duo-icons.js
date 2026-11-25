@@ -1,0 +1,394 @@
+/**
+ * 立象原型 · 双色悬停动态图标引擎 (方案 A · 渐进增强)
+ * 设计规范与图标几何/动效参数基于 kubai-icons (MIT License, Copyright (c) 2026 Kubai087)
+ * 适配纯原生浏览器环境：零构建依赖，主色跟随 currentColor，辅色基于 CSS color-mix 自动推导。
+ */
+(function (global) {
+    'use strict';
+
+    var DURATION = 480;
+    var STEP = 110;
+    var BACK = 360;
+    var LIGHT_TONE = 'var(--kd-b, color-mix(in srgb, currentColor 54%, var(--surface)))';
+    var FIT = { square: 13 / 12 };
+    var REST = { x: 0, y: 0, r: 0, s: 1, sx: 1, sy: 1, a: 1, w: 1 };
+    var KEYS = ['x', 'y', 'r', 's', 'sx', 'sy', 'a', 'w'];
+
+    // 预编译的双色面性图标定义（16x16 网格，静止与悬停共用同一套几何分层）
+    var DUO_ICONS = {"settings":{"key":"circle","layers":[{"n":0,"tone":"b","part":"#0","d":"M2.75 8A5.25 5.25 0 1 1 13.25 8A5.25 5.25 0 1 1 2.75 8ZM12.2 8C12.2 7.493 12.2 7.139 12.42 6.92C12.639 6.7 12.993 6.7 13.5 6.7L13.7 6.7C14.207 6.7 14.561 6.7 14.78 6.92C15 7.139 15 7.493 15 8L15 8C15 8.507 15 8.861 14.78 9.08C14.561 9.3 14.207 9.3 13.7 9.3L13.5 9.3C12.993 9.3 12.639 9.3 12.42 9.08C12.2 8.861 12.2 8.507 12.2 8ZM10.97 10.97C11.329 10.611 11.578 10.361 11.889 10.361C12.2 10.361 12.45 10.611 12.808 10.97L12.95 11.111C13.308 11.47 13.558 11.72 13.558 12.031C13.558 12.341 13.308 12.591 12.95 12.95L12.95 12.95C12.591 13.308 12.341 13.558 12.031 13.558C11.72 13.558 11.47 13.308 11.111 12.95L10.97 12.808C10.611 12.45 10.361 12.2 10.361 11.889C10.361 11.578 10.611 11.329 10.97 10.97ZM8 12.2C8.507 12.2 8.861 12.2 9.08 12.42C9.3 12.639 9.3 12.993 9.3 13.5L9.3 13.7C9.3 14.207 9.3 14.561 9.08 14.78C8.861 15 8.507 15 8 15L8 15C7.493 15 7.139 15 6.92 14.78C6.7 14.561 6.7 14.207 6.7 13.7L6.7 13.5C6.7 12.993 6.7 12.639 6.92 12.42C7.139 12.2 7.493 12.2 8 12.2ZM5.03 10.97C5.389 11.329 5.639 11.578 5.639 11.889C5.639 12.2 5.389 12.45 5.03 12.808L4.889 12.95C4.53 13.308 4.28 13.558 3.969 13.558C3.659 13.558 3.409 13.308 3.05 12.95L3.05 12.95C2.692 12.591 2.442 12.341 2.442 12.031C2.442 11.72 2.692 11.47 3.05 11.111L3.192 10.97C3.55 10.611 3.8 10.361 4.111 10.361C4.422 10.361 4.671 10.611 5.03 10.97ZM3.8 8C3.8 8.507 3.8 8.861 3.58 9.08C3.361 9.3 3.007 9.3 2.5 9.3L2.3 9.3C1.793 9.3 1.439 9.3 1.22 9.08C1 8.861 1 8.507 1 8L1 8C1 7.493 1 7.139 1.22 6.92C1.439 6.7 1.793 6.7 2.3 6.7L2.5 6.7C3.007 6.7 3.361 6.7 3.58 6.92C3.8 7.139 3.8 7.493 3.8 8ZM5.03 5.03C4.671 5.389 4.422 5.639 4.111 5.639C3.8 5.639 3.55 5.389 3.192 5.03L3.05 4.889C2.692 4.53 2.442 4.28 2.442 3.969C2.442 3.659 2.692 3.409 3.05 3.05L3.05 3.05C3.409 2.692 3.659 2.442 3.969 2.442C4.28 2.442 4.53 2.692 4.889 3.05L5.03 3.192C5.389 3.55 5.639 3.8 5.639 4.111C5.639 4.422 5.389 4.671 5.03 5.03ZM8 3.8C7.493 3.8 7.139 3.8 6.92 3.58C6.7 3.361 6.7 3.007 6.7 2.5L6.7 2.3C6.7 1.793 6.7 1.439 6.92 1.22C7.139 1 7.493 1 8 1L8 1C8.507 1 8.861 1 9.08 1.22C9.3 1.439 9.3 1.793 9.3 2.3L9.3 2.5C9.3 3.007 9.3 3.361 9.08 3.58C8.861 3.8 8.507 3.8 8 3.8ZM10.97 5.03C10.611 4.671 10.361 4.422 10.361 4.111C10.361 3.8 10.611 3.55 10.97 3.192L11.111 3.05C11.47 2.692 11.72 2.442 12.031 2.442C12.341 2.442 12.591 2.692 12.95 3.05L12.95 3.05C13.308 3.409 13.558 3.659 13.558 3.969C13.558 4.28 13.308 4.53 12.95 4.889L12.808 5.03C12.45 5.389 12.2 5.639 11.889 5.639C11.578 5.639 11.329 5.389 10.97 5.03Z"},{"n":1,"part":"#1","d":"M5.75 8A2.25 2.25 0 1 1 10.25 8A2.25 2.25 0 1 1 5.75 8Z"}],"moves":{"0":{"r":180}}},"log-out":{"key":"square","layers":[{"n":0,"tone":"b","part":"#0","d":"M2 5.6C2 4.114 2 3.172 2.586 2.586C3.172 2 4.114 2 5.6 2L5.9 2C7.386 2 8.328 2 8.914 2.586C9.5 3.172 9.5 4.114 9.5 5.6L9.5 10.4C9.5 11.886 9.5 12.828 8.914 13.414C8.328 14 7.386 14 5.9 14L5.6 14C4.114 14 3.172 14 2.586 13.414C2 12.828 2 11.886 2 10.4Z"},{"n":1,"part":"#1","gap":1,"d":"M5 8C5 7.586 5.336 7.25 5.75 7.25L10.5 7.25L10.5 7.25C10.5 6.865 10.5 6.089 11.092 5.824C11.684 5.56 12.262 6.077 12.549 6.334L13.108 6.834C13.53 7.212 13.911 7.553 13.911 8C13.911 8.447 13.53 8.788 13.108 9.166L12.549 9.666C12.262 9.923 11.684 10.44 11.092 10.176C10.5 9.911 10.5 9.135 10.5 8.75L10.5 8.75L5.75 8.75C5.336 8.75 5 8.414 5 8Z"}],"moves":{"1":{"rest":{"sx":0.2},"sx":1,"o":[5,8]}}},"file-text":{"key":"portrait","layers":[{"n":0,"d":"M2 4.6C2 3.114 2 2.172 2.586 1.586C3.172 1 4.114 1 5.6 1L10.4 1C11.886 1 12.828 1 13.414 1.586C14 2.172 14 3.114 14 4.6L14 11.4C14 12.886 14 13.828 13.414 14.414C12.828 15 11.886 15 10.4 15L5.6 15C4.114 15 3.172 15 2.586 14.414C2 13.828 2 12.886 2 11.4Z","tone":"b","part":"#0"},{"n":1,"d":"M5 5.875C5 5.53 5.28 5.25 5.625 5.25L10.375 5.25C10.72 5.25 11 5.53 11 5.875L11 5.875C11 6.22 10.72 6.5 10.375 6.5L5.625 6.5C5.28 6.5 5 6.22 5 5.875Z","part":"#1"},{"n":2,"d":"M5 8.5C5 8.155 5.28 7.875 5.625 7.875L10.375 7.875C10.72 7.875 11 8.155 11 8.5L11 8.5C11 8.845 10.72 9.125 10.375 9.125L5.625 9.125C5.28 9.125 5 8.845 5 8.5Z","part":"#2"},{"n":3,"d":"M5 11.125C5 10.78 5.28 10.5 5.625 10.5L7.875 10.5C8.22 10.5 8.5 10.78 8.5 11.125L8.5 11.125C8.5 11.47 8.22 11.75 7.875 11.75L5.625 11.75C5.28 11.75 5 11.47 5 11.125Z","part":"#3"}],"moves":{"1":{"sx":[0,1,1,1],"o":[5,5.875]},"2":{"sx":[0,0,1,1],"o":[5,8.5]},"3":{"sx":[0,0,0,1],"o":[5,11.125]}}},"history":{"key":"circle","layers":[{"n":0,"d":"M3.757 3.757A6 6 0 1 1 2.091 9.042","tone":"b","sw":2,"part":"arrow"},{"n":1,"d":"M1.089 4.777C1.152 3.644 1.194 2.869 1.8 2.637C2.406 2.406 2.955 2.955 3.757 3.757L3.757 3.757C4.56 4.56 5.109 5.109 4.877 5.714C4.646 6.32 3.871 6.363 2.738 6.425L2.738 6.425C2.172 6.457 1.662 6.485 1.346 6.169C1.03 5.853 1.058 5.343 1.089 4.777Z","part":"arrow"},{"n":2,"d":"M8 4.75V8","sw":1.5,"part":"#2"},{"n":3,"d":"M8 8H10.25","sw":1.5,"part":"#3"}],"moves":{"0":{"r":[-20,0]},"1":{"r":[-20,0]},"2":{"r":-360},"3":{"r":-30}}},"download":{"key":"square","layers":[{"n":0,"d":"M2 10.1C2 8.614 2 7.672 2.586 7.086C3.172 6.5 4.114 6.5 5.6 6.5L10.4 6.5C11.886 6.5 12.828 6.5 13.414 7.086C14 7.672 14 8.614 14 10.1L14 10.4C14 11.886 14 12.828 13.414 13.414C12.828 14 11.886 14 10.4 14L5.6 14C4.114 14 3.172 14 2.586 13.414C2 12.828 2 11.886 2 10.4Z","tone":"b","part":"#0"},{"n":1,"d":"M7.25 2.75C7.25 2.336 7.586 2 8 2L8 2C8.414 2 8.75 2.336 8.75 2.75L8.75 7.5L8.75 7.5C9.135 7.5 9.911 7.5 10.176 8.092C10.44 8.684 9.923 9.262 9.666 9.549L9.166 10.108C8.788 10.53 8.447 10.911 8 10.911C7.553 10.911 7.212 10.53 6.834 10.108L6.334 9.549C6.077 9.262 5.56 8.684 5.824 8.092C6.089 7.5 6.865 7.5 7.25 7.5L7.25 7.5Z","gap":1,"part":"#1"}],"moves":{"1":{"sy":1,"o":[8,2],"rest":{"sy":0.2}}}},"upload":{"key":"square","layers":[{"n":0,"d":"M2 10.1C2 8.614 2 7.672 2.586 7.086C3.172 6.5 4.114 6.5 5.6 6.5L10.4 6.5C11.886 6.5 12.828 6.5 13.414 7.086C14 7.672 14 8.614 14 10.1L14 10.4C14 11.886 14 12.828 13.414 13.414C12.828 14 11.886 14 10.4 14L5.6 14C4.114 14 3.172 14 2.586 13.414C2 12.828 2 11.886 2 10.4Z","tone":"b","part":"#0"},{"n":1,"d":"M6.834 2.892C7.212 2.47 7.553 2.089 8 2.089C8.447 2.089 8.788 2.47 9.166 2.892L9.666 3.451C9.923 3.738 10.44 4.316 10.176 4.908C9.911 5.5 9.135 5.5 8.75 5.5L8.75 5.5L8.75 10.75C8.75 11.164 8.414 11.5 8 11.5L8 11.5C7.586 11.5 7.25 11.164 7.25 10.75L7.25 5.5L7.25 5.5C6.865 5.5 6.089 5.5 5.824 4.908C5.56 4.316 6.077 3.738 6.334 3.451Z","gap":1,"part":"#1"}],"moves":{"1":{"sy":1,"o":[8,11.5],"rest":{"sy":0.2}}}},"cloud-upload":{"key":"wide","layers":[{"n":0,"d":"M1 10.25C1 8.455 2.455 7 4.25 7L11.75 7C13.545 7 15 8.455 15 10.25L15 10.25C15 12.045 13.545 13.5 11.75 13.5L4.25 13.5C2.455 13.5 1 12.045 1 10.25ZM4 7A4.5 4.5 0 1 1 13 7A4.5 4.5 0 1 1 4 7Z","tone":"b","part":"#0"},{"n":1,"d":"M6.708 6.094C7.198 5.523 7.541 5.125 8 5.125C8.459 5.125 8.802 5.523 9.292 6.094L9.36 6.173C9.75 6.627 9.999 6.917 9.866 7.209C9.732 7.5 9.349 7.5 8.75 7.5L8.75 7.5L8.75 10.75C8.75 11.164 8.414 11.5 8 11.5L8 11.5C7.586 11.5 7.25 11.164 7.25 10.75L7.25 7.5L7.25 7.5C6.651 7.5 6.268 7.5 6.134 7.209C6.001 6.917 6.25 6.627 6.64 6.173Z","gap":1,"part":"#1"}],"moves":{"1":{"sy":1,"o":[8,11.5],"rest":{"sy":0.2}}}},"rotate-cw":{"key":"circle","layers":[{"n":0,"d":"M13.909 9.042A6 6 0 1 1 12.243 3.757","tone":"b","sw":2,"part":"arrow"},{"n":1,"d":"M14.911 4.777C14.943 5.343 14.971 5.853 14.655 6.169C14.339 6.485 13.829 6.457 13.263 6.425L13.263 6.425C12.129 6.363 11.354 6.32 11.123 5.714C10.891 5.109 11.44 4.56 12.243 3.757L12.243 3.757C13.046 2.954 13.595 2.405 14.2 2.637C14.806 2.868 14.849 3.643 14.911 4.777Z","part":"arrow"}],"moves":{"0":{"w":[0,1,1]},"1":{"a":[0,0,1],"s":[0.4,0.4,1],"o":[12.243,3.757]}}},"message-square":{"key":"landscape","layers":[{"n":0,"d":"M1 7.4C1 5.171 1 3.757 1.879 2.879C2.757 2 4.171 2 6.4 2L9.6 2C11.829 2 13.243 2 14.121 2.879C15 3.757 15 5.171 15 7.4L15 8.6C15 10.829 15 12.243 14.121 13.121C13.243 14 11.829 14 9.6 14L1 14Z","tone":"b","part":"#0"},{"n":1,"d":"M4 6.625C4 6.28 4.28 6 4.625 6L11.375 6C11.72 6 12 6.28 12 6.625L12 6.625C12 6.97 11.72 7.25 11.375 7.25L4.625 7.25C4.28 7.25 4 6.97 4 6.625Z","part":"#1"},{"n":2,"d":"M4 9.625C4 9.28 4.28 9 4.625 9L8.375 9C8.72 9 9 9.28 9 9.625L9 9.625C9 9.97 8.72 10.25 8.375 10.25L4.625 10.25C4.28 10.25 4 9.97 4 9.625Z","part":"#2"}],"moves":{"1":{"sx":[0,1,1],"o":[4,6.625]},"2":{"sx":[0,0,1],"o":[4,9.625]},"all":{"s":[0.85,1.08,1],"o":[1,14]}}},"share":{"key":"square","layers":[{"n":0,"d":"M2 10.1C2 8.614 2 7.672 2.586 7.086C3.172 6.5 4.114 6.5 5.6 6.5L8.4 6.5C9.886 6.5 10.828 6.5 11.414 7.086C12 7.672 12 8.614 12 10.1L12 10.4C12 11.886 12 12.828 11.414 13.414C10.828 14 9.886 14 8.4 14L5.6 14C4.114 14 3.172 14 2.586 13.414C2 12.828 2 11.886 2 10.4Z","tone":"b","part":"#0"},{"n":1,"d":"M7 10.75V7.65A3.5 3.5 0 0 1 10.5 4.15H11.5","sw":1.5,"gap":1,"part":"arrow"},{"n":2,"d":"M11 4.15C11 3.202 11 2.396 11.617 2.14C12.235 1.885 12.804 2.454 13.475 3.125L13.475 3.125C13.753 3.403 14.086 3.736 14.086 4.15C14.086 4.564 13.753 4.897 13.475 5.175L13.475 5.175C12.804 5.846 12.235 6.415 11.617 6.16C11 5.904 11 5.098 11 4.15Z","gap":1,"part":"arrow"}],"moves":{"1":{"w":[0,1,1]},"2":{"a":[0,0,1],"s":[0.4,0.4,1],"o":[11,4.15]}}},"maximize":{"key":"square","layers":[{"n":0,"d":"M2 6.5C2 4.643 2 3.464 2.732 2.732C3.464 2 4.643 2 6.5 2L9.5 2C11.357 2 12.536 2 13.268 2.732C14 3.464 14 4.643 14 6.5L14 9.5C14 11.357 14 12.536 13.268 13.268C12.536 14 11.357 14 9.5 14L6.5 14C4.643 14 3.464 14 2.732 13.268C2 12.536 2 11.357 2 9.5Z","tone":"b","part":"#0"},{"n":1,"d":"M4.75 6.75V4.75H6.75","sw":1.5,"part":"#1"},{"n":2,"d":"M9.25 4.75H11.25V6.75","sw":1.5,"part":"#2"},{"n":3,"d":"M11.25 9.25V11.25H9.25","sw":1.5,"part":"#3"},{"n":4,"d":"M6.75 11.25H4.75V9.25","sw":1.5,"part":"#4"}],"moves":{"1":{"x":-0.75,"y":-0.75},"2":{"x":0.75,"y":-0.75},"3":{"x":0.75,"y":0.75},"4":{"x":-0.75,"y":0.75}}},"folder-plus":{"key":"landscape","layers":[{"n":0,"d":"M1 4.7C1 3.586 1 2.879 1.439 2.439C1.879 2 2.586 2 3.7 2L5 2C5.415 2 6.121 2 6.561 2.439C7 2.879 7 3.586 7 4L7 4L10.5 4C12.357 4 13.536 4 14.268 4.732C15 5.464 15 6.643 15 8.5L15 9.5C15 11.357 15 12.536 14.268 13.268C13.536 14 12.357 14 10.5 14L5.5 14C3.643 14 2.464 14 1.732 13.268C1 12.536 1 11.357 1 9.5Z","tone":"b","gap":1,"part":"#0"},{"n":1,"d":"M8 6.75V11.25M5.75 9H10.25","sw":1.5,"part":"badge"}],"moves":{"1":{"r":90,"o":[8,9]}}},"trash":{"key":"portrait","layers":[{"n":0,"d":"M2 3.25C2 3.134 2 2.851 2.176 2.676C2.351 2.5 2.634 2.5 2.75 2.5L6.5 2.5L6.5 2.08C6.5 1.634 6.5 1.351 6.676 1.176C6.851 1 7.134 1 7.58 1L8.42 1C8.866 1 9.149 1 9.324 1.176C9.5 1.351 9.5 1.634 9.5 2.08L9.5 2.5L13.25 2.5C13.366 2.5 13.649 2.5 13.824 2.676C14 2.851 14 3.134 14 3.25L14 3.25C14 3.366 14 3.649 13.824 3.824C13.649 4 13.366 4 13.25 4L2.75 4C2.634 4 2.351 4 2.176 3.824C2 3.649 2 3.366 2 3.25Z","part":"#0"},{"n":1,"d":"M3 6.8C3 6.057 3 5.586 3.293 5.293C3.586 5 4.057 5 4.8 5L11.2 5C11.943 5 12.414 5 12.707 5.293C13 5.586 13 6.057 13 6.8L13 10.5C13 12.357 13 13.536 12.268 14.268C11.536 15 10.357 15 8.5 15L7.5 15C5.643 15 4.464 15 3.732 14.268C3 13.536 3 12.357 3 10.5Z","tone":"b","part":"#1"},{"n":2,"d":"M6.25 8.125C6.25 7.78 6.53 7.5 6.875 7.5L6.875 7.5C7.22 7.5 7.5 7.78 7.5 8.125L7.5 11.875C7.5 12.22 7.22 12.5 6.875 12.5L6.875 12.5C6.53 12.5 6.25 12.22 6.25 11.875ZM8.75 8.125C8.75 7.78 9.03 7.5 9.375 7.5L9.375 7.5C9.72 7.5 10 7.78 10 8.125L10 11.875C10 12.22 9.72 12.5 9.375 12.5L9.375 12.5C9.03 12.5 8.75 12.22 8.75 11.875Z","part":"#2"}],"moves":{"0":{"y":[-0.25,-0.25],"r":[-6,-6],"o":[2,4]}}},"pencil":{"key":"square","layers":[{"n":0,"d":"M3.8 14C3.057 14 2.586 14 2.293 13.707C2 13.414 2 12.943 2 12.2L2 11.172L9.286 3.886L12.114 6.714L4.828 14Z","tone":"b","part":"#0"},{"n":1,"d":"M3.8 14C3.057 14 2.586 14 2.293 13.707C2 13.414 2 12.943 2 12.2L2 11.172L9.286 3.886L12.114 6.714L4.828 14Z","part":"#1","clip":"M-6 2.828L12 20.828L-6 20.828Z"},{"n":2,"d":"M9.993 3.178L10.311 2.86C10.837 2.335 11.17 2.002 11.584 2.002C11.998 2.002 12.332 2.335 12.857 2.86L13.14 3.143C13.665 3.668 13.998 4.002 13.998 4.416C13.998 4.83 13.665 5.163 13.14 5.689L12.822 6.007Z","part":"#2"}],"moves":{"all":{"r":[-7,5,-3,1,0],"o":[2,14]}}},"layout-dashboard":{"key":"square","layers":[{"n":0,"d":"M2 5.6C2 4.114 2 3.172 2.586 2.586C3.172 2 4.114 2 5.6 2L5.7 2C6.443 2 6.914 2 7.207 2.293C7.5 2.586 7.5 3.057 7.5 3.8L7.5 7.2C7.5 7.943 7.5 8.414 7.207 8.707C6.914 9 6.443 9 5.7 9L3.8 9C3.057 9 2.586 9 2.293 8.707C2 8.414 2 7.943 2 7.2Z","part":"#0"},{"n":1,"d":"M2 11.333C2 11.057 2 10.586 2.293 10.293C2.586 10 3.057 10 3.333 10L5.7 10C6.443 10 6.914 10 7.207 10.293C7.5 10.586 7.5 11.057 7.5 11.8L7.5 12.2C7.5 12.943 7.5 13.414 7.207 13.707C6.914 14 6.443 14 5.7 14L4.667 14C4.114 14 3.172 14 2.586 13.414C2 12.828 2 11.886 2 11.333Z","tone":"b","part":"#1"},{"n":2,"d":"M8.5 3.8C8.5 3.057 8.5 2.586 8.793 2.293C9.086 2 9.557 2 10.3 2L11.333 2C11.886 2 12.828 2 13.414 2.586C14 3.172 14 4.114 14 4.667L14 4.667C14 4.943 14 5.414 13.707 5.707C13.414 6 12.943 6 12.667 6L10.3 6C9.557 6 9.086 6 8.793 5.707C8.5 5.414 8.5 4.943 8.5 4.2Z","tone":"b","part":"#2"},{"n":3,"d":"M8.5 8.8C8.5 8.057 8.5 7.586 8.793 7.293C9.086 7 9.557 7 10.3 7L12.2 7C12.943 7 13.414 7 13.707 7.293C14 7.586 14 8.057 14 8.8L14 10.4C14 11.886 14 12.828 13.414 13.414C12.828 14 11.886 14 10.4 14L10.3 14C9.557 14 9.086 14 8.793 13.707C8.5 13.414 8.5 12.943 8.5 12.2Z","tone":"b","part":"#3"}],"moves":{"0":{"sy":0.5714285714285714,"o":[8,2]},"1":{"sy":1.75,"o":[8,14]},"2":{"sy":1.75,"o":[8,2]},"3":{"sy":0.5714285714285714,"o":[8,14]}}},"send":{"key":"square","layers":[{"n":0,"d":"M4.107 7.368C2.598 6.803 1.981 6.573 1.995 6.039C2.008 5.505 2.635 5.305 4.171 4.817L11.964 2.34C12.99 2.014 13.504 1.851 13.827 2.173C14.149 2.496 13.986 3.01 13.66 4.036L11.183 11.829C10.695 13.365 10.495 13.992 9.961 14.005C9.427 14.019 9.197 13.402 8.632 11.893L7.544 8.984C7.484 8.825 7.442 8.712 7.365 8.635C7.288 8.558 7.175 8.516 7.016 8.456Z","tone":"b","part":"#0"},{"n":1,"d":"M4.107 7.368C2.598 6.803 1.981 6.573 1.995 6.039C2.008 5.505 2.635 5.305 4.171 4.817L11.964 2.34C12.99 2.014 13.504 1.851 13.827 2.173C14.149 2.496 13.986 3.01 13.66 4.036L11.183 11.829C10.695 13.365 10.495 13.992 9.961 14.005C9.427 14.019 9.197 13.402 8.632 11.893L7.544 8.984C7.484 8.825 7.442 8.712 7.365 8.635C7.288 8.558 7.175 8.516 7.016 8.456Z","part":"#1","clip":"M21 -5L21 21L-5 21Z"}],"moves":{"all":{"x":[1,1,-1,0],"y":[-1,-1,1,0],"a":[1,0,0,1]}}},"repeat":{"key":"square","layers":[{"n":0,"d":"M3 8.61V6.3A2.5 2.5 0 0 1 5.5 3.8H12","tone":"b","sw":2,"part":"loop"},{"n":1,"d":"M11.91 3.234C11.91 2.576 11.91 2.173 12.219 2.045C12.527 1.917 12.812 2.202 13.277 2.667L13.277 2.667C13.663 3.053 13.996 3.386 13.996 3.8C13.996 4.214 13.663 4.547 13.277 4.933L13.277 4.933C12.812 5.398 12.527 5.683 12.219 5.555C11.91 5.427 11.91 5.024 11.91 4.366Z","part":"loop"},{"n":2,"d":"M13 7.39V9.7A2.5 2.5 0 0 1 10.5 12.2H4","tone":"b","sw":2,"part":"loop"},{"n":3,"d":"M4.09 12.766C4.09 13.424 4.09 13.827 3.781 13.955C3.473 14.083 3.188 13.798 2.723 13.333L2.723 13.333C2.337 12.947 2.004 12.614 2.004 12.2C2.004 11.786 2.337 11.453 2.723 11.067L2.723 11.067C3.188 10.602 3.473 10.317 3.781 10.445C4.09 10.573 4.09 10.976 4.09 11.634Z","part":"loop"}],"moves":{"all":{"r":180,"o":[8,8]}}},"circle-check":{"key":"circle","layers":[{"n":0,"d":"M1 8A7 7 0 1 1 15 8A7 7 0 1 1 1 8Z","tone":"b","part":"#0"},{"n":1,"d":"M5.25 7.75L7.25 9.75L10.75 6.25","sw":1.5,"part":"#1"}],"moves":{"1":{"rest":{"w":0},"w":1}}},"plus-square":{"key":"square","layers":[{"n":0,"d":"M2 6.5C2 4.643 2 3.464 2.732 2.732C3.464 2 4.643 2 6.5 2L9.5 2C11.357 2 12.536 2 13.268 2.732C14 3.464 14 4.643 14 6.5L14 9.5C14 11.357 14 12.536 13.268 13.268C12.536 14 11.357 14 9.5 14L6.5 14C4.643 14 3.464 14 2.732 13.268C2 12.536 2 11.357 2 9.5Z","tone":"b","part":"#0"},{"n":1,"d":"M8 5V11","sw":1.5,"part":"#1"},{"n":2,"d":"M5 8H11","sw":1.5,"part":"#2"}],"moves":{"1":{"rest":{"w":0},"w":[1,1]},"2":{"rest":{"w":0},"w":[0,1]}}},"circle-plus":{"key":"circle","layers":[{"n":0,"d":"M1 8A7 7 0 1 1 15 8A7 7 0 1 1 1 8Z","tone":"b","part":"#0"},{"n":1,"d":"M8 5V11","sw":1.5,"part":"#1"},{"n":2,"d":"M5 8H11","sw":1.5,"part":"#2"}],"moves":{"1":{"rest":{"w":0},"w":[1,1]},"2":{"rest":{"w":0},"w":[0,1]}}},"copy":{"key":"portrait","layers":[{"n":0,"d":"M5.5 4.6C5.5 3.114 5.5 2.172 6.086 1.586C6.672 1 7.614 1 9.1 1L10.4 1C11.886 1 12.828 1 13.414 1.586C14 2.172 14 3.114 14 4.6L14 7.4C14 8.886 14 9.828 13.414 10.414C12.828 11 11.886 11 10.4 11L9.1 11C7.614 11 6.672 11 6.086 10.414C5.5 9.828 5.5 8.886 5.5 7.4Z","part":"#0"},{"n":1,"d":"M2 8.6C2 7.114 2 6.172 2.586 5.586C3.172 5 4.114 5 5.6 5L6.9 5C8.386 5 9.328 5 9.914 5.586C10.5 6.172 10.5 7.114 10.5 8.6L10.5 11.4C10.5 12.886 10.5 13.828 9.914 14.414C9.328 15 8.386 15 6.9 15L5.6 15C4.114 15 3.172 15 2.586 14.414C2 13.828 2 12.886 2 11.4Z","tone":"b","gap":1,"part":"#1"}],"moves":{"0":{"x":[0.75,0.75],"y":[-0.75,-0.75]},"1":{"x":[-1,-0.9],"y":[0.75,0.75]}}},"key":{"key":"flat","layers":[{"n":0,"d":"M7.5 6.75L13.2 6.75C13.943 6.75 14.414 6.75 14.707 7.043C15 7.336 15 7.807 15 8.55L15 11.25C15 11.472 15 11.707 14.854 11.854C14.707 12 14.472 12 14.25 12L14.25 12C14.028 12 13.793 12 13.646 11.854C13.5 11.707 13.5 11.472 13.5 11.25L13.5 9.25L12.5 9.25L12.5 11.25C12.5 11.472 12.5 11.707 12.354 11.854C12.207 12 11.972 12 11.75 12L11.75 12C11.528 12 11.293 12 11.146 11.854C11 11.707 11 11.472 11 11.25L11 9.25L7.5 9.25Z","part":"#0"},{"n":1,"d":"M2.25 8A2.75 2.75 0 1 1 7.75 8A2.75 2.75 0 1 1 2.25 8Z","tone":"b","sw":2.5,"gap":1,"part":"#1"}],"moves":{"all":{"x":[0.75,0.75,0.75],"sy":[1,0.35,1]}}},"external-link":{"key":"square","layers":[{"n":0,"d":"M2 8.98C2 7.123 2 5.944 2.732 5.212C3.464 4.48 4.643 4.48 6.5 4.48L7.02 4.48C8.877 4.48 10.056 4.48 10.788 5.212C11.52 5.944 11.52 7.123 11.52 8.98L11.52 9.5C11.52 11.357 11.52 12.536 10.788 13.268C10.056 14 8.877 14 7.02 14L6.5 14C4.643 14 3.464 14 2.732 13.268C2 12.536 2 11.357 2 9.5Z","tone":"b","part":"#0"},{"n":1,"d":"M6.76 9.24L12 4","sw":1.5,"gap":1,"part":"arrow"},{"n":2,"d":"M10.536 3.536C9.902 2.902 9.617 2.617 9.745 2.309C9.873 2 10.276 2 11.173 2L12.2 2C12.943 2 13.414 2 13.707 2.293C14 2.586 14 3.057 14 3.8L14 4.827C14 5.724 14 6.127 13.691 6.255C13.383 6.383 13.098 6.098 12.464 5.464Z","gap":1,"part":"arrow"}],"moves":{"1":{"w":[0,1,1]},"2":{"a":[0,0,1],"s":[0.4,0.4,1],"o":[12.75,3.25]}}},"link":{"key":"flat","layers":[{"n":0,"d":"M5.75 5H5a3 3 0 0 0 0 6H5.75M10.25 5H11a3 3 0 0 1 0 6H10.25","tone":"b","sw":2,"part":"#0"},{"n":1,"d":"M4 8C4 7.448 4.448 7 5 7L11 7C11.552 7 12 7.448 12 8L12 8C12 8.552 11.552 9 11 9L5 9C4.448 9 4 8.552 4 8Z","part":"#1"}],"moves":{"0":{"sx":[1.08,1]},"1":{"rest":{"sx":0.2},"sx":1}}},"arrow-left-right":{"key":"circle","layers":[{"n":0,"d":"M1 8A7 7 0 1 1 15 8A7 7 0 1 1 1 8Z","tone":"b","part":"#0"},{"n":1,"d":"M5 6H11M9.5 4.5L11 6L9.5 7.5","sw":1.5,"part":"#1"},{"n":2,"d":"M11 10H5M6.5 8.5L5 10L6.5 11.5","sw":1.5,"part":"#2"}],"moves":{"1":{"x":[0.75,0]},"2":{"x":[-0.75,0]}}},"save":{"key":"square","layers":[{"n":0,"d":"M2 5.6C2 4.114 2 3.172 2.586 2.586C3.172 2 4.114 2 5.6 2L10.4 2C11.886 2 12.828 2 13.414 2.586C14 3.172 14 4.114 14 5.6L14 10.4C14 11.886 14 12.828 13.414 13.414C12.828 14 11.886 14 10.4 14L5.6 14C4.114 14 3.172 14 2.586 13.414C2 12.828 2 11.886 2 10.4Z","tone":"b","part":"#0"},{"n":1,"d":"M5 2L10 2L10 3.7C10 4.443 10 4.914 9.707 5.207C9.414 5.5 8.943 5.5 8.2 5.5L6.8 5.5C6.057 5.5 5.586 5.5 5.293 5.207C5 4.914 5 4.443 5 3.7Z","part":"#1","clip":"M2 5.6C2 4.114 2 3.172 2.586 2.586C3.172 2 4.114 2 5.6 2L10.4 2C11.886 2 12.828 2 13.414 2.586C14 3.172 14 4.114 14 5.6L14 10.4C14 11.886 14 12.828 13.414 13.414C12.828 14 11.886 14 10.4 14L5.6 14C4.114 14 3.172 14 2.586 13.414C2 12.828 2 11.886 2 10.4Z"},{"n":2,"d":"M4 11.2C4 10.085 4 9.379 4.439 8.939C4.879 8.5 5.585 8.5 6.7 8.5L9.3 8.5C10.415 8.5 11.121 8.5 11.561 8.939C12 9.379 12 10.085 12 11.2L12 14L4 14Z","part":"#2","clip":"M2 5.6C2 4.114 2 3.172 2.586 2.586C3.172 2 4.114 2 5.6 2L10.4 2C11.886 2 12.828 2 13.414 2.586C14 3.172 14 4.114 14 5.6L14 10.4C14 11.886 14 12.828 13.414 13.414C12.828 14 11.886 14 10.4 14L5.6 14C4.114 14 3.172 14 2.586 13.414C2 12.828 2 11.886 2 10.4Z"}],"moves":{"1":{"x":[1,1,0]}}},"file-archive":{"key":"portrait","layers":[{"n":0,"d":"M2 4.6C2 3.114 2 2.172 2.586 1.586C3.172 1 4.114 1 5.6 1L10.4 1C11.886 1 12.828 1 13.414 1.586C14 2.172 14 3.114 14 4.6L14 11.4C14 12.886 14 13.828 13.414 14.414C12.828 15 11.886 15 10.4 15L5.6 15C4.114 15 3.172 15 2.586 14.414C2 13.828 2 12.886 2 11.4Z","tone":"b","part":"#0"},{"n":1,"d":"M6.75 1L8 1L8 2.25L6.75 2.25ZM8 2.25L9.25 2.25L9.25 3.5L8 3.5ZM6.75 3.5L8 3.5L8 4.75L6.75 4.75ZM8 4.75L9.25 4.75L9.25 6L8 6Z","part":"#1"},{"n":2,"d":"M6.25 8.75C6.25 8.057 6.25 7.586 6.543 7.293C6.836 7 7.307 7 8 7L8 7C8.693 7 9.164 7 9.457 7.293C9.75 7.586 9.75 8.057 9.75 8.75L9.75 9.75C9.75 10.443 9.75 10.914 9.457 11.207C9.164 11.5 8.693 11.5 8 11.5L8 11.5C7.307 11.5 6.836 11.5 6.543 11.207C6.25 10.914 6.25 10.443 6.25 9.75Z","part":"#2","cut":[{"d":"M7.375 9.375C7.375 9.03 7.655 8.75 8 8.75L8 8.75C8.345 8.75 8.625 9.03 8.625 9.375L8.625 9.625C8.625 9.97 8.345 10.25 8 10.25L8 10.25C7.655 10.25 7.375 9.97 7.375 9.625Z"}]}],"moves":{"2":{"y":[1.5,0]}}},"folder-open":{"key":"landscape","layers":[{"n":0,"d":"M1 4.7C1 3.586 1 2.879 1.439 2.439C1.879 2 2.586 2 3.7 2L5 2C5.415 2 6.121 2 6.561 2.439C7 2.879 7 3.586 7 4L7 4L9 4C10.857 4 12.036 4 12.768 4.732C13.5 5.464 13.5 6.643 13.5 8.5L13.5 9.5C13.5 11.357 13.5 12.536 12.768 13.268C12.036 14 10.857 14 9 14L5.5 14C3.643 14 2.464 14 1.732 13.268C1 12.536 1 11.357 1 9.5Z","part":"#0"},{"n":"a0","d":"M4.5 6.8C4.5 6.057 4.5 5.586 4.793 5.293C5.086 5 5.557 5 6.3 5L9.2 5C9.943 5 10.414 5 10.707 5.293C11 5.586 11 6.057 11 6.8L11 9.7C11 10.443 11 10.914 10.707 11.207C10.414 11.5 9.943 11.5 9.2 11.5L6.3 11.5C5.557 11.5 5.086 11.5 4.793 11.207C4.5 10.914 4.5 10.443 4.5 9.7Z","tone":"b","gap":1,"part":"+0"},{"n":1,"d":"M1 9.3C1 8.557 1 8.086 1.293 7.793C1.586 7.5 2.057 7.5 2.8 7.5L11.718 7.5C13.424 7.5 14.366 7.5 14.81 8.179C15.254 8.859 14.876 9.722 14.191 11.284L13.945 11.846C13.555 12.735 13.286 13.349 12.787 13.674C12.289 14 11.619 14 10.648 14L5.5 14C3.643 14 2.464 14 1.732 13.268C1 12.536 1 11.357 1 9.5Z","tone":"b","gap":1,"part":"#1"}],"moves":{"a0":{"rest":{"a":0},"a":1,"y":[-2.25,-2]}}},"list-checks":{"key":"landscape","layers":[{"n":0,"d":"M1.75 4L3.75 6L7 2.75","sw":1.5,"part":"#0"},{"n":1,"d":"M1.75 11.25L3.75 13.25L7 10","sw":1.5,"part":"#1"},{"n":2,"d":"M8.28 4.375C8.28 3.685 8.84 3.125 9.53 3.125L13.75 3.125C14.44 3.125 15 3.685 15 4.375L15 4.375C15 5.065 14.44 5.625 13.75 5.625L9.53 5.625C8.84 5.625 8.28 5.065 8.28 4.375ZM8.28 11.625C8.28 10.935 8.84 10.375 9.53 10.375L13.75 10.375C14.44 10.375 15 10.935 15 11.625L15 11.625C15 12.315 14.44 12.875 13.75 12.875L9.53 12.875C8.84 12.875 8.28 12.315 8.28 11.625Z","tone":"b","part":"#2"}],"moves":{"0":{"w":[0,1,1]},"1":{"w":[0,0,1]}}}};
+
+    function num(v) {
+        return +v.toFixed(3);
+    }
+
+    function unit(v) {
+        return num(Math.min(1, Math.max(0, v)));
+    }
+
+    function bezier(x1, y1, x2, y2) {
+        var cx = 3 * x1;
+        var bx = 3 * (x2 - x1) - cx;
+        var ax = 1 - cx - bx;
+        var cy = 3 * y1;
+        var by = 3 * (y2 - y1) - cy;
+        var ay = 1 - cy - by;
+        function sx(t) { return ((ax * t + bx) * t + cx) * t; }
+        function sy(t) { return ((ay * t + by) * t + cy) * t; }
+        function dx(t) { return (3 * ax * t + 2 * bx) * t + cx; }
+        return function (x) {
+            if (x <= 0) return 0;
+            if (x >= 1) return 1;
+            var t = x;
+            for (var i = 0; i < 8; i++) {
+                var e = sx(t) - x;
+                if (Math.abs(e) < 1e-5) break;
+                var d = dx(t);
+                if (Math.abs(d) < 1e-6) break;
+                t -= e / d;
+            }
+            return sy(t);
+        };
+    }
+
+    var EASE = bezier(0.34, 1.56, 0.64, 1);
+    var EASE_BACK = bezier(0.33, 1, 0.68, 1);
+
+    function inOut(t) {
+        return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+    }
+
+    function restOf(p) {
+        var out = {};
+        for (var i = 0; i < KEYS.length; i++) {
+            var k = KEYS[i];
+            out[k] = (p.rest && p.rest[k] !== undefined) ? p.rest[k] : REST[k];
+        }
+        return out;
+    }
+
+    function track(from, v, q, ease) {
+        var pts = [from].concat(Array.isArray(v) ? v : [v]);
+        var n = pts.length - 1;
+        if (n === 1) return from + (pts[1] - from) * ease(q);
+        var k = Math.min(n - 1e-9, q * n);
+        var i = Math.floor(k);
+        var t = k - i;
+        return pts[i] + (pts[i + 1] - pts[i]) * (i === n - 1 ? ease(t) : inOut(t));
+    }
+
+    function values(p, q, from, on) {
+        var r = restOf(p);
+        var o = {};
+        for (var i = 0; i < KEYS.length; i++) {
+            var k = KEYS[i];
+            if (k in p || (p.rest && k in p.rest)) {
+                var start = (from && from[k] !== undefined) ? from[k] : r[k];
+                var target = on ? (k in p ? p[k] : r[k]) : r[k];
+                o[k] = track(start, target, q, on ? EASE : EASE_BACK);
+            }
+        }
+        return o;
+    }
+
+    function buildTransform(p, v) {
+        var ox = p.o ? p.o[0] : 8;
+        var oy = p.o ? p.o[1] : 8;
+        var x = v.x !== undefined ? v.x : REST.x;
+        var y = v.y !== undefined ? v.y : REST.y;
+        var r = v.r !== undefined ? v.r : REST.r;
+        var s = v.s !== undefined ? v.s : REST.s;
+        var sx = s * (v.sx !== undefined ? v.sx : REST.sx);
+        var sy = s * (v.sy !== undefined ? v.sy : REST.sy);
+        return 'translate(' + num(x + ox) + ' ' + num(y + oy) + ') rotate(' + num(r) + ') scale(' + num(sx) + ' ' + num(sy) + ') translate(' + (-ox) + ' ' + (-oy) + ')';
+    }
+
+    function calcDuration(spec) {
+        if (spec.ms) return spec.ms;
+        var maxFrames = 1;
+        var moves = spec.moves || {};
+        Object.keys(moves).forEach(function (key) {
+            var p = moves[key];
+            for (var i = 0; i < KEYS.length; i++) {
+                var val = p[KEYS[i]];
+                if (Array.isArray(val) && val.length > maxFrames) {
+                    maxFrames = val.length;
+                }
+            }
+        });
+        return DURATION + STEP * (maxFrames - 1);
+    }
+
+    var uidCounter = 0;
+
+    function buildDuoSvg(name) {
+        var def = DUO_ICONS[name];
+        if (!def) return null;
+        var uid = 'kd-' + name.replace(/[^a-z0-9-]/gi, '') + '-' + (++uidCounter);
+        var k = FIT[def.key] || 1;
+        var defs = [];
+        var pieces = [];
+
+        function shape(layer, paint, extra, dash) {
+            var fillAttr = paint === null
+                ? ' style="' + (layer.sw ? 'stroke' : 'fill') + ':' + LIGHT_TONE + '"'
+                : '';
+            var colorVal = paint || 'black';
+            if (layer.sw) {
+                return '<path d="' + layer.d + '" fill="none" stroke="' + colorVal + '"' + fillAttr +
+                    ' stroke-width="' + num((layer.sw + (extra || 0)) / k) + '" stroke-linecap="round" stroke-linejoin="round"' +
+                    (dash ? ' pathLength="1"' : '') + '/>';
+            }
+            if (extra) {
+                return '<path d="' + layer.d + '" fill="' + colorVal + '" stroke="' + colorVal + '"' +
+                    ' stroke-width="' + num(extra / k) + '" stroke-linejoin="round"/>';
+            }
+            return '<path d="' + layer.d + '" fill="' + colorVal + '"' + fillAttr + '/>';
+        }
+
+        function restAttr(key) {
+            var p = def.moves && def.moves[key];
+            if (!p || !p.rest) return '';
+            var v = restOf(p);
+            var attr = ' transform="' + buildTransform(p, v) + '"';
+            if (p.rest.a !== undefined) attr += ' opacity="' + unit(v.a) + '"';
+            if (p.rest.w !== undefined) attr += ' stroke-dasharray="' + unit(v.w) + ' 2" stroke-opacity="' + (v.w < 0.01 ? 0 : 1) + '"';
+            return attr;
+        }
+
+        function wrapLayer(layer, idx, inner) {
+            var key = layer.n !== undefined ? layer.n : idx;
+            return '<g data-l="' + key + '"' + restAttr(String(key)) + '>' + inner + '</g>';
+        }
+
+        def.layers.forEach(function (layer, idx) {
+            var part = layer.part || ('#' + idx);
+            if (layer.gap) {
+                var maskId = uid + '-g' + idx;
+                defs.push(
+                    '<mask id="' + maskId + '" maskUnits="userSpaceOnUse" x="-2" y="-2" width="20" height="20">' +
+                    '<rect x="-2" y="-2" width="20" height="20" fill="white"/>' +
+                    wrapLayer(layer, idx, shape(layer, 'black', layer.gap * 2, true)) +
+                    '</mask>'
+                );
+                for (var i = 0; i < pieces.length; i++) {
+                    if (pieces[i].part !== part) {
+                        pieces[i].svg = '<g mask="url(#' + maskId + ')">' + pieces[i].svg + '</g>';
+                    }
+                }
+            }
+            var paint = layer.tone === 'b' ? null : 'currentColor';
+            var piece = shape(layer, paint, 0, true);
+            if (layer.clip) {
+                var clipId = uid + '-c' + idx;
+                defs.push('<clipPath id="' + clipId + '" clipPathUnits="userSpaceOnUse"><path d="' + layer.clip + '"/></clipPath>');
+                piece = '<g clip-path="url(#' + clipId + ')">' + piece + '</g>';
+            }
+            if (layer.cut && layer.cut.length) {
+                var cutId = uid + '-x' + idx;
+                defs.push(
+                    '<mask id="' + cutId + '" maskUnits="userSpaceOnUse" x="-2" y="-2" width="20" height="20">' +
+                    '<rect x="-2" y="-2" width="20" height="20" fill="white"/>' +
+                    layer.cut.map(function (c) { return shape(c, 'black', 0, false); }).join('') +
+                    '</mask>'
+                );
+                piece = '<g mask="url(#' + cutId + ')">' + piece + '</g>';
+            }
+            pieces.push({ part: part, svg: wrapLayer(layer, idx, piece) });
+        });
+
+        var inner = '<g data-l="all"' + restAttr('all') + '>' + pieces.map(function (p) { return p.svg; }).join('') + '</g>';
+        if (k !== 1) {
+            inner = '<g transform="translate(8 8) scale(' + num(k) + ') translate(-8 -8)">' + inner + '</g>';
+        }
+        var svgMarkup = '<svg class="duo-icon-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" width="16" height="16" aria-hidden="true">' +
+            (defs.length ? '<defs>' + defs.join('') + '</defs>' : '') +
+            inner +
+            '</svg>';
+        return { def: def, markup: svgMarkup };
+    }
+
+    function createAnimator(svg, def) {
+        var raf = global.requestAnimationFrame || function (fn) { return setTimeout(function () { fn(Date.now()); }, 16); };
+        var caf = global.cancelAnimationFrame || clearTimeout;
+        var now = (global.performance && global.performance.now) ? function () { return global.performance.now(); } : function () { return Date.now(); };
+        var moves = def.moves || {};
+        var els = Object.keys(moves).map(function (k) {
+            return {
+                p: moves[k],
+                list: Array.prototype.slice.call(svg.querySelectorAll('[data-l="' + k + '"]')),
+                cur: restOf(moves[k])
+            };
+        });
+        var long = calcDuration(def);
+        var on = false;
+        var frame = 0;
+
+        function isReduced() {
+            try { return global.matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (e) { return false; }
+        }
+
+        function paint(el) {
+            var tr = buildTransform(el.p, el.cur);
+            for (var i = 0; i < el.list.length; i++) {
+                var node = el.list[i];
+                node.setAttribute('transform', tr);
+                if ('a' in el.p || (el.p.rest && el.p.rest.a !== undefined)) {
+                    node.setAttribute('opacity', unit(el.cur.a));
+                }
+                if ('w' in el.p) {
+                    node.setAttribute('stroke-dasharray', unit(el.cur.w) + ' 2');
+                    node.setAttribute('stroke-opacity', el.cur.w < 0.01 ? 0 : 1);
+                }
+            }
+        }
+
+        function go(instant) {
+            caf(frame);
+            if (instant || isReduced()) {
+                for (var i = 0; i < els.length; i++) {
+                    els[i].cur = values(els[i].p, on ? 1 : 0, els[i].cur, on);
+                    paint(els[i]);
+                }
+                return;
+            }
+            var from = els.map(function (el) {
+                var snap = {};
+                for (var i = 0; i < KEYS.length; i++) snap[KEYS[i]] = el.cur[KEYS[i]];
+                return snap;
+            });
+            var t0 = now();
+            var run = on ? long : BACK;
+            function tick(t) {
+                var ts = typeof t === 'number' ? t : now();
+                var q = Math.min(1, Math.max(0, (ts - t0) / run));
+                for (var i = 0; i < els.length; i++) {
+                    var nextVals = values(els[i].p, q, from[i], on);
+                    Object.keys(nextVals).forEach(function (k) { els[i].cur[k] = nextVals[k]; });
+                    paint(els[i]);
+                }
+                if (q < 1) frame = raf(tick);
+            }
+            frame = raf(tick);
+        }
+
+        return {
+            hover: function (next) {
+                var flag = Boolean(next);
+                if (flag !== on && els.length) {
+                    on = flag;
+                    go(false);
+                }
+            }
+        };
+    }
+
+    var TRIGGERS = 'button, a, .btn-act, .btn-tool, .btn-top-changelog, .btn-top-ver-manage, .quick-add-item, .empty-state-btn, .sidebar-empty-btn, .btn-primary, .btn-cancel';
+
+    function isTriggerDisabled(el) {
+        if (!el) return false;
+        if (el.disabled) return true;
+        if (el.getAttribute && el.getAttribute('disabled') !== null) return true;
+        return el.classList && el.classList.contains('is-disabled');
+    }
+
+    function mountSlot(host) {
+        if (!host) return null;
+        var existingWrap = host.querySelector ? host.querySelector('.duo-active-icon') : null;
+        if (host._duoCtrl && existingWrap) return host._duoCtrl;
+        if (existingWrap && existingWrap.parentNode === host) {
+            host.removeChild(existingWrap);
+        }
+        var name = host.getAttribute('data-duo-icon');
+        var built = buildDuoSvg(name);
+        if (!built) return null;
+
+        var wrap = document.createElement('span');
+        wrap.className = 'duo-active-icon';
+        wrap.setAttribute('aria-hidden', 'true');
+        wrap.innerHTML = built.markup;
+        host.appendChild(wrap);
+        host.setAttribute('data-duo-ready', '1');
+
+        var svg = wrap.querySelector('svg');
+        var ctrl = createAnimator(svg, built.def);
+        host._duoCtrl = ctrl;
+        return ctrl;
+    }
+
+    function bindTrigger(trigger) {
+        if (!trigger || trigger.getAttribute('data-duo-bound') === '1') return;
+        trigger.setAttribute('data-duo-bound', '1');
+
+        function setHoverState(active) {
+            if (active && isTriggerDisabled(trigger)) return;
+            var slots = [];
+            if (trigger.hasAttribute('data-duo-icon')) slots.push(trigger);
+            var nested = trigger.querySelectorAll('[data-duo-icon]');
+            for (var i = 0; i < nested.length; i++) slots.push(nested[i]);
+            for (var j = 0; j < slots.length; j++) {
+                var ctrl = mountSlot(slots[j]);
+                if (ctrl) ctrl.hover(active);
+            }
+        }
+
+        trigger.addEventListener('mouseenter', function () { setHoverState(true); });
+        trigger.addEventListener('mouseleave', function () { setHoverState(false); });
+        trigger.addEventListener('focusin', function () { setHoverState(true); });
+        trigger.addEventListener('focusout', function () { setHoverState(false); });
+    }
+
+    function initDuoHoverIcons(root) {
+        var container = root || document;
+        if (!container || typeof container.querySelectorAll !== 'function') return;
+        var hosts = container.querySelectorAll('[data-duo-icon]');
+        for (var i = 0; i < hosts.length; i++) {
+            var host = hosts[i];
+            mountSlot(host);
+            var trigger = host.closest ? (host.closest(TRIGGERS) || host) : host;
+            bindTrigger(trigger);
+        }
+    }
+
+    var delegateInstalled = false;
+    function installDelegate() {
+        if (delegateInstalled || typeof document === 'undefined' || !document.addEventListener) return;
+        delegateInstalled = true;
+        function handleEnter(e) {
+            var target = e && e.target;
+            if (!target || !target.closest) return;
+            var trigger = target.closest(TRIGGERS);
+            var slot = target.closest('[data-duo-icon]');
+            if (!trigger && !slot) return;
+            var hostTrigger = trigger || slot;
+            if (hostTrigger.getAttribute('data-duo-bound') === '1') return;
+            var hasSlot = hostTrigger.hasAttribute('data-duo-icon') || (hostTrigger.querySelector && hostTrigger.querySelector('[data-duo-icon]'));
+            if (!hasSlot) return;
+            initDuoHoverIcons(hostTrigger.parentElement || hostTrigger);
+            if (!isTriggerDisabled(hostTrigger)) {
+                var ctrl = hostTrigger.hasAttribute('data-duo-icon') ? mountSlot(hostTrigger) : null;
+                if (ctrl) ctrl.hover(true);
+                var nested = hostTrigger.querySelectorAll ? hostTrigger.querySelectorAll('[data-duo-icon]') : [];
+                for (var i = 0; i < nested.length; i++) {
+                    var c = mountSlot(nested[i]);
+                    if (c) c.hover(true);
+                }
+            }
+        }
+        document.addEventListener('mouseenter', handleEnter, true);
+        document.addEventListener('focusin', handleEnter, true);
+    }
+
+    global.ProtoLoftDuoIcons = {
+        init: initDuoHoverIcons,
+        icons: DUO_ICONS
+    };
+
+    if (typeof document !== 'undefined') {
+        installDelegate();
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', function () { initDuoHoverIcons(); });
+        } else {
+            initDuoHoverIcons();
+        }
+    }
+})(typeof window !== 'undefined' ? window : globalThis);

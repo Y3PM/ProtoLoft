@@ -1,0 +1,81 @@
+{
+  "initialBalancedEditor": {
+    "hovered": false,
+    "opacity": "0"
+  },
+  "renderedBalancedColors": [
+    {
+      "bg": "rgb(230, 244, 254)",
+      "dot": "rgb(255, 93, 71)",
+      "faces": [
+        "rgb(0, 118, 222)",
+        "rgb(104, 181, 248)"
+      ],
+      "label": "晴空蓝 · 象首",
+      "pose": "head",
+      "theme": "sky"
+    },
+    {
+      "bg": "rgb(232, 248, 241)",
+      "dot": "rgb(236, 152, 58)",
+      "faces": [
+        "rgb(1, 168, 131)",
+        "rgb(125, 223, 190)"
+      ],
+      "label": "碧青 · 象首",
+      "pose": "head",
+      "theme": "mint"
+    },
+    {
+      "bg": "rgb(252, 241, 231)",
+      "dot": "rgb(89, 182, 255)",
+      "faces": [
+        "rgb(230, 138, 2)",
+        "rgb(255, 200, 148)"
+      ],
+      "label": "橙金 · 象首",
+      "pose": "head",
+      "theme": "amber"
+    },
+    {
+      "bg": "rgb(245, 241, 254)",
+      "dot": "rgb(247, 142, 88)",
+      "faces": [
+        "rgb(153, 106, 232)",
+        "rgb(201, 178, 252)"
+      ],
+      "label": "鸢尾紫 · 象首",
+      "pose": "head",
+      "theme": "violet"
+    },
+    {
+      "bg": "rgb(255, 240, 236)",
+      "dot": "rgb(8, 196, 212)",
+      "faces": [
+        "rgb(245, 98, 73)",
+        "rgb(255, 184, 170)"
+      ],
+      "label": "珊瑚橘 · 象首",
+      "pose": "head",
+      "theme": "coral"
+    },
+    {
+      "bg": "rgb(238, 243, 255)",
+      "dot": "rgb(237, 151, 61)",
+      "faces": [
+        "rgb(80, 120, 243)",
+        "rgb(166, 192, 255)"
+      ],
+      "label": "靛蓝 · 象首",
+      "pose": "head",
+      "theme": "indigo"
+    }
+  ],
+  "savedBalancedAvatar": {
+    "editorOpacity": "0",
+    "pose": "walk",
+    "theme": "mint",
+    "title": "更换头像（当前：碧青 · 迈步）"
+  },
+  "logs": []
+}

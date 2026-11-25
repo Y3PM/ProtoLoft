@@ -688,10 +688,10 @@ function selectItem(itemId, el, targetVerName, isUserDirectClick) {
                 '</div>' +
                 '<div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;">' +
                     '<a href="' + safeHref + '" target="_blank" rel="noopener noreferrer" class="btn-primary btn-md" style="display:inline-flex;align-items:center;gap:6px;text-decoration:none;">' +
-                        '<i class="ri-external-link-line"></i> 在新标签页打开' +
+                        '<span class="duo-icon-slot" data-duo-icon="external-link"><i class="ri-external-link-line duo-rest-icon"></i></span> 在新标签页打开' +
                     '</a>' +
                     '<button type="button" class="btn-cancel btn-md btn-copy-link" data-copy-url="' + safeHref + '">' +
-                        '<i class="ri-file-copy-line"></i> 复制链接' +
+                        '<span class="duo-icon-slot" data-duo-icon="copy"><i class="ri-file-copy-line duo-rest-icon"></i></span> 复制链接' +
                     '</button>' +
                 '</div>' +
             '</div>'
@@ -724,7 +724,7 @@ function selectItem(itemId, el, targetVerName, isUserDirectClick) {
         var canEditEmptyProject = ($el && ($el.data('can-edit') === 1 || $el.data('can-edit') === '1'));
         var canPublishEmpty = isCanManage && canEditEmptyProject;
         var actionHtml = canPublishEmpty
-            ? '<div class="empty-state-actions"><button type="button" class="empty-state-btn" onclick="openUploadModal(' + itemId + ')"><i class="ri-upload-cloud-line"></i> 发布原型</button></div>'
+            ? '<div class="empty-state-actions"><button type="button" class="empty-state-btn" onclick="openUploadModal(' + itemId + ')"><span class="duo-icon-slot" data-duo-icon="cloud-upload"><i class="ri-upload-cloud-line duo-rest-icon"></i></span> 发布原型</button></div>'
             : '';
         var emptyTitle = canPublishEmpty ? '把“象”装进仓库，拢共分几步？' : '冰箱已就位，大象还在路上';
         var emptyDesc = canPublishEmpty ? '1. 点下方发布 &rarr; 2. 丢进 ZIP 包 &rarr; 3. 马上开工！' : '产品经理正在打包原型图纸，装进来就能直接看啦';
@@ -1623,6 +1623,9 @@ function closeModal(id, force) {
             return;
         }
     }
+    if (id === 'profileModal' && typeof closeProfileAvatarPicker === 'function') {
+        closeProfileAvatarPicker();
+    }
     var modal = document.getElementById(id);
     if (!modal) return;
     var index = modalStack.findIndex(function(entry) { return entry.node === modal; });
@@ -1652,7 +1655,14 @@ function modalKeyboardBoundary(e) {
         // Confirmation dialogs own their cancel callback.
         if (top.id === 'customConfirmModal') return;
         var picker = document.getElementById('adminMultiSelectMenu');
-        if (top.contains(picker) && picker.style.display !== 'none') {
+        var avatarPopover = document.getElementById('profileAvatarPopover');
+        if (top.id === 'profileModal' && avatarPopover && !avatarPopover.hidden) {
+            if (typeof closeProfileAvatarPicker === 'function') {
+                closeProfileAvatarPicker();
+            }
+            var avatarBtn = document.getElementById('myProfileAvatarBtn');
+            if (avatarBtn) avatarBtn.focus();
+        } else if (top.contains(picker) && picker.style.display !== 'none') {
             picker.style.display = 'none';
             var trigger = document.getElementById('adminMultiSelectTrigger');
             trigger.setAttribute('aria-expanded', 'false');
@@ -1877,6 +1887,9 @@ function showProfilePage(page, focus) {
     });
     var modal = document.getElementById('profileModal');
     if (modal) modal.querySelector('.modal-dialog-box').scrollTop = 0;
+    if (typeof closeProfileAvatarPicker === 'function') {
+        closeProfileAvatarPicker();
+    }
     if (page !== 'password' && typeof clearPasswordStrength === 'function') {
         clearPasswordStrength(document.getElementById('profilePagePassword'));
     }
@@ -1928,6 +1941,12 @@ function markProfileSaved(id, value) {
 
 function openProfileModal() {
     initProfileForms();
+    if (typeof closeProfileAvatarPicker === 'function') {
+        closeProfileAvatarPicker();
+    }
+    if (typeof renderMyProfileAvatar === 'function') {
+        renderMyProfileAvatar();
+    }
     var modal = document.getElementById('profileModal');
     if (modal) {
         profileMcpLoaded = false;
@@ -2724,6 +2743,253 @@ if (typeof window !== 'undefined') {
             document.addEventListener('DOMContentLoaded', bindAxureAutoNum);
         } else {
             bindAxureAutoNum();
+        }
+    }
+}
+
+/* 个人中心头像：8 个造型与独立配色，选择即保存（仅限 #profileModal 内）。 */
+var pendingProfileAvatar = '';
+var profileAvatarSaving = false;
+var profileAvatarTheme = 'sky';
+
+function getSavedProfileAvatar() {
+    var raw = (typeof CURRENT_USER !== 'undefined' && CURRENT_USER) ? CURRENT_USER.avatar : '';
+    var seed = (typeof CURRENT_USER !== 'undefined' && CURRENT_USER) ? CURRENT_USER.id : 0;
+    if (typeof window !== 'undefined' && window.ProfileAvatars) {
+        return window.ProfileAvatars.normalizeId(raw, seed);
+    }
+    return raw || 'leap-sky';
+}
+
+function renderMyProfileAvatar(avatarId) {
+    var box = document.getElementById('myProfileAvatarGraphic');
+    if (!box || typeof window === 'undefined' || !window.ProfileAvatars) return;
+    var seed = (typeof CURRENT_USER !== 'undefined' && CURRENT_USER) ? CURRENT_USER.id : 0;
+    var resolved = window.ProfileAvatars.normalizeId(avatarId || pendingProfileAvatar || getSavedProfileAvatar(), seed);
+    box.innerHTML = window.ProfileAvatars.renderSvg(resolved, seed);
+    var btn = document.getElementById('myProfileAvatarBtn');
+    if (btn) {
+        var meta = window.ProfileAvatars.getMeta(resolved, seed);
+        btn.title = '更换头像（当前：' + meta.label + '）';
+    }
+}
+
+function updateProfileAvatarPickerState(selectedId) {
+    var meta = window.ProfileAvatars.getMeta(selectedId);
+    selectedId = meta.id;
+    pendingProfileAvatar = selectedId;
+    if (meta.poseId !== 'leap') profileAvatarTheme = meta.themeId;
+    var grid = document.getElementById('profileAvatarGrid');
+    if (grid) {
+        var options = grid.querySelectorAll('.profile-avatar-option');
+        for (var i = 0; i < options.length; i++) {
+            var opt = options[i];
+            var poseId = opt.getAttribute('data-avatar-pose');
+            var isSelected = poseId === meta.poseId;
+            opt.classList.toggle('is-selected', isSelected);
+            opt.setAttribute('aria-checked', isSelected ? 'true' : 'false');
+            opt.tabIndex = isSelected ? 0 : -1;
+            opt.querySelector('.profile-avatar-thumb').innerHTML = window.ProfileAvatars.renderSvg(poseId + '-' + (poseId === 'leap' ? 'sky' : profileAvatarTheme));
+        }
+    }
+    var colors = document.getElementById('profileAvatarColors');
+    if (colors) colors.hidden = meta.poseId === 'leap';
+    var colorGrid = document.getElementById('profileAvatarColorGrid');
+    if (colorGrid) {
+        var swatches = colorGrid.querySelectorAll('.profile-avatar-color');
+        for (var c = 0; c < swatches.length; c++) {
+            var active = swatches[c].getAttribute('data-avatar-theme') === profileAvatarTheme;
+            swatches[c].classList.toggle('is-selected', active);
+            swatches[c].setAttribute('aria-checked', active ? 'true' : 'false');
+            swatches[c].tabIndex = active ? 0 : -1;
+        }
+    }
+    var tag = document.getElementById('profileAvatarPreviewLabel');
+    if (tag && window.ProfileAvatars) {
+        tag.textContent = meta.label;
+    }
+    renderMyProfileAvatar(selectedId);
+}
+
+function selectProfileAvatar(selectedId) {
+    updateProfileAvatarPickerState(selectedId);
+    saveProfileAvatar();
+}
+
+function ensureProfileAvatarGrid() {
+    var grid = document.getElementById('profileAvatarGrid');
+    if (!grid || typeof window === 'undefined' || !window.ProfileAvatars) return;
+    if (!grid.getAttribute('data-built')) {
+        var poses = window.ProfileAvatars.POSES;
+        var html = [];
+        for (var i = 0; i < poses.length; i++) {
+            var pose = poses[i];
+            html.push(
+                '<button type="button" class="profile-avatar-option" role="radio" aria-checked="false" ' +
+                'data-avatar-pose="' + pose.id + '" title="' + pose.name + '" aria-label="' + pose.name + '" tabindex="-1">' +
+                '<span class="profile-avatar-thumb"></span><span class="profile-avatar-option-name">' + pose.name + '</span>' +
+                '</button>'
+            );
+        }
+        grid.innerHTML = html.join('');
+        grid.setAttribute('data-built', '1');
+        grid.addEventListener('click', function(ev) {
+            var target = ev.target && ev.target.closest ? ev.target.closest('.profile-avatar-option') : null;
+            if (!target) return;
+            // 重绘缩略图会替换点击的 SVG 节点，阻止其被外部点击守卫误判。
+            ev.stopPropagation();
+            var poseId = target.getAttribute('data-avatar-pose');
+            if (poseId) selectProfileAvatar(poseId + '-' + (poseId === 'leap' ? 'sky' : profileAvatarTheme));
+        });
+        grid.addEventListener('keydown', function(ev) {
+            var poses = window.ProfileAvatars.POSES;
+            var meta = window.ProfileAvatars.getMeta(pendingProfileAvatar || getSavedProfileAvatar());
+            var curIdx = -1;
+            for (var i = 0; i < poses.length; i++) if (poses[i].id === meta.poseId) curIdx = i;
+            if (curIdx < 0) curIdx = 0;
+            var nextIdx = curIdx;
+            if (ev.key === 'ArrowRight') nextIdx = (curIdx + 1) % poses.length;
+            else if (ev.key === 'ArrowLeft') nextIdx = (curIdx - 1 + poses.length) % poses.length;
+            else if (ev.key === 'ArrowDown') nextIdx = (curIdx + 4) % poses.length;
+            else if (ev.key === 'ArrowUp') nextIdx = (curIdx - 4 + poses.length) % poses.length;
+            else if (ev.key === 'Home') nextIdx = 0;
+            else if (ev.key === 'End') nextIdx = poses.length - 1;
+            else return;
+            ev.preventDefault();
+            var poseId = poses[nextIdx].id;
+            selectProfileAvatar(poseId + '-' + (poseId === 'leap' ? 'sky' : profileAvatarTheme));
+            var nextBtn = grid.querySelector('[data-avatar-pose="' + poseId + '"]');
+            if (nextBtn) nextBtn.focus();
+        });
+    }
+    var colorGrid = document.getElementById('profileAvatarColorGrid');
+    if (colorGrid && !colorGrid.getAttribute('data-built')) {
+        var themes = window.ProfileAvatars.THEMES;
+        var colorsHtml = [];
+        for (var c = 0; c < themes.length; c++) {
+            colorsHtml.push('<button type="button" class="profile-avatar-color" role="radio" aria-checked="false" data-avatar-theme="' + themes[c].id + '" aria-label="' + themes[c].name + '" title="' + themes[c].name + '" tabindex="-1"></button>');
+        }
+        colorGrid.innerHTML = colorsHtml.join('');
+        colorGrid.setAttribute('data-built', '1');
+        colorGrid.addEventListener('click', function(ev) {
+            var target = ev.target && ev.target.closest ? ev.target.closest('.profile-avatar-color') : null;
+            if (!target) return;
+            ev.stopPropagation();
+            var meta = window.ProfileAvatars.getMeta(pendingProfileAvatar || getSavedProfileAvatar());
+            if (meta.poseId === 'leap') return;
+            selectProfileAvatar(meta.poseId + '-' + target.getAttribute('data-avatar-theme'));
+        });
+        colorGrid.addEventListener('keydown', function(ev) {
+            var themes = window.ProfileAvatars.THEMES;
+            var idx = 0;
+            for (var i = 0; i < themes.length; i++) if (themes[i].id === profileAvatarTheme) idx = i;
+            if (ev.key === 'ArrowRight' || ev.key === 'ArrowDown') idx = (idx + 1) % themes.length;
+            else if (ev.key === 'ArrowLeft' || ev.key === 'ArrowUp') idx = (idx - 1 + themes.length) % themes.length;
+            else if (ev.key === 'Home') idx = 0;
+            else if (ev.key === 'End') idx = themes.length - 1;
+            else return;
+            ev.preventDefault();
+            var button = colorGrid.querySelector('[data-avatar-theme="' + themes[idx].id + '"]');
+            if (button) { button.click(); button.focus(); }
+        });
+    }
+    if (!grid._outsideBound) {
+        grid._outsideBound = true;
+        document.addEventListener('click', function(ev) {
+            var pop = document.getElementById('profileAvatarPopover');
+            if (!pop || pop.hidden) return;
+            var btn = document.getElementById('myProfileAvatarBtn');
+            if (pop.contains(ev.target) || (btn && btn.contains(ev.target))) return;
+            closeProfileAvatarPicker();
+        });
+    }
+}
+
+function openProfileAvatarPicker() {
+    var pop = document.getElementById('profileAvatarPopover');
+    var btn = document.getElementById('myProfileAvatarBtn');
+    if (!pop || typeof window === 'undefined' || !window.ProfileAvatars) return;
+    ensureProfileAvatarGrid();
+    updateProfileAvatarPickerState(profileAvatarSaving && pendingProfileAvatar ? pendingProfileAvatar : getSavedProfileAvatar());
+    pop.hidden = false;
+    if (btn) btn.setAttribute('aria-expanded', 'true');
+    var activeOpt = pop.querySelector('.profile-avatar-option.is-selected');
+    if (activeOpt) activeOpt.focus();
+}
+
+function closeProfileAvatarPicker() {
+    var pop = document.getElementById('profileAvatarPopover');
+    var btn = document.getElementById('myProfileAvatarBtn');
+    if (pop) pop.hidden = true;
+    if (btn) btn.setAttribute('aria-expanded', 'false');
+}
+
+function toggleProfileAvatarPicker(event) {
+    if (event) event.stopPropagation();
+    var pop = document.getElementById('profileAvatarPopover');
+    if (!pop) return;
+    if (pop.hidden) openProfileAvatarPicker();
+    else closeProfileAvatarPicker();
+}
+
+function profileAvatarSaveFailed(targetId, message) {
+    if (pendingProfileAvatar === targetId) {
+        updateProfileAvatarPickerState(getSavedProfileAvatar());
+        showToast(message, 'error');
+    } else {
+        // 旧选择失败时继续保存用户的最后选择。
+        saveProfileAvatar();
+    }
+}
+
+function syncProfileAvatarSavingState() {
+    var btn = document.getElementById('myProfileAvatarBtn');
+    if (btn) btn.setAttribute('aria-busy', profileAvatarSaving ? 'true' : 'false');
+}
+
+function saveProfileAvatar() {
+    if (profileAvatarSaving) return;
+    var targetId = pendingProfileAvatar;
+    var saved = getSavedProfileAvatar();
+    if (!targetId || targetId === saved) return;
+    profileAvatarSaving = true;
+    syncProfileAvatarSavingState();
+
+    var fd = new FormData();
+    fd.append('avatar', targetId);
+    // 选项始终可操作；一次只保存一个请求，中间选择合并为最后一项。
+    apiFetch('profile_update_avatar', fd, false)
+    .then(function(res) {
+        profileAvatarSaving = false;
+        if (!res || !res.success) {
+            profileAvatarSaveFailed(targetId, (res && res.message) ? res.message : '头像保存失败，请重试');
+            syncProfileAvatarSavingState();
+            return;
+        }
+        var confirmed = (res.data && res.data.avatar) ? res.data.avatar : targetId;
+        if (typeof CURRENT_USER !== 'undefined' && CURRENT_USER) {
+            CURRENT_USER.avatar = confirmed;
+        }
+        if (pendingProfileAvatar === targetId) updateProfileAvatarPickerState(confirmed);
+        saveProfileAvatar();
+        syncProfileAvatarSavingState();
+    }, function() {
+        profileAvatarSaving = false;
+        profileAvatarSaveFailed(targetId, '网络异常，头像未保存，请重试');
+        syncProfileAvatarSavingState();
+    });
+}
+
+if (typeof window !== 'undefined') {
+    window.renderMyProfileAvatar = renderMyProfileAvatar;
+    window.toggleProfileAvatarPicker = toggleProfileAvatarPicker;
+    window.openProfileAvatarPicker = openProfileAvatarPicker;
+    window.closeProfileAvatarPicker = closeProfileAvatarPicker;
+    if (typeof document !== 'undefined') {
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', function() { renderMyProfileAvatar(); });
+        } else {
+            renderMyProfileAvatar();
         }
     }
 }

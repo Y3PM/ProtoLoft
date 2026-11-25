@@ -25,6 +25,7 @@ node .dev/tests/security_frontend_regression.js
 node .dev/tests/copy_consistency_frontend.js
 node .dev/tests/preferences_frontend_regression.js
 node .dev/tests/profile_mcp_frontend_regression.js
+node .dev/tests/profile_avatar_save_frontend_regression.js
 python3 -B .dev/tests/security_regression.py --php /path/to/php
 python3 -B .dev/tests/security_round2_regression.py --php /path/to/php
 python3 -B .dev/tests/dashboard_regression.py --php /path/to/php
@@ -64,6 +65,10 @@ python3 -B .dev/tests/dropdown_sync_regression_browser.py --php /path/to/php --p
 前端脚本执行实际业务 JS，但使用模拟 DOM/网络，不是浏览器验收。Python 套件执行临时安装的真实 HTTP 请求，默认清理临时数据；只有明确需要调试时才使用 `--keep`，保留的副本可能含测试凭据。官方 MCP SDK 互通验证另见 `docs/mcp.md`，SDK 只能在项目外临时安装，不能成为生产依赖。
 
 ## 交接方式
+
+2026-11-25 审查：[双色图标使用审查](docs/reviews/2026-11-25-icon-usage-review.md)。29 个定义、104 处引用均匹配；浏览器确认分享复制/创建按钮丢失双色结构，文字按钮 SVG 仅 12–13px，另有成员图标语义及可访问名称改进项。本轮仅审查，未改运行代码。
+
+2026-11-25 最新：[个人头像与即时保存](docs/2026-11-25-profile-avatar-directions.md)。3.1.11 保留 8 个造型与 6 色选择，改为选择即保存，移除头像确认底栏；慢请求串行并合并中间选择，失败回到最近确认值。即时保存前端 23 项、多角色头像 HTTP 128 项及真实浏览器专项通过，本地更新，未提交、未部署。
 
 2026-11-24 最新：[全量代码审查与修复清单](docs/reviews/2026-11-24-code-review.md)。P1：WAL 模式下「已执行未读完的语句句柄在写入时仍存活」导致并发写入随机失败，登录、改密、RP 上传、同名覆盖发版均已用两人日常场景复现，共 25 处受影响；另有 3 个 P2、18 个 P3 和 9 项待拍板。清单含复现脚本位置、硬约束、验收标准与未覆盖范围，尚未开始修复。
 

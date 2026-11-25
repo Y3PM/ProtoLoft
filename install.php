@@ -324,8 +324,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                             // 创建首任主管理员 (is_owner = 1，拥有最高所有权)
                             $pHash = password_hash($adminPass, PASSWORD_DEFAULT);
-                            $stmtAdmin = $db->prepare("INSERT INTO users (email, name, password_hash, role, is_owner, status) VALUES (?, ?, ?, 'admin', 1, 1)");
-                            $stmtAdmin->execute([$adminEmail, $adminName, $pHash]);
+                            $defaultAvatar = Auth::pickRandomAvatar();
+                            $stmtAdmin = $db->prepare("INSERT INTO users (email, name, password_hash, role, is_owner, status, avatar) VALUES (?, ?, ?, 'admin', 1, 1, ?)");
+                            $stmtAdmin->execute([$adminEmail, $adminName, $pHash, $defaultAvatar]);
 
                             $db->commit();
                         } catch (Exception $e) {

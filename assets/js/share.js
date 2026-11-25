@@ -125,11 +125,11 @@ function renderActiveShareList(list, maxLimit, canManage) {
             '</div>' +
             '<div style="display:flex;align-items:center;gap:6px;flex-shrink:0;">' +
                 '<button type="button" class="btn-cancel btn-sm" data-copy-url="' + esc(shareUrl) + '" data-copy-pwd="' + esc(pwdText) + '" title="复制该专属分享链接">' +
-                    '<i class="ri-file-copy-line"></i> 复制' +
+                    '<span class="duo-icon-slot" data-duo-icon="copy"><i class="ri-file-copy-line duo-rest-icon"></i></span> 复制' +
                 '</button>' +
                 (isManageable ? (
                     '<button type="button" class="btn-cancel btn-sm btn-danger-sm" onclick="revokeCustomShare(\'' + esc(s.code) + '\')" title="作废吊销此专属短链">' +
-                        '<i class="ri-delete-bin-line"></i>' +
+                        '<span class="duo-icon-slot" data-duo-icon="trash"><i class="ri-delete-bin-line duo-rest-icon"></i></span>' +
                     '</button>'
                 ) : '') +
             '</div>' +
@@ -362,7 +362,7 @@ function saveShareSettingsFromModal(isAutoSave, callback) {
 
     return apiFetch('item_save_share', fd).then(function(res) {
         if (!isAutoSave) {
-            $btn.prop('disabled', false).html('<i class="ri-save-line"></i> 保存');
+            $btn.prop('disabled', false).html('<span class="duo-icon-slot" data-duo-icon="save"><i class="ri-save-line duo-rest-icon"></i></span> 保存');
         }
         if (res.success) {
             $('#sharePasswordInput').data('saved-pwd', pwd);
@@ -379,7 +379,7 @@ function saveShareSettingsFromModal(isAutoSave, callback) {
         return res;
     }).catch(function(err) {
         if (!isAutoSave) {
-            $btn.prop('disabled', false).html('<i class="ri-save-line"></i> 保存');
+            $btn.prop('disabled', false).html('<span class="duo-icon-slot" data-duo-icon="save"><i class="ri-save-line duo-rest-icon"></i></span> 保存');
         }
         showToast('网络异常，保存失败', 'error');
         if (typeof callback === 'function') callback(false);

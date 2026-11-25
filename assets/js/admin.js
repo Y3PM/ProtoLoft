@@ -1888,7 +1888,7 @@ function syncPublishedVersion(itemId, version) {
         });
         $node.data('versions', latest).attr('data-versions', JSON.stringify(latest));
         $node.find('.badge-ver').text(version.version_name);
-        $node.find('.btn-table-ver').html('<i class="ri-history-line"></i> ' + latest.length + ' 个版本');
+        $node.find('.btn-table-ver').html('<span class="duo-icon-slot" data-duo-icon="history"><i class="ri-history-line duo-rest-icon"></i></span> ' + latest.length + ' 个版本');
     });
     if (parseInt(currentVerManageItemId, 10) === parseInt(itemId, 10)) {
         currentVerManageAllVersions = latest;
@@ -2241,8 +2241,8 @@ function handleCategorySave(e) {
                                 '<button type="button" class="btn-act btn-cat-move-down" onclick="moveCategoryOrder(this, 1)" title="下移"><i class="ri-arrow-down-s-line"></i></button>' +
                             '</td>' +
                             '<td style="padding:10px 12px;text-align:right;white-space:nowrap;">' +
-                                '<button type="button" class="btn-act btn-edit-cat-trigger" data-cat-id="' + newId + '" data-cat-name="' + safeName + '" title="编辑名称"><i class="ri-edit-line"></i></button> ' +
-                                '<button type="button" class="btn-act btn-delete-cat-trigger" data-cat-id="' + newId + '" data-cat-name="' + safeName + '" data-count="0" title="删除文件夹"><i class="ri-delete-bin-line"></i></button>' +
+                                '<button type="button" class="btn-act btn-edit-cat-trigger" data-cat-id="' + newId + '" data-cat-name="' + safeName + '" title="编辑名称"><span class="duo-icon-slot" data-duo-icon="pencil"><i class="ri-edit-line duo-rest-icon"></i></span></button> ' +
+                                '<button type="button" class="btn-act btn-delete-cat-trigger" data-cat-id="' + newId + '" data-cat-name="' + safeName + '" data-count="0" title="删除文件夹"><span class="duo-icon-slot" data-duo-icon="trash"><i class="ri-delete-bin-line duo-rest-icon"></i></span></button>' +
                             '</td>' +
                         '</tr>';
                         $fBody.prepend(rowHtml);
@@ -2447,7 +2447,7 @@ function confirmDeleteCategory(catId, catName, itemCount) {
                                     getConsoleFolderEmptySvg() +
                                     '<div style="font-weight:600;font-size:13.5px;color:var(--text-1);margin-top:10px;">暂无文件夹分类</div>' +
                                     '<div style="font-size:12px;color:var(--text-3);margin-top:3px;margin-bottom:14px;">创建文件夹以井井有条地组织您的原型项目</div>' +
-                                    '<button type="button" class="btn-primary btn-sm" onclick="openCategoryModal(0)"><i class="ri-folder-add-line"></i> 新建文件夹</button>' +
+                                    '<button type="button" class="btn-primary btn-sm" onclick="openCategoryModal(0)"><span class="duo-icon-slot" data-duo-icon="folder-plus"><i class="ri-folder-add-line duo-rest-icon"></i></span> 新建文件夹</button>' +
                                 '</td></tr>'
                             );
                         }
@@ -2571,7 +2571,7 @@ function filterProjectsByCategory(catId) {
                 getConsoleProjectEmptySvg() +
                 '<div style="font-weight:600;font-size:13.5px;color:var(--text-1);margin-top:10px;">「' + esc(catName) + '」下暂无原型项目</div>' +
                 '<div style="font-size:12px;color:var(--text-3);margin-top:3px;margin-bottom:14px;">当前分类空空如也，可将已有项目归类至此或新建项目</div>' +
-                '<button type="button" class="btn-primary btn-sm" onclick="openItemModal(0, ' + catId + ', \'project\')"><i class="ri-add-line"></i> 添加项目至此文件夹</button>' +
+                '<button type="button" class="btn-primary btn-sm" onclick="openItemModal(0, ' + catId + ', \'project\')"><span class="duo-icon-slot" data-duo-icon="circle-plus"><i class="ri-add-line duo-rest-icon"></i></span> 添加项目至此文件夹</button>' +
             '</td></tr>';
             $('#overviewTableProjects tbody').append(emptyFilterHtml);
         }
@@ -2608,7 +2608,7 @@ function filterLinksByCategory(catId) {
                 getConsoleLinkEmptySvg() +
                 '<div style="font-weight:600;font-size:13.5px;color:var(--text-1);margin-top:10px;">「' + esc(catName) + '」下暂无外部链接</div>' +
                 '<div style="font-size:12px;color:var(--text-3);margin-top:3px;margin-bottom:14px;">当前分类空空如也，可将外部设计稿或演示地址收纳至此</div>' +
-                '<button type="button" class="btn-primary btn-sm" onclick="openItemModal(0, ' + catId + ', \'link\')"><i class="ri-add-line"></i> 添加外链至此文件夹</button>' +
+                '<button type="button" class="btn-primary btn-sm" onclick="openItemModal(0, ' + catId + ', \'link\')"><span class="duo-icon-slot" data-duo-icon="circle-plus"><i class="ri-add-line duo-rest-icon"></i></span> 添加外链至此文件夹</button>' +
             '</td></tr>';
             $('#overviewTableLinks tbody').append(emptyFilterHtml);
         }
@@ -2851,10 +2851,10 @@ function syncItemOwnerPermissions(itemId, collaboratorsStr, createdBy) {
         $rowUpload.remove();
     } else {
         if ($tree.length && !$treeControls.length) {
-            $tree.append('<div class="admin-controls" onclick="event.stopPropagation()"><button type="button" class="btn-act" onclick="openUploadModal(' + parseInt(itemId, 10) + ')" title="发布版本"><i class="ri-upload-cloud-line"></i></button></div>');
+            $tree.append('<div class="admin-controls" onclick="event.stopPropagation()"><button type="button" class="btn-act duo-hover-btn" data-duo-icon="cloud-upload" onclick="openUploadModal(' + parseInt(itemId, 10) + ')" title="发布版本"><i class="ri-upload-cloud-line duo-rest-icon"></i></button></div>');
         }
         if ($row.length && !$rowUpload.length) {
-            $row.find('td').last().prepend('<button type="button" class="btn-act" onclick="openUploadModal(' + parseInt(itemId, 10) + ')" title="发布新版本"><i class="ri-upload-cloud-line"></i></button> ');
+            $row.find('td').last().prepend('<button type="button" class="btn-act" onclick="openUploadModal(' + parseInt(itemId, 10) + ')" title="发布新版本"><span class="duo-icon-slot" data-duo-icon="cloud-upload"><i class="ri-upload-cloud-line duo-rest-icon"></i></span></button> ');
         }
     }
 }
@@ -3508,7 +3508,7 @@ function handleItemSave(e) {
                             $tds.eq(2).html('<span class="badge-tag" style="' + targetBadgeStyle + 'font-size:11px;">' + esc(targetText) + '</span>');
                             var urlHtml = '<div style="display:flex;align-items:center;gap:6px;">' +
                                 '<a href="' + esc(linkUrl) + '" target="_blank" rel="noopener noreferrer" style="color:var(--primary);text-decoration:none;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:inline-block;max-width:200px;" title="' + esc(linkUrl) + '">' + esc(linkUrl || '-') + '</a>' +
-                                (linkUrl ? '<button type="button" class="btn-act btn-copy-url" data-url="' + esc(linkUrl) + '" title="复制链接"><i class="ri-file-copy-line"></i></button>' : '') +
+                                (linkUrl ? '<button type="button" class="btn-act btn-copy-url" data-url="' + esc(linkUrl) + '" title="复制链接"><span class="duo-icon-slot" data-duo-icon="copy"><i class="ri-file-copy-line duo-rest-icon"></i></span></button>' : '') +
                             '</div>';
                             $tds.eq(3).html(urlHtml);
                             $tds.eq(4).text(rowCreatorName || '-');
@@ -3584,15 +3584,15 @@ function handleItemSave(e) {
                                 '<td style="padding:9px 12px;max-width:260px;">' +
                                     '<div style="display:flex;align-items:center;gap:6px;">' +
                                         '<a href="' + esc(linkUrl) + '" target="_blank" rel="noopener noreferrer" style="color:var(--primary);text-decoration:none;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:inline-block;max-width:200px;" title="' + esc(linkUrl) + '">' + esc(linkUrl || '-') + '</a>' +
-                                        (linkUrl ? '<button type="button" class="btn-act btn-copy-url" data-url="' + esc(linkUrl) + '" title="复制链接"><i class="ri-file-copy-line"></i></button>' : '') +
+                                        (linkUrl ? '<button type="button" class="btn-act btn-copy-url" data-url="' + esc(linkUrl) + '" title="复制链接"><span class="duo-icon-slot" data-duo-icon="copy"><i class="ri-file-copy-line duo-rest-icon"></i></span></button>' : '') +
                                     '</div>' +
                                 '</td>' +
                                 '<td style="padding:9px 12px;color:var(--text-2);">' + esc(curUserName) + '</td>' +
                                 '<td style="padding:9px 12px;text-align:right;white-space:nowrap;">' +
                                     '<button type="button" class="btn-act link-order-btn btn-link-move-up" style="display:none;margin-right:2px;" onclick="moveItemOrder(this, -1)" title="上移"><i class="ri-arrow-up-s-line"></i></button>' +
                                     '<button type="button" class="btn-act link-order-btn btn-link-move-down" style="display:none;margin-right:6px;" onclick="moveItemOrder(this, 1)" title="下移"><i class="ri-arrow-down-s-line"></i></button>' +
-                                    '<button type="button" class="btn-act btn-edit-item-trigger" data-item-json="' + esc(JSON.stringify(newLinkData)) + '" title="编辑属性"><i class="ri-edit-line"></i></button> ' +
-                                    '<button type="button" class="btn-act" onclick="deleteItem(' + itemId + ')" title="删除"><i class="ri-delete-bin-line"></i></button>' +
+                                    '<button type="button" class="btn-act btn-edit-item-trigger" data-item-json="' + esc(JSON.stringify(newLinkData)) + '" title="编辑属性"><span class="duo-icon-slot" data-duo-icon="pencil"><i class="ri-edit-line duo-rest-icon"></i></span></button> ' +
+                                    '<button type="button" class="btn-act" onclick="deleteItem(' + itemId + ')" title="删除"><span class="duo-icon-slot" data-duo-icon="trash"><i class="ri-delete-bin-line duo-rest-icon"></i></span></button>' +
                                 '</td>' +
                             '</tr>';
                             insertItemRowInOrder($lTableBody, newLinkRowHtml, itemCatId);
@@ -3620,13 +3620,13 @@ function handleItemSave(e) {
                                 '<td style="padding:9px 12px;color:var(--text-2);">' + esc(catText) + '</td>' +
                                 '<td style="padding:9px 12px;color:var(--text-2);">' + renderItemOwnersCellHtml(newCollabStr, curUserName) + '</td>' +
                                 '<td style="padding:9px 12px;"><span class="badge-ver">-</span></td>' +
-                                '<td style="padding:9px 12px;"><button type="button" class="btn-cancel btn-sm btn-table-ver" onclick="openVersionManageModal(' + itemId + ')"><i class="ri-history-line"></i> 0 个版本</button></td>' +
+                                '<td style="padding:9px 12px;"><button type="button" class="btn-cancel btn-sm btn-table-ver" onclick="openVersionManageModal(' + itemId + ')"><span class="duo-icon-slot" data-duo-icon="history"><i class="ri-history-line duo-rest-icon"></i></span> 0 个版本</button></td>' +
                                 '<td style="padding:9px 12px;text-align:right;white-space:nowrap;">' +
                                     '<button type="button" class="btn-act project-order-btn btn-proj-move-up" style="display:none;margin-right:2px;" onclick="moveItemOrder(this, -1)" title="上移"><i class="ri-arrow-up-s-line"></i></button>' +
                                     '<button type="button" class="btn-act project-order-btn btn-proj-move-down" style="display:none;margin-right:6px;" onclick="moveItemOrder(this, 1)" title="下移"><i class="ri-arrow-down-s-line"></i></button>' +
-                                    (canUploadNewItem ? '<button type="button" class="btn-act" onclick="openUploadModal(' + itemId + ')" title="发布新版本"><i class="ri-upload-cloud-line"></i></button> ' : '') +
-                                    '<button type="button" class="btn-act btn-edit-item-trigger" data-item-json="' + esc(JSON.stringify(newProjData)) + '" title="编辑属性"><i class="ri-edit-line"></i></button> ' +
-                                    '<button type="button" class="btn-act" onclick="deleteItem(' + itemId + ')" title="删除"><i class="ri-delete-bin-line"></i></button>' +
+                                    (canUploadNewItem ? '<button type="button" class="btn-act" onclick="openUploadModal(' + itemId + ')" title="发布新版本"><span class="duo-icon-slot" data-duo-icon="cloud-upload"><i class="ri-upload-cloud-line duo-rest-icon"></i></span></button> ' : '') +
+                                    '<button type="button" class="btn-act btn-edit-item-trigger" data-item-json="' + esc(JSON.stringify(newProjData)) + '" title="编辑属性"><span class="duo-icon-slot" data-duo-icon="pencil"><i class="ri-edit-line duo-rest-icon"></i></span></button> ' +
+                                    '<button type="button" class="btn-act" onclick="deleteItem(' + itemId + ')" title="删除"><span class="duo-icon-slot" data-duo-icon="trash"><i class="ri-delete-bin-line duo-rest-icon"></i></span></button>' +
                                 '</td>' +
                             '</tr>';
                             insertItemRowInOrder($pTableBody, newRowHtml, itemCatId);
@@ -3675,7 +3675,7 @@ function deleteItem(itemId) {
                                 getConsoleProjectEmptySvg() +
                                 '<div style="font-weight:600;font-size:13.5px;color:var(--text-1);margin-top:10px;">暂无原型项目</div>' +
                                 '<div style="font-size:12px;color:var(--text-3);margin-top:3px;margin-bottom:14px;">万事俱备，点击下方创建团队的第一份图纸</div>' +
-                                '<button type="button" class="btn-primary btn-sm" onclick="openItemModal(0, 0, \'project\')"><i class="ri-add-line"></i> 新建项目</button>' +
+                                '<button type="button" class="btn-primary btn-sm" onclick="openItemModal(0, 0, \'project\')"><span class="duo-icon-slot" data-duo-icon="circle-plus"><i class="ri-add-line duo-rest-icon"></i></span> 新建项目</button>' +
                             '</td></tr>');
                         }
                         var $lRows = $('#overviewTableLinks tbody tr[data-item-id]');
@@ -3684,7 +3684,7 @@ function deleteItem(itemId) {
                                 getConsoleLinkEmptySvg() +
                                 '<div style="font-weight:600;font-size:13.5px;color:var(--text-1);margin-top:10px;">暂无外部链接</div>' +
                                 '<div style="font-size:12px;color:var(--text-3);margin-top:3px;margin-bottom:14px;">将 Figma、蓝湖、飞书文档或外部演示地址收纳至此，统一看板索引</div>' +
-                                '<button type="button" class="btn-primary btn-sm" onclick="openItemModal(0, 0, \'link\')"><i class="ri-add-line"></i> 新建外链</button>' +
+                                '<button type="button" class="btn-primary btn-sm" onclick="openItemModal(0, 0, \'link\')"><span class="duo-icon-slot" data-duo-icon="circle-plus"><i class="ri-add-line duo-rest-icon"></i></span> 新建外链</button>' +
                             '</td></tr>');
                         }
                     } else {
@@ -3743,11 +3743,11 @@ function loadUserList() {
             if (isCurAdmin) {
                 // 如果当前登录者是 Owner，且目标也是管理员（非自己），显示移交钥匙按钮
                 var transferBtn = (isCurOwner && u.role === 'admin' && parseInt(CURRENT_USER.id, 10) !== parseInt(u.id, 10))
-                    ? `<button class="btn-act" onclick="openTransferOwnerModal(${parseInt(u.id, 10)})" title="移交主管理员所有权"><i class="ri-key-2-line" style="color:var(--primary);"></i></button>`
+                    ? `<button class="btn-act" onclick="openTransferOwnerModal(${parseInt(u.id, 10)})" title="移交主管理员所有权"><span class="duo-icon-slot" data-duo-icon="key"><i class="ri-key-2-line duo-rest-icon" style="color:var(--primary);"></i></span></button>`
                     : '';
 
                 // 工作交接按钮 (只要是管理员，可交接成员名下负责的项目)
-                var handoverBtn = `<button class="btn-act" onclick="openHandoverModal(${parseInt(u.id, 10)})" title="工作交接"><i class="ri-arrow-left-right-line" style="color:var(--primary);"></i></button>`;
+                var handoverBtn = `<button class="btn-act" onclick="openHandoverModal(${parseInt(u.id, 10)})" title="工作交接"><span class="duo-icon-slot" data-duo-icon="arrow-left-right"><i class="ri-arrow-left-right-line duo-rest-icon" style="color:var(--primary);"></i></span></button>`;
 
                 // 若目标是 Owner，且当前用户非 Owner，隐藏删除与编辑按钮以防篡权
                 if (isTargetOwner && !isCurOwner) {
@@ -3756,8 +3756,8 @@ function loadUserList() {
                     actionButtons = `
                         ${transferBtn}
                         ${handoverBtn}
-                        <button class="btn-act" onclick="openEditUserModal(${parseInt(u.id, 10)})" title="编辑成员信息"><i class="ri-edit-line"></i></button>
-                        ${isTargetOwner ? '' : `<button class="btn-act" onclick="handleDeleteUser(${parseInt(u.id, 10)})" title="删除用户"><i class="ri-delete-bin-line"></i></button>`}
+                        <button class="btn-act" onclick="openEditUserModal(${parseInt(u.id, 10)})" title="编辑成员信息"><span class="duo-icon-slot" data-duo-icon="pencil"><i class="ri-edit-line duo-rest-icon"></i></span></button>
+                        ${isTargetOwner ? '' : `<button class="btn-act" onclick="handleDeleteUser(${parseInt(u.id, 10)})" title="删除用户"><span class="duo-icon-slot" data-duo-icon="trash"><i class="ri-delete-bin-line duo-rest-icon"></i></span></button>`}
                     `;
                 }
             } else {
@@ -4374,7 +4374,7 @@ function renderPendingUsers(users) {
                             <option value="viewer"${requestedRole === 'viewer' ? ' selected' : ''}>审阅人</option>
                             <option value="editor"${requestedRole === 'editor' ? ' selected' : ''}>协作者</option>
                         </select>
-                        <button type="button" class="btn-primary btn-sm" style="margin-right:6px;" onclick="handleApproveUser(${id})"><i class="ri-check-line"></i> 批准</button>
+                        <button type="button" class="btn-primary btn-sm" style="margin-right:6px;" onclick="handleApproveUser(${id})"><span class="duo-icon-slot" data-duo-icon="circle-check"><i class="ri-check-line duo-rest-icon"></i></span> 批准</button>
                         <button type="button" class="btn-cancel btn-sm btn-danger-sm" onclick="handleRejectUser(${id})"><i class="ri-close-line"></i> 驳回</button>
                     </td>
         `;
@@ -5937,7 +5937,7 @@ function renderVersionManageView() {
     if (totalVersions === 0) {
         $table.hide();
         var emptyBtnHtml = currentVerManageCanEdit
-            ? '<button type="button" class="btn-primary btn-md" onclick="quickOpenUploadFromVersionManage()"><i class="ri-upload-cloud-line"></i> 发布首个版本</button>'
+            ? '<button type="button" class="btn-primary btn-md" onclick="quickOpenUploadFromVersionManage()"><span class="duo-icon-slot" data-duo-icon="cloud-upload"><i class="ri-upload-cloud-line duo-rest-icon"></i></span> 发布首个版本</button>'
             : '<span style="font-size:12px;color:var(--text-3);">此项目暂未发布任何公开版本</span>';
         $empty.html(
             '<div class="m-empty-icon"><i class="ri-draft-line"></i></div>' +
@@ -5980,9 +5980,9 @@ function renderVersionManageView() {
         // 默认版本锁定保护：默认版本不允许直接删除
         var delBtnHtml = '';
         if (isDef) {
-            delBtnHtml = '<button type="button" class="btn-cancel btn-sm btn-icon-only btn-ver-del" disabled title="默认版本受保护，请先将其他版本设为默认"><i class="ri-delete-bin-line"></i></button>';
+            delBtnHtml = '<button type="button" class="btn-cancel btn-sm btn-icon-only btn-ver-del" disabled title="默认版本受保护，请先将其他版本设为默认"><span class="duo-icon-slot" data-duo-icon="trash"><i class="ri-delete-bin-line duo-rest-icon"></i></span></button>';
         } else if (canDelThisVer) {
-            delBtnHtml = '<button type="button" class="btn-cancel btn-sm btn-icon-only btn-ver-del is-danger" onclick="handleDeleteVersion(' + ver.id + ', null, ' + currentVerManageItemId + ')" title="删除此版本"><i class="ri-delete-bin-line"></i></button>';
+            delBtnHtml = '<button type="button" class="btn-cancel btn-sm btn-icon-only btn-ver-del is-danger" onclick="handleDeleteVersion(' + ver.id + ', null, ' + currentVerManageItemId + ')" title="删除此版本"><span class="duo-icon-slot" data-duo-icon="trash"><i class="ri-delete-bin-line duo-rest-icon"></i></span></button>';
         } else {
             delBtnHtml = '<span class="ver-protected-label" title="受保护">—</span>';
         }
@@ -6008,15 +6008,15 @@ function renderVersionManageView() {
         // 统一右侧操作工具栏 (所有交互按钮规范排布，高度统一 28px)
         var actionsHtml = '';
         if (currentVerManageCanEdit) {
-            actionsHtml += '<button type="button" class="btn-cancel btn-sm btn-ver-edit" onclick="openEditVersionModal(' + ver.id + ')" title="编辑版本名称与更新日志"><i class="ri-edit-line"></i> 编辑</button>';
+            actionsHtml += '<button type="button" class="btn-cancel btn-sm btn-ver-edit" onclick="openEditVersionModal(' + ver.id + ')" title="编辑版本名称与更新日志"><span class="duo-icon-slot" data-duo-icon="pencil"><i class="ri-edit-line duo-rest-icon"></i></span> 编辑</button>';
             if (hasRp && canDelThisVer) {
-                actionsHtml += '<button type="button" class="btn-cancel btn-sm" onclick="triggerRpUploadForVersion(' + ver.id + ', ' + currentVerManageItemId + ', true)" title="重新上传并替换 RP 底稿"><i class="ri-repeat-line"></i> 更换RP</button>';
-                actionsHtml += '<button type="button" class="btn-cancel btn-sm is-danger" onclick="handleRemoveRp(' + ver.id + ', ' + currentVerManageItemId + ')" title="移除此版本的 RP 底稿"><i class="ri-delete-bin-line"></i> 移除RP</button>';
+                actionsHtml += '<button type="button" class="btn-cancel btn-sm" onclick="triggerRpUploadForVersion(' + ver.id + ', ' + currentVerManageItemId + ', true)" title="重新上传并替换 RP 底稿"><span class="duo-icon-slot" data-duo-icon="repeat"><i class="ri-repeat-line duo-rest-icon"></i></span> 更换RP</button>';
+                actionsHtml += '<button type="button" class="btn-cancel btn-sm is-danger" onclick="handleRemoveRp(' + ver.id + ', ' + currentVerManageItemId + ')" title="移除此版本的 RP 底稿"><span class="duo-icon-slot" data-duo-icon="trash"><i class="ri-delete-bin-line duo-rest-icon"></i></span> 移除RP</button>';
             } else if (canDelThisVer) {
-                actionsHtml += '<button type="button" class="btn-cancel btn-sm btn-table-rp-add" onclick="triggerRpUploadForVersion(' + ver.id + ', ' + currentVerManageItemId + ', false)" title="为此版本补传 Axure RP 底稿"><i class="ri-upload-2-line"></i> 补传RP</button>';
+                actionsHtml += '<button type="button" class="btn-cancel btn-sm btn-table-rp-add" onclick="triggerRpUploadForVersion(' + ver.id + ', ' + currentVerManageItemId + ', false)" title="为此版本补传 Axure RP 底稿"><span class="duo-icon-slot" data-duo-icon="upload"><i class="ri-upload-2-line duo-rest-icon"></i></span> 补传RP</button>';
             }
             if (!isDef) {
-                actionsHtml += '<button type="button" class="btn-cancel btn-sm btn-ver-default" onclick="handleSetDefaultVersion(' + ver.id + ', ' + currentVerManageItemId + ')" title="设为访客默认访问版本"><i class="ri-checkbox-circle-line"></i> 设为默认</button>';
+                actionsHtml += '<button type="button" class="btn-cancel btn-sm btn-ver-default" onclick="handleSetDefaultVersion(' + ver.id + ', ' + currentVerManageItemId + ')" title="设为访客默认访问版本"><span class="duo-icon-slot" data-duo-icon="circle-check"><i class="ri-checkbox-circle-line duo-rest-icon"></i></span> 设为默认</button>';
             }
             actionsHtml += delBtnHtml;
         } else {
@@ -6385,7 +6385,7 @@ function handleDeleteVersion(verId, verName, itemId) {
                             newDefaultName = defVer ? defVer.version_name : '-';
                             $node.data('versions', latest).attr('data-versions', JSON.stringify(latest));
                             $node.find('.badge-ver').text(newDefaultName);
-                            $node.find('.btn-table-ver').html('<i class="ri-history-line"></i> ' + latest.length + ' 个版本');
+                            $node.find('.btn-table-ver').html('<span class="duo-icon-slot" data-duo-icon="history"><i class="ri-history-line duo-rest-icon"></i></span> ' + latest.length + ' 个版本');
                         });
                         if (parseInt(currentVerManageItemId, 10) === parseInt(itemId, 10)) {
                             currentVerManageAllVersions = (currentVerManageAllVersions || []).filter(function(v) {

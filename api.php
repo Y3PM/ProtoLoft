@@ -298,6 +298,7 @@ $actionRoutes = [
     'reset_password' => 'auth',
     'profile_update' => 'auth',
     'profile_update_webhook' => 'auth',
+    'profile_update_avatar' => 'auth',
     'change_my_password' => 'auth',
     'dismiss_first_login' => 'auth',
 

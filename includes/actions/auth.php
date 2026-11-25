@@ -60,6 +60,13 @@ switch ($action) {
         jsonResponse($res['success'], $res['webhook_url'] ?? '', $res['success'] ? '个人通知机器人已保存' : ($res['message'] ?? '保存失败'));
         break;
 
+    case 'profile_update_avatar':
+        if (!Auth::getCurrentUser()) jsonResponse(false, null, '未登录或会话已过期');
+        $avatar = trim($_POST['avatar'] ?? '');
+        $res = Auth::updateMyAvatar($avatar);
+        jsonResponse($res['success'], $res['success'] ? ['avatar' => $res['avatar']] : null, $res['success'] ? '个人头像已更新' : ($res['message'] ?? '保存失败'));
+        break;
+
     case 'change_my_password':
         if (!Auth::getCurrentUser()) jsonResponse(false, null, '未登录或会话已过期');
         $old = $_POST['old_password'] ?? '';
@@ -142,8 +149,9 @@ switch ($action) {
         }
 
         $pHash = password_hash($p, PASSWORD_DEFAULT);
-        $stmt = $db->prepare("INSERT INTO users (email, name, password_hash, role, is_owner, status, department) VALUES (?, ?, ?, ?, 0, 0, ?)");
-        $stmt->execute([$email, $name, $pHash, $requestedRole, $department]);
+        $defaultAvatar = Auth::pickRandomAvatar();
+        $stmt = $db->prepare("INSERT INTO users (email, name, password_hash, role, is_owner, status, department, avatar) VALUES (?, ?, ?, ?, 0, 0, ?, ?)");
+        $stmt->execute([$email, $name, $pHash, $requestedRole, $department, $defaultAvatar]);
         $newId = (int)$db->lastInsertId();
         Auth::hitThrottle('register_visitor', 900);
 

@@ -84,14 +84,14 @@ $renderItemOwnersCell = function($item, $usersMap) use ($editorShareAllowed) {
                     <input type="file" id="uploadZipFile" name="zip_file" accept=".zip" class="custom-file-input" onchange="handleZipSelected(this)">
                     <input type="file" id="uploadFolderInput" webkitdirectory directory class="custom-file-input" onchange="handleFolderSelected(this)">
                     <div class="proto-drop-actions" id="protoDropActions">
-                        <button type="button" class="btn-file-select" onclick="triggerFileInput('uploadZipFile')"><i class="ri-file-zip-line"></i> 选择 ZIP 包</button>
-                        <button type="button" class="btn-file-select" onclick="triggerFileInput('uploadFolderInput')"><i class="ri-folder-upload-line"></i> 选择文件夹</button>
+                        <button type="button" class="btn-file-select" onclick="triggerFileInput('uploadZipFile')"><span class="duo-icon-slot" data-duo-icon="file-archive"><i class="ri-file-zip-line duo-rest-icon"></i></span> 选择 ZIP 包</button>
+                        <button type="button" class="btn-file-select" onclick="triggerFileInput('uploadFolderInput')"><span class="duo-icon-slot" data-duo-icon="folder-open"><i class="ri-folder-upload-line duo-rest-icon"></i></span> 选择文件夹</button>
                         <span class="proto-drop-hint">或将 ZIP 包 / 文件夹直接拖放至此处</span>
                     </div>
                     <div class="proto-file-badge" id="protoFileBadge" style="display:none;">
                         <i class="ri-file-check-line" id="protoFileBadgeIcon"></i>
                         <span class="proto-file-badge-text" id="protoFileBadgeText">未选择文件</span>
-                        <button type="button" id="protoFolderManageBtn" class="btn-sm btn-cancel proto-folder-manage-btn" hidden onclick="openFolderFilesModal()" title="查看或取消勾选不需要上传的文件"><i class="ri-list-check-2"></i> 筛选文件</button>
+                        <button type="button" id="protoFolderManageBtn" class="btn-sm btn-cancel proto-folder-manage-btn" hidden onclick="openFolderFilesModal()" title="查看或取消勾选不需要上传的文件"><span class="duo-icon-slot" data-duo-icon="list-checks"><i class="ri-list-check-2 duo-rest-icon"></i></span> 筛选文件</button>
                         <button type="button" class="proto-file-badge-clear" onclick="clearSelectedProtoSource(event)" title="移除并重新选择"><i class="ri-close-line"></i></button>
                     </div>
                     <span class="file-name-display" id="uploadZipName" style="display:none;">未选择文件</span>
@@ -103,7 +103,7 @@ $renderItemOwnersCell = function($item, $usersMap) use ($editorShareAllowed) {
                 <div class="proto-drop-zone" id="rpDropZone">
                     <input type="file" id="uploadRpFile" name="rp_file" accept=".rp" class="custom-file-input" onchange="handleRpSelected(this)">
                     <div class="proto-drop-actions" id="rpDropActions">
-                        <button type="button" class="btn-file-select" onclick="triggerFileInput('uploadRpFile')"><i class="ri-draft-line"></i> 选择 RP 底稿</button>
+                        <button type="button" class="btn-file-select" onclick="triggerFileInput('uploadRpFile')"><span class="duo-icon-slot" data-duo-icon="file-text"><i class="ri-draft-line duo-rest-icon"></i></span> 选择 RP 底稿</button>
                         <span class="proto-drop-hint">或将 .rp 底稿文件直接拖放至此处</span>
                     </div>
                     <div class="proto-file-badge" id="rpFileBadge" style="display:none;">
@@ -243,7 +243,7 @@ $renderItemOwnersCell = function($item, $usersMap) use ($editorShareAllowed) {
                 <button type="button" id="verManageSearchClear" class="close-x" onclick="clearVerManageSearch()" style="display:none;" title="清空搜索"><i class="ri-close-line"></i></button>
             </div>
             <button type="button" id="btnVerManagePublish" class="btn-primary btn-sm" hidden style="margin-left:auto;margin-right:6px;" onclick="publishFromVerManage()" title="为此项目发布新版本">
-                <i class="ri-upload-cloud-line"></i> 发布新版本
+                <span class="duo-icon-slot" data-duo-icon="cloud-upload"><i class="ri-upload-cloud-line duo-rest-icon"></i></span> 发布新版本
             </button>
             <button type="button" class="close-x" onclick="closeModal('versionManageModal')" title="关闭"><i class="ri-close-line"></i></button>
         </div>
@@ -391,7 +391,7 @@ $renderItemOwnersCell = function($item, $usersMap) use ($editorShareAllowed) {
                 <div class="m-form-row">
                     <input type="text" id="itemWebhookUrl" class="m-input" placeholder="企微 / 飞书 / 钉钉群机器人 Webhook 地址" style="flex:1" maxlength="1000">
                     <button type="button" class="btn-cancel btn-standard" onclick="testAnyWebhook('itemWebhookUrl', this)">
-                        <i class="ri-send-plane-line"></i> 测试
+                        <span class="duo-icon-slot" data-duo-icon="send"><i class="ri-send-plane-line duo-rest-icon"></i></span> 测试
                     </button>
                 </div>
                 <div style="font-size:11.5px;color:var(--text-3);margin-top:5px;line-height:1.4;">接收该项目发版与新批注通知；钉钉/飞书安全设置勾选「自定义关键词」，填入：<strong>立象原型</strong></div>
@@ -434,9 +434,9 @@ $renderItemOwnersCell = function($item, $usersMap) use ($editorShareAllowed) {
                 <div style="display:flex;gap:8px;align-items:center;margin-bottom:14px;">
                     <input type="text" id="shareUrlDisplay" class="m-input" readonly style="font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;flex:1;background:var(--canvas);color:var(--text-1)" onclick="this.select()">
                     <button type="button" class="btn-primary btn-standard" id="btnCopyShareModal" onclick="copyFromShareModal()">
-                        <i class="ri-file-copy-line"></i> 复制
+                        <span class="duo-icon-slot" data-duo-icon="copy"><i class="ri-file-copy-line duo-rest-icon"></i></span> 复制
                     </button>
-                    <a href="javascript:void(0)" id="btnOpenSharePreview" target="_blank" class="btn-cancel btn-standard" style="color:var(--text-2)" title="新标签页打开"><i class="ri-external-link-line"></i></a>
+                    <a href="javascript:void(0)" id="btnOpenSharePreview" target="_blank" class="btn-cancel btn-standard" style="color:var(--text-2)" title="新标签页打开"><span class="duo-icon-slot" data-duo-icon="external-link"><i class="ri-external-link-line duo-rest-icon"></i></span></a>
                 </div>
 
                 <!-- 默认密码 -->
@@ -459,7 +459,7 @@ $renderItemOwnersCell = function($item, $usersMap) use ($editorShareAllowed) {
                         </label>
                     </div>
                     <button type="button" class="btn-cancel btn-standard" id="btnSaveDefaultShare" onclick="saveShareSettingsFromModal()">
-                        <i class="ri-save-line"></i> 保存
+                        <span class="duo-icon-slot" data-duo-icon="save"><i class="ri-save-line duo-rest-icon"></i></span> 保存
                     </button>
                 </div>
             </div>
@@ -474,8 +474,8 @@ $renderItemOwnersCell = function($item, $usersMap) use ($editorShareAllowed) {
                         <i class="ri-shield-user-line" style="color:var(--primary);"></i> 专属外发链接
                         <span id="activeShareBadge" style="font-size:11px;font-weight:600;color:var(--primary);background:var(--primary-subtle);padding:1px 6px;border-radius:10px;">0 条生效中</span>
                     </div>
-                    <button type="button" class="btn-act" id="btnToggleNewCustomShare" onclick="toggleCustomSharePanel()" title="创建专属外发链接">
-                        <i class="ri-add-line"></i>
+                    <button type="button" class="btn-act duo-hover-btn" id="btnToggleNewCustomShare" data-duo-icon="plus-square" onclick="toggleCustomSharePanel()" title="创建专属外发链接">
+                        <i class="ri-add-line duo-rest-icon"></i>
                     </button>
                 </div>
 
@@ -509,7 +509,7 @@ $renderItemOwnersCell = function($item, $usersMap) use ($editorShareAllowed) {
                         <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:4px;">
                             <button type="button" class="btn-cancel btn-standard" onclick="toggleCustomSharePanel(false)">取消</button>
                             <button type="button" class="btn-primary btn-standard" id="btnSubmitCustomShare" onclick="submitCreateCustomShare()">
-                                <i class="ri-check-line"></i> 创建并复制
+                                <span class="duo-icon-slot" data-duo-icon="circle-check"><i class="ri-check-line duo-rest-icon"></i></span> 创建并复制
                             </button>
                         </div>
                     </div>
@@ -1213,7 +1213,7 @@ $renderItemOwnersCell = function($item, $usersMap) use ($editorShareAllowed) {
                                     <option value="<?php echo $c['id']; ?>"><?php echo htmlspecialchars($c['name']); ?></option>
                                 <?php endforeach; ?>
                             </select>
-                            <button type="button" class="btn-primary btn-md" onclick="openItemModal(0, <?php echo !empty($cats) ? $cats[0]['id'] : 0; ?>, 'project')"><i class="ri-add-line"></i> 新建项目</button>
+                            <button type="button" class="btn-primary btn-md" onclick="openItemModal(0, <?php echo !empty($cats) ? $cats[0]['id'] : 0; ?>, 'project')"><span class="duo-icon-slot" data-duo-icon="circle-plus"><i class="ri-add-line duo-rest-icon"></i></span> 新建项目</button>
                         </div>
                         <div id="overviewActionsLinks" style="display:none;gap:8px;align-items:center;">
                             <select id="filterLinkCategory" class="m-select-md" onchange="filterLinksByCategory(this.value)" style="min-width:130px;" title="筛选文件夹以聚焦调序">
@@ -1222,10 +1222,10 @@ $renderItemOwnersCell = function($item, $usersMap) use ($editorShareAllowed) {
                                     <option value="<?php echo $c['id']; ?>"><?php echo htmlspecialchars($c['name']); ?></option>
                                 <?php endforeach; ?>
                             </select>
-                            <button type="button" class="btn-primary btn-md" onclick="openItemModal(0, <?php echo !empty($cats) ? $cats[0]['id'] : 0; ?>, 'link')"><i class="ri-add-line"></i> 新建外链</button>
+                            <button type="button" class="btn-primary btn-md" onclick="openItemModal(0, <?php echo !empty($cats) ? $cats[0]['id'] : 0; ?>, 'link')"><span class="duo-icon-slot" data-duo-icon="circle-plus"><i class="ri-add-line duo-rest-icon"></i></span> 新建外链</button>
                         </div>
                         <div id="overviewActionsFolders" style="display:none;gap:8px;align-items:center;">
-                            <button type="button" class="btn-primary btn-md" onclick="openCategoryModal()"><i class="ri-folder-add-line"></i> 新建文件夹</button>
+                            <button type="button" class="btn-primary btn-md" onclick="openCategoryModal()"><span class="duo-icon-slot" data-duo-icon="folder-plus"><i class="ri-folder-add-line duo-rest-icon"></i></span> 新建文件夹</button>
                         </div>
                     </div>
 
@@ -1263,7 +1263,7 @@ $renderItemOwnersCell = function($item, $usersMap) use ($editorShareAllowed) {
                                         <div style="font-weight:600;font-size:13.5px;color:var(--text-1);margin-top:10px;">暂无原型项目</div>
                                         <div style="font-size:12px;color:var(--text-3);margin-top:3px;margin-bottom:14px;">万事俱备，点击下方创建团队的第一份图纸</div>
                                         <?php if ($canManage): ?>
-                                            <button type="button" class="btn-primary btn-sm" onclick="openQuickItemModal('project')"><i class="ri-add-line"></i> 新建项目</button>
+                                            <button type="button" class="btn-primary btn-sm" onclick="openQuickItemModal('project')"><span class="duo-icon-slot" data-duo-icon="circle-plus"><i class="ri-add-line duo-rest-icon"></i></span> 新建项目</button>
                                         <?php endif; ?>
                                     </td></tr>
                                 <?php else: ?>
@@ -1308,7 +1308,7 @@ $renderItemOwnersCell = function($item, $usersMap) use ($editorShareAllowed) {
                                         <td style="padding:9px 12px;"><span class="badge-ver"><?php echo htmlspecialchars($defaultV); ?></span></td>
                                         <td style="padding:9px 12px;">
                                             <button type="button" class="btn-cancel btn-sm btn-table-ver" onclick="openVersionManageModal(<?php echo $it['id']; ?>)" title="管理此项目的历史版本与底稿">
-                                                <i class="ri-history-line"></i> <?php echo count($vList); ?> 个版本
+                                                <span class="duo-icon-slot" data-duo-icon="history"><i class="ri-history-line duo-rest-icon"></i></span> <?php echo count($vList); ?> 个版本
                                             </button>
                                         </td>
                                         <td style="padding:9px 12px;text-align:right;white-space:nowrap;">
@@ -1317,11 +1317,11 @@ $renderItemOwnersCell = function($item, $usersMap) use ($editorShareAllowed) {
                                             <button type="button" class="btn-act project-order-btn btn-proj-move-down" style="display:none;margin-right:6px;" onclick="moveItemOrder(this, 1)" title="下移"><i class="ri-arrow-down-s-line"></i></button>
 
                                             <?php if ($canPublishThisItem): ?>
-                                                <button class="btn-act" onclick="openUploadModal(<?php echo $it['id']; ?>, '<?php echo htmlspecialchars(addslashes($it['name'])); ?>')" title="发布新版本"><i class="ri-upload-cloud-line"></i></button>
+                                                <button class="btn-act" onclick="openUploadModal(<?php echo $it['id']; ?>, '<?php echo htmlspecialchars(addslashes($it['name'])); ?>')" title="发布新版本"><span class="duo-icon-slot" data-duo-icon="cloud-upload"><i class="ri-upload-cloud-line duo-rest-icon"></i></span></button>
                                             <?php endif; ?>
                                             <?php if ($canManageThisItem): ?>
                                                 <?php if ($isAdmin): ?>
-                                                    <button class="btn-act" onclick="rotateShareToken(<?php echo $it['id']; ?>)" title="重置安全短链"><i class="ri-refresh-line" style="color:var(--text-3);"></i></button>
+                                                    <button class="btn-act" onclick="rotateShareToken(<?php echo $it['id']; ?>)" title="重置安全短链"><span class="duo-icon-slot" data-duo-icon="rotate-cw"><i class="ri-refresh-line duo-rest-icon" style="color:var(--text-3);"></i></span></button>
                                                 <?php endif; ?>
                                                 <button class="btn-act btn-edit-item-trigger" onclick="openEditItemModal(<?php echo htmlspecialchars(json_encode([
                                                     'id' => $it['id'],
@@ -1335,9 +1335,9 @@ $renderItemOwnersCell = function($item, $usersMap) use ($editorShareAllowed) {
                                                     'collaborators' => $it['collaborators'] ?? '',
                                                     'watermark_enabled' => (int)($it['watermark_enabled'] ?? 0),
                                                     'has_versions' => !empty($it['versions'])
-                                                ]), ENT_QUOTES, 'UTF-8'); ?>)" title="编辑属性"><i class="ri-edit-line"></i></button>
+                                                ]), ENT_QUOTES, 'UTF-8'); ?>)" title="编辑属性"><span class="duo-icon-slot" data-duo-icon="pencil"><i class="ri-edit-line duo-rest-icon"></i></span></button>
                                                 <?php if ($canDeleteThisItem): ?>
-                                                    <button class="btn-act" onclick="deleteItem(<?php echo $it['id']; ?>)" title="删除"><i class="ri-delete-bin-line"></i></button>
+                                                    <button class="btn-act" onclick="deleteItem(<?php echo $it['id']; ?>)" title="删除"><span class="duo-icon-slot" data-duo-icon="trash"><i class="ri-delete-bin-line duo-rest-icon"></i></span></button>
                                                 <?php endif; ?>
                                             <?php elseif (!$canPublishThisItem): ?>
                                                 <span style="font-size:11px;color:var(--text-3);padding:0 4px;" title="受保护">受保护</span>
@@ -1383,7 +1383,7 @@ $renderItemOwnersCell = function($item, $usersMap) use ($editorShareAllowed) {
                                         <div style="font-weight:600;font-size:13.5px;color:var(--text-1);margin-top:10px;">暂无外部链接</div>
                                         <div style="font-size:12px;color:var(--text-3);margin-top:3px;margin-bottom:14px;">将 Figma、蓝湖、飞书文档或外部演示地址收纳至此，统一看板索引</div>
                                         <?php if ($canManage): ?>
-                                            <button type="button" class="btn-primary btn-sm" onclick="openItemModal(0, <?php echo !empty($cats) ? $cats[0]['id'] : 0; ?>, 'link')"><i class="ri-add-line"></i> 新建外链</button>
+                                            <button type="button" class="btn-primary btn-sm" onclick="openItemModal(0, <?php echo !empty($cats) ? $cats[0]['id'] : 0; ?>, 'link')"><span class="duo-icon-slot" data-duo-icon="circle-plus"><i class="ri-add-line duo-rest-icon"></i></span> 新建外链</button>
                                         <?php endif; ?>
                                     </td></tr>
                                 <?php else: ?>
@@ -1417,7 +1417,7 @@ $renderItemOwnersCell = function($item, $usersMap) use ($editorShareAllowed) {
                                                 </a>
                                                 <?php if (!empty($it['link_url'])): ?>
                                                 <button type="button" class="btn-act" onclick="copyTextToClipboard('<?php echo htmlspecialchars(addslashes($it['link_url'])); ?>', function(){ showToast('链接已复制', 'success'); })" title="复制链接">
-                                                    <i class="ri-file-copy-line"></i>
+                                                    <span class="duo-icon-slot" data-duo-icon="copy"><i class="ri-file-copy-line duo-rest-icon"></i></span>
                                                 </button>
                                                 <?php endif; ?>
                                             </div>
@@ -1439,9 +1439,9 @@ $renderItemOwnersCell = function($item, $usersMap) use ($editorShareAllowed) {
                                                     'collaborators' => $it['collaborators'] ?? '',
                                                     'watermark_enabled' => (int)($it['watermark_enabled'] ?? 0),
                                                     'has_versions' => false
-                                                ]), ENT_QUOTES, 'UTF-8'); ?>)" title="编辑属性"><i class="ri-edit-line"></i></button>
+                                                ]), ENT_QUOTES, 'UTF-8'); ?>)" title="编辑属性"><span class="duo-icon-slot" data-duo-icon="pencil"><i class="ri-edit-line duo-rest-icon"></i></span></button>
                                                 <?php if ($canDeleteThisItem): ?>
-                                                    <button class="btn-act" onclick="deleteItem(<?php echo $it['id']; ?>)" title="删除"><i class="ri-delete-bin-line"></i></button>
+                                                    <button class="btn-act" onclick="deleteItem(<?php echo $it['id']; ?>)" title="删除"><span class="duo-icon-slot" data-duo-icon="trash"><i class="ri-delete-bin-line duo-rest-icon"></i></span></button>
                                                 <?php endif; ?>
                                             <?php else: ?>
                                                 <span style="font-size:11px;color:var(--text-3);padding:0 4px;" title="受保护">受保护</span>
@@ -1483,7 +1483,7 @@ $renderItemOwnersCell = function($item, $usersMap) use ($editorShareAllowed) {
                                         <div style="font-weight:600;font-size:13.5px;color:var(--text-1);margin-top:10px;">暂无文件夹分类</div>
                                         <div style="font-size:12px;color:var(--text-3);margin-top:3px;margin-bottom:14px;">创建文件夹以井井有条地组织您的原型项目</div>
                                         <?php if ($canManage): ?>
-                                            <button type="button" class="btn-primary btn-sm" onclick="openCategoryModal(0)"><i class="ri-folder-add-line"></i> 新建文件夹</button>
+                                            <button type="button" class="btn-primary btn-sm" onclick="openCategoryModal(0)"><span class="duo-icon-slot" data-duo-icon="folder-plus"><i class="ri-folder-add-line duo-rest-icon"></i></span> 新建文件夹</button>
                                         <?php endif; ?>
                                     </td></tr>
                                 <?php else: ?>
@@ -1507,8 +1507,8 @@ $renderItemOwnersCell = function($item, $usersMap) use ($editorShareAllowed) {
                                             <button type="button" class="btn-act btn-cat-move-down" onclick="moveCategoryOrder(this, 1)" title="下移" <?php if ($isLastCat) echo 'disabled style="opacity:0.28;cursor:not-allowed;"'; ?>><i class="ri-arrow-down-s-line"></i></button>
                                         </td>
                                         <td style="padding:10px 12px;text-align:right;white-space:nowrap;">
-                                            <button type="button" class="btn-act" onclick="openCategoryModal(<?php echo $c['id']; ?>, '<?php echo htmlspecialchars(addslashes($c['name'])); ?>')" title="编辑名称"><i class="ri-edit-line"></i></button>
-                                            <button type="button" class="btn-act" onclick="confirmDeleteCategory(<?php echo $c['id']; ?>, '<?php echo htmlspecialchars(addslashes($c['name'])); ?>', <?php echo $cItemCount; ?>)" title="删除文件夹"><i class="ri-delete-bin-line"></i></button>
+                                            <button type="button" class="btn-act" onclick="openCategoryModal(<?php echo $c['id']; ?>, '<?php echo htmlspecialchars(addslashes($c['name'])); ?>')" title="编辑名称"><span class="duo-icon-slot" data-duo-icon="pencil"><i class="ri-edit-line duo-rest-icon"></i></span></button>
+                                            <button type="button" class="btn-act" onclick="confirmDeleteCategory(<?php echo $c['id']; ?>, '<?php echo htmlspecialchars(addslashes($c['name'])); ?>', <?php echo $cItemCount; ?>)" title="删除文件夹"><span class="duo-icon-slot" data-duo-icon="trash"><i class="ri-delete-bin-line duo-rest-icon"></i></span></button>
                                         </td>
                                     </tr>
                                     <?php endforeach; ?>
@@ -1532,7 +1532,7 @@ $renderItemOwnersCell = function($item, $usersMap) use ($editorShareAllowed) {
                         </div>
                         <?php if ($isAdmin): ?>
                         <div id="activeUserActions">
-                            <button type="button" class="btn-primary btn-md" onclick="showAddUserBox()"><i class="ri-user-add-line"></i> 添加成员</button>
+                            <button type="button" class="btn-primary btn-md" onclick="showAddUserBox()"><span class="duo-icon-slot" data-duo-icon="circle-plus"><i class="ri-user-add-line duo-rest-icon"></i></span> 添加成员</button>
                         </div>
                         <?php endif; ?>
                     </div>
@@ -1858,7 +1858,7 @@ $renderItemOwnersCell = function($item, $usersMap) use ($editorShareAllowed) {
                                 <div class="m-form-row">
                                     <input type="text" id="settingGlobalWebhook" name="global_webhook_url" class="m-input" value="<?php echo htmlspecialchars($reviewWebhook); ?>" placeholder="企微 / 飞书 / 钉钉群机器人 Webhook 地址" maxlength="1000">
                                     <button type="button" class="btn-cancel btn-standard" onclick="testAnyWebhook('settingGlobalWebhook', this)">
-                                        <i class="ri-send-plane-line"></i> 测试
+                                        <span class="duo-icon-slot" data-duo-icon="send"><i class="ri-send-plane-line duo-rest-icon"></i></span> 测试
                                     </button>
                                 </div>
                                 <div style="font-size:11.5px;color:var(--text-3);margin-top:5px;line-height:1.4;">全站任意项目发布新版本时统一推送到此群，组织团队集中评审；钉钉/飞书安全设置勾选「自定义关键词」，填入：<strong>立象原型</strong></div>
@@ -2005,7 +2005,7 @@ $renderItemOwnersCell = function($item, $usersMap) use ($editorShareAllowed) {
                                 <div class="m-form-row">
                                     <input type="email" id="smtpTestEmail" class="m-input" value="<?php echo $curAdminEmail; ?>" placeholder="收件测试邮箱" maxlength="100" data-error-target="smtpTestEmailError" aria-errormessage="smtpTestEmailError">
                                     <button type="button" class="btn-cancel btn-standard" onclick="handleTestSmtp(this)">
-                                        <i class="ri-send-plane-line"></i> 发送测试
+                                        <span class="duo-icon-slot" data-duo-icon="send"><i class="ri-send-plane-line duo-rest-icon"></i></span> 测试
                                     </button>
                                 </div>
                                 <div class="field-error-tip" id="smtpTestEmailError" role="alert"></div>
@@ -2022,8 +2022,8 @@ $renderItemOwnersCell = function($item, $usersMap) use ($editorShareAllowed) {
                             <button type="button" id="subtab-btn-access" class="console-subtab-btn log-subtab-btn" onclick="switchLogSubTab('access')">访问日志</button>
                         </div>
                         <div style="display:flex;gap:8px;align-items:center;">
-                            <button type="button" class="btn-cancel btn-md" onclick="loadLogsData()" title="刷新日志数据"><i class="ri-refresh-line"></i> 刷新</button>
-                            <button type="button" class="btn-cancel btn-md" onclick="handleClearLogs()" style="color:var(--danger)" title="清空全部系统日志"><i class="ri-delete-bin-line"></i> 清空日志</button>
+                            <button type="button" class="btn-cancel btn-md" onclick="loadLogsData()" title="刷新日志数据"><span class="duo-icon-slot" data-duo-icon="rotate-cw"><i class="ri-refresh-line duo-rest-icon"></i></span> 刷新</button>
+                            <button type="button" class="btn-cancel btn-md" onclick="handleClearLogs()" style="color:var(--danger)" title="清空全部系统日志"><span class="duo-icon-slot" data-duo-icon="trash"><i class="ri-delete-bin-line duo-rest-icon"></i></span> 清空日志</button>
                         </div>
                     </div>
 
@@ -2244,7 +2244,7 @@ $renderItemOwnersCell = function($item, $usersMap) use ($editorShareAllowed) {
                     <div class="m-form-row">
                         <input type="text" id="newWebhookUrl" class="m-input" placeholder="企微 / 飞书 / 钉钉群机器人 Webhook 地址" style="flex:1" maxlength="1000">
                         <button type="button" class="btn-cancel btn-standard" onclick="testAnyWebhook('newWebhookUrl', this)">
-                            <i class="ri-send-plane-line"></i> 测试
+                            <span class="duo-icon-slot" data-duo-icon="send"><i class="ri-send-plane-line duo-rest-icon"></i></span> 测试
                         </button>
                     </div>
                     <div style="font-size:11px;color:var(--text-3);margin-top:4px;line-height:1.4;">接收与该成员相关的批注回复与解决通知；钉钉/飞书安全设置勾选「自定义关键词」，填入：<strong>立象原型</strong></div>
@@ -2316,7 +2316,7 @@ $renderItemOwnersCell = function($item, $usersMap) use ($editorShareAllowed) {
                     <div class="m-form-row">
                         <input type="text" id="editUserWebhook" class="m-input" placeholder="企微 / 飞书 / 钉钉群机器人 Webhook 地址" style="flex:1" maxlength="1000">
                         <button type="button" class="btn-cancel btn-standard" onclick="testAnyWebhook('editUserWebhook', this)">
-                            <i class="ri-send-plane-line"></i> 测试
+                            <span class="duo-icon-slot" data-duo-icon="send"><i class="ri-send-plane-line duo-rest-icon"></i></span> 测试
                         </button>
                     </div>
                     <div style="font-size:11px;color:var(--text-3);margin-top:4px;line-height:1.4;">接收与该成员相关的批注回复与解决通知；钉钉/飞书安全设置勾选「自定义关键词」，填入：<strong>立象原型</strong></div>
@@ -2337,9 +2337,14 @@ $renderItemOwnersCell = function($item, $usersMap) use ($editorShareAllowed) {
     <div class="modal-dialog-box modal-md">
         <div class="modal-head profile-modal-head">
             <div class="profile-account">
-                <div class="profile-avatar">
-                    <i class="ri-user-3-line" aria-hidden="true"></i>
-                </div>
+                <button type="button" id="myProfileAvatarBtn" class="profile-avatar profile-avatar-btn" title="更换头像" aria-label="更换头像" aria-haspopup="dialog" aria-expanded="false" aria-controls="profileAvatarPopover" onclick="toggleProfileAvatarPicker(event)">
+                    <span id="myProfileAvatarGraphic" class="profile-avatar-graphic">
+                        <i class="ri-user-3-line" aria-hidden="true"></i>
+                    </span>
+                    <span class="profile-avatar-edit-dot" aria-hidden="true">
+                        <i class="ri-pencil-line"></i>
+                    </span>
+                </button>
                 <div class="profile-account-meta">
                     <div class="profile-name" id="myProfileHeaderName"><?php echo htmlspecialchars(!empty($currentUser['name']) ? $currentUser['name'] : (!empty($currentUser['email']) ? $currentUser['email'] : '用户')); ?></div>
                     <div class="profile-meta-row">
@@ -2349,6 +2354,18 @@ $renderItemOwnersCell = function($item, $usersMap) use ($editorShareAllowed) {
                 </div>
             </div>
             <button type="button" class="close-x" onclick="closeModal('profileModal')" title="关闭"><i class="ri-close-line" aria-hidden="true"></i></button>
+        </div>
+
+        <div id="profileAvatarPopover" class="profile-avatar-popover" role="dialog" aria-label="选择品牌头像" hidden>
+            <div class="profile-avatar-popover-head">
+                <span class="profile-avatar-popover-title">选择折纸象头像</span>
+                <span id="profileAvatarPreviewLabel" class="profile-avatar-popover-tag"></span>
+            </div>
+            <div id="profileAvatarGrid" class="profile-avatar-grid" role="radiogroup" aria-label="头像造型"></div>
+            <div id="profileAvatarColors" class="profile-avatar-colors" hidden>
+                <span class="profile-avatar-colors-label">配色</span>
+                <div id="profileAvatarColorGrid" class="profile-avatar-color-grid" role="radiogroup" aria-label="头像配色"></div>
+            </div>
         </div>
 
         <div class="profile-tabs" role="tablist" aria-label="个人设置" onkeydown="handleProfileTabKey(event)">
@@ -2373,7 +2390,7 @@ $renderItemOwnersCell = function($item, $usersMap) use ($editorShareAllowed) {
                 <div class="m-form-row profile-notification-row">
                 <input type="text" id="myWebhookUrl" class="m-input" value="<?php echo htmlspecialchars($currentUser['webhook_url'] ?? ''); ?>" placeholder="企微 / 飞书 / 钉钉群机器人 Webhook 地址" maxlength="1000">
                 <div class="profile-inline-actions">
-                    <button type="button" class="btn-cancel btn-standard" onclick="testAnyWebhook('myWebhookUrl', this)">测试</button>
+                    <button type="button" class="btn-cancel btn-standard" onclick="testAnyWebhook('myWebhookUrl', this)"><span class="duo-icon-slot" data-duo-icon="send"><i class="ri-send-plane-line duo-rest-icon"></i></span> 测试</button>
                     <button type="submit" class="btn-primary btn-standard" id="btnSaveProfileWebhook" disabled>保存</button>
                 </div>
                 </div>
@@ -2484,7 +2501,7 @@ $renderItemOwnersCell = function($item, $usersMap) use ($editorShareAllowed) {
                         <select id="mcpClientFormat" class="m-input" onchange="renderMcpConfig()"><option value="json">JSON（Cursor 等）</option><option value="codex">TOML（Codex）</option></select>
                     </div>
                     <div class="mcp-code-wrapper">
-                        <button type="button" class="btn-cancel btn-sm mcp-code-copy-btn" onclick="copyMcpConfig()" title="复制配置"><i class="ri-file-copy-line" aria-hidden="true"></i> 复制配置</button>
+                        <button type="button" class="btn-cancel btn-sm mcp-code-copy-btn" onclick="copyMcpConfig()" title="复制配置"><span class="duo-icon-slot" data-duo-icon="copy"><i class="ri-file-copy-line duo-rest-icon" aria-hidden="true"></i></span> 复制配置</button>
                         <pre id="mcpConfig" class="mcp-code" tabindex="0" aria-label="MCP 配置"></pre>
                     </div>
                     <p id="mcpConfigFilePath" class="mcp-tip-text"></p>

@@ -1,0 +1,13 @@
+{
+  "duringSave": {
+    "open": true,
+    "pose": "bow",
+    "saving": true,
+    "theme": "coral"
+  },
+  "afterSave": {
+    "open": false,
+    "pose": "walk",
+    "theme": "mint"
+  }
+}

@@ -222,6 +222,20 @@ SUITES = [
         "cmd": ["python3", "-B", str(TESTS_DIR / "q9_styles_regression.py")],
         "needs_php": False,
         "type": "python"
+    },
+    {
+        "id": "profile_avatar",
+        "name": "个人头像八种造型、独立配色与多角色保存",
+        "cmd": ["python3", "-B", str(TESTS_DIR / "profile_avatar_regression.py")],
+        "needs_php": True,
+        "type": "python"
+    },
+    {
+        "id": "profile_avatar_save_frontend",
+        "name": "头像即时保存、连续选择队列与失败回退",
+        "cmd": ["node", str(TESTS_DIR / "profile_avatar_save_frontend_regression.js")],
+        "needs_php": False,
+        "type": "node"
     }
 ]
 

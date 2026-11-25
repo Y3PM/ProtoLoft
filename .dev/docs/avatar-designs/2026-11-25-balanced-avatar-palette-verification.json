@@ -1,0 +1,51 @@
+{
+  "default_and_other_css_unchanged": true,
+  "poses_and_ids_unchanged": true,
+  "palettes": {
+    "mint": {
+      "name": "碧青",
+      "bg": "#e8f8f1",
+      "dark": "#01a883",
+      "light": "#7ddfbe",
+      "dot": "#ec983a",
+      "face_contrast": 1.9,
+      "background_contrast": 2.76
+    },
+    "amber": {
+      "name": "橙金",
+      "bg": "#fcf1e7",
+      "dark": "#e68a02",
+      "light": "#ffc894",
+      "dot": "#59b6ff",
+      "face_contrast": 1.742,
+      "background_contrast": 2.359
+    },
+    "violet": {
+      "name": "鸢尾紫",
+      "bg": "#f5f1fe",
+      "dark": "#996ae8",
+      "light": "#c9b2fc",
+      "dot": "#f78e58",
+      "face_contrast": 2.017,
+      "background_contrast": 3.386
+    },
+    "coral": {
+      "name": "珊瑚橘",
+      "bg": "#fff0ec",
+      "dark": "#f56249",
+      "light": "#ffb8aa",
+      "dot": "#08c4d4",
+      "face_contrast": 1.887,
+      "background_contrast": 2.814
+    },
+    "indigo": {
+      "name": "靛蓝",
+      "bg": "#eef3ff",
+      "dark": "#5078f3",
+      "light": "#a6c0ff",
+      "dot": "#ed973d",
+      "face_contrast": 2.181,
+      "background_contrast": 3.551
+    }
+  }
+}

@@ -1,0 +1,26 @@
+{
+  "editorKeyboard": {
+    "focusVisible": true,
+    "focused": "myProfileAvatarBtn",
+    "hovered": false,
+    "opacity": "1"
+  },
+  "editorHover": {
+    "hovered": true,
+    "opacity": "1",
+    "open": true
+  },
+  "editorAway": {
+    "hovered": false,
+    "label": "丁香紫 · 侧卧",
+    "logoTheme": "sky",
+    "opacity": "0",
+    "theme": "violet"
+  },
+  "colorSaved": {
+    "editorOpacity": "0",
+    "pose": "rest",
+    "theme": "violet",
+    "title": "更换头像（当前：丁香紫 · 侧卧）"
+  }
+}

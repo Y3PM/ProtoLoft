@@ -97,7 +97,7 @@
             try {
                 vQuery = new URL(scriptUrl).search;
             } catch (e) {}
-            if (!vQuery) vQuery = '?v=3.1.6';
+            if (!vQuery) vQuery = '?v=3.1.11';
 
             estimator = Promise.all(['core', 'language-common', 'language-en'].map(function (part) {
                 return new Promise(function (resolve, reject) {

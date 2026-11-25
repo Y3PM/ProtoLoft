@@ -154,6 +154,7 @@ class DB {
                 auth_version INTEGER NOT NULL DEFAULT 0,
                 department TEXT DEFAULT '',
                 webhook_url TEXT DEFAULT '',
+                avatar TEXT DEFAULT '',
                 created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
                 updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
             );

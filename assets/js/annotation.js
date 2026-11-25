@@ -782,13 +782,13 @@
 
             var toggleBtnHtml = canToggle ? `
                 <button type="button" class="anno-act-btn" onclick="toggleAnnoStatus(${a.id})">
-                    <i class="${isResolved ? 'ri-restart-line' : 'ri-check-line'}"></i> ${isResolved ? '重新开启' : '标为已解决'}
+                    <span class="duo-icon-slot" data-duo-icon="${isResolved ? 'rotate-cw' : 'circle-check'}"><i class="${isResolved ? 'ri-restart-line' : 'ri-check-line'} duo-rest-icon"></i></span> ${isResolved ? '重新开启' : '标为已解决'}
                 </button>
             ` : '';
 
             var deleteBtnHtml = canDelete ? `
                 <button type="button" class="anno-act-btn act-danger" onclick="deleteAnno(${a.id})" title="删除此批注">
-                    <i class="ri-delete-bin-line"></i>
+                    <span class="duo-icon-slot" data-duo-icon="trash"><i class="ri-delete-bin-line duo-rest-icon"></i></span>
                 </button>
             ` : '';
 
@@ -845,7 +845,7 @@
                     ${replyBoxHtml}
                     <div class="anno-card-actions">
                         <button type="button" class="anno-act-btn" data-anno-reply-toggle="${a.id}" onclick="toggleReplyInput(${a.id})">
-                            <i class="ri-chat-1-line"></i> 回复 ${a.replies ? '(' + a.replies.length + ')' : ''}
+                            <span class="duo-icon-slot" data-duo-icon="message-square"><i class="ri-chat-1-line duo-rest-icon"></i></span> 回复 ${a.replies ? '(' + a.replies.length + ')' : ''}
                         </button>
                         <button type="button" class="anno-act-btn" onclick="copyAnnotationLink(${a.id})">复制链接</button>
                         ${toggleBtnHtml}

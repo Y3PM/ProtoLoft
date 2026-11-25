@@ -548,7 +548,7 @@ Auth::recordAccessLog($item['id'], $item['name'], $curVerName, 'share');
 
             <div class="top-changelog-wrap">
                 <button type="button" class="btn-top-changelog" id="btnShareChangelog" onclick="toggleShareChangelog(this)" title="查看更新日志" style="display:<?php echo !empty($curVersion['changelog']) ? 'inline-flex' : 'none'; ?>;">
-                    <i class="ri-file-list-2-line"></i> 日志
+                    <span class="duo-icon-slot" data-duo-icon="file-text"><i class="ri-file-list-2-line duo-rest-icon"></i></span> 日志
                 </button>
                 <div class="top-changelog-popover" id="shareChangelogPopover" style="display:none;" onclick="event.stopPropagation()">
                     <div class="top-changelog-head">
@@ -586,22 +586,22 @@ Auth::recordAccessLog($item['id'], $item['name'], $curVerName, 'share');
                     $hasInitialRp = !empty($rpFile);
                 ?>
                 <a href="<?php echo htmlspecialchars($downloadUrl); ?>" id="btnShareDownloadRp" class="btn-tool btn-tool-primary" download="<?php echo htmlspecialchars($defaultDownloadFilename); ?>" style="<?php echo $hasInitialRp ? '' : 'display:none;'; ?>">
-                    <i class="ri-download-cloud-2-line"></i> 下载 RP
+                    <span class="duo-icon-slot" data-duo-icon="download"><i class="ri-download-cloud-2-line duo-rest-icon"></i></span> 下载 RP
                 </a>
             <?php endif; ?>
 
-            <button class="btn-tool" onclick="reloadShareFrame()" title="刷新"><i class="ri-refresh-line"></i> 刷新</button>
+            <button class="btn-tool" onclick="reloadShareFrame()" title="刷新"><span class="duo-icon-slot" data-duo-icon="rotate-cw"><i class="ri-refresh-line duo-rest-icon"></i></span> 刷新</button>
             <?php if ($canAnnotate): ?>
                 <button class="btn-tool" id="btnToggleAnnotation" onclick="toggleAnnotationDrawer()" title="页面批注与协作讨论 (快捷键 C)">
-                    <i class="ri-chat-3-line"></i> 批注
+                    <span class="duo-icon-slot" data-duo-icon="message-square"><i class="ri-chat-3-line duo-rest-icon"></i></span> 批注
                     <span id="annoHeaderBadge" class="anno-badge" style="display:none;">0</span>
                 </button>
             <?php endif; ?>
-            <button class="btn-tool" onclick="toggleShareFullscreen()" title="全屏"><i class="ri-fullscreen-line"></i> 全屏</button>
+            <button class="btn-tool" onclick="toggleShareFullscreen()" title="全屏"><span class="duo-icon-slot" data-duo-icon="maximize"><i class="ri-fullscreen-line duo-rest-icon"></i></span> 全屏</button>
 
             <?php if ($canManage): ?>
                 <a href="index.php#item=<?php echo $item['id']; ?><?php echo $curVerName ? '&v=' . urlencode($curVerName) : ''; ?>" class="btn-tool" title="进入后台工作台">
-                    <i class="ri-dashboard-line"></i> 工作台
+                    <span class="duo-icon-slot" data-duo-icon="layout-dashboard"><i class="ri-dashboard-line duo-rest-icon"></i></span> 工作台
                 </a>
             <?php endif; ?>
         </div>
@@ -662,7 +662,7 @@ Auth::recordAccessLog($item['id'], $item['name'], $curVerName, 'share');
                 <div class="anno-footer-actions">
                     <span class="anno-hint-text"><kbd>⌘/Ctrl</kbd> + <kbd>Enter</kbd> 发送</span>
                     <button type="button" class="btn-primary btn-sm" id="btnSendAnno" onclick="submitNewAnnotation()">
-                        <i class="ri-send-plane-fill"></i> 发送
+                        <span class="duo-icon-slot" data-duo-icon="send"><i class="ri-send-plane-fill duo-rest-icon"></i></span> 发送
                     </button>
                 </div>
             </div>
@@ -672,6 +672,7 @@ Auth::recordAccessLog($item['id'], $item['name'], $curVerName, 'share');
 </div>
 
 <script src="assets/js/jquery.min.js"></script>
+<script src="assets/js/duo-icons.js?v=<?php echo APP_VERSION . '.' . filemtime(__DIR__ . '/assets/js/duo-icons.js'); ?>"></script>
 <?php if ($isWatermarkActive): ?>
 <script src="assets/js/watermark.js?v=<?php echo APP_VERSION . '.' . filemtime(__DIR__ . '/assets/js/watermark.js'); ?>"></script>
 <script src="assets/js/ver-picker.js?v=<?php echo APP_VERSION . '.' . filemtime(__DIR__ . '/assets/js/ver-picker.js'); ?>"></script>

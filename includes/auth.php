@@ -223,7 +223,8 @@ class Auth {
                 'email' => $user['email'],
                 'name' => $_SESSION['user_name'],
                 'role' => $user['role'],
-                'is_owner' => !empty($user['is_owner']) ? 1 : 0
+                'is_owner' => !empty($user['is_owner']) ? 1 : 0,
+                'avatar' => self::resolveUserAvatar($user['avatar'] ?? '', (int)$user['id'])
             ]];
         }
         self::recordLoginLog($email, 0, '邮箱或密码错误');
@@ -380,7 +381,7 @@ class Auth {
         }
 
         if ($userId > 0) {
-            $stmt = $db->prepare("SELECT id, email, name, role, is_owner, status, department, webhook_url, is_first_login, auth_version, created_at FROM users WHERE id = ?");
+            $stmt = $db->prepare("SELECT id, email, name, role, is_owner, status, department, webhook_url, avatar, is_first_login, auth_version, created_at FROM users WHERE id = ?");
             $stmt->execute([$userId]);
             $row = $stmt->fetch();
             $stmt->closeCursor();
@@ -406,6 +407,7 @@ class Auth {
                     'auth_version' => (int)$row['auth_version'],
                     'department' => $row['department'] ?? '',
                     'webhook_url' => $row['webhook_url'] ?? '',
+                    'avatar' => self::resolveUserAvatar($row['avatar'] ?? '', (int)$row['id']),
                     'role' => $row['role'],
                     'is_owner' => !empty($row['is_owner']) ? 1 : 0,
                     'created_at' => $row['created_at'] ?? '',
@@ -1300,9 +1302,51 @@ class Auth {
     }
 
     /**
+     * 个人中心品牌折纸大象延伸头像白名单与随机分配
+     */
+    public static function getAllAvatarIds() {
+        $poses = ['leap', 'shoulder', 'head', 'trunk', 'sit', 'bow', 'walk', 'rest'];
+        $themes = ['sky', 'mint', 'amber', 'violet', 'coral', 'indigo'];
+        $ids = [];
+        foreach ($poses as $pose) {
+            foreach ($themes as $theme) {
+                // 标准 Logo 固定原色；其他造型可选择任意配色。
+                if ($pose === 'leap' && $theme !== 'sky') {
+                    continue;
+                }
+                $ids[] = $pose . '-' . $theme;
+            }
+        }
+        return $ids;
+    }
+
+    public static function isValidAvatar($avatar) {
+        return is_string($avatar) && in_array($avatar, self::getAllAvatarIds(), true);
+    }
+
+    public static function pickRandomAvatar() {
+        $ids = self::getAllAvatarIds();
+        $index = random_int(0, count($ids) - 1);
+        return $ids[$index];
+    }
+
+    public static function resolveUserAvatar($avatar, $seed = 0) {
+        $avatar = trim((string)$avatar);
+        if (self::isValidAvatar($avatar)) {
+            return $avatar;
+        }
+        $ids = self::getAllAvatarIds();
+        $seedInt = (int)$seed;
+        if ($seedInt > 0) {
+            return $ids[$seedInt % count($ids)];
+        }
+        return $ids[0];
+    }
+
+    /**
      * 用户管理：创建用户 (邮箱 + 真实姓名)
      */
-    public static function createUser($email, $name, $password, $role = 'editor', $department = '', $webhookUrl = '') {
+    public static function createUser($email, $name, $password, $role = 'editor', $department = '', $webhookUrl = '', $avatar = null) {
         $db = DB::getInstance();
         
         $email = trim(strtolower($email));
@@ -1345,8 +1389,9 @@ class Auth {
 
         $hash = password_hash($password, PASSWORD_DEFAULT);
         $roleFinal = in_array($role, ['admin', 'editor', 'viewer']) ? $role : 'editor';
-        $stmt = $db->prepare("INSERT INTO users (email, name, password_hash, role, is_owner, status, is_first_login, department, webhook_url) VALUES (?, ?, ?, ?, 0, 1, 1, ?, ?)");
-        $stmt->execute([$email, $name, $hash, $roleFinal, trim($department), trim($webhookUrl)]);
+        $avatarFinal = ($avatar !== null && self::isValidAvatar((string)$avatar)) ? (string)$avatar : self::pickRandomAvatar();
+        $stmt = $db->prepare("INSERT INTO users (email, name, password_hash, role, is_owner, status, is_first_login, department, webhook_url, avatar) VALUES (?, ?, ?, ?, 0, 1, 1, ?, ?, ?)");
+        $stmt->execute([$email, $name, $hash, $roleFinal, trim($department), trim($webhookUrl), $avatarFinal]);
         
         return ['success' => true, 'id' => (int)$db->lastInsertId()];
     }
@@ -1821,6 +1866,29 @@ class Auth {
         }
 
         return ['success' => true, 'webhook_url' => $webhookUrl];
+    }
+
+    /**
+     * 个人设置：更新个人头像 (严格白名单校验，仅用于个人中心)
+     */
+    public static function updateMyAvatar($avatar) {
+        $currUser = self::getCurrentUser();
+        if (!$currUser) {
+            return ['success' => false, 'message' => '未登录或登录已失效'];
+        }
+        $avatar = trim((string)$avatar);
+        if (!self::isValidAvatar($avatar)) {
+            return ['success' => false, 'message' => '请选择有效的品牌头像样式'];
+        }
+        $db = DB::getInstance();
+        $stmt = $db->prepare("UPDATE users SET avatar = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?");
+        $stmt->execute([$avatar, (int)$currUser['id']]);
+
+        if (self::$cachedUser) {
+            self::$cachedUser['avatar'] = $avatar;
+        }
+
+        return ['success' => true, 'avatar' => $avatar];
     }
 
     /**
