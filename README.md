@@ -17,6 +17,65 @@
   <img src="https://img.shields.io/badge/License-MIT-gray.svg?style=flat-square" alt="MIT License" />
 </p>
 
+<p align="center">
+  <img src=".dev/docs/showcase/01-workspace-workbench.webp" alt="立象原型 · 沉浸式原型工作台" width="100%" />
+</p>
+
+---
+
+## 🖼️ 产品界面一览
+
+<table>
+  <tr>
+    <td width="50%" align="center">
+      <img src=".dev/docs/showcase/02-annotation-collaboration.webp" alt="页面批注与多版协同" /><br>
+      <sub><b>页面批注与多版协同</b> · 识别当前页、状态筛选与上版未决追溯</sub>
+    </td>
+    <td width="50%" align="center">
+      <img src=".dev/docs/showcase/03-version-management.webp" alt="多版本卡片流与 RP 底稿" /><br>
+      <sub><b>多版本卡片流与 RP 底稿</b> · 更新日志留痕与源文件受控下载</sub>
+    </td>
+  </tr>
+  <tr>
+    <td width="50%" align="center">
+      <img src=".dev/docs/showcase/04-share-dual-track.webp" alt="双轨制外发分享" /><br>
+      <sub><b>双轨制外发分享</b> · 默认主链 + 客户专属短链与密码有效期</sub>
+    </td>
+    <td width="50%" align="center">
+      <img src=".dev/docs/showcase/05-share-sandbox-watermark.webp" alt="免登录专属分享页与防泄密水印" /><br>
+      <sub><b>专属分享沙箱与防泄密水印</b> · 物理隔离目录树与斜向错行动态水印</sub>
+    </td>
+  </tr>
+  <tr>
+    <td width="50%" align="center">
+      <img src=".dev/docs/showcase/06-admin-dashboard.webp" alt="控制中心数据概览" /><br>
+      <sub><b>控制中心 · 数据概览</b> · 查阅趋势、热门排行与存储空间拆解</sub>
+    </td>
+    <td width="50%" align="center">
+      <img src=".dev/docs/showcase/07-roles-permissions.webp" alt="团队治理与角色权限矩阵" /><br>
+      <sub><b>团队治理 · 角色权限矩阵</b> · 管理员 / 协作者 / 审阅人 / 访客细粒度授权</sub>
+    </td>
+  </tr>
+  <tr>
+    <td width="50%" align="center">
+      <img src=".dev/docs/showcase/09-mcp-integration.webp" alt="AI 协同与 MCP 接入" /><br>
+      <sub><b>AI 协同 · MCP 个人凭据</b> · 按项目范围授权与一键复制接入指令</sub>
+    </td>
+    <td width="50%" align="center">
+      <img src=".dev/docs/showcase/10-install-wizard.webp" alt="极简分步安装向导" /><br>
+      <sub><b>极简分步安装向导</b> · 环境自检零依赖，FTP 上传即跑</sub>
+    </td>
+  </tr>
+</table>
+
+<details>
+<summary>查看更多：个人折纸象头像选板</summary>
+<br>
+<p align="center">
+  <img src=".dev/docs/showcase/08-profile-mcp-avatar.webp" alt="折纸象品牌头像与个人设置" width="88%" />
+</p>
+</details>
+
 ---
 
 ## 💡 为什么选择立象原型 (ProtoLoft)？
