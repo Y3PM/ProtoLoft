@@ -3,13 +3,36 @@
 
     // User-selected concepts 01/02/03/04/07/08/10/12, reconstructed as vector geometry.
     // 01 uses the exact source logo polygons; artwork colors live in app.css.
+    var THEME_NAMES_I18N = {
+        sky: ['avatar.color.sky', '晴空蓝'],
+        mint: ['avatar.color.mint', '碧青'],
+        amber: ['avatar.color.amber', '橙金'],
+        violet: ['avatar.color.violet', '鸢尾紫'],
+        coral: ['avatar.color.coral', '珊瑚橘'],
+        indigo: ['avatar.color.indigo', '靛蓝']
+    };
+    var POSE_NAMES_I18N = {
+        leap: ['avatar.pose.logo', '标准 Logo'],
+        shoulder: ['avatar.pose.half', '半身'],
+        head: ['avatar.pose.head', '象首'],
+        trunk: ['avatar.pose.trunk', '抬鼻'],
+        sit: ['avatar.pose.sit', '静坐'],
+        bow: ['avatar.pose.bow', '低头'],
+        walk: ['avatar.pose.walk', '迈步'],
+        rest: ['avatar.pose.rest', '侧卧']
+    };
+    function _tAvatar(pair) {
+        if (!pair) return '';
+        return typeof global.t === 'function' ? global.t(pair[0], null, pair[1]) : pair[1];
+    }
+
     var THEMES = [
-        { id: 'sky', name: '晴空蓝' },
-        { id: 'mint', name: '碧青' },
-        { id: 'amber', name: '橙金' },
-        { id: 'violet', name: '鸢尾紫' },
-        { id: 'coral', name: '珊瑚橘' },
-        { id: 'indigo', name: '靛蓝' }
+        { id: 'sky', get name() { return _tAvatar(THEME_NAMES_I18N.sky); } },
+        { id: 'mint', get name() { return _tAvatar(THEME_NAMES_I18N.mint); } },
+        { id: 'amber', get name() { return _tAvatar(THEME_NAMES_I18N.amber); } },
+        { id: 'violet', get name() { return _tAvatar(THEME_NAMES_I18N.violet); } },
+        { id: 'coral', get name() { return _tAvatar(THEME_NAMES_I18N.coral); } },
+        { id: 'indigo', get name() { return _tAvatar(THEME_NAMES_I18N.indigo); } }
     ];
 
     var POSES = [
@@ -518,7 +541,18 @@
         }
     }
 
-    function normalizeId(rawId, fallbackSeed) {
+        POSES.forEach(function (pose) {
+            if (!Object.getOwnPropertyDescriptor(pose, 'name').get) {
+                var key = pose.id;
+                Object.defineProperty(pose, 'name', {
+                    enumerable: true,
+                    configurable: true,
+                    get: function () { return _tAvatar(POSE_NAMES_I18N[key]); }
+                });
+            }
+        });
+
+        function normalizeId(rawId, fallbackSeed) {
         var key = typeof rawId === 'string' ? rawId.trim() : '';
         if (ALL_IDS.indexOf(key) !== -1) return key;
         var seed = parseInt(fallbackSeed, 10);

@@ -257,7 +257,8 @@ const turn = () => new Promise(resolve => setImmediate(resolve));
 
   // 待审批入驻申请自动导向与文案校验
   const modalsContent = fs.readFileSync(path.join(__dirname, '../../includes/modals.php'), 'utf8');
-  check('pending requests subtab copy simplified to ruzhu shenqing', modalsContent.includes('<span>入驻申请</span>') && !modalsContent.includes('<span>入驻申请待审批</span>'));
+  const zhCnContent = fs.readFileSync(path.join(__dirname, '../../includes/lang/zh-CN.php'), 'utf8');
+  check('pending requests subtab copy simplified to ruzhu shenqing', modalsContent.includes("<span><?php echo htmlspecialchars(t('admin.users.tab_pending')); ?></span>") && zhCnContent.includes("'admin.users.tab_pending' => '入驻申请'") && !zhCnContent.includes('入驻申请待审批'));
 
   const adminNavContext = {
     CURRENT_USER: { role: 'admin' },

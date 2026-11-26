@@ -15,13 +15,15 @@ switch ($action) {
 
     case 'logout':
         Auth::logout();
-        jsonResponse(true, null, '已成功登出');
+        jsonResponse(true, null, t('api.logged_out'));
         break;
 
     case 'get_session':
         $user = Auth::getCurrentUser();
         $rawSiteTitle = trim(Auth::getSetting('site_title', ''));
-        $effectiveTitle = (!empty($rawSiteTitle) && $rawSiteTitle !== '立象原型' && $rawSiteTitle !== '立象原型托管平台' && strcasecmp($rawSiteTitle, 'ProtoLoft') !== 0) ? ($rawSiteTitle . ' · 立象原型') : '立象原型';
+        $effectiveTitle = (!empty($rawSiteTitle) && $rawSiteTitle !== '立象原型' && $rawSiteTitle !== '立象原型托管平台' && strcasecmp($rawSiteTitle, 'ProtoLoft') !== 0)
+            ? t('brand.with_company', ['company' => $rawSiteTitle])
+            : I18n::brandName();
         jsonResponse(true, [
             'user' => $user,
             'csrfToken' => get_csrf_token(),
@@ -38,59 +40,59 @@ switch ($action) {
         break;
 
     case 'profile_update':
-        if (!Auth::getCurrentUser()) jsonResponse(false, null, '未登录或会话已过期');
+        if (!Auth::getCurrentUser()) jsonResponse(false, null, t('api.not_logged_in_or_expired'));
         $name = trim($_POST['name'] ?? ($_POST['display_name'] ?? ''));
-        if (!empty($_POST['webhook_url']) && !Webhook::isAllowedUrl($_POST['webhook_url'])) jsonResponse(false, null, '请使用企微、飞书或钉钉的 HTTPS 机器人地址');
+        if (!empty($_POST['webhook_url']) && !Webhook::isAllowedUrl($_POST['webhook_url'])) jsonResponse(false, null, t('webhook.err_url'));
         $res = Auth::updateMyProfile($name);
         if (!$res['success']) {
-            jsonResponse(false, null, $res['message'] ?? '保存失败');
+            jsonResponse(false, null, $res['message'] ?? t('common.save_failed'));
         }
         if (isset($_POST['webhook_url'])) {
             $wb = trim($_POST['webhook_url']);
             $hookResult = Auth::updateMyWebhook($wb);
             if (!$hookResult['success']) jsonResponse(false, null, $hookResult['message']);
         }
-        jsonResponse(true, ['name' => $res['name'] ?? $name], '个人资料已保存');
+        jsonResponse(true, ['name' => $res['name'] ?? $name], t('profile.saved'));
         break;
 
     case 'profile_update_webhook':
-        if (!Auth::getCurrentUser()) jsonResponse(false, null, '未登录或会话已过期');
+        if (!Auth::getCurrentUser()) jsonResponse(false, null, t('api.not_logged_in_or_expired'));
         $wb = trim($_POST['webhook_url'] ?? '');
         $res = Auth::updateMyWebhook($wb);
-        jsonResponse($res['success'], $res['webhook_url'] ?? '', $res['success'] ? '个人通知机器人已保存' : ($res['message'] ?? '保存失败'));
+        jsonResponse($res['success'], $res['webhook_url'] ?? '', $res['success'] ? t('api.auth.personal_bot_saved') : ($res['message'] ?? t('common.save_failed')));
         break;
 
     case 'profile_update_avatar':
-        if (!Auth::getCurrentUser()) jsonResponse(false, null, '未登录或会话已过期');
+        if (!Auth::getCurrentUser()) jsonResponse(false, null, t('api.not_logged_in_or_expired'));
         $avatar = trim($_POST['avatar'] ?? '');
         $res = Auth::updateMyAvatar($avatar);
-        jsonResponse($res['success'], $res['success'] ? ['avatar' => $res['avatar']] : null, $res['success'] ? '个人头像已更新' : ($res['message'] ?? '保存失败'));
+        jsonResponse($res['success'], $res['success'] ? ['avatar' => $res['avatar']] : null, $res['success'] ? t('api.auth.avatar_updated') : ($res['message'] ?? t('common.save_failed')));
         break;
 
     case 'change_my_password':
-        if (!Auth::getCurrentUser()) jsonResponse(false, null, '未登录或会话已过期');
+        if (!Auth::getCurrentUser()) jsonResponse(false, null, t('api.not_logged_in_or_expired'));
         $old = $_POST['old_password'] ?? '';
         $new = $_POST['new_password'] ?? '';
         $confirm = $_POST['confirm_password'] ?? '';
-        if (!is_string($old) || $old === '') jsonResponse(false, null, '请输入当前密码');
-        if (empty($new)) jsonResponse(false, null, '请输入新密码');
-        if ($new !== $confirm) jsonResponse(false, null, '两次输入的新密码不一致');
+        if (!is_string($old) || $old === '') jsonResponse(false, null, t('api.auth.enter_old_pwd'));
+        if (empty($new)) jsonResponse(false, null, t('api.auth.enter_new_pwd'));
+        if ($new !== $confirm) jsonResponse(false, null, t('auth.password_mismatch'));
         $res = Auth::changeMyPassword($old, $new);
         jsonResponse($res['success'], null, $res['message'] ?? '');
         break;
 
     case 'dismiss_first_login':
-        if (!Auth::getCurrentUser()) jsonResponse(false, null, '未登录');
+        if (!Auth::getCurrentUser()) jsonResponse(false, null, t('api.not_logged_in'));
         $res = Auth::dismissFirstLoginTip();
         jsonResponse($res['success'], null, $res['message'] ?? '');
         break;
 
     case 'register_visitor':
         if (!Auth::checkThrottle('register_visitor', 5, 900)) {
-            jsonResponse(false, null, '申请过于频繁，请稍后再试');
+            jsonResponse(false, null, t('api.auth.apply_throttle'));
         }
         if (Auth::getSetting('visitor_register_enabled', '1') === '0') {
-            jsonResponse(false, null, '当前系统未开放自主注册，请联系管理员分配账号');
+            jsonResponse(false, null, t('api.auth.reg_closed'));
         }
 
         $email = trim(strtolower($_POST['email'] ?? ''));
@@ -101,7 +103,7 @@ switch ($action) {
         if (!in_array($requestedRole, ['viewer', 'editor'], true)) {
             $requestedRole = 'viewer';
         }
-        $requestedRoleLabel = ($requestedRole === 'editor') ? '协作者' : '审阅人';
+        $requestedRoleLabel = ($requestedRole === 'editor') ? t('common.role.editor') : t('common.role.viewer');
 
         if (strpos($email, '@') === false && !empty($email)) {
             $allowedDomains = Auth::getSetting('allowed_email_domains', '');
@@ -114,23 +116,23 @@ switch ($action) {
         }
 
         if (empty($email) || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
-            jsonResponse(false, null, '请输入有效的工作邮箱地址');
+            jsonResponse(false, null, t('api.auth.invalid_email'));
         }
         if (strlen($email) > 100) {
-            jsonResponse(false, null, '邮箱长度不能超过 100 位');
+            jsonResponse(false, null, t('api.auth.email_len_100_reg'));
         }
         if (empty($name)) {
-            jsonResponse(false, null, '请输入您的真实姓名');
+            jsonResponse(false, null, t('api.auth.name_empty_reg'));
         }
         if (mb_strlen($name, 'UTF-8') > 20) {
-            jsonResponse(false, null, '姓名不能超过 20 个字符');
+            jsonResponse(false, null, t('api.auth.name_len_20'));
         }
         $passwordError = app_password_length_error($p);
         if ($passwordError !== '') {
             jsonResponse(false, null, $passwordError);
         }
         if (mb_strlen($department, 'UTF-8') > 30) {
-            jsonResponse(false, null, '部门/备注不能超过 30 个字符');
+            jsonResponse(false, null, t('api.auth.dept_len_30'));
         }
 
         $allowedDomains = Auth::getSetting('allowed_email_domains', '');
@@ -139,13 +141,13 @@ switch ($action) {
             $parts = explode('@', strtolower($email));
             $domain = end($parts);
             if (!in_array($domain, $allowedArr, true)) {
-                jsonResponse(false, null, '当前系统仅限企业邮箱注册，允许的后缀为：@' . implode(', @', $allowedArr));
+                jsonResponse(false, null, t('api.auth.domain_restricted', ['domains' => '@' . implode(', @', $allowedArr)]));
             }
         }
 
         $existingUser = DB::row("SELECT id, status FROM users WHERE email = ?", [$email]);
         if ($existingUser) {
-            jsonResponse(false, null, '该邮箱已提交申请或已存在账号，如有疑问请直接登录或联系管理员');
+            jsonResponse(false, null, t('api.auth.email_already_exists'));
         }
 
         $pHash = password_hash($p, PASSWORD_DEFAULT);
@@ -175,18 +177,18 @@ switch ($action) {
                 }
             }
             $applyFields = [
-                '申请角色' => $requestedRoleLabel,
+                t('api.auth.apply_field_role') => $requestedRoleLabel,
             ];
             if ($department !== '') {
-                $applyFields['部门或职务'] = $department;
+                $applyFields[t('api.auth.apply_field_dept')] = $department;
             }
-            $applyContent = "申请角色：{$requestedRoleLabel}" . ($department ? "\n部门或职务：{$department}" : "");
+            $applyContent = t('api.auth.apply_content_role', ['role' => $requestedRoleLabel]) . ($department ? "\n" . t('api.auth.apply_content_dept', ['dept' => $department]) : "");
             foreach ($targetHooks as $wb) {
                 $wb = trim((string)$wb);
                 if (!empty($wb)) {
                     Webhook::send($wb, 'user_apply', [
-                        'title' => '新成员申请待审批',
-                        'item_name' => '立象原型',
+                        'title' => t('webhook.ev_visitor_apply'),
+                        'item_name' => I18n::brandName(),
                         'author' => $name . " ({$email})",
                         'fields' => $applyFields,
                         'content' => $applyContent,
@@ -198,7 +200,7 @@ switch ($action) {
             error_log('register_visitor webhook: ' . $e->getMessage());
         }
 
-        jsonResponse(true, ['id' => $newId], '申请已提交，等待管理员审核后即可登录');
+        jsonResponse(true, ['id' => $newId], t('auth.apply_submitted'));
         break;
 
     case 'request_password_reset':
@@ -218,8 +220,8 @@ switch ($action) {
         $token = $_POST['token'] ?? '';
         $new = $_POST['new_password'] ?? '';
         $confirm = $_POST['confirm_password'] ?? '';
-        if (!is_string($new) || $new === '') jsonResponse(false, null, '请输入新密码');
-        if ($new !== $confirm) jsonResponse(false, null, '两次输入的新密码不一致');
+        if (!is_string($new) || $new === '') jsonResponse(false, null, t('api.auth.enter_new_pwd'));
+        if ($new !== $confirm) jsonResponse(false, null, t('auth.password_mismatch'));
         $res = Auth::resetPasswordByToken(is_string($token) ? trim($token) : '', $new);
         if (!empty($res['success']) && Auth::getCurrentUser()) {
             Auth::logout();

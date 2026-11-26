@@ -16,7 +16,7 @@ register_shutdown_function(function() {
         echo json_encode([
             'success' => false,
             'data' => null,
-            'message' => '服务端发生错误，请稍后重试'
+            'message' => function_exists('t') ? t('common.server_fatal') : '服务端发生错误，请稍后重试'
         ], JSON_UNESCAPED_UNICODE);
     }
 });
@@ -212,7 +212,7 @@ function safeRemoveDirectory($targetDir) {
 
 // 检查是否安装
 if (!is_installed()) {
-    jsonResponse(false, null, '系统尚未安装');
+    jsonResponse(false, null, t('api.not_installed'));
 }
 
 $action = trim($_REQUEST['action'] ?? '');
@@ -221,18 +221,18 @@ try {
     $db = DB::getInstance();
 } catch (Exception $e) {
     error_log('[ue-hub] api.php 数据库初始化失败: ' . $e->getMessage());
-    jsonResponse(false, null, '数据库连接失败，请检查 data/ 目录及其文件的读写权限');
+    jsonResponse(false, null, t('api.db_init_failed'));
 }
 
 // 检查 post_max_size 超限丢弃
 if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && empty($_POST) && empty($_FILES) && (int)($_SERVER['CONTENT_LENGTH'] ?? 0) > 0) {
-    jsonResponse(false, null, '上传数据总体积超过了服务器 post_max_size 限制，请检查上传文件大小');
+    jsonResponse(false, null, t('api.post_too_large'));
 }
 
 // 读操作白名单与请求方式限制
 $readOnlyActions = ['get_session', 'user_list', 'download_rp', 'item_get_share', 'log_list', 'list_annotations', 'pending_user_list', 'annotation_target', 'previous_annotations', 'mcp_settings'];
 if (!in_array($action, $readOnlyActions, true) && ($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'POST') {
-    jsonResponse(false, null, '请求方式不被允许');
+    jsonResponse(false, null, t('api.method_not_allowed'));
 }
 
 // 跨站 Origin 校验（基于实际访问来源，不因公开链接地址配错锁死管理与登录；兼容 HTTPS 反代转 HTTP 回源且未透传协议头）
@@ -264,12 +264,12 @@ if (!empty($_SERVER['HTTP_ORIGIN'])) {
     } else {
         if ($isProxyHttpsCandidate) {
             if (!verify_csrf_token($originCsrfToken)) {
-                jsonResponse(false, null, '页面已过期，请刷新页面后重试');
+                jsonResponse(false, null, t('api.csrf_expired'));
             }
             $GLOBALS['app_force_https'] = true;
         } else {
             error_log('[protoloft] 跨站来源校验失败: origin=' . ($_SERVER['HTTP_ORIGIN'] ?? '') . ' expected=' . ($expectedScheme . '://' . $expectedHost . ':' . $expectedPort));
-            jsonResponse(false, null, '跨站来源校验失败');
+            jsonResponse(false, null, t('api.origin_check_failed'));
         }
     }
 }
@@ -282,7 +282,7 @@ $csrfExemptActions = ['login', 'get_session', 'register_visitor', 'request_passw
 if (!in_array($action, $csrfExemptActions, true) && ($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
     $token = $_SERVER['HTTP_X_CSRF_TOKEN'] ?? ($_POST['csrf_token'] ?? '');
     if (!verify_csrf_token($token)) {
-        jsonResponse(false, null, '登录状态已过期，请重新登录');
+        jsonResponse(false, null, t('api.login_expired'));
     }
 }
 
@@ -370,7 +370,7 @@ $actionRoutes = [
 
 $domain = $actionRoutes[$action] ?? null;
 if (!$domain) {
-    jsonResponse(false, null, '未知的 API 操作: ' . htmlspecialchars($action));
+    jsonResponse(false, null, t('api.unknown_action', ['action' => htmlspecialchars($action)]));
 }
 
 try {
@@ -379,5 +379,5 @@ try {
     jsonResponse(false, null, $e->getMessage());
 } catch (Throwable $e) {
     error_log("[ue-hub] api domain={$domain} action={$action} 异常: " . $e->getMessage());
-    jsonResponse(false, null, '服务端异常，请稍后重试');
+    jsonResponse(false, null, t('common.server_error'));
 }

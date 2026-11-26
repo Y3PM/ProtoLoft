@@ -22,19 +22,19 @@ header("Content-Security-Policy: frame-ancestors 'self'");
 $db = DB::getInstance();
 
 // 系统品牌与企业名称处理
-$systemName = '立象原型';
-$systemSlogan = '立象以尽意 · 披图而同心';
+$systemName = I18n::brandName();
+$systemSlogan = I18n::brandSlogan();
 $rawTitle = trim(Auth::getSetting('site_title', ''));
 $companyName = '';
 if (!empty($rawTitle) && $rawTitle !== '立象原型' && $rawTitle !== '立象原型托管平台' && strcasecmp($rawTitle, 'ProtoLoft') !== 0) {
     $companyName = $rawTitle;
 }
-$siteTitle = !empty($companyName) ? ($companyName . ' · 立象原型') : '立象原型';
+$siteTitle = !empty($companyName) ? t('brand.with_company', ['company' => $companyName]) : $systemName;
 $siteSubtitle = $systemSlogan;
 $defaultFavicon = file_exists(ROOT_PATH . '/assets/images/favicon.svg') ? 'assets/images/favicon.svg' : 'assets/images/favicon.png';
 $siteFavicon = $defaultFavicon;
 $favType = (pathinfo($siteFavicon, PATHINFO_EXTENSION) === 'svg') ? 'image/svg+xml' : 'image/png';
-$siteFooter = '立象原型 · 企业级产品资产交付中心';
+$siteFooter = t('brand.share_footer');
 $siteBg = '';
 
 $logoUrl = 'assets/images/logo.png?v=' . APP_VERSION;
@@ -56,7 +56,8 @@ $customShareInfo = null;
 /**
  * 统一渲染分享错误拦截卡片 (符合 Linear 设计系统防劣化铁律与色值令牌规范)
  */
-function render_share_error_card($pageTitle, $cardTitle, $icon, $desc, $httpCode, $siteTitle, $faviconUrl, $favType, $tone = 'neutral', $btnText = '返回主页', $btnIcon = 'ri-home-4-line') {
+function render_share_error_card($pageTitle, $cardTitle, $icon, $desc, $httpCode, $siteTitle, $faviconUrl, $favType, $tone = 'neutral', $btnText = null, $btnIcon = 'ri-home-4-line') {
+    if ($btnText === null) $btnText = t('share.err_back_home');
     http_response_code($httpCode);
     $fullTitle = htmlspecialchars($pageTitle) . ($siteTitle !== '' ? ' - ' . htmlspecialchars($siteTitle) : '');
     $iconColor = 'var(--text-3)';
@@ -67,7 +68,7 @@ function render_share_error_card($pageTitle, $cardTitle, $icon, $desc, $httpCode
     }
     ?>
     <!DOCTYPE html>
-    <html lang="zh-CN">
+    <html lang="<?php echo htmlspecialchars(I18n::htmlLang()); ?>">
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -103,14 +104,14 @@ if ($shareCode !== '') {
     $codeInfo = Auth::resolveShareCode($shareCode);
     if ($codeInfo) {
         if (!empty($codeInfo['is_revoked'])) {
-            render_share_error_card('专属分享链接已作废', '该专属分享链接已作废', 'ri-forbid-2-line', '该原型的专属外发分享链接已被管理人员作废吊销，请联系分享者获取最新专属有效链接。', 403, $siteTitle, $faviconUrl, $favType, 'danger');
+            render_share_error_card(t('share.err_revoked_page'), t('share.err_revoked_title'), 'ri-forbid-2-line', t('share.err_revoked_desc'), 403, $siteTitle, $faviconUrl, $favType, 'danger');
         }
         $itemId = (int)$codeInfo['item_id'];
         $lockedVerId = (int)$codeInfo['ver_id'];
         $isShortCodeMode = true;
         $customShareInfo = $codeInfo;
     } else {
-        render_share_error_card('分享链接已失效', '链接已失效', 'ri-link-unlink-m', '该分享链接不存在或已被删除，请核对链接地址或联系分享者重新提供。', 404, $siteTitle, $faviconUrl, $favType, 'neutral');
+        render_share_error_card(t('share.err_invalid_page'), t('share.err_invalid_title'), 'ri-link-unlink-m', t('share.err_invalid_desc'), 404, $siteTitle, $faviconUrl, $favType, 'neutral');
     }
 } else {
     $itemId = (int)($_GET['id'] ?? $_GET['item'] ?? 0);
@@ -124,19 +125,19 @@ $stmt->closeCursor();
 
 // 1. 项目不存在处理
 if (!$item) {
-    render_share_error_card('原型不存在或已移除', '内容不存在', 'ri-file-search-line', '项目不存在或已被移除', 404, $siteTitle, $faviconUrl, $favType, 'neutral');
+    render_share_error_card(t('share.err_missing_page'), t('share.err_missing_title'), 'ri-file-search-line', t('share.err_missing_desc'), 404, $siteTitle, $faviconUrl, $favType, 'neutral');
 }
 
 // 2. 隐藏状态拦截 (非登录管理员不可看)
 if ((int)$item['is_visible'] === 0 && !$canManage) {
-    render_share_error_card('原型暂未公开', '暂未公开', 'ri-eye-off-line', '该项目暂未对外公开', 403, $siteTitle, $faviconUrl, $favType, 'warning', '管理员登录', 'ri-lock-line');
+    render_share_error_card(t('share.err_hidden_page'), t('share.err_hidden_title'), 'ri-eye-off-line', t('share.err_hidden_desc'), 403, $siteTitle, $faviconUrl, $favType, 'warning', t('share.err_admin_login'), 'ri-lock-line');
 }
 
 // 3. 检查默认公共直链是否已被管理员停用 (专属临时外发链接独立受控，不受此开关拦截)
 $isCustomShare = ($isShortCodeMode && !empty($customShareInfo) && (!empty($customShareInfo['is_custom']) || ($shareCode !== ($item['share_code'] ?? ''))));
 
 if (!$canManage && !$isCustomShare && Auth::isItemShareDisabled($item['id'])) {
-    render_share_error_card('公共直链已暂停', '链接已暂停', 'ri-forbid-line', '该链接已被暂停访问', 403, $siteTitle, $faviconUrl, $favType, 'warning');
+    render_share_error_card(t('share.err_paused_page'), t('share.err_paused_title'), 'ri-forbid-line', t('share.err_paused_desc'), 403, $siteTitle, $faviconUrl, $favType, 'warning');
 }
 
 // 3.1 检查外链分享是否已过有效期 (仅针对非登录管理人员)
@@ -151,7 +152,7 @@ if ($isShortCodeMode && !empty($customShareInfo['expires_at'])) {
 if (!$canManage && !empty($effectiveExpiresAt)) {
     $expireTime = strtotime($effectiveExpiresAt);
     if ($expireTime !== false && $expireTime < time()) {
-        render_share_error_card('分享链接已到期', '链接已过期', 'ri-time-line', '访问有效期截止于 ' . $effectiveExpiresAt, 403, $siteTitle, $faviconUrl, $favType, 'warning');
+        render_share_error_card(t('share.err_expired_page'), t('share.err_expired_title'), 'ri-time-line', t('share.err_expired_desc', ['time' => $effectiveExpiresAt]), 403, $siteTitle, $faviconUrl, $favType, 'warning');
     }
 }
 
@@ -225,7 +226,7 @@ if ($isShortCodeMode && $lockedVerId > 0) {
 
     // 若显式传入了版本参数但未找到对应版本 (参数被篡改或版本不存在)，且非管理员：直接拒止拦截
     if ($hasVerParam && !$curVersion && !$canManage) {
-        render_share_error_card('需要安全授权', '访问凭证无效', 'ri-shield-keyhole-line', '未携带有效凭证或链接不正确', 403, $siteTitle, $faviconUrl, $favType, 'danger');
+        render_share_error_card(t('share.err_auth_page'), t('share.err_auth_title'), 'ri-shield-keyhole-line', t('share.err_auth_desc'), 403, $siteTitle, $faviconUrl, $favType, 'danger');
     }
 }
 
@@ -241,7 +242,7 @@ if (!$isShortCodeMode) {
 
     // 若非登录管理员，且 Token 校验未通过：直接拦截拒止 (防止横向遍历、跨版本越权刺探或无凭证探测)
     if (!$canManage && !$isTokenValid) {
-        render_share_error_card('需要安全授权', '访问凭证无效', 'ri-shield-keyhole-line', '未携带有效凭证或链接不正确', 403, $siteTitle, $faviconUrl, $favType, 'danger');
+        render_share_error_card(t('share.err_auth_page'), t('share.err_auth_title'), 'ri-shield-keyhole-line', t('share.err_auth_desc'), 403, $siteTitle, $faviconUrl, $favType, 'danger');
     }
 }
 
@@ -281,13 +282,13 @@ $restoreShare = $restoreSecureShare || (is_string($receivedShareCookie) && hash_
 $passwordVerified = false;
 if (!$isProjectAuthPassed && !$restoreShare && $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['project_password'])) {
     if (!Auth::reserveThrottleAttempt('share_pwd_' . $sessionKey, 10, 900)) {
-        http_response_code(429); exit('尝试过多，请稍后重试');
+        http_response_code(429); exit(t('share.pwd_throttle'));
     }
     $passwordVerified = is_string($_POST['project_password']) && hash_equals($projectPwd, $_POST['project_password']);
     if ($passwordVerified) {
         Auth::clearThrottle('share_pwd_' . $sessionKey);
     } else {
-        $projectPwdError = '密码错误，请重新输入';
+        $projectPwdError = t('share.pwd_wrong');
     }
 }
 
@@ -298,7 +299,7 @@ if (!$isProjectAuthPassed && ($restoreShare || $passwordVerified)) {
     // 解锁和恢复都是授予访问权限，先轮换会话，避免把权限留给旧会话 ID。
     if (!app_regenerate_session(!empty($_SESSION['remember_me']))) {
         http_response_code(503);
-        exit('暂时无法建立预览会话，请刷新后重试');
+        exit(t('share.session_init_fail'));
     }
     $_SESSION[$sessionKey] = $expectedSessionToken;
     $isProjectAuthPassed = true;
@@ -331,11 +332,11 @@ if ($passwordVerified) {
 if (!$isProjectAuthPassed) {
     ?>
     <!DOCTYPE html>
-    <html lang="zh-CN">
+    <html lang="<?php echo htmlspecialchars(I18n::htmlLang()); ?>">
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>请输入项目访问密码 - <?php echo htmlspecialchars($item['name']); ?></title>
+        <title><?php echo htmlspecialchars(t('share.pwd_page_title', ['name' => $item['name']])); ?></title>
         <link rel="icon" href="<?php echo htmlspecialchars($faviconUrl); ?>" type="<?php echo $favType; ?>">
         <link rel="stylesheet" href="assets/css/remixicon.css">
         <link rel="stylesheet" href="assets/css/app.css?v=<?php echo APP_VERSION . '.' . filemtime(__DIR__ . '/assets/css/app.css'); ?>">
@@ -348,16 +349,16 @@ if (!$isProjectAuthPassed) {
     <body class="page-standalone">
         <div class="standalone-card" style="text-align: center;">
             <div class="lock-icon-wrap"><i class="ri-shield-keyhole-line"></i></div>
-            <div class="auth-title">输入访问密码</div>
+            <div class="auth-title"><?php echo htmlspecialchars(t('share.pwd_heading')); ?></div>
             <div class="auth-sub"><?php echo htmlspecialchars($item['name']); ?></div>
             <form method="POST" autocomplete="off">
                 <div style="margin-bottom: 18px; position:relative; display:flex; align-items:center;">
-                    <input type="password" id="shareProjPwdInput" name="project_password" class="form-control" placeholder="输入项目访问密码" autocomplete="new-password" data-lpignore="true" data-1p-ignore="true" style="padding-right: 38px;" autofocus required>
-                    <button type="button" onclick="toggleShareProjPwdMask(this)" style="position:absolute;right:8px;background:none;border:none;color:var(--text-3);cursor:pointer;padding:4px 6px;font-size:16px;display:flex;align-items:center;" title="显示/隐藏密码">
+                    <input type="password" id="shareProjPwdInput" name="project_password" class="form-control" placeholder="<?php echo htmlspecialchars(t('share.pwd_input_placeholder')); ?>" autocomplete="new-password" data-lpignore="true" data-1p-ignore="true" style="padding-right: 38px;" autofocus required>
+                    <button type="button" onclick="toggleShareProjPwdMask(this)" style="position:absolute;right:8px;background:none;border:none;color:var(--text-3);cursor:pointer;padding:4px 6px;font-size:16px;display:flex;align-items:center;" title="<?php echo htmlspecialchars(t('auth.toggle_password')); ?>">
                         <i class="ri-eye-line"></i>
                     </button>
                 </div>
-                <button type="submit" class="btn-submit">进入预览</button>
+                <button type="submit" class="btn-submit"><?php echo htmlspecialchars(t('share.pwd_submit')); ?></button>
                 <?php if (!empty($projectPwdError)): ?>
                     <div class="error-tip" style="display:block;"><?php echo htmlspecialchars($projectPwdError); ?></div>
                 <?php endif; ?>
@@ -400,7 +401,7 @@ if ($isShortCodeMode && !empty($shareCode)) {
 Auth::recordAccessLog($item['id'], $item['name'], $curVerName, 'share');
 ?>
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="<?php echo htmlspecialchars(I18n::htmlLang()); ?>">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -506,11 +507,11 @@ Auth::recordAccessLog($item['id'], $item['name'], $curVerName, 'share');
     <header class="share-navbar">
         <div class="share-left">
             <a href="index.php" class="share-brand" title="<?php echo htmlspecialchars($siteTitle); ?>">
-                <img src="assets/images/logo-icon.svg?v=<?php echo APP_VERSION; ?>" alt="立象原型" onerror="this.style.display='none'">
+                <img src="assets/images/logo-icon.svg?v=<?php echo APP_VERSION; ?>" alt="<?php echo htmlspecialchars($systemName); ?>" onerror="this.style.display='none'">
                 <?php if (!empty($companyName)): ?>
                     <span style="font-weight:600;font-size:14px;color:var(--text-1);"><?php echo htmlspecialchars($companyName); ?></span>
                 <?php else: ?>
-                    <span>立象原型</span>
+                    <span><?php echo htmlspecialchars($systemName); ?></span>
                 <?php endif; ?>
             </a>
 
@@ -547,23 +548,23 @@ Auth::recordAccessLog($item['id'], $item['name'], $curVerName, 'share');
             <?php endif; ?>
 
             <div class="top-changelog-wrap">
-                <button type="button" class="btn-top-changelog" id="btnShareChangelog" onclick="toggleShareChangelog(this)" title="查看更新日志" style="display:<?php echo !empty($curVersion['changelog']) ? 'inline-flex' : 'none'; ?>;">
-                    <span class="duo-icon-slot" data-duo-icon="file-text"><i class="ri-file-list-2-line duo-rest-icon"></i></span> 日志
+                <button type="button" class="btn-top-changelog" id="btnShareChangelog" onclick="toggleShareChangelog(this)" title="<?php echo htmlspecialchars(t('workspace.view_changelog')); ?>" style="display:<?php echo !empty($curVersion['changelog']) ? 'inline-flex' : 'none'; ?>;">
+                    <span class="duo-icon-slot" data-duo-icon="file-text"><i class="ri-file-list-2-line duo-rest-icon"></i></span> <?php echo htmlspecialchars(t('workspace.log_short')); ?>
                 </button>
                 <div class="top-changelog-popover" id="shareChangelogPopover" style="display:none;" onclick="event.stopPropagation()">
                     <div class="top-changelog-head">
                         <div class="top-changelog-head-left">
-                            <span class="top-changelog-title"><i class="ri-file-list-2-line" style="color:var(--primary);"></i> 更新日志</span>
+                            <span class="top-changelog-title"><i class="ri-file-list-2-line" style="color:var(--primary);"></i> <?php echo htmlspecialchars(t('workspace.changelog')); ?></span>
                             <span class="top-changelog-ver" id="shareChangelogVerName"><?php echo !empty($curVerName) ? (' · ' . htmlspecialchars($curVerName)) : ''; ?></span>
                         </div>
-                        <button type="button" class="close-x" onclick="toggleShareChangelog(false)" title="关闭 (ESC)"><i class="ri-close-line"></i></button>
+                        <button type="button" class="close-x" onclick="toggleShareChangelog(false)" title="<?php echo htmlspecialchars(t('common.close_esc')); ?>"><i class="ri-close-line"></i></button>
                     </div>
                     <div class="top-changelog-body" id="shareChangelogBody"></div>
                 </div>
             </div>
 
             <?php if (!empty($updateTime)): ?>
-                <span class="current-update-time" id="shareUpdateTime" style="display:inline-block;"><i class="ri-time-line" style="margin-right:3px;font-size:12px;opacity:0.85;"></i>更新于 <?php echo htmlspecialchars($updateTime); ?></span>
+                <span class="current-update-time" id="shareUpdateTime" style="display:inline-block;"><i class="ri-time-line" style="margin-right:3px;font-size:12px;opacity:0.85;"></i><?php echo htmlspecialchars(t('workspace.updated_at', ['time' => $updateTime])); ?></span>
             <?php else: ?>
                 <span class="current-update-time" id="shareUpdateTime" style="display:none;"></span>
             <?php endif; ?>
@@ -586,22 +587,22 @@ Auth::recordAccessLog($item['id'], $item['name'], $curVerName, 'share');
                     $hasInitialRp = !empty($rpFile);
                 ?>
                 <a href="<?php echo htmlspecialchars($downloadUrl); ?>" id="btnShareDownloadRp" class="btn-tool btn-tool-primary" download="<?php echo htmlspecialchars($defaultDownloadFilename); ?>" style="<?php echo $hasInitialRp ? '' : 'display:none;'; ?>">
-                    <span class="duo-icon-slot" data-duo-icon="download"><i class="ri-download-cloud-2-line duo-rest-icon"></i></span> 下载 RP
+                    <span class="duo-icon-slot" data-duo-icon="download"><i class="ri-download-cloud-2-line duo-rest-icon"></i></span> <?php echo htmlspecialchars(t('workspace.download_rp')); ?>
                 </a>
             <?php endif; ?>
 
-            <button class="btn-tool" onclick="reloadShareFrame()" title="刷新"><span class="duo-icon-slot" data-duo-icon="rotate-cw"><i class="ri-refresh-line duo-rest-icon"></i></span> 刷新</button>
+            <button class="btn-tool" onclick="reloadShareFrame()" title="<?php echo htmlspecialchars(t('workspace.reload')); ?>"><span class="duo-icon-slot" data-duo-icon="rotate-cw"><i class="ri-refresh-line duo-rest-icon"></i></span> <?php echo htmlspecialchars(t('workspace.reload')); ?></button>
             <?php if ($canAnnotate): ?>
-                <button class="btn-tool" id="btnToggleAnnotation" onclick="toggleAnnotationDrawer()" title="页面批注与协作讨论 (快捷键 C)">
-                    <span class="duo-icon-slot" data-duo-icon="message-circle"><i class="ri-chat-3-line duo-rest-icon"></i></span> 批注
+                <button class="btn-tool" id="btnToggleAnnotation" onclick="toggleAnnotationDrawer()" title="<?php echo htmlspecialchars(t('workspace.anno_btn_tip')); ?>">
+                    <span class="duo-icon-slot" data-duo-icon="message-circle"><i class="ri-chat-3-line duo-rest-icon"></i></span> <?php echo htmlspecialchars(t('workspace.anno_short')); ?>
                     <span id="annoHeaderBadge" class="anno-badge" style="display:none;">0</span>
                 </button>
             <?php endif; ?>
-            <button class="btn-tool" onclick="toggleShareFullscreen()" title="全屏"><span class="duo-icon-slot" data-duo-icon="maximize"><i class="ri-fullscreen-line duo-rest-icon"></i></span> 全屏</button>
+            <button class="btn-tool" onclick="toggleShareFullscreen()" title="<?php echo htmlspecialchars(t('workspace.fullscreen_short')); ?>"><span class="duo-icon-slot" data-duo-icon="maximize"><i class="ri-fullscreen-line duo-rest-icon"></i></span> <?php echo htmlspecialchars(t('workspace.fullscreen_short')); ?></button>
 
             <?php if ($canManage): ?>
-                <a href="index.php#item=<?php echo $item['id']; ?><?php echo $curVerName ? '&v=' . urlencode($curVerName) : ''; ?>" class="btn-tool" title="进入后台工作台">
-                    <span class="duo-icon-slot" data-duo-icon="layout-dashboard"><i class="ri-dashboard-line duo-rest-icon"></i></span> 工作台
+                <a href="index.php#item=<?php echo $item['id']; ?><?php echo $curVerName ? '&v=' . urlencode($curVerName) : ''; ?>" class="btn-tool" title="<?php echo htmlspecialchars(t('share.open_workspace_tip')); ?>">
+                    <span class="duo-icon-slot" data-duo-icon="layout-dashboard"><i class="ri-dashboard-line duo-rest-icon"></i></span> <?php echo htmlspecialchars(t('share.workspace_short')); ?>
                 </a>
             <?php endif; ?>
         </div>
@@ -618,7 +619,7 @@ Auth::recordAccessLog($item['id'], $item['name'], $curVerName, 'share');
         <?php else: ?>
             <div class="share-empty">
                 <i class="ri-inbox-line" style="font-size:36px;margin-bottom:8px;opacity:0.5;"></i>
-                <div style="font-size:13.5px;font-weight:500;color:var(--text-3);">暂无在线版本</div>
+                <div style="font-size:13.5px;font-weight:500;color:var(--text-3);"><?php echo htmlspecialchars(t('share.no_online_version')); ?></div>
             </div>
         <?php endif; ?>
 
@@ -628,41 +629,41 @@ Auth::recordAccessLog($item['id'], $item['name'], $curVerName, 'share');
             <div class="anno-header">
                 <div class="anno-header-title">
                     <i class="ri-chat-3-line" style="color:var(--primary);"></i>
-                    <span>页面批注</span>
+                    <span><?php echo htmlspecialchars(t('anno.drawer_title')); ?></span>
                 </div>
                 <div class="anno-filter-chips anno-scope-chips">
-                    <button type="button" class="anno-filter-btn active" id="annoFilterCurPage" onclick="switchAnnoFilterMode('page')">本页</button>
-                    <button type="button" class="anno-filter-btn" id="annoFilterAllPages" onclick="switchAnnoFilterMode('all')">全部</button>
+                    <button type="button" class="anno-filter-btn active" id="annoFilterCurPage" onclick="switchAnnoFilterMode('page')"><?php echo htmlspecialchars(t('anno.mode_page')); ?></button>
+                    <button type="button" class="anno-filter-btn" id="annoFilterAllPages" onclick="switchAnnoFilterMode('all')"><?php echo htmlspecialchars(t('anno.mode_all')); ?></button>
                 </div>
-                <button type="button" class="close-x" onclick="toggleAnnotationDrawer(false)" title="收起"><i class="ri-close-line"></i></button>
+                <button type="button" class="close-x" onclick="toggleAnnotationDrawer(false)" title="<?php echo htmlspecialchars(t('common.collapse')); ?>"><i class="ri-close-line"></i></button>
             </div>
 
             <div class="anno-context-bar">
-                <div class="anno-cur-page" id="annoCurPageWrap" title="当前页面">
+                <div class="anno-cur-page" id="annoCurPageWrap" title="<?php echo htmlspecialchars(t('anno.current_page_title')); ?>">
                     <i class="ri-file-text-line"></i>
-                    <span class="anno-cur-page-label">当前页：</span>
-                    <span id="annoCurPageTitle">当前页面</span>
+                    <span class="anno-cur-page-label"><?php echo htmlspecialchars(t('anno.current_page_label')); ?></span>
+                    <span id="annoCurPageTitle"><?php echo htmlspecialchars(t('anno.current_page_title')); ?></span>
                 </div>
             </div>
 
             <div class="anno-status-bar">
                 <div class="anno-filter-chips anno-status-chips">
-                    <button type="button" class="anno-filter-btn active" id="annoStatusAll" onclick="switchAnnoStatusFilter('all')">全部</button>
-                    <button type="button" class="anno-filter-btn" id="annoStatusPending" onclick="switchAnnoStatusFilter('pending')">待处理</button>
-                    <button type="button" class="anno-filter-btn" id="annoStatusResolved" onclick="switchAnnoStatusFilter('resolved')">已解决</button>
+                    <button type="button" class="anno-filter-btn active" id="annoStatusAll" onclick="switchAnnoStatusFilter('all')"><?php echo htmlspecialchars(t('anno.status_all')); ?></button>
+                    <button type="button" class="anno-filter-btn" id="annoStatusPending" onclick="switchAnnoStatusFilter('pending')"><?php echo htmlspecialchars(t('anno.status_pending')); ?></button>
+                    <button type="button" class="anno-filter-btn" id="annoStatusResolved" onclick="switchAnnoStatusFilter('resolved')"><?php echo htmlspecialchars(t('anno.status_resolved')); ?></button>
                 </div>
             </div>
 
             <div class="anno-body" id="annoListBody">
-                <div style="padding:32px 16px;text-align:center;color:var(--text-3);font-size:12px;">加载中...</div>
+                <div style="padding:32px 16px;text-align:center;color:var(--text-3);font-size:12px;"><?php echo htmlspecialchars(t('common.loading')); ?></div>
             </div>
 
             <div class="anno-footer">
-                <textarea id="annoNewInput" class="anno-input-textarea" placeholder="对此页面发表批注或疑问... (Cmd/Ctrl+Enter 发送)" maxlength="1000"></textarea>
+                <textarea id="annoNewInput" class="anno-input-textarea" placeholder="<?php echo htmlspecialchars(t('anno.input_placeholder')); ?>" maxlength="1000"></textarea>
                 <div class="anno-footer-actions">
-                    <span class="anno-hint-text"><kbd>⌘/Ctrl</kbd> + <kbd>Enter</kbd> 发送</span>
+                    <span class="anno-hint-text"><?php echo t('anno.send_hint'); ?></span>
                     <button type="button" class="btn-primary btn-sm" id="btnSendAnno" onclick="submitNewAnnotation()">
-                        <span class="duo-icon-slot" data-duo-icon="send"><i class="ri-send-plane-fill duo-rest-icon"></i></span> 发送
+                        <span class="duo-icon-slot" data-duo-icon="send"><i class="ri-send-plane-fill duo-rest-icon"></i></span> <?php echo htmlspecialchars(t('anno.send')); ?>
                     </button>
                 </div>
             </div>
@@ -671,6 +672,14 @@ Auth::recordAccessLog($item['id'], $item['name'], $curVerName, 'share');
     </main>
 </div>
 
+<?php
+    $shareI18nCatalog = I18n::jsCatalog(['brand.', 'common.', 'auth.', 'workspace.', 'anno.', 'share.', 'ver.']);
+?>
+<script>
+    window.__LOCALE__ = <?php echo json_encode(I18n::getLocale(), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>;
+    window.__I18N__ = <?php echo json_encode($shareI18nCatalog, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_UNESCAPED_UNICODE); ?>;
+</script>
+<script src="assets/js/i18n.js?v=<?php echo APP_VERSION . '.' . filemtime(__DIR__ . '/assets/js/i18n.js'); ?>"></script>
 <script src="assets/js/jquery.min.js"></script>
 <script src="assets/js/duo-icons.js?v=<?php echo APP_VERSION . '.' . filemtime(__DIR__ . '/assets/js/duo-icons.js'); ?>"></script>
 <?php if ($isWatermarkActive): ?>
@@ -707,7 +716,7 @@ Auth::recordAccessLog($item['id'], $item['name'], $curVerName, 'share');
 
         // 更新更新时间
         if (time) {
-            $('#shareUpdateTime').html('<i class="ri-time-line" style="margin-right:3px;font-size:12px;opacity:0.85;"></i>更新于 ' + esc(time)).show();
+            $('#shareUpdateTime').html('<i class="ri-time-line" style="margin-right:3px;font-size:12px;opacity:0.85;"></i>' + esc(t('workspace.updated_at', {time: time}, '更新于 ' + time))).show();
         } else {
             $('#shareUpdateTime').hide().empty();
         }
@@ -928,7 +937,7 @@ Auth::recordAccessLog($item['id'], $item['name'], $curVerName, 'share');
     (function initShareWatermark() {
         var el = document.getElementById('shareWatermarkOverlay');
         if (!el) return;
-        var wmUser = <?php echo json_encode(!empty($currentUser['name']) ? $currentUser['name'] : (!empty($currentUser['email']) ? $currentUser['email'] : '访客'), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_UNESCAPED_UNICODE) ?: '""'; ?>;
+        var wmUser = <?php echo json_encode(!empty($currentUser['name']) ? $currentUser['name'] : (!empty($currentUser['email']) ? $currentUser['email'] : t('common.role.guest')), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_UNESCAPED_UNICODE) ?: '""'; ?>;
         var canvas = document.createElement('canvas');
         var pad = function(n) { return n < 10 ? '0' + n : n; };
 
@@ -1463,9 +1472,9 @@ $(document).ready(function() {
                         window.focusAnnotation(annoId);
                     }
                     if (!target.page_url && currentItemType !== 'link') {
-                        if (typeof showToast === 'function') showToast('原页面已不存在，已打开版本入口；请查看批注原文', 'warning');
+                        if (typeof showToast === 'function') showToast(t('anno.page_missing_open_entry', null, '原页面已不存在，已打开版本入口；请查看批注原文'), 'warning');
                     } else if (target.annotation && target.annotation.needs_review) {
-                        if (typeof showToast === 'function') showToast('原型已更新，此批注需要重新核对', 'info');
+                        if (typeof showToast === 'function') showToast(t('anno.needs_review_toast', null, '原型已更新，此批注需要重新核对'), 'info');
                     }
                 }).catch(function() {
                     if (reqSeq !== shareAnnoSeq || window.location.hash !== reqHash) return;

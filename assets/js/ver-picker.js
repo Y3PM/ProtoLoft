@@ -237,7 +237,7 @@
                 var selIdx = selectEl.selectedIndex;
                 var currentOpt = (selIdx >= 0 && selIdx < opts.length) ? opts[selIdx] : opts[0];
                 var label = currentOpt ? getOptionLabel(currentOpt) : '';
-                triggerText.textContent = label || '请选择';
+                triggerText.textContent = label || (typeof t === 'function' ? t('common.select_placeholder', null, '请选择') : '请选择');
                 trigger.title = label || selectEl.getAttribute('title') || '';
 
                 var hasNewOpt = false;
@@ -283,7 +283,7 @@
                     btn.classList.add('has-new-tag');
                     var newBadge = document.createElement('span');
                     newBadge.className = 'ver-popover-item-new-tag';
-                    newBadge.textContent = '新';
+                    newBadge.textContent = (typeof t === 'function' ? t('ver.new_badge', null, '新') : '新');
                     btn.appendChild(newBadge);
                 }
 

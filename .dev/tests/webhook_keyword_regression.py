@@ -53,7 +53,8 @@ def test_webhook_payloads():
         return False
 
     data = json.loads(res.stdout)
-    brand = '立象原型'
+    keyword = 'ProtoLoft'
+    brand_cn = '立象原型'
 
     for item in data:
         ev = item['event']
@@ -63,7 +64,7 @@ def test_webhook_payloads():
         dt = payloads['dingtalk']
         assert dt.get('msgtype') == 'markdown', f"钉钉应使用简单直观的 markdown 消息"
         assert dt.get('markdown', {}).get('title') == item['raw_title']
-        assert brand in dt.get('markdown', {}).get('text', '')
+        assert keyword in dt.get('markdown', {}).get('text', '')
 
         # 2. 飞书断言：简单直观的单文本块卡片，包含按钮与关键词
         fs = payloads['feishu']
@@ -71,16 +72,16 @@ def test_webhook_payloads():
         fs_title = fs.get('card', {}).get('header', {}).get('title', {}).get('content', '')
         fs_str = json.dumps(fs, ensure_ascii=False)
         assert fs_title == item['raw_title']
-        assert brand in fs_str
+        assert keyword in fs_str
 
         # 3. 企微断言：标准原生 Markdown 气泡，广泛兼容
         wc = payloads['wecom']
         assert wc.get('msgtype') == 'markdown'
-        assert '来自 · 立象原型' in wc.get('markdown', {}).get('content', '')
+        assert '来自 · 立象原型 (ProtoLoft)' in wc.get('markdown', {}).get('content', '')
 
         # 4. 通用断言
         gen = payloads['generic']
-        assert brand in gen.get('title', '') or brand in gen.get('source', ''), f"通用载荷未包含品牌 (event: {ev})"
+        assert brand_cn in gen.get('title', '') or brand_cn in gen.get('source', ''), f"通用载荷未包含品牌 (event: {ev})"
 
         # 5. 结构化 user_apply 逐行平铺键值与审批直达入口断言（不出现多余“项目”“内容”标签）
         if ev == 'user_apply':
@@ -95,9 +96,39 @@ def test_webhook_payloads():
             assert '**申请角色**：协作者' in dt_text and '[前往审批](https://example.com/admin)' in dt_text
             assert '**项目**' not in wc_text and '**内容**' not in wc_text and '**申请人**：赵六 \\(zhao@example.com\\)' in wc_text
             assert '**申请角色**：协作者' in wc_text and '[前往审批](https://example.com/admin)' in wc_text
-            assert '<font color="comment">来自 · 立象原型</font>' in wc_text
+            assert '<font color="comment">来自 · 立象原型 (ProtoLoft)</font>' in wc_text
 
-    print("✅ 所有平台 Payload 均 100% 包含「立象原型」关键词！")
+    print("✅ 所有平台 Payload 均 100% 包含统一「ProtoLoft」关键词！")
+
+    # 三语推送关键词与英文半角冒号排版验证
+    locale_php = """
+    require_once __DIR__ . '/includes/webhook.php';
+    $reflection = new ReflectionClass('Webhook');
+    $buildPayload = $reflection->getMethod('buildPayload');
+    $buildPayload->setAccessible(true);
+    $out = [];
+    foreach (['zh-CN', 'zh-TW', 'en'] as $loc) {
+        I18n::setLocale($loc);
+        $out[$loc] = [
+            'dingtalk' => $buildPayload->invoke(null, 'dingtalk', 'version_update', ['item_name' => 'Demo', 'version_name' => 'V1.0', 'author' => 'Alice', 'content' => 'Notes', 'link' => 'https://example.com']),
+            'feishu' => $buildPayload->invoke(null, 'feishu', 'version_update', ['item_name' => 'Demo', 'version_name' => 'V1.0', 'author' => 'Alice', 'content' => 'Notes', 'link' => 'https://example.com']),
+            'wecom' => $buildPayload->invoke(null, 'wecom', 'version_update', ['item_name' => 'Demo', 'version_name' => 'V1.0', 'author' => 'Alice', 'content' => 'Notes', 'link' => 'https://example.com']),
+            'err' => t('webhook.err_keyword')
+        ];
+    }
+    echo json_encode($out, JSON_UNESCAPED_UNICODE);
+    """
+    res_loc = subprocess.run(['php', '-r', locale_php], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+    assert res_loc.returncode == 0, res_loc.stderr
+    loc_data = json.loads(res_loc.stdout)
+    for loc in ('zh-CN', 'zh-TW', 'en'):
+        assert 'ProtoLoft' in loc_data[loc]['dingtalk']['markdown']['text'], f"{loc} dingtalk 缺少 ProtoLoft"
+        assert 'ProtoLoft' in json.dumps(loc_data[loc]['feishu'], ensure_ascii=False), f"{loc} feishu 缺少 ProtoLoft"
+        assert 'ProtoLoft' in loc_data[loc]['wecom']['markdown']['content'], f"{loc} wecom 缺少 ProtoLoft"
+        assert 'ProtoLoft' in loc_data[loc]['err'], f"{loc} err_keyword 缺少 ProtoLoft"
+    en_wc = loc_data['en']['wecom']['markdown']['content']
+    assert '**Publisher**: Alice' in en_wc and '**Publisher**：' not in en_wc, f"en wecom 冒号格式异常: {en_wc}"
+    print("✅ 三语 Webhook 统一 ProtoLoft 关键词与英文半角冒号校验通过！")
 
     # 5. 模拟测试平台报错自愈引导 (覆盖钉钉与飞书真实返回样本)
     test_error_handling = """
@@ -117,8 +148,8 @@ def test_webhook_payloads():
         $code = $err['errcode'] ?? ($err['code'] ?? 0);
         $lowerErr = strtolower($errMsg);
         if (strpos($lowerErr, 'keyword') !== false || strpos($lowerErr, 'key word') !== false || strpos($lowerErr, 'sign') !== false || strpos($lowerErr, 'ip') !== false || (int)$code === 19024) {
-            $diag = '机器人安全校验拦截：请在钉钉/飞书机器人安全设置中勾选「自定义关键词」，填入：立象原型';
-            assert(!empty($diag));
+            $diag = t('webhook.err_keyword');
+            assert(strpos($diag, 'ProtoLoft') !== false);
         } else {
             throw new Exception("诊断逻辑未命中: " . $errMsg);
         }

@@ -1,3 +1,7 @@
+function _tShare(key, params, fallback) {
+    return (typeof t === 'function') ? t(key, params, fallback) : fallback;
+}
+
 /** 保持动态状态切换后双色悬停图标槽位完好 */
 function setShareBtnIconLabel($btn, duoName, restIconClass, labelText) {
     if (!$btn || !$btn.length) return;
@@ -10,7 +14,7 @@ function setShareBtnIconLabel($btn, duoName, restIconClass, labelText) {
 /** 全员分享视图；接口决定是否可编辑。 */
 function openShareModal(itemId) {
     if (!itemId) {
-        showToast('请选择项目', 'info');
+        showToast(_tShare('admin.upload.err_select_project', null, '请选择项目'), 'info');
         return;
     }
     itemId = parseInt(itemId, 10);
@@ -21,7 +25,7 @@ function openShareModal(itemId) {
     .then(function(r) { return r.json(); })
     .then(function(res) {
         if (!res.success) {
-            showToast(res.message || '加载分享设置失败', 'error');
+            showToast(res.message || _tShare('share.load_failed', null, '加载分享设置失败'), 'error');
             return;
         }
         var data = res.data;
@@ -48,7 +52,7 @@ function openShareModal(itemId) {
         onShareSwitchChange(enabled);
 
         // 重置复制按钮文本并保留双色结构
-        setShareBtnIconLabel($('#btnCopyShareModal'), 'copy', 'ri-file-copy-line', '复制');
+        setShareBtnIconLabel($('#btnCopyShareModal'), 'copy', 'ri-file-copy-line', _tShare('common.copy', null, '复制'));
 
         // 渲染生效中的专属外发分享记录表
         toggleCustomSharePanel(false);
@@ -56,7 +60,7 @@ function openShareModal(itemId) {
 
         openModal('shareManageModal', 'shareManageModal');
     }).catch(function() {
-        showToast('网络异常，获取分享信息失败', 'error');
+        showToast(_tShare('share.fetch_failed', null, '网络异常，获取分享信息失败'), 'error');
     });
 }
 
@@ -74,45 +78,48 @@ function renderActiveShareList(list, maxLimit, canManage) {
     var $badge = $('#activeShareBadge');
 
     if (!list || !list.length) {
-        $badge.text('0 / ' + max + ' 条生效中').css({ 'background': 'var(--canvas)', 'color': 'var(--text-3)' });
+        $badge.text(_tShare('share.badge_zero', {max: max}, '0 / ' + max + ' 条生效中')).css({ 'background': 'var(--canvas)', 'color': 'var(--text-3)' });
         $container.html(
             '<div style="text-align:center;padding:20px 12px;background:var(--canvas);border:1px dashed var(--border);border-radius:8px;color:var(--text-3);font-size:12px;">' +
                 '<i class="ri-share-forward-line" style="font-size:20px;display:block;margin-bottom:4px;color:var(--primary);opacity:0.6;"></i>' +
-                '<div style="font-weight:500;color:var(--text-2);">暂无外发链接</div>' +
-                '<div style="font-size:11px;color:var(--text-3);margin-top:2px;">随时可为外部客户或领导生成专属临时预览</div>' +
+                '<div style="font-weight:500;color:var(--text-2);">' + esc(_tShare('share.empty_title', null, '暂无外发链接')) + '</div>' +
+                '<div style="font-size:11px;color:var(--text-3);margin-top:2px;">' + esc(_tShare('share.empty_desc', null, '随时可为外部客户或领导生成专属临时预览')) + '</div>' +
             '</div>'
         );
         return;
     }
 
     if (len >= max) {
-        $badge.text(len + ' / ' + max + ' 条 (已满)').removeClass('badge-primary').addClass('badge-danger');
+        $badge.text(_tShare('share.badge_full', {len: len, max: max}, len + ' / ' + max + ' 条 (已满)')).removeClass('badge-primary').addClass('badge-danger');
     } else {
-        $badge.text(len + ' / ' + max + ' 条生效中').removeClass('badge-danger').addClass('badge-primary');
+        $badge.text(_tShare('share.badge_active', {len: len, max: max}, len + ' / ' + max + ' 条生效中')).removeClass('badge-danger').addClass('badge-primary');
     }
     var html = '';
     for (var i = 0; i < list.length; i++) {
         var s = list[i];
         var isExpired = s.is_expired;
-        var expText = '永久有效';
+        var expText = _tShare('share.expire_forever', null, '永久有效');
         if (s.expires_at) {
-            expText = isExpired ? ('已到期 (' + s.expires_at.substring(0, 10) + ')') : ('截止 ' + s.expires_at.substring(0, 10));
+            var expDate = s.expires_at.substring(0, 10);
+            expText = isExpired
+                ? _tShare('share.expired_at', {date: expDate}, '已到期 (' + expDate + ')')
+                : _tShare('share.valid_until', {date: expDate}, '截止 ' + expDate);
         }
         var expBadge = isExpired
-            ? '<span class="badge-tag badge-danger">' + expText + '</span>'
-            : '<span class="badge-tag badge-neutral">' + expText + '</span>';
+            ? '<span class="badge-tag badge-danger">' + esc(expText) + '</span>'
+            : '<span class="badge-tag badge-neutral">' + esc(expText) + '</span>';
 
         var pwdText = s.access_password ? String(s.access_password) : '';
         var pwdBadge = '';
         if (s.has_password && pwdText) {
-            pwdBadge = '<span class="badge-tag badge-primary btn-copy-share-pwd" data-copy-pwd-only="' + esc(pwdText) + '" style="cursor:pointer;user-select:all;" title="点击复制密码"><i class="ri-lock-2-line"></i> 密码: <code style="font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;font-weight:600;letter-spacing:0.5px;">' + esc(pwdText) + '</code></span>';
+            pwdBadge = '<span class="badge-tag badge-primary btn-copy-share-pwd" data-copy-pwd-only="' + esc(pwdText) + '" style="cursor:pointer;user-select:all;" title="' + esc(_tShare('share.copy_pwd_tip', null, '点击复制密码')) + '"><i class="ri-lock-2-line"></i> ' + esc(_tShare('share.access_pwd', null, '访问密码')) + ': <code style="font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;font-weight:600;letter-spacing:0.5px;">' + esc(pwdText) + '</code></span>';
         } else if (s.has_password) {
-            pwdBadge = '<span class="badge-tag badge-primary"><i class="ri-lock-2-line"></i> 密码保护</span>';
+            pwdBadge = '<span class="badge-tag badge-primary"><i class="ri-lock-2-line"></i> ' + esc(_tShare('share.pwd_protected', null, '密码保护')) + '</span>';
         } else {
-            pwdBadge = '<span class="badge-tag badge-neutral">免密</span>';
+            pwdBadge = '<span class="badge-tag badge-neutral">' + esc(_tShare('share.no_pwd', null, '免密')) + '</span>';
         }
 
-        var viewText = '<span style="font-size:11.5px;color:var(--text-3);display:inline-flex;align-items:center;gap:2px;"><i class="ri-eye-line"></i> ' + (s.view_count || 0) + '次访问</span>';
+        var viewText = '<span style="font-size:11.5px;color:var(--text-3);display:inline-flex;align-items:center;gap:2px;"><i class="ri-eye-line"></i> ' + esc(_tShare('share.view_count', {n: s.view_count || 0}, (s.view_count || 0) + '次访问')) + '</span>';
 
         var shareUrl = s.share_url || (window.location.origin + window.location.pathname.replace(/\/[^\/]*$/, '/') + 'share.php?s=' + s.code);
         if (window.location.protocol === 'https:' && shareUrl.indexOf('http://') === 0) {
@@ -129,15 +136,15 @@ function renderActiveShareList(list, maxLimit, canManage) {
                 '<div style="display:flex;align-items:center;gap:10px;font-size:11.5px;color:var(--text-3);">' +
                     '<span style="font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;color:var(--text-2);max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">s=' + esc(s.code) + '</span>' +
                     viewText +
-                    '<span>@' + esc(s.creator_name || '管理员') + '</span>' +
+                    '<span>@' + esc(s.creator_name || _tShare('common.role.admin', null, '管理员')) + '</span>' +
                 '</div>' +
             '</div>' +
             '<div style="display:flex;align-items:center;gap:6px;flex-shrink:0;">' +
-                '<button type="button" class="btn-cancel btn-sm" data-copy-url="' + esc(shareUrl) + '" data-copy-pwd="' + esc(pwdText) + '" title="复制该专属分享链接">' +
-                    '<span class="duo-icon-slot" data-duo-icon="copy"><i class="ri-file-copy-line duo-rest-icon"></i></span> 复制' +
+                '<button type="button" class="btn-cancel btn-sm" data-copy-url="' + esc(shareUrl) + '" data-copy-pwd="' + esc(pwdText) + '" title="' + esc(_tShare('share.copy_custom_tip', null, '复制该专属分享链接')) + '">' +
+                    '<span class="duo-icon-slot" data-duo-icon="copy"><i class="ri-file-copy-line duo-rest-icon"></i></span> ' + esc(_tShare('common.copy', null, '复制')) +
                 '</button>' +
                 (isManageable ? (
-                    '<button type="button" class="btn-cancel btn-sm btn-danger-sm" onclick="revokeCustomShare(\'' + esc(s.code) + '\')" title="作废吊销此专属短链">' +
+                    '<button type="button" class="btn-cancel btn-sm btn-danger-sm" onclick="revokeCustomShare(\'' + esc(s.code) + '\')" title="' + esc(_tShare('share.revoke_custom_tip', null, '作废吊销此专属短链')) + '">' +
                         '<span class="duo-icon-slot" data-duo-icon="trash"><i class="ri-delete-bin-line duo-rest-icon"></i></span>' +
                     '</button>'
                 ) : '') +
@@ -154,7 +161,7 @@ function toggleCustomSharePanel(forceState) {
     if (isShow) {
         var currentLen = $('#activeShareListContainer').find('> div[data-share-row="1"]').length;
         if (currentShareMaxLimit && currentLen >= currentShareMaxLimit) {
-            showToast('专属分享数量已达上限 (' + currentShareMaxLimit + ' 条)', 'warning');
+            showToast(_tShare('share.limit_reached', {max: currentShareMaxLimit}, '专属分享数量已达上限 (' + currentShareMaxLimit + ' 条)'), 'warning');
             return;
         }
         $('#customShareLabelInput').val('');
@@ -216,13 +223,13 @@ function submitCreateCustomShare() {
     var preset = $('#customShareExpirePreset').val();
     var customDate = $('#customShareExpireCustomDate').val();
     if (preset === 'custom' && !customDate) {
-        showToast('请选择截止日期', 'info');
+        showToast(_tShare('share.select_expire_date', null, '请选择截止日期'), 'info');
         $('#customShareExpireCustomDate').focus();
         return;
     }
 
     var $btn = $('#btnSubmitCustomShare');
-    $btn.prop('disabled', true).text('创建中...');
+    $btn.prop('disabled', true).text(_tShare('common.creating', null, '创建中...'));
 
     var fd = new FormData();
     fd.append('item_id', itemId);
@@ -233,15 +240,15 @@ function submitCreateCustomShare() {
 
     apiFetch('share_code_create', fd).then(function(res) {
         $btn.prop('disabled', false);
-        setShareBtnIconLabel($btn, 'circle-check', 'ri-check-line', '创建并复制');
+        setShareBtnIconLabel($btn, 'circle-check', 'ri-check-line', _tShare('share.create_and_copy', null, '创建并复制'));
         if (res.success) {
             var newUrl = res.data.share_url;
             var newPwd = (res.data && res.data.access_password !== undefined) ? res.data.access_password : pwd;
             var textToCopy = newUrl;
-            var toastMsg = '专属链接已创建并复制';
+            var toastMsg = _tShare('share.created_and_copied', null, '专属链接已创建并复制');
             if (newPwd) {
-                textToCopy = '链接：' + newUrl + '\n访问密码：' + newPwd;
-                toastMsg = '专属链接与访问密码已创建并复制';
+                textToCopy = _tShare('share.copy_template_pwd', {url: newUrl, pwd: newPwd}, '链接：' + newUrl + '\n访问密码：' + newPwd);
+                toastMsg = _tShare('share.created_pwd_copied', null, '专属链接与访问密码已创建并复制');
             }
             copyTextToClipboard(textToCopy, function() {
                 showToast(toastMsg, 'success', 2800);
@@ -249,12 +256,12 @@ function submitCreateCustomShare() {
             toggleCustomSharePanel(false);
             renderActiveShareList(res.data.active_shares || [], res.data.max_custom_shares);
         } else {
-            showToast(res.message || '创建专属链接失败', 'error');
+            showToast(res.message || _tShare('share.create_failed', null, '创建专属链接失败'), 'error');
         }
     }).catch(function() {
         $btn.prop('disabled', false);
-        setShareBtnIconLabel($btn, 'circle-check', 'ri-check-line', '创建并复制');
-        showToast('网络异常，创建失败', 'error');
+        setShareBtnIconLabel($btn, 'circle-check', 'ri-check-line', _tShare('share.create_and_copy', null, '创建并复制'));
+        showToast(_tShare('share.create_net_failed', null, '网络异常，创建失败'), 'error');
     });
 }
 
@@ -262,9 +269,9 @@ function submitCreateCustomShare() {
 function revokeCustomShare(code) {
     var itemId = $('#shareItemId').val();
     showConfirm({
-        title: '作废链接',
-        message: '确定作废此专属分享链接？',
-        confirmText: '作废',
+        title: _tShare('share.revoke_title', null, '作废链接'),
+        message: _tShare('share.revoke_confirm', null, '确定作废此专属分享链接？'),
+        confirmText: _tShare('share.revoke_btn', null, '作废'),
         isDanger: true,
         onConfirm: function() {
             var fd = new FormData();
@@ -273,13 +280,13 @@ function revokeCustomShare(code) {
 
             apiFetch('share_code_revoke', fd).then(function(res) {
                 if (res.success) {
-                    showToast('链接已作废', 'success');
+                    showToast(_tShare('share.revoked', null, '链接已作废'), 'success');
                     renderActiveShareList(res.data.active_shares || [], res.data.max_custom_shares);
                 } else {
-                    showToast(res.message || '作废失败', 'error');
+                    showToast(res.message || _tShare('share.revoke_failed', null, '作废失败'), 'error');
                 }
             }).catch(function() {
-                showToast('网络异常，作废失败', 'error');
+                showToast(_tShare('share.revoke_net_failed', null, '网络异常，作废失败'), 'error');
             });
         }
     });
@@ -292,18 +299,19 @@ function copySpecificShareUrl(url, pwd, btnEl) {
         btnEl = pwd;
         pwd = '';
     }
+    var _tr = (typeof t === 'function') ? t : function(k, p, f) { return f; };
     var textToCopy = url;
-    var toastMsg = '链接已复制';
+    var toastMsg = _tr('common.link_copied', null, '链接已复制');
     if (pwd) {
-        textToCopy = '链接：' + url + '\n访问密码：' + pwd;
-        toastMsg = '链接与访问密码已复制';
+        textToCopy = _tr('share.copy_template_pwd', {url: url, pwd: pwd}, '链接：' + url + '\n访问密码：' + pwd);
+        toastMsg = _tr('share.link_and_pwd_copied', null, '链接与访问密码已复制');
     }
     copyTextToClipboard(textToCopy, function() {
         showToast(toastMsg, 'success');
         if (btnEl) {
             var $btn = $(btnEl);
             var origLabel = ($btn.text() || '').replace(/\s+/g, ' ').trim();
-            setShareBtnIconLabel($btn, 'circle-check', 'ri-check-line', origLabel ? '已复制' : '');
+            setShareBtnIconLabel($btn, 'circle-check', 'ri-check-line', origLabel ? _tr('common.copied', null, '已复制') : '');
             setTimeout(function() {
                 setShareBtnIconLabel($btn, 'copy', 'ri-file-copy-line', origLabel);
             }, 2000);
@@ -312,18 +320,19 @@ function copySpecificShareUrl(url, pwd, btnEl) {
 }
 
 function doExecuteShareCopy(url, pwd) {
+    var _tr = (typeof t === 'function') ? t : function(k, p, f) { return f; };
     var textToCopy = url;
-    var toastMsg = '分享链接已复制';
+    var toastMsg = _tr('share.share_link_copied', null, '分享链接已复制');
     if (pwd) {
-        textToCopy = '链接：' + url + '\n访问密码：' + pwd;
-        toastMsg = '分享链接与访问密码已复制';
+        textToCopy = _tr('share.copy_template_pwd', {url: url, pwd: pwd}, '链接：' + url + '\n访问密码：' + pwd);
+        toastMsg = _tr('share.share_link_pwd_copied', null, '分享链接与访问密码已复制');
     }
     return copyTextToClipboard(textToCopy, function() {
         var $copyBtn = $('#btnCopyShareModal');
-        setShareBtnIconLabel($copyBtn, 'circle-check', 'ri-check-line', '已复制');
+        setShareBtnIconLabel($copyBtn, 'circle-check', 'ri-check-line', _tr('common.copied', null, '已复制'));
         showToast(toastMsg, 'success');
         setTimeout(function() {
-            setShareBtnIconLabel($copyBtn, 'copy', 'ri-file-copy-line', '复制');
+            setShareBtnIconLabel($copyBtn, 'copy', 'ri-file-copy-line', _tr('common.copy', null, '复制'));
         }, 2000);
     });
 }
@@ -353,10 +362,36 @@ function generateRandomSharePwd() {
 
 function onShareSwitchChange(checked) {
     if (checked) {
-        $('#shareEnabledText').text('允许访问').css('color', 'var(--success)');
+        $('#shareEnabledText').text(_tShare('share.allow_access', null, '允许访问')).css('color', 'var(--success)');
     } else {
-        $('#shareEnabledText').text('暂停访问').css('color', 'var(--warning)');
+        $('#shareEnabledText').text(_tShare('share.pause_access', null, '暂停访问')).css('color', 'var(--warning)');
     }
+}
+
+function syncSidebarShareDisabledState(itemId, isDisabled) {
+    if (!itemId || typeof document === 'undefined') return;
+    var row = document.querySelector('.item-row[data-item-id="' + String(itemId).replace(/"/g, '') + '"]');
+    if (!row) return;
+    if (row.getAttribute('data-type') !== 'project') {
+        isDisabled = false;
+    }
+    row.setAttribute('data-share-disabled', isDisabled ? '1' : '0');
+    var wrap = row.querySelector('.item-name-wrap');
+    if (!wrap) return;
+    var existing = wrap.querySelector('.item-status-icon.is-share-off');
+    if (isDisabled) {
+        if (!existing) {
+            var icon = document.createElement('i');
+            icon.className = 'ri-forbid-line item-status-icon is-share-off';
+            icon.title = _tShare('workspace.share_disabled_tip', null, '分享已停用');
+            wrap.appendChild(icon);
+        }
+    } else if (existing && existing.parentNode) {
+        existing.parentNode.removeChild(existing);
+    }
+}
+if (typeof window !== 'undefined') {
+    window.syncSidebarShareDisabledState = syncSidebarShareDisabledState;
 }
 
 function saveShareSettingsFromModal(isAutoSave, callback) {
@@ -365,7 +400,7 @@ function saveShareSettingsFromModal(isAutoSave, callback) {
 
     var $btn = $('#btnSaveDefaultShare, #btnSaveShareSettings');
     if (!isAutoSave) {
-        $btn.prop('disabled', true).html('<i class="ri-loader-4-line ri-spin"></i> 保存中...');
+        $btn.prop('disabled', true).html('<i class="ri-loader-4-line ri-spin"></i> ' + _tShare('common.saving', null, '保存中...'));
     }
 
     var fd = new FormData();
@@ -376,26 +411,30 @@ function saveShareSettingsFromModal(isAutoSave, callback) {
 
     return apiFetch('item_save_share', fd).then(function(res) {
         if (!isAutoSave) {
-            $btn.prop('disabled', false).html('<span class="duo-icon-slot" data-duo-icon="save"><i class="ri-save-line duo-rest-icon"></i></span> 保存');
+            $btn.prop('disabled', false).html('<span class="duo-icon-slot" data-duo-icon="save"><i class="ri-save-line duo-rest-icon"></i></span> ' + _tShare('common.save', null, '保存'));
         }
         if (res.success) {
             $('#sharePasswordInput').data('saved-pwd', pwd);
+            var shareEnabled = (res.data && typeof res.data.share_enabled !== 'undefined')
+                ? !!res.data.share_enabled
+                : $('#shareEnabledSwitch').is(':checked');
+            syncSidebarShareDisabledState(itemId, !shareEnabled);
             if (isAutoSave) {
-                showToast('随机密码已生成并生效', 'success');
+                showToast(_tShare('share.random_pwd_saved', null, '随机密码已生成并生效'), 'success');
             } else {
-                showToast('设置已保存', 'success');
+                showToast(_tShare('share.settings_saved', null, '设置已保存'), 'success');
             }
             if (typeof callback === 'function') callback(true);
         } else {
-            showToast(res.message || '保存设置失败', 'error');
+            showToast(res.message || _tShare('share.save_failed', null, '保存设置失败'), 'error');
             if (typeof callback === 'function') callback(false);
         }
         return res;
     }).catch(function(err) {
         if (!isAutoSave) {
-            $btn.prop('disabled', false).html('<span class="duo-icon-slot" data-duo-icon="save"><i class="ri-save-line duo-rest-icon"></i></span> 保存');
+            $btn.prop('disabled', false).html('<span class="duo-icon-slot" data-duo-icon="save"><i class="ri-save-line duo-rest-icon"></i></span> ' + _tShare('common.save', null, '保存'));
         }
-        showToast('网络异常，保存失败', 'error');
+        showToast(_tShare('share.save_net_failed', null, '网络异常，保存失败'), 'error');
         if (typeof callback === 'function') callback(false);
         throw err;
     });
@@ -416,6 +455,6 @@ $(document).on('click', '.btn-copy-share-pwd, [data-copy-pwd-only]', function(e)
     var pwd = this.getAttribute('data-copy-pwd-only') || '';
     if (!pwd) return;
     copyTextToClipboard(pwd, function() {
-        showToast('访问密码已复制', 'success');
+        showToast(_tShare('share.pwd_copied', null, '访问密码已复制'), 'success');
     });
 });

@@ -28,7 +28,9 @@ define('BRANDING_PATH', UPLOADS_PATH . '/branding');
 define('PROTOTYPES_PATH', DATA_PATH . '/prototypes');
 define('CHUNKS_PATH', DATA_PATH . '/chunks');
 
-define('APP_VERSION', '3.1.11');
+define('APP_VERSION', '3.2.0');
+
+require_once __DIR__ . '/i18n.php';
 
 /**
  * 检查系统是否已安装
@@ -50,7 +52,7 @@ function app_normalize_base_url($raw) {
     if (!$parts || !in_array($scheme, ['http', 'https'], true) || empty($parts['host'])
         || isset($parts['user']) || isset($parts['pass']) || isset($parts['query']) || isset($parts['fragment'])
         || preg_match('/[\x00-\x20\x7f]/', $url)) {
-        throw new RuntimeException('站点地址配置无效');
+        throw new RuntimeException(t('api.invalid_site_url_cfg'));
     }
     return $url;
 }
@@ -342,7 +344,7 @@ function app_base_path() {
 function app_request_origin_url() {
     $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
     if (!preg_match('/^(?:[a-zA-Z0-9.-]+|\[[a-fA-F0-9:]+\])(?::[0-9]{1,5})?$/D', $host)) {
-        throw new DomainException('站点地址无效');
+        throw new DomainException(t('api.invalid_site_url'));
     }
     return (app_transport_is_https() ? 'https://' : 'http://') . $host . app_base_path() . '/';
 }
@@ -360,7 +362,7 @@ function app_url($relative = '') {
             $base = $hasSubPath ? $dbBase : ($dbBase . app_base_path());
         } else {
             $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
-            if (!preg_match('/^(?:[a-zA-Z0-9.-]+|\[[a-fA-F0-9:]+\])(?::[0-9]{1,5})?$/D', $host)) throw new DomainException('站点地址无效');
+            if (!preg_match('/^(?:[a-zA-Z0-9.-]+|\[[a-fA-F0-9:]+\])(?::[0-9]{1,5})?$/D', $host)) throw new DomainException(t('api.invalid_site_url'));
             $base = (app_transport_is_https() ? 'https://' : 'http://') . $host . app_base_path();
         }
     }

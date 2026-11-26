@@ -53,6 +53,12 @@ python3 -B .dev/tests/approval_webhook_sync_browser.py --php /path/to/php --play
 # 一键导出纯净生产发布包（自动生成 release/protoloft/ 纯净目录与 release/protoloft-v{version}.zip 压缩包）
 python3 .dev/export_release.py
 
+# 多语言引擎、三语词库完整性与全站语言切换闭环专项回归
+python3 -B .dev/tests/i18n_regression.py --php /path/to/php
+
+# 仅限本地开发演示：备份后向本地 data/ 灌入全角色多版本演示数据（默认密码 Demo@123456）
+python3 -B .dev/tools/seed_demo_data.py --php /path/to/php
+
 
 
 # 控制中心规格与多屏幕尺寸自适应（2K / 1080P / Laptop）
@@ -66,11 +72,13 @@ python3 -B .dev/tests/dropdown_sync_regression_browser.py --php /path/to/php --p
 
 ## 交接方式
 
+2026-11-26 最新：**v3.2.0 全局多语言支持与演示数据闭环**。已在控制中心「系统设置 → 基础设置」新增「系统语言」切换（`zh-CN` 默认 / `zh-TW` / `en`），完成核心引擎（`includes/i18n.php`、`includes/lang/{zh-CN,zh-TW,en}.php` 共 1,595 键、前端 `assets/js/i18n.js`）、前后台页面/JS、API、邮件模板、Webhook 通知、安装向导、分享沙箱与 MCP 协议全链路闭环（Viewer 端排除 `admin.*` 词库；Webhook 安全关键词全语言统一为 `ProtoLoft`，英文词库零中文残留）。全量 `run_all_tests.py` **34/34 套全过（1,588 项断言，111.54s）**，其中新增 `i18n_regression.py`（33 项）全过；内置浏览器完成三语切换、1440×900/1280×800 布局与分享沙箱核验（0 报错，已恢复 `zh-CN`）；已通过 `.dev/export_release.py` 导出 75 个生产文件至 `release/protoloft/` 与 `release/protoloft-v3.2.0.zip`（本地 `data/` 原数据已备份至 `.dev/tmp/backup-before-demo-3.2.0/`，并已通过 `.dev/tools/seed_demo_data.py` 灌入演示数据，统一演示密码 `Demo@123456`，主管理员 `owner@protoloft.demo`；未提交 Git、未上传 FTP）。
+
 2026-11-25 审查：[双色图标使用审查](docs/reviews/2026-11-25-icon-usage-review.md)。29 个定义、104 处引用均匹配；浏览器确认分享复制/创建按钮丢失双色结构，文字按钮 SVG 仅 12–13px，另有成员图标语义及可访问名称改进项。本轮仅审查，未改运行代码。
 
-2026-11-25 最新：[个人头像与即时保存](docs/2026-11-25-profile-avatar-directions.md)。3.1.11 保留 8 个造型与 6 色选择，改为选择即保存，移除头像确认底栏；慢请求串行并合并中间选择，失败回到最近确认值。即时保存前端 23 项、多角色头像 HTTP 128 项及真实浏览器专项通过，本地更新，未提交、未部署。
+2026-11-25：[个人头像与即时保存](docs/2026-11-25-profile-avatar-directions.md)。3.1.11 保留 8 个造型与 6 色选择，改为选择即保存，移除头像确认底栏；慢请求串行并合并中间选择，失败回到最近确认值。即时保存前端 23 项、多角色头像 HTTP 128 项及真实浏览器专项通过，本地更新，未提交、未部署。
 
-2026-11-24 最新：[全量代码审查与修复清单](docs/reviews/2026-11-24-code-review.md)。P1：WAL 模式下「已执行未读完的语句句柄在写入时仍存活」导致并发写入随机失败，登录、改密、RP 上传、同名覆盖发版均已用两人日常场景复现，共 25 处受影响；另有 3 个 P2、18 个 P3 和 9 项待拍板。清单含复现脚本位置、硬约束、验收标准与未覆盖范围，尚未开始修复。
+2026-11-24 历史审查（P1 已修复）：[全量代码审查与修复清单](docs/reviews/2026-11-24-code-review.md)。其中 P1（SQLite WAL 模式下未关闭游标导致并发写入锁冲突）已于 commit `8638d87`（v3.1.4）完成修复，并持续由 `concurrent_collision_regression.py` 验证通过；其余 P2/P3/Q 项详见各专项记录。
 
 2026-11-20 最新：[发版贡献与成员排序记录](docs/reviews/2026-11-20-publication-count-and-member-order.md)。团队列已改为“发版数/项目数”，使用 `published_version_count` / `published_project_count`，按当前版本的原上传者及项目去重统计；覆盖不累加，交接/停用/降级不改写统计归属，删除版本后减少。成员按主管理员、管理员、协作者、审阅人，再按加入时间升序、ID 升序排列。`item_count` 仍只供资产交接与删除保护。已完成 FTP 四文件回读及匿名 HTTPS 3/3 检查。
 

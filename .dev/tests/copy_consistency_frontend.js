@@ -195,10 +195,11 @@ const check = (name, condition) => { assert(condition, name); passed++; console.
   check('disabling watermark cancels interval timer', clearedTimers === 1);
 
   const modalsPhp = fs.readFileSync(path.join(__dirname, '../../includes/modals.php'), 'utf8');
-  check('company name hint removed from system settings', !modalsPhp.includes('留空显示“立象原型”'));
-  check('allowed email domains label combines optional tag and delimiter hint', modalsPhp.includes('选填。多个域名用逗号分隔；留空不限制') && !modalsPhp.includes('line-height:1.5;">多个域名用逗号分隔；留空不限制</div>'));
-  check('timezone options provide complete UTC-11 to UTC+12 scale', modalsPhp.includes('UTC-11 (中途岛 / 萨摩亚)') && modalsPhp.includes('UTC+8 (北京时间 / 中国标准时间)') && modalsPhp.includes('UTC+12 (斐济 / 马绍尔群岛 / 堪察加)'));
-  check('upload modal exposes concise append last changelog button', modalsPhp.includes('id="uploadLastLogBtn"') && modalsPhp.includes('appendUploadLastChangelog()') && modalsPhp.includes('上版日志'));
+  const zhCnPhp = fs.readFileSync(path.join(__dirname, '../../includes/lang/zh-CN.php'), 'utf8');
+  check('company name hint removed from system settings', !modalsPhp.includes('留空显示“立象原型”') && !zhCnPhp.includes('留空显示“立象原型”'));
+  check('allowed email domains label combines optional tag and delimiter hint', modalsPhp.includes("t('admin.settings.allowed_domains_tip')") && zhCnPhp.includes("'admin.settings.allowed_domains_tip' => '选填。多个域名用逗号分隔；留空不限制'") && !modalsPhp.includes('line-height:1.5;">多个域名用逗号分隔；留空不限制</div>'));
+  check('timezone options provide complete UTC-11 to UTC+12 scale', modalsPhp.includes("t('tz.' . $tzKey)") && zhCnPhp.includes('UTC-11 (中途岛 / 萨摩亚)') && zhCnPhp.includes('UTC+8 (北京时间 / 中国标准时间)') && zhCnPhp.includes('UTC+12 (斐济 / 马绍尔群岛 / 堪察加)'));
+  check('upload modal exposes concise append last changelog button', modalsPhp.includes('id="uploadLastLogBtn"') && modalsPhp.includes('appendUploadLastChangelog()') && modalsPhp.includes("t('admin.upload.append_last_log')") && zhCnPhp.includes("'admin.upload.append_last_log' => '上版日志'"));
 
   {
     const btnAttrs = {};

@@ -370,7 +370,10 @@ const asyncGuard = setTimeout(() => {
     check('admin.js user_handover 在控制中心内安全标记变动且不触发即时 reload',
         adminJs.includes("if (isAdminConsoleOpen()) {\n                markAdminConsoleChanged();\n            } else {\n                setTimeout(function() { window.location.reload(); }, 1200);"));
     check('admin.js 自动保存 queueAutoSave 成功时自动标记 adminConsoleChanged',
-        adminJs.includes("var actionLabel = action === 'save_role_permissions' ? '角色权限已保存' : '系统设置已保存';\n            showToast(actionLabel, 'success');\n            if (isAdminConsoleOpen()) {\n                markAdminConsoleChanged();\n            }"));
+        adminJs.includes("var actionLabel = action === 'save_role_permissions'")
+        && adminJs.includes("t('admin.roles.saved', null, '角色权限已保存')")
+        && adminJs.includes("t('admin.settings.saved', null, '系统设置已保存')")
+        && adminJs.includes("showToast(actionLabel, 'success');\n            if (isAdminConsoleOpen()) {\n                markAdminConsoleChanged();\n            }"));
 
     // 3. 同名文件夹分组识别与评审看板跨文件夹排序一致仿真
     check('modals.php 为发版下拉 optgroup 与评审看板 option 输出 data-cat-id',

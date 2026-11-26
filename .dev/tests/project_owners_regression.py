@@ -2,6 +2,7 @@
 """Real HTTP owner scope, version ownership and handover checks in a disposable install."""
 import argparse
 import json
+import re
 from html.parser import HTMLParser
 from pathlib import Path
 import sqlite3
@@ -120,14 +121,17 @@ def main():
         ok(admin, 'save_role_permissions', {'perm_editor_share': '0'})
         admin_home = admin.request('/index.php')[1].decode()
         editor_home = b.request('/index.php')[1].decode()
-        check('disabled editor sharing removes sharing from admin-facing copy', '<option value="all">所有协作者可管理版本</option>' in admin_home and '所有协作者可管理版本和分享' not in admin_home)
-        check('disabled editor sharing removes sharing from editor-facing copy', '<option value="selected">仅指定成员可管理版本</option>' in editor_home and '仅指定成员可管理版本和分享' not in editor_home)
+        admin_scope_select = re.search(r'<select id="itemCollaborationScope"[^>]*>(.*?)</select>', admin_home, re.S).group(1)
+        editor_scope_select = re.search(r'<select id="itemCollaborationScope"[^>]*>(.*?)</select>', editor_home, re.S).group(1)
+        check('disabled editor sharing removes sharing from admin-facing copy', '<option value="all">所有协作者可管理版本</option>' in admin_scope_select and '所有协作者可管理版本和分享' not in admin_scope_select)
+        check('disabled editor sharing removes sharing from editor-facing copy', '<option value="selected">仅指定成员可管理版本</option>' in editor_scope_select and '仅指定成员可管理版本和分享' not in editor_scope_select)
         check('disabled sharing also updates project tooltip', 'title="版本：所有协作者"' in admin_home)
         check('disabled editor sharing is still enforced by API', not b.api('item_save_share', {'id': open_id})['success'])
         check('administrator retains sharing privilege', admin.api('item_save_share', {'id': open_id})['success'])
         ok(admin, 'save_role_permissions', {'perm_editor_share': '1'})
         enabled_home = b.request('/index.php')[1].decode()
-        check('enabled editor sharing restores sharing copy and operation', '所有协作者可管理版本和分享' in enabled_home and b.api('item_save_share', {'id': open_id})['success'])
+        enabled_scope_select = re.search(r'<select id="itemCollaborationScope"[^>]*>(.*?)</select>', enabled_home, re.S).group(1)
+        check('enabled editor sharing restores sharing copy and operation', '所有协作者可管理版本和分享' in enabled_scope_select and b.api('item_save_share', {'id': open_id})['success'])
         version = publish(b, open_id, 'B version', rp=True)
         check('another collaborator can publish to open project', version > 0)
         check('first publication counts only for its uploader', publication_counts(ids['b']) == (1, 1) and publication_counts(ids['a']) == (0, 0) and publication_counts(int(admin.user['id'])) == (0, 0))

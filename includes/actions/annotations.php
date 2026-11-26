@@ -7,12 +7,12 @@ require_once __DIR__ . '/../collaboration.php';
 
 function requireAnnotationTarget($db, $itemId, $verId) {
     $item = Auth::getItem($itemId);
-    if (!$item) throw new DomainException('项目不存在');
+    if (!$item) throw new DomainException(t('api.anno.item_not_found'));
 
     // 外链项目：无版本代际，放行 verId = 0 并核验证权限
     if (($item['type'] ?? '') === 'link') {
         if (!Collaboration::canAccessAnnotations($item, null)) {
-            throw new DomainException('无权访问此项目的批注');
+            throw new DomainException(t('api.anno.no_access'));
         }
         return $item;
     }
@@ -20,10 +20,10 @@ function requireAnnotationTarget($db, $itemId, $verId) {
     $stmt = $db->prepare('SELECT * FROM versions WHERE item_id = ? AND id = ?');
     $stmt->execute([$itemId, $verId]);
     $version = $stmt->fetch();
-    if (!$version) throw new DomainException('版本不属于此项目或已删除');
+    if (!$version) throw new DomainException(t('api.anno.ver_mismatch'));
 
     if (!Collaboration::canAccessAnnotations($item, $version)) {
-        throw new DomainException('无权访问此项目的批注');
+        throw new DomainException(t('api.anno.no_access'));
     }
     return $item;
 }
@@ -41,7 +41,7 @@ switch ($action) {
         $current = PrototypeContext::version($verId);
         $item = Auth::getItem((int)$current['item_id']);
         if (!Collaboration::canAccessAnnotations($item, $current)) {
-            throw new DomainException('无权访问此项目的批注');
+            throw new DomainException(t('api.anno.no_access'));
         }
         $stmt = $db->prepare('SELECT * FROM versions WHERE item_id = ? AND id < ? ORDER BY id DESC LIMIT 1');
         $stmt->execute([$current['item_id'], $current['id']]);
@@ -66,22 +66,22 @@ switch ($action) {
         break;
     case 'review_annotation':
     case 'carry_annotation':
-        if (!Auth::canAnnotate()) throw new DomainException('无权操作批注');
+        if (!Auth::canAnnotate()) throw new DomainException(t('api.anno.no_op_perm'));
         $db->beginTransaction();
         try {
             $db->exec('UPDATE annotations SET id = id WHERE 0');
             $source = Collaboration::target((int)($_POST['id'] ?? 0));
             $annotation = $source['annotation'];
-            if ((int)$annotation['status'] !== 0) throw new DomainException('此批注已解决');
+            if ((int)$annotation['status'] !== 0) throw new DomainException(t('api.anno.already_resolved'));
             if ($action === 'review_annotation') {
                 $item = Auth::getItem($source['item_id']);
-                if (!Auth::canEditItem($item) && (int)$annotation['user_id'] !== (int)Auth::getCurrentUser()['id']) throw new DomainException('无权复核此批注');
+                if (!Auth::canEditItem($item) && (int)$annotation['user_id'] !== (int)Auth::getCurrentUser()['id']) throw new DomainException(t('api.anno.no_review_perm'));
                 $version = PrototypeContext::version($source['version_id']);
                 $db->prepare('UPDATE annotations SET reviewed_revision = ? WHERE id = ?')->execute([PrototypeContext::revision($version), $annotation['id']]);
                 $id = (int)$annotation['id'];
             } else {
                 $version = PrototypeContext::version((int)($_POST['ver_id'] ?? 0));
-                if ((int)$version['item_id'] !== $source['item_id'] || (int)$version['id'] <= $source['version_id']) throw new DomainException('只能引用同项目较早版本的批注');
+                if ((int)$version['item_id'] !== $source['item_id'] || (int)$version['id'] <= $source['version_id']) throw new DomainException(t('api.anno.carry_earlier_only'));
                 $stmt = $db->prepare('SELECT id FROM annotations WHERE ver_id = ? AND source_annotation_id = ?');
                 $stmt->execute([$version['id'], $annotation['id']]);
                 $id = (int)$stmt->fetchColumn();
@@ -94,7 +94,7 @@ switch ($action) {
             }
             $db->commit();
         } catch (Throwable $e) { if ($db->inTransaction()) $db->rollBack(); throw $e; }
-        jsonResponse(true, ['id' => $id], $action === 'review_annotation' ? '已确认仍需修改' : '已引用到当前版本');
+        jsonResponse(true, ['id' => $id], $action === 'review_annotation' ? t('api.anno.reviewed_ok') : t('api.anno.carried_ok'));
         break;
 
     case 'list_annotations':
@@ -104,7 +104,7 @@ switch ($action) {
         $pagePath = trim($_GET['page_path'] ?? $_POST['page_path'] ?? '');
         $statusFilter = trim($_GET['status'] ?? $_POST['status'] ?? 'all');
 
-        if ($itemId <= 0) jsonResponse(false, null, '缺少项目 ID');
+        if ($itemId <= 0) jsonResponse(false, null, t('api.anno.missing_item_id'));
 
         $targetItem = Auth::getItem($itemId);
         $isLink = ($targetItem && ($targetItem['type'] ?? '') === 'link');
@@ -196,8 +196,8 @@ switch ($action) {
         $pageTitle = trim($_POST['page_title'] ?? '');
         $content = trim($_POST['content'] ?? '');
 
-        if ($itemId <= 0) jsonResponse(false, null, '缺少项目 ID');
-        if (empty($content)) jsonResponse(false, null, '批注正文不能为空');
+        if ($itemId <= 0) jsonResponse(false, null, t('api.anno.missing_item_id'));
+        if (empty($content)) jsonResponse(false, null, t('api.anno.content_empty'));
 
         $targetItem = Auth::getItem($itemId);
         $isLink = ($targetItem && ($targetItem['type'] ?? '') === 'link');
@@ -210,28 +210,30 @@ switch ($action) {
         }
 
         requireAnnotationTarget($db, $itemId, $verId);
-        if (mb_strlen($pageTitle, 'UTF-8') > 200) jsonResponse(false, null, '页面名称最多 200 字符');
-        if (mb_strlen($pagePath, 'UTF-8') > 500) jsonResponse(false, null, '页面路径最多 500 字符');
-        if (mb_strlen($content, 'UTF-8') > 1000) jsonResponse(false, null, '批注内容最多 1000 字');
+        if (mb_strlen($pageTitle, 'UTF-8') > 200) jsonResponse(false, null, t('api.anno.page_title_len'));
+        if (mb_strlen($pagePath, 'UTF-8') > 500) jsonResponse(false, null, t('api.anno.page_path_len'));
+        if (mb_strlen($content, 'UTF-8') > 1000) jsonResponse(false, null, t('api.anno.content_len'));
 
         if ($curUser) {
-            if (!Auth::canAnnotate()) jsonResponse(false, null, '无权发表批注');
+            if (!Auth::canAnnotate()) jsonResponse(false, null, t('api.anno.no_create_perm'));
             $authorName = !empty($curUser['name']) ? $curUser['name'] : (!empty($curUser['display_name']) ? $curUser['display_name'] : $curUser['email']);
-            $authorDept = !empty($curUser['department']) ? $curUser['department'] : (!empty($curUser['apply_remark']) ? $curUser['apply_remark'] : ($curUser['role'] === 'admin' ? '管理员' : ($curUser['role'] === 'editor' ? '协作者' : '审阅人')));
+            $roleLabel = ($curUser['role'] === 'admin' ? t('common.role.admin') : ($curUser['role'] === 'editor' ? t('common.role.editor') : t('common.role.viewer')));
+            $authorDept = !empty($curUser['department']) ? $curUser['department'] : (!empty($curUser['apply_remark']) ? $curUser['apply_remark'] : $roleLabel);
             $userId = (int)$curUser['id'];
         } else {
-            if (!Auth::canGuestAnnotate()) jsonResponse(false, null, '未开放访客批注');
+            if (!Auth::canGuestAnnotate()) jsonResponse(false, null, t('api.anno.guest_disabled'));
             if (!Auth::checkThrottle('guest_anno_' . $itemId . '_' . ($_SERVER['REMOTE_ADDR'] ?? ''), 15, 60)) {
-                jsonResponse(false, null, '发表太频繁，请稍后再试');
+                jsonResponse(false, null, t('api.anno.create_throttle'));
             }
             $rawGuestName = trim($_POST['guest_name'] ?? '');
             $cleaned = mb_substr(preg_replace('/[\r\n\t]/', '', $rawGuestName), 0, 16, 'UTF-8');
-            if ($cleaned === '' || $cleaned === '外部访客' || $cleaned === '访客') {
-                $authorName = '[外部访客]';
+            $defaultGuestLabels = ['', '外部访客', '访客', '外部訪客', '訪客', 'External Guest', 'Guest', t('common.role.external_guest'), t('common.role.guest')];
+            if (in_array($cleaned, $defaultGuestLabels, true)) {
+                $authorName = t('api.anno.guest_prefix');
             } else {
-                $authorName = '[外部访客] ' . $cleaned;
+                $authorName = t('api.anno.guest_prefix_name', ['name' => $cleaned]);
             }
-            $authorDept = '访客';
+            $authorDept = t('common.role.guest');
             $userId = 0;
         }
 
@@ -275,7 +277,7 @@ switch ($action) {
                 $uStmt->closeCursor();
                 if (!empty($wbUrl)) {
                     Webhook::send($wbUrl, 'annotation_new', [
-                        'item_name' => $itemRow['name'] ?? '原型项目',
+                        'item_name' => $itemRow['name'] ?? t('api.anno.default_item_name'),
                         'page_title' => $pageTitle ?: $pagePath,
                         'author' => $authorName . ($authorDept ? " ({$authorDept})" : ""),
                         'content' => $content,
@@ -302,7 +304,7 @@ switch ($action) {
             'status' => 0,
             'created_at' => $createdTime,
             'replies' => []
-        ], '批注发布成功');
+        ], t('api.anno.created_ok'));
         break;
 
     case 'reply_annotation':
@@ -311,38 +313,40 @@ switch ($action) {
         $annoId = (int)($_POST['annotation_id'] ?? 0);
         $content = trim($_POST['content'] ?? '');
 
-        if ($annoId <= 0) jsonResponse(false, null, '缺少批注 ID');
-        if (empty($content)) jsonResponse(false, null, '回复正文不能为空');
-        if (mb_strlen($content, 'UTF-8') > 1000) jsonResponse(false, null, '回复内容最多 1000 字');
+        if ($annoId <= 0) jsonResponse(false, null, t('api.anno.missing_id'));
+        if (empty($content)) jsonResponse(false, null, t('api.anno.reply_empty'));
+        if (mb_strlen($content, 'UTF-8') > 1000) jsonResponse(false, null, t('api.anno.reply_len'));
 
         $checkStmt = $db->prepare("SELECT a.*, i.name as item_name, v.version_name FROM annotations a LEFT JOIN items i ON a.item_id = i.id LEFT JOIN versions v ON a.ver_id = v.id WHERE a.id = ?");
         $checkStmt->execute([$annoId]);
         $anno = $checkStmt->fetch();
         $checkStmt->closeCursor();
-        if (!$anno) jsonResponse(false, null, '未找到对应的批注');
+        if (!$anno) jsonResponse(false, null, t('api.anno.reply_target_missing'));
         requireAnnotationTarget($db, $anno['item_id'], $anno['ver_id']);
 
         if ($curUser) {
-            if (!Auth::canAnnotate()) jsonResponse(false, null, '无权回复批注');
+            if (!Auth::canAnnotate()) jsonResponse(false, null, t('api.anno.no_reply_perm'));
             $authorName = !empty($curUser['name']) ? $curUser['name'] : (!empty($curUser['display_name']) ? $curUser['display_name'] : $curUser['email']);
-            $authorDept = !empty($curUser['department']) ? $curUser['department'] : (!empty($curUser['apply_remark']) ? $curUser['apply_remark'] : ($curUser['role'] === 'admin' ? '管理员' : ($curUser['role'] === 'editor' ? '协作者' : '审阅人')));
+            $roleLabel = ($curUser['role'] === 'admin' ? t('common.role.admin') : ($curUser['role'] === 'editor' ? t('common.role.editor') : t('common.role.viewer')));
+            $authorDept = !empty($curUser['department']) ? $curUser['department'] : (!empty($curUser['apply_remark']) ? $curUser['apply_remark'] : $roleLabel);
             $userId = (int)$curUser['id'];
         } else {
-            if (!Auth::canGuestAnnotate()) jsonResponse(false, null, '未开放访客批注');
+            if (!Auth::canGuestAnnotate()) jsonResponse(false, null, t('api.anno.guest_disabled'));
             if (!Collaboration::canAccessAnnotationRecord($anno)) {
-                jsonResponse(false, null, '无权回复此批注');
+                jsonResponse(false, null, t('api.anno.no_reply_this_perm'));
             }
             if (!Auth::checkThrottle('guest_reply_' . $annoId . '_' . ($_SERVER['REMOTE_ADDR'] ?? ''), 15, 60)) {
-                jsonResponse(false, null, '回复太频繁，请稍后再试');
+                jsonResponse(false, null, t('api.anno.reply_throttle'));
             }
             $rawGuestName = trim($_POST['guest_name'] ?? '');
             $cleaned = mb_substr(preg_replace('/[\r\n\t]/', '', $rawGuestName), 0, 16, 'UTF-8');
-            if ($cleaned === '' || $cleaned === '外部访客' || $cleaned === '访客') {
-                $authorName = '[外部访客]';
+            $defaultGuestLabels = ['', '外部访客', '访客', '外部訪客', '訪客', 'External Guest', 'Guest', t('common.role.external_guest'), t('common.role.guest')];
+            if (in_array($cleaned, $defaultGuestLabels, true)) {
+                $authorName = t('api.anno.guest_prefix');
             } else {
-                $authorName = '[外部访客] ' . $cleaned;
+                $authorName = t('api.anno.guest_prefix_name', ['name' => $cleaned]);
             }
-            $authorDept = '访客';
+            $authorDept = t('common.role.guest');
             $userId = 0;
         }
 
@@ -363,7 +367,7 @@ switch ($action) {
                 $userWb = trim($uStmt->fetchColumn() ?: '');
                 if (!empty($userWb)) {
                     Webhook::send($userWb, 'annotation_reply', [
-                        'item_name' => $anno['item_name'] ?? '原型项目',
+                        'item_name' => $anno['item_name'] ?? t('api.anno.default_item_name'),
                         'version_name' => $anno['version_name'] ?? '',
                         'page_title' => $anno['page_title'] ?: $anno['page_path'],
                         'author' => $authorName,
@@ -383,31 +387,31 @@ switch ($action) {
             'author_dept' => $authorDept,
             'content' => $content,
             'created_at' => $replyCreatedTime
-        ], '回复成功');
+        ], t('api.anno.reply_ok'));
         break;
 
     case 'toggle_annotation_status':
-        if (!Auth::canAnnotate()) jsonResponse(false, null, '未登录或权限不足');
+        if (!Auth::canAnnotate()) jsonResponse(false, null, t('api.not_logged_in_or_perm'));
         $curUser = Auth::getCurrentUser();
 
         $annoId = (int)($_POST['id'] ?? 0);
-        if ($annoId <= 0) jsonResponse(false, null, '缺少批注 ID');
+        if ($annoId <= 0) jsonResponse(false, null, t('api.anno.missing_id'));
 
         $stmt = $db->prepare("SELECT * FROM annotations WHERE id = ?");
         $stmt->execute([$annoId]);
         $anno = $stmt->fetch();
         $stmt->closeCursor();
-        if (!$anno) jsonResponse(false, null, '未找到指定批注');
+        if (!$anno) jsonResponse(false, null, t('api.anno.not_found'));
         $annoItem = requireAnnotationTarget($db, $anno['item_id'], $anno['ver_id']);
 
         $isAuthor = ((int)$curUser['id'] === (int)$anno['user_id']);
         $canManageProject = Auth::canEditItem($annoItem);
         if (!$isAuthor && !$canManageProject) {
-            jsonResponse(false, null, '只有批注发起者或项目负责人可切换批注状态');
+            jsonResponse(false, null, t('api.anno.toggle_perm_only'));
         }
 
         $newStatus = ((int)$anno['status'] === 1) ? 0 : 1;
-        $resolverName = ($newStatus === 1) ? (!empty($curUser['name']) ? $curUser['name'] : ($curUser['email'] ?? '管理员')) : '';
+        $resolverName = ($newStatus === 1) ? (!empty($curUser['name']) ? $curUser['name'] : ($curUser['email'] ?? t('common.role.admin'))) : '';
         $resolvedAt = ($newStatus === 1) ? gmdate('Y-m-d H:i:s') : null;
 
         $updateStmt = $db->prepare("UPDATE annotations SET status = ?, resolved_by = ?, resolved_at = ? WHERE id = ?");
@@ -423,14 +427,14 @@ switch ($action) {
                     if (!empty($userWb)) {
                         $itemInfoStmt = $db->prepare("SELECT name FROM items WHERE id = ?");
                         $itemInfoStmt->execute([(int)$anno['item_id']]);
-                        $itemName = $itemInfoStmt->fetchColumn() ?: '原型项目';
+                        $itemName = $itemInfoStmt->fetchColumn() ?: t('api.anno.default_item_name');
                         $itemInfoStmt->closeCursor();
 
                         Webhook::send($userWb, 'annotation_resolve', [
                             'item_name' => $itemName,
                             'page_title' => $anno['page_title'] ?: $anno['page_path'],
                             'author' => $resolverName,
-                            'content' => "原批注：“{$anno['content']}” (已解决)",
+                            'content' => t('api.anno.resolved_webhook_body', ['content' => $anno['content']]),
                             'link' => Collaboration::link($annoId)
                         ]);
                     }
@@ -445,31 +449,31 @@ switch ($action) {
             'status' => $newStatus,
             'resolved_by' => $resolverName,
             'resolved_at' => $resolvedAt
-        ], $newStatus === 1 ? '已标记为已解决' : '已重新开启该批注');
+        ], $newStatus === 1 ? t('api.anno.marked_resolved') : t('api.anno.reopened'));
         break;
 
     case 'delete_annotation':
-        if (!Auth::canAnnotate()) jsonResponse(false, null, '未登录或权限不足');
+        if (!Auth::canAnnotate()) jsonResponse(false, null, t('api.not_logged_in_or_perm'));
         $curUser = Auth::getCurrentUser();
 
         $annoId = (int)($_POST['id'] ?? 0);
-        if ($annoId <= 0) jsonResponse(false, null, '缺少批注 ID');
+        if ($annoId <= 0) jsonResponse(false, null, t('api.anno.missing_id'));
 
         $stmt = $db->prepare("SELECT * FROM annotations WHERE id = ?");
         $stmt->execute([$annoId]);
         $anno = $stmt->fetch();
         $stmt->closeCursor();
-        if (!$anno) jsonResponse(false, null, '未找到指定批注');
+        if (!$anno) jsonResponse(false, null, t('api.anno.not_found'));
         $annoItem = requireAnnotationTarget($db, $anno['item_id'], $anno['ver_id']);
 
         $isAuthor = ((int)$curUser['id'] === (int)$anno['user_id']);
         if (!$isAuthor && !Auth::isAdmin()) {
-            jsonResponse(false, null, '只有批注发起者或管理员可以删除批注');
+            jsonResponse(false, null, t('api.anno.delete_perm_only'));
         }
 
         $db->prepare("DELETE FROM annotation_replies WHERE annotation_id = ?")->execute([$annoId]);
         $db->prepare("DELETE FROM annotations WHERE id = ?")->execute([$annoId]);
 
-        jsonResponse(true, ['id' => $annoId], '批注已成功删除');
+        jsonResponse(true, ['id' => $annoId], t('api.anno.deleted_ok'));
         break;
 }

@@ -75,8 +75,9 @@ def test_p3_backend():
     create_slice = auth_content[auth_content.find('public static function createUser('):auth_content.find('public static function updateUser(')]
     assert_check("P3-2: createUser 包含 Webhook::isAllowedUrl 白名单校验", "Webhook::isAllowedUrl($trimmedWb)" in create_slice)
     # P3-3
+    zh_cn_lang = open(os.path.join(ROOT, 'includes', 'lang', 'zh-CN.php'), 'r', encoding='utf-8').read()
     share_action = open(os.path.join(ROOT, 'includes', 'actions', 'shares.php'), 'r', encoding='utf-8').read()
-    assert_check("P3-3: item_rotate_share 失败时正确返回 success=false", "empty($newCode)" in share_action and "重置安全短链失败" in share_action)
+    assert_check("P3-3: item_rotate_share 失败时正确返回 success=false", "empty($newCode)" in share_action and "t('api.shares.rotate_fail')" in share_action and "'api.shares.rotate_fail' => '重置安全短链失败" in zh_cn_lang)
     # P3-4
     anno_action = open(os.path.join(ROOT, 'includes', 'actions', 'annotations.php'), 'r', encoding='utf-8').read()
     assert_check("P3-4: add_annotation 限制 pageTitle 200 字符", "mb_strlen($pageTitle, 'UTF-8') > 200" in anno_action)
@@ -99,14 +100,15 @@ def test_p3_backend():
     assert_check("Q6: includes/db.php 提供 DB::row 与 DB::value 结构化安全助手", "public static function row(" in db_php and "public static function value(" in db_php and "$stmt->closeCursor();" in db_php)
     assert_check("Q5: includes/auth.php 包含按账号维度的登录防爆限速与成功重置", "login_account_" in auth_content and "self::clearThrottle($accountThrottleScope, false);" in auth_content)
     action_auth = open(os.path.join(ROOT, 'includes', 'actions', 'auth.php'), 'r', encoding='utf-8').read()
-    assert_check("Q2: includes/actions/auth.php 统一已有账号提示防探测", "该邮箱已提交申请或已存在账号" in action_auth)
-    assert_check("Q1: includes/actions/annotations.php 强制外部访客署名前缀与可见性会话隔离", "[外部访客]" in anno_action and "$_SESSION['guest_anno_ids']" in anno_action and "!$curUser" in anno_action)
+    assert_check("Q2: includes/actions/auth.php 统一已有账号提示防探测", "t('api.auth.email_already_exists')" in action_auth and "该邮箱已提交申请或已存在账号" in zh_cn_lang)
+    assert_check("Q1: includes/actions/annotations.php 强制外部访客署名前缀与可见性会话隔离", "t('api.anno.guest_prefix')" in anno_action and "[外部访客]" in zh_cn_lang and "$_SESSION['guest_anno_ids']" in anno_action and "!$curUser" in anno_action)
 
 
 def test_p3_frontend():
     print("\n[*] P3 前端缺陷静态特征与语法核验")
+    zh_cn_lang = open(os.path.join(ROOT, 'includes', 'lang', 'zh-CN.php'), 'r', encoding='utf-8').read()
     anno_js = open(os.path.join(ROOT, 'assets', 'js', 'annotation.js'), 'r', encoding='utf-8').read()
-    assert_check("P3-8: deleteAnno 包含 window.confirm 兜底", "window.confirm('确定删除此批注及其全部回复？')" in anno_js)
+    assert_check("P3-8: deleteAnno 包含 window.confirm 兜底", "window.confirm(" in anno_js and "t('anno.delete_confirm'" in anno_js and "确定删除此批注及其全部回复？" in zh_cn_lang)
     assert_check("P3-8: toggleAnnoStatus 与 deleteAnno 补齐 .catch 错误处理", ".catch(function(err)" in anno_js)
 
     ver_js = open(os.path.join(ROOT, 'assets', 'js', 'ver-picker.js'), 'r', encoding='utf-8').read()

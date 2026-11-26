@@ -24,7 +24,7 @@ class ZipHandler {
             $clean = preg_replace('/[\x00-\x1F\x7F]+/', '', $norm);
         }
         $clean = trim((string)$clean);
-        if ($clean === '') return '(空路径)';
+        if ($clean === '') return t('api.zip.empty_path');
         if (function_exists('mb_strimwidth')) {
             return mb_strimwidth($clean, 0, 80, '...', 'UTF-8');
         }
@@ -40,26 +40,26 @@ class ZipHandler {
         $norm = str_replace('\\', '/', $raw);
         $label = self::formatZipEntryLabel($raw);
         if ($norm === '') {
-            return '压缩包内包含非法空路径条目，解压已中止';
+            return t('api.zip.illegal_empty_entry');
         }
         $isDir = substr($norm, -1) === '/';
         if ($isDir) $norm = rtrim($norm, '/');
         if ($norm === '') {
-            return '压缩包内包含非法空路径条目，解压已中止';
+            return t('api.zip.illegal_empty_entry');
         }
         if ($norm[0] === '/' || preg_match('#^[a-zA-Z]:/#', $norm)) {
-            return '压缩包内包含绝对路径「' . $label . '」，解压已中止';
+            return t('api.zip.abs_path', ['path' => $label]);
         }
         foreach (explode('/', $norm) as $seg) {
             if ($seg === '' || $seg === '.' || $seg === '..') {
-                return '压缩包内包含非法路径或路径穿越风险「' . $label . '」，解压已中止';
+                return t('api.zip.traversal', ['path' => $label]);
             }
             if ($seg[0] === '.') {
-                return '压缩包内包含隐藏文件或目录「' . $label . '」（请移除 .git / .DS_Store / .mimosa 等隐藏内容后重试），解压已中止';
+                return t('api.zip.hidden_entry', ['path' => $label]);
             }
         }
         if (!$isDir && in_array(strtolower(pathinfo($norm, PATHINFO_EXTENSION)), self::$blockedExtensions, true)) {
-            return '压缩包内包含不允许的服务端脚本文件「' . $label . '」，解压已中止';
+            return t('api.zip.script_entry', ['path' => $label]);
         }
         return null;
     }
@@ -758,7 +758,7 @@ EOD;
      */
     public static function extractZip($zipTmpPath, $targetDir, $baseRelPath) {
         if (!class_exists('ZipArchive')) {
-            return ['success' => false, 'message' => '服务器 PHP 未开启 ZipArchive 扩展'];
+            return ['success' => false, 'message' => t('api.zip.no_ext')];
         }
 
         // 严格硬核防御: 解压目标路径必须位于 PROTOTYPES_PATH 私有路径之下
@@ -772,19 +772,19 @@ EOD;
         $normTarget = $realTarget ? rtrim(str_replace('\\', '/', $realTarget), '/') . '/' : '';
 
         if (!$normTarget || !$normUploads || strpos($normTarget, $normUploads) !== 0) {
-            return ['success' => false, 'message' => '解压目标路径超出限制 (Target: ' . ($normTarget ?: 'false') . ', Uploads: ' . ($normUploads ?: 'false') . ')'];
+            return ['success' => false, 'message' => t('api.zip.target_out_of_bounds', ['target' => ($normTarget ?: 'false'), 'uploads' => ($normUploads ?: 'false')])];
         }
 
         $zip = new ZipArchive();
         $res = $zip->open($zipTmpPath);
         if ($res !== true) {
-            return ['success' => false, 'message' => '无法打开 ZIP 压缩包 (错误码: ' . $res . ')'];
+            return ['success' => false, 'message' => t('api.zip.open_fail', ['code' => $res])];
         }
 
         // 防 Zip 炸弹限制: 单包文件数与展开总体积上限 (Axure 原型正常上线一般在几十至数百MB)
         if ($zip->numFiles > 30000) {
             $zip->close();
-            return ['success' => false, 'message' => '压缩包内文件数量超过安全限制 (30,000个)，已中止解压'];
+            return ['success' => false, 'message' => t('api.zip.too_many_files')];
         }
 
         $maxUncompressedSize = 500 * 1024 * 1024; // 500MB
@@ -805,7 +805,7 @@ EOD;
                 $totalUncompressedSize += (int)$stat['size'];
                 if ($totalUncompressedSize > $maxUncompressedSize) {
                     $zip->close();
-                    return ['success' => false, 'message' => '压缩包展开后总体积超过 500MB 安全限制，已中止解压'];
+                    return ['success' => false, 'message' => t('api.zip.too_large')];
                 }
             }
 
@@ -815,7 +815,7 @@ EOD;
                 if ($zip->getExternalAttributesIndex($i, $opsys, $attr) && $opsys === 3) {
                     if ((($attr >> 16) & 0170000) === 0120000) {
                         $zip->close();
-                        return ['success' => false, 'message' => '压缩包内包含符号链接文件，解压已中止'];
+                        return ['success' => false, 'message' => t('api.zip.symlink')];
                     }
                 }
             }
@@ -824,13 +824,13 @@ EOD;
 
         if (empty($safeNames)) {
             $zip->close();
-            return ['success' => false, 'message' => '压缩包内没有可解压的文件'];
+            return ['success' => false, 'message' => t('api.zip.empty')];
         }
 
         // 仅解压通过校验的条目
         if (!$zip->extractTo($targetDir, $safeNames)) {
             $zip->close();
-            return ['success' => false, 'message' => '解压失败，请确认压缩包未损坏后重试'];
+            return ['success' => false, 'message' => t('api.zip.extract_fail')];
         }
         $zip->close();
 

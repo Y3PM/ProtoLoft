@@ -79,7 +79,7 @@ def main():
                         check(prefix + '群聊摘要标题同步', payload['markdown']['title'] == title)
                         check(prefix + '钉钉正文采用无圆点紧致左对齐', '\n- **' not in body)
                     check(prefix + '入口文案与链接正确', '[' + link_label + '](' + data['link'] + ')' in body)
-                check(prefix + '来源完整且只出现一次', body.count('来自 · 立象原型') == 1)
+                check(prefix + '来源完整且只出现一次', body.count('来自 · 立象原型 (ProtoLoft)') == 1)
                 check(prefix + '正文不重复项目字段', '**项目**' not in body)
                 check(prefix + '事件对应的字段标签正确', '**' + author_label + '**' in body and '**' + content_label + '**' in body)
                 version = data.get('version_name', '')
@@ -193,7 +193,7 @@ def main():
                 check(prefix + '标题为新成员申请待审批', body.startswith('### **新成员申请待审批**\n'))
                 check(prefix + '独立一行高亮链接正确', '[前往审批](' + expected_apply_link + ')' in body)
             check(prefix + '不含冗余项目行且保留申请人与申请角色', '**项目**' not in body and '**申请人**：新成员林七 \\(linqi@test.com\\)' in body and '**申请角色**：协作者' in body and '**部门或职务**：产品研发部' in body)
-            check(prefix + '底部保持纯文本来源落款', body.count('来自 · 立象原型') == 1 and '[立象原型](' not in body)
+            check(prefix + '底部保持纯文本来源落款', body.count('来自 · 立象原型 (ProtoLoft)') == 1 and '[立象原型](' not in body)
 
         # 多行无序列表更新说明：第一项必须位于独立行首，避免被标签前缀吞掉 Markdown 列表识别
         clear()

@@ -236,6 +236,13 @@ SUITES = [
         "cmd": ["node", str(TESTS_DIR / "profile_avatar_save_frontend_regression.js")],
         "needs_php": False,
         "type": "node"
+    },
+    {
+        "id": "i18n",
+        "name": "多语言引擎、三语词库完整性与全站语言切换闭环",
+        "cmd": ["python3", "-B", str(TESTS_DIR / "i18n_regression.py")],
+        "needs_php": True,
+        "type": "python"
     }
 ]
 

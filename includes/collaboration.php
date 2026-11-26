@@ -8,7 +8,7 @@ class Collaboration {
             $annotation['origin_outdated'] = false;
             $annotation['needs_review'] = false;
             $annotation['detail_url'] = self::link($annotation['id']);
-            $annotation['version_name'] = '外部链接';
+            $annotation['version_name'] = t('api.anno.ext_link_ver');
             $itemId = (int)$annotation['item_id'];
             if (!isset($editable[$itemId])) $editable[$itemId] = Auth::canEditItem(Auth::getItem($itemId));
             $annotation['can_review'] = $editable[$itemId] || (int)$annotation['user_id'] === (int)(Auth::getCurrentUser()['id'] ?? 0);
@@ -67,22 +67,22 @@ class Collaboration {
         $stmt->execute([(int)$id]);
         $annotation = $stmt->fetch();
         $stmt->closeCursor();
-        if (!$annotation) throw new DomainException('批注不存在或不可访问');
+        if (!$annotation) throw new DomainException(t('api.anno.missing_or_inaccessible'));
         $item = Auth::getItem((int)$annotation['item_id']);
-        if (!$item) throw new DomainException('批注不存在或不可访问');
+        if (!$item) throw new DomainException(t('api.anno.missing_or_inaccessible'));
 
         if (empty($annotation['ver_id'])) {
             if (!self::canAccessAnnotations($item, null) || !self::canAccessAnnotationRecord($annotation)) {
-                throw new DomainException('批注不存在或不可访问');
+                throw new DomainException(t('api.anno.missing_or_inaccessible'));
             }
             $annotation = self::decorate($annotation, null);
             return ['annotation' => $annotation, 'item_id' => (int)$annotation['item_id'], 'version_id' => 0,
-                'version_name' => '外部链接', 'page_url' => $item['link_url'] ?? ''];
+                'version_name' => t('api.anno.ext_link_ver'), 'page_url' => $item['link_url'] ?? ''];
         }
 
         $version = PrototypeContext::version($annotation['ver_id']);
         if (!self::canAccessAnnotations($item, $version) || !self::canAccessAnnotationRecord($annotation)) {
-            throw new DomainException('批注不存在或不可访问');
+            throw new DomainException(t('api.anno.missing_or_inaccessible'));
         }
         $annotation = self::decorate($annotation, $version);
         return ['annotation' => $annotation, 'item_id' => (int)$annotation['item_id'], 'version_id' => (int)$version['id'],

@@ -29,14 +29,14 @@ if ($isResetPage) {
 }
 $isSiteAuthorized = !empty($currentUser) && !$isResetPage;
 
-// 系统品牌固化 (立象原型 · 立象以尽意 · 披图而同心)
-$systemName = '立象原型';
-$systemSlogan = '立象以尽意 · 披图而同心';
-$siteFooter = '© ' . date('Y') . ' 立象原型 · 让想法可见，让协作清晰';
+// 系统品牌固化 (立象原型 / ProtoLoft)
+$systemName = I18n::brandName();
+$systemSlogan = I18n::brandSlogan();
+$siteFooter = I18n::brandFooter(date('Y'));
 
-// 获取企业名称定制 (选填: 若未配置则纯粹展示立象原型)
+// 获取企业名称定制 (选填: 若未配置则纯粹展示系统品牌)
 $companyName = Auth::getCompanyDisplayName();
-$siteTitle = !empty($companyName) ? ($companyName . ' · 立象原型') : '立象原型';
+$siteTitle = !empty($companyName) ? t('brand.with_company', ['company' => $companyName]) : $systemName;
 
 // 系统固定矢量 Favicon
 $siteFavicon = file_exists(ROOT_PATH . '/assets/images/favicon.svg') ? 'assets/images/favicon.svg' : 'assets/images/favicon.png';
@@ -60,19 +60,20 @@ if (!empty(trim($allowedDomainsSetting))) {
 // 2. 如果未通过全站访问密码验证，或携带密码重置令牌，渲染独立认证页
 if (!$isSiteAuthorized) {
     $initialAuthPane = $isResetPage ? 'reset' : 'login';
-    $loginBaseTitle = !empty($companyName) ? ($companyName . ' · 账号登录') : '账号登录';
+    $loginBaseTitle = !empty($companyName) ? t('auth.company_login_title', ['company' => $companyName]) : t('auth.login_title');
     $initialTitle = $loginBaseTitle;
     if ($isResetPage) {
-        $initialTitle = $resetFromFragment || $resetTokenInfo['valid'] ? '设置新密码' : '重置链接已失效';
+        $initialTitle = $resetFromFragment || $resetTokenInfo['valid'] ? t('auth.reset_title') : t('auth.reset_invalid_title');
     }
+    $authI18nCatalog = I18n::jsCatalog(['brand.', 'common.', 'auth.', 'pwd.']);
     ?>
     <!DOCTYPE html>
-    <html lang="zh-CN">
+    <html lang="<?php echo htmlspecialchars(I18n::htmlLang()); ?>">
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <meta name="csrf-token" content="<?php echo htmlspecialchars(get_csrf_token(), ENT_QUOTES, 'UTF-8'); ?>">
-        <title><?php echo htmlspecialchars(!empty($companyName) ? ($companyName . ' - 账号登录') : '立象原型 - 账号登录'); ?></title>
+        <title><?php echo htmlspecialchars(t('auth.page_title_login', ['brand' => !empty($companyName) ? $companyName : $systemName])); ?></title>
         <link rel="icon" href="<?php echo htmlspecialchars($favUrl); ?>" type="<?php echo $favType; ?>">
         <link rel="stylesheet" href="assets/css/remixicon.css">
         <link rel="stylesheet" href="assets/css/app.css?v=<?php echo APP_VERSION . '.' . filemtime(__DIR__ . '/assets/css/app.css'); ?>">
@@ -82,7 +83,7 @@ if (!$isSiteAuthorized) {
             <picture>
                 <source srcset="assets/images/logo.svg?v=<?php echo APP_VERSION; ?>" type="image/svg+xml">
                 <source srcset="assets/images/logo.webp?v=<?php echo APP_VERSION; ?>" type="image/webp">
-                <img src="assets/images/logo.png?v=<?php echo APP_VERSION; ?>" alt="立象原型" class="brand-logo" onerror="this.style.display='none'">
+                <img src="assets/images/logo.png?v=<?php echo APP_VERSION; ?>" alt="<?php echo htmlspecialchars($systemName); ?>" class="brand-logo" onerror="this.style.display='none'">
             </picture>
             <p class="brand-subtitle"><?php echo htmlspecialchars($systemSlogan); ?></p>
         </div>
@@ -94,88 +95,88 @@ if (!$isSiteAuthorized) {
             <form id="adminLoginForm" onsubmit="submitAdminLogin(event)" autocomplete="on" style="<?php echo $initialAuthPane === 'login' ? '' : 'display:none;'; ?>">
                 <div id="adminLoginSuccessTip" class="m-alert-tip is-success" style="display:none;"><i class="ri-checkbox-circle-fill" style="font-size:15px;color:var(--success);flex-shrink:0;"></i><span></span></div>
                 <div style="margin-bottom: 14px; position:relative; display:flex; align-items:center;">
-                    <input type="text" id="adminLoginUser" name="username" class="form-control" data-fixed-domain="<?php echo htmlspecialchars($fixedEmailDomain); ?>" placeholder="<?php echo $fixedEmailDomain ? '邮箱名' : '工作邮箱'; ?>" autocomplete="username" required maxlength="100" style="<?php echo $fixedEmailDomain ? ('padding-right:' . (mb_strlen($fixedEmailDomain)*8 + 32) . 'px;') : ''; ?>" oninput="handleLockEmailInput(this, 'adminDomainBadge')">
+                    <input type="text" id="adminLoginUser" name="username" class="form-control" data-fixed-domain="<?php echo htmlspecialchars($fixedEmailDomain); ?>" placeholder="<?php echo htmlspecialchars($fixedEmailDomain ? t('auth.email_prefix_placeholder') : t('auth.work_email')); ?>" autocomplete="username" required maxlength="100" style="<?php echo $fixedEmailDomain ? ('padding-right:' . (mb_strlen($fixedEmailDomain)*8 + 32) . 'px;') : ''; ?>" oninput="handleLockEmailInput(this, 'adminDomainBadge')">
                     <?php if ($fixedEmailDomain): ?>
                         <span id="adminDomainBadge" class="m-domain-badge">@<?php echo htmlspecialchars($fixedEmailDomain); ?></span>
                     <?php endif; ?>
                 </div>
                 <div class="pwd-input-wrap" style="margin-bottom: 18px;">
-                    <input type="password" id="adminLoginPwd" name="password" class="form-control" placeholder="登录密码" autocomplete="current-password" required maxlength="64">
-                    <button type="button" class="btn-eye-toggle" onclick="toggleLockPwd('adminLoginPwd', this)" title="显示/隐藏密码">
+                    <input type="password" id="adminLoginPwd" name="password" class="form-control" placeholder="<?php echo htmlspecialchars(t('auth.login_password_placeholder')); ?>" autocomplete="current-password" required maxlength="64">
+                    <button type="button" class="btn-eye-toggle" onclick="toggleLockPwd('adminLoginPwd', this)" title="<?php echo htmlspecialchars(t('auth.toggle_password')); ?>">
                         <i class="ri-eye-line"></i>
                     </button>
                 </div>
-                <button type="submit" class="btn-submit" id="btnAdminLogin">登录</button>
+                <button type="submit" class="btn-submit" id="btnAdminLogin"><?php echo htmlspecialchars(t('auth.login_btn')); ?></button>
                 <div class="error-tip" id="adminLoginError"></div>
                 <div class="auth-footer-links" id="authLoginFooter">
                     <?php if ($visitorRegEnabled): ?>
-                        <a href="javascript:void(0)" id="switchRegister" onclick="toggleAuthPane('reg')">申请加入协作</a>
+                        <a href="javascript:void(0)" id="switchRegister" onclick="toggleAuthPane('reg')"><?php echo htmlspecialchars(t('auth.apply_join_link')); ?></a>
                     <?php else: ?>
                         <span></span>
                     <?php endif; ?>
-                    <a href="javascript:void(0)" id="linkForgotPwd" class="auth-link-muted" onclick="toggleAuthPane('forgot')">忘记密码？</a>
+                    <a href="javascript:void(0)" id="linkForgotPwd" class="auth-link-muted" onclick="toggleAuthPane('forgot')"><?php echo htmlspecialchars(t('auth.forgot_link')); ?></a>
                 </div>
             </form>
 
             <?php if ($visitorRegEnabled): ?>
             <!-- 访客申请加入面板 (3+1 项极简模型) -->
             <form id="visitorRegForm" onsubmit="submitVisitorReg(event)" style="display:none;" novalidate>
-                <label class="m-label" for="regEmailInput">工作邮箱 <span class="req-star">*</span></label>
+                <label class="m-label" for="regEmailInput"><?php echo htmlspecialchars(t('auth.work_email')); ?> <span class="req-star">*</span></label>
                 <div style="margin-bottom: 10px;">
                     <div style="position:relative; display:flex; align-items:center;">
-                        <input type="text" id="regEmailInput" class="form-control" data-fixed-domain="<?php echo htmlspecialchars($fixedEmailDomain); ?>" placeholder="<?php echo $fixedEmailDomain ? '邮箱名' : '如：name@company.com'; ?>" autocomplete="email" required maxlength="100" data-error-target="regEmailError" aria-errormessage="regEmailError" style="<?php echo $fixedEmailDomain ? ('padding-right:' . (mb_strlen($fixedEmailDomain)*8 + 32) . 'px;') : ''; ?>" oninput="handleLockEmailInput(this, 'regLockDomainBadge')">
+                        <input type="text" id="regEmailInput" class="form-control" data-fixed-domain="<?php echo htmlspecialchars($fixedEmailDomain); ?>" placeholder="<?php echo htmlspecialchars($fixedEmailDomain ? t('auth.email_prefix_placeholder') : t('auth.email_example_placeholder')); ?>" autocomplete="email" required maxlength="100" data-error-target="regEmailError" aria-errormessage="regEmailError" style="<?php echo $fixedEmailDomain ? ('padding-right:' . (mb_strlen($fixedEmailDomain)*8 + 32) . 'px;') : ''; ?>" oninput="handleLockEmailInput(this, 'regLockDomainBadge')">
                         <?php if ($fixedEmailDomain): ?>
                             <span id="regLockDomainBadge" class="m-domain-badge">@<?php echo htmlspecialchars($fixedEmailDomain); ?></span>
                         <?php endif; ?>
                     </div>
                     <div class="field-error-tip" id="regEmailError" role="alert"></div>
                 </div>
-                <label class="m-label" for="regName">真实姓名 <span class="req-star">*</span></label>
+                <label class="m-label" for="regName"><?php echo htmlspecialchars(t('auth.real_name')); ?> <span class="req-star">*</span></label>
                 <div style="margin-bottom: 10px;">
-                    <input type="text" id="regName" class="form-control" placeholder="如：李明" required maxlength="20" data-error-target="regNameError" aria-errormessage="regNameError">
+                    <input type="text" id="regName" class="form-control" placeholder="<?php echo htmlspecialchars(t('auth.real_name_placeholder')); ?>" required maxlength="20" data-error-target="regNameError" aria-errormessage="regNameError">
                     <div class="field-error-tip" id="regNameError" role="alert"></div>
                 </div>
                 <div class="field-label-row">
-                    <label class="m-label" for="regPwdInput">登录密码 <span class="req-star">*</span></label>
+                    <label class="m-label" for="regPwdInput"><?php echo htmlspecialchars(t('auth.login_password')); ?> <span class="req-star">*</span></label>
                     <span class="password-strength" id="regPwdStrength" role="status"></span>
                 </div>
                 <div style="margin-bottom: 10px;">
                     <div class="pwd-input-wrap">
-                        <input type="password" id="regPwdInput" class="form-control" placeholder="至少 6 个字符" autocomplete="new-password" required data-password-strength="regPwdStrength" data-error-target="regPwdError" aria-describedby="regPwdStrength" aria-errormessage="regPwdError">
-                        <button type="button" class="btn-eye-toggle" onclick="toggleLockPwd('regPwdInput', this)" title="显示/隐藏密码">
+                        <input type="password" id="regPwdInput" class="form-control" placeholder="<?php echo htmlspecialchars(t('auth.password_min_placeholder')); ?>" autocomplete="new-password" required data-password-strength="regPwdStrength" data-error-target="regPwdError" aria-describedby="regPwdStrength" aria-errormessage="regPwdError">
+                        <button type="button" class="btn-eye-toggle" onclick="toggleLockPwd('regPwdInput', this)" title="<?php echo htmlspecialchars(t('auth.toggle_password')); ?>">
                             <i class="ri-eye-line"></i>
                         </button>
                     </div>
                     <div class="field-error-tip" id="regPwdError" role="alert"></div>
                 </div>
-                <div class="m-label">申请角色 <span class="req-star">*</span></div>
+                <div class="m-label"><?php echo htmlspecialchars(t('auth.apply_role')); ?> <span class="req-star">*</span></div>
                 <div class="reg-role-grid" style="margin-bottom: 10px;">
                     <label class="reg-role-card" for="lockRegRoleViewer">
                         <input type="radio" id="lockRegRoleViewer" name="lock_reg_role" value="viewer" checked>
                         <div class="reg-role-head">
-                            <span class="reg-role-title">审阅人</span>
+                            <span class="reg-role-title"><?php echo htmlspecialchars(t('common.role.viewer')); ?></span>
                             <span class="reg-role-check" aria-hidden="true"></span>
                         </div>
-                        <div class="reg-role-desc">查看与批注 · 研发/测试</div>
+                        <div class="reg-role-desc"><?php echo htmlspecialchars(t('auth.role_viewer_desc')); ?></div>
                     </label>
                     <label class="reg-role-card" for="lockRegRoleEditor">
                         <input type="radio" id="lockRegRoleEditor" name="lock_reg_role" value="editor">
                         <div class="reg-role-head">
-                            <span class="reg-role-title">协作者</span>
+                            <span class="reg-role-title"><?php echo htmlspecialchars(t('common.role.editor')); ?></span>
                             <span class="reg-role-check" aria-hidden="true"></span>
                         </div>
-                        <div class="reg-role-desc">上传与管理 · 产品/交互</div>
+                        <div class="reg-role-desc"><?php echo htmlspecialchars(t('auth.role_editor_desc')); ?></div>
                     </label>
                 </div>
-                <label class="m-label" for="regRemarkInput">部门或职务 <span class="opt-tag">选填</span></label>
+                <label class="m-label" for="regRemarkInput"><?php echo htmlspecialchars(t('auth.department')); ?> <span class="opt-tag"><?php echo htmlspecialchars(t('common.optional')); ?></span></label>
                 <div style="margin-bottom: 14px;">
-                    <input type="text" id="regRemarkInput" class="form-control" placeholder="如：研发部 · 前端工程师" maxlength="30">
+                    <input type="text" id="regRemarkInput" class="form-control" placeholder="<?php echo htmlspecialchars(t('auth.department_placeholder')); ?>" maxlength="30">
                 </div>
-                <button type="submit" class="btn-submit" id="btnVisitorReg">申请加入</button>
+                <button type="submit" class="btn-submit" id="btnVisitorReg"><?php echo htmlspecialchars(t('auth.submit_apply')); ?></button>
                 <div class="error-tip" id="regErrorTip"></div>
                 <div id="regSuccessTip" class="m-alert-tip is-success" style="display:none;margin-top:12px;"></div>
                 <div class="admin-login-link">
-                    <span>已有账号？</span><a href="javascript:void(0)" onclick="toggleAuthPane('login')">返回登录</a>
+                    <span><?php echo htmlspecialchars(t('auth.has_account')); ?></span><a href="javascript:void(0)" onclick="toggleAuthPane('login')"><?php echo htmlspecialchars(t('auth.back_to_login')); ?></a>
                 </div>
             </form>
             <?php endif; ?>
@@ -184,22 +185,22 @@ if (!$isSiteAuthorized) {
             <form id="forgotPwdForm" onsubmit="submitForgotPwd(event)" style="display:none;">
                 <?php if ($mailResetEnabled): ?>
                     <div id="forgotSuccessTip" class="m-alert-tip is-success" style="display:none;"><i class="ri-checkbox-circle-fill" style="font-size:15px;color:var(--success);flex-shrink:0;"></i><span></span></div>
-                    <label class="m-label" for="forgotEmailInput">工作邮箱</label>
+                    <label class="m-label" for="forgotEmailInput"><?php echo htmlspecialchars(t('auth.work_email')); ?></label>
                     <div style="margin-bottom: 16px; position:relative; display:flex; align-items:center;">
-                        <input type="text" id="forgotEmailInput" class="form-control" data-fixed-domain="<?php echo htmlspecialchars($fixedEmailDomain); ?>" placeholder="<?php echo $fixedEmailDomain ? '邮箱名' : '输入注册时的工作邮箱'; ?>" autocomplete="email" required maxlength="100" style="<?php echo $fixedEmailDomain ? ('padding-right:' . (mb_strlen($fixedEmailDomain)*8 + 32) . 'px;') : ''; ?>" oninput="handleLockEmailInput(this, 'forgotDomainBadge')">
+                        <input type="text" id="forgotEmailInput" class="form-control" data-fixed-domain="<?php echo htmlspecialchars($fixedEmailDomain); ?>" placeholder="<?php echo htmlspecialchars($fixedEmailDomain ? t('auth.email_prefix_placeholder') : t('auth.email_example_placeholder')); ?>" autocomplete="email" required maxlength="100" style="<?php echo $fixedEmailDomain ? ('padding-right:' . (mb_strlen($fixedEmailDomain)*8 + 32) . 'px;') : ''; ?>" oninput="handleLockEmailInput(this, 'forgotDomainBadge')">
                         <?php if ($fixedEmailDomain): ?>
                             <span id="forgotDomainBadge" class="m-domain-badge">@<?php echo htmlspecialchars($fixedEmailDomain); ?></span>
                         <?php endif; ?>
                     </div>
-                    <button type="submit" class="btn-submit" id="btnForgotSubmit">发送重置邮件</button>
+                    <button type="submit" class="btn-submit" id="btnForgotSubmit"><?php echo htmlspecialchars(t('auth.send_reset_mail')); ?></button>
                     <div class="error-tip" id="forgotErrorTip"></div>
                 <?php else: ?>
-                    <div class="auth-sub-note">暂未启用邮件找回，请联系管理员重置密码。</div>
-                    <button type="button" class="btn-submit" onclick="toggleAuthPane('login')">返回登录</button>
+                    <div class="auth-sub-note"><?php echo htmlspecialchars(t('auth.mail_reset_disabled')); ?></div>
+                    <button type="button" class="btn-submit" onclick="toggleAuthPane('login')"><?php echo htmlspecialchars(t('auth.back_to_login')); ?></button>
                 <?php endif; ?>
                 <?php if ($mailResetEnabled): ?>
                 <div class="admin-login-link">
-                    <a href="javascript:void(0)" onclick="toggleAuthPane('login')">返回登录</a>
+                    <a href="javascript:void(0)" onclick="toggleAuthPane('login')"><?php echo htmlspecialchars(t('auth.back_to_login')); ?></a>
                 </div>
                 <?php endif; ?>
             </form>
@@ -209,44 +210,44 @@ if (!$isSiteAuthorized) {
                 <?php if ($isResetPage): ?>
                 <div id="resetFields"<?php echo $resetTokenInfo['valid'] ? '' : ' hidden'; ?>>
                     <input type="hidden" id="resetTokenInput" value="<?php echo htmlspecialchars($resetTokenParam); ?>">
-                    <div class="auth-sub-note">账号：<strong id="resetMaskedEmail"><?php echo htmlspecialchars($resetTokenInfo['masked_email'] ?? ''); ?></strong></div>
+                    <div class="auth-sub-note"><?php echo htmlspecialchars(t('auth.account_label')); ?><strong id="resetMaskedEmail"><?php echo htmlspecialchars($resetTokenInfo['masked_email'] ?? ''); ?></strong></div>
                     <div class="field-label-row">
-                        <label class="m-label" for="resetNewPwdInput">新密码 <span class="req-star">*</span></label>
+                        <label class="m-label" for="resetNewPwdInput"><?php echo htmlspecialchars(t('auth.new_password')); ?> <span class="req-star">*</span></label>
                         <span class="password-strength" id="resetPwdStrength" role="status"></span>
                     </div>
                     <div style="margin-bottom: 12px;">
                         <div class="pwd-input-wrap">
-                            <input type="password" id="resetNewPwdInput" class="form-control" placeholder="至少 6 个字符" autocomplete="new-password" required data-password-strength="resetPwdStrength" data-error-target="resetNewPwdError" aria-describedby="resetPwdStrength" aria-errormessage="resetNewPwdError">
-                            <button type="button" class="btn-eye-toggle" onclick="toggleLockPwd('resetNewPwdInput', this)" title="显示/隐藏密码">
+                            <input type="password" id="resetNewPwdInput" class="form-control" placeholder="<?php echo htmlspecialchars(t('auth.password_min_placeholder')); ?>" autocomplete="new-password" required data-password-strength="resetPwdStrength" data-error-target="resetNewPwdError" aria-describedby="resetPwdStrength" aria-errormessage="resetNewPwdError">
+                            <button type="button" class="btn-eye-toggle" onclick="toggleLockPwd('resetNewPwdInput', this)" title="<?php echo htmlspecialchars(t('auth.toggle_password')); ?>">
                                 <i class="ri-eye-line"></i>
                             </button>
                         </div>
                         <div class="field-error-tip" id="resetNewPwdError" role="alert"></div>
                     </div>
-                    <label class="m-label" for="resetConfirmPwdInput">确认新密码 <span class="req-star">*</span></label>
+                    <label class="m-label" for="resetConfirmPwdInput"><?php echo htmlspecialchars(t('auth.confirm_new_password')); ?> <span class="req-star">*</span></label>
                     <div style="margin-bottom: 18px;">
                         <div class="pwd-input-wrap">
-                            <input type="password" id="resetConfirmPwdInput" class="form-control" placeholder="再次输入新密码" autocomplete="new-password" required data-error-target="resetConfirmPwdError" aria-describedby="resetConfirmPwdError">
-                            <button type="button" class="btn-eye-toggle" onclick="toggleLockPwd('resetConfirmPwdInput', this)" title="显示/隐藏密码">
+                            <input type="password" id="resetConfirmPwdInput" class="form-control" placeholder="<?php echo htmlspecialchars(t('auth.confirm_new_password_placeholder')); ?>" autocomplete="new-password" required data-error-target="resetConfirmPwdError" aria-describedby="resetConfirmPwdError">
+                            <button type="button" class="btn-eye-toggle" onclick="toggleLockPwd('resetConfirmPwdInput', this)" title="<?php echo htmlspecialchars(t('auth.toggle_password')); ?>">
                                 <i class="ri-eye-line"></i>
                             </button>
                         </div>
                         <div class="field-error-tip" id="resetConfirmPwdError" role="alert"></div>
                     </div>
-                    <button type="submit" class="btn-submit" id="btnResetSubmit">保存新密码</button>
+                    <button type="submit" class="btn-submit" id="btnResetSubmit"><?php echo htmlspecialchars(t('auth.save_new_password')); ?></button>
                     <div class="error-tip" id="resetErrorTip"></div>
                 </div>
                 <div id="resetLinkNotice"<?php echo $resetTokenInfo['valid'] ? ' hidden' : ''; ?>>
-                    <div class="auth-sub-note" role="status" id="resetLinkStatus"><?php echo htmlspecialchars($resetTokenInfo['message'] ?: ($resetFromFragment ? '正在验证重置链接…' : '重置链接无效或已过期，请重新申请。')); ?></div>
+                    <div class="auth-sub-note" role="status" id="resetLinkStatus"><?php echo htmlspecialchars($resetTokenInfo['message'] ?: ($resetFromFragment ? t('auth.verifying_reset_link') : t('auth.reset_link_invalid'))); ?></div>
                     <?php if ($mailResetEnabled): ?>
-                        <button type="button" class="btn-submit" onclick="toggleAuthPane('forgot')">重新找回</button>
+                        <button type="button" class="btn-submit" onclick="toggleAuthPane('forgot')"><?php echo htmlspecialchars(t('auth.retry_forgot')); ?></button>
                     <?php else: ?>
-                        <button type="button" class="btn-submit" onclick="toggleAuthPane('login')">返回登录</button>
+                        <button type="button" class="btn-submit" onclick="toggleAuthPane('login')"><?php echo htmlspecialchars(t('auth.back_to_login')); ?></button>
                     <?php endif; ?>
                 </div>
                 <?php endif; ?>
                 <div class="admin-login-link">
-                    <a href="javascript:void(0)" onclick="toggleAuthPane('login')">返回登录</a>
+                    <a href="javascript:void(0)" onclick="toggleAuthPane('login')"><?php echo htmlspecialchars(t('auth.back_to_login')); ?></a>
                 </div>
             </form>
         </div>
@@ -255,12 +256,17 @@ if (!$isSiteAuthorized) {
             <div class="standalone-footer"><?php echo htmlspecialchars($siteFooter); ?></div>
         <?php endif; ?>
 
+        <script>
+            window.__LOCALE__ = <?php echo json_encode(I18n::getLocale(), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>;
+            window.__I18N__ = <?php echo json_encode($authI18nCatalog, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_UNESCAPED_UNICODE); ?>;
+        </script>
+        <script src="assets/js/i18n.js?v=<?php echo APP_VERSION . '.' . filemtime(__DIR__ . '/assets/js/i18n.js'); ?>"></script>
         <script src="assets/js/password-strength.js?v=<?php echo filemtime(__DIR__ . '/assets/js/password-strength.js'); ?>" defer></script>
         <script>
             var authPane = <?php echo json_encode($initialAuthPane); ?>;
             var resetPage = <?php echo $isResetPage ? 'true' : 'false'; ?>;
             var visitorRegAllowed = <?php echo $visitorRegEnabled ? 'true' : 'false'; ?>;
-            var loginBaseTitle = <?php echo json_encode($loginBaseTitle); ?>;
+            var loginBaseTitle = <?php echo json_encode($loginBaseTitle, JSON_UNESCAPED_UNICODE); ?>;
 
             function toggleAuthPane(forceTarget) {
                 var target = forceTarget || ((authPane === 'login') ? 'reg' : 'login');
@@ -280,9 +286,9 @@ if (!$isSiteAuthorized) {
 
                 var panelTitle = document.getElementById('authPanelTitle');
                 if (panelTitle) {
-                    if (authPane === 'reg') panelTitle.innerText = '申请加入协作';
-                    else if (authPane === 'forgot') panelTitle.innerText = '找回密码';
-                    else if (authPane === 'reset') panelTitle.innerText = '设置新密码';
+                    if (authPane === 'reg') panelTitle.innerText = t('auth.register_title', null, '申请加入协作');
+                    else if (authPane === 'forgot') panelTitle.innerText = t('auth.forgot_title', null, '找回密码');
+                    else if (authPane === 'reset') panelTitle.innerText = t('auth.reset_title', null, '设置新密码');
                     else panelTitle.innerText = loginBaseTitle;
                 }
 
@@ -386,7 +392,7 @@ if (!$isSiteAuthorized) {
                 }
                 var status = document.getElementById('resetLinkStatus');
                 if (!match) {
-                    status.textContent = '重置链接无效或已过期，请重新申请。';
+                    status.textContent = t('auth.reset_link_invalid', null, '重置链接无效或已过期，请重新申请。');
                     return;
                 }
                 var token = match[1];
@@ -396,7 +402,7 @@ if (!$isSiteAuthorized) {
                 postLockApi(fd).then(function(response) { return response.json(); }).then(function(res) {
                     if (authPane !== 'reset') return;
                     if (!res.success) {
-                        status.textContent = res.message || '重置链接无效或已过期，请重新申请。';
+                        status.textContent = res.message || t('auth.reset_link_invalid', null, '重置链接无效或已过期，请重新申请。');
                         return;
                     }
                     document.getElementById('resetTokenInput').value = token;
@@ -405,7 +411,7 @@ if (!$isSiteAuthorized) {
                     document.getElementById('resetFields').hidden = false;
                     document.getElementById('resetNewPwdInput').focus();
                 }).catch(function() {
-                    status.textContent = '验证失败，请重新打开邮件中的链接。';
+                    status.textContent = t('auth.reset_verify_failed', null, '验证失败，请重新打开邮件中的链接。');
                 });
             }
 
@@ -427,18 +433,18 @@ if (!$isSiteAuthorized) {
 
                 var fixedDomain = emailInput ? (emailInput.getAttribute('data-fixed-domain') || '') : '';
                 if (!rawEmailVal) {
-                    if (typeof setFieldError === 'function') setFieldError(emailInput, null, '请输入工作邮箱');
-                    else { err.innerText = '请输入工作邮箱'; err.style.display = 'block'; if (emailInput) emailInput.focus(); }
+                    if (typeof setFieldError === 'function') setFieldError(emailInput, null, t('auth.enter_work_email', null, '请输入工作邮箱'));
+                    else { err.innerText = t('auth.enter_work_email', null, '请输入工作邮箱'); err.style.display = 'block'; if (emailInput) emailInput.focus(); }
                     return;
                 }
                 if (!fixedDomain && email.indexOf('@') === -1) {
-                    if (typeof setFieldError === 'function') setFieldError(emailInput, null, '请输入完整工作邮箱，如 name@company.com');
-                    else { err.innerText = '请输入完整工作邮箱，如 name@company.com'; err.style.display = 'block'; emailInput.focus(); }
+                    if (typeof setFieldError === 'function') setFieldError(emailInput, null, t('auth.enter_full_email', null, '请输入完整工作邮箱，如 name@company.com'));
+                    else { err.innerText = t('auth.enter_full_email', null, '请输入完整工作邮箱，如 name@company.com'); err.style.display = 'block'; emailInput.focus(); }
                     return;
                 }
                 if (!name) {
-                    if (typeof setFieldError === 'function') setFieldError(nameInput, null, '请输入真实姓名');
-                    else { err.innerText = '请输入真实姓名'; err.style.display = 'block'; if (nameInput) nameInput.focus(); }
+                    if (typeof setFieldError === 'function') setFieldError(nameInput, null, t('auth.enter_real_name', null, '请输入真实姓名'));
+                    else { err.innerText = t('auth.enter_real_name', null, '请输入真实姓名'); err.style.display = 'block'; if (nameInput) nameInput.focus(); }
                     return;
                 }
 
@@ -448,7 +454,7 @@ if (!$isSiteAuthorized) {
                 }
 
                 btn.disabled = true;
-                btn.innerText = '正在提交...';
+                btn.innerText = t('common.submitting', null, '正在提交...');
                 err.style.display = 'none';
 
                 var fd = new FormData();
@@ -463,7 +469,7 @@ if (!$isSiteAuthorized) {
                 .then(function(r) { return r.json(); })
                 .then(function(res) {
                     btn.disabled = false;
-                    btn.innerText = '申请加入';
+                    btn.innerText = t('auth.submit_apply', null, '申请加入');
                     if (res.success) {
                         // 重置注册表单并恢复域名徽标
                         document.getElementById('visitorRegForm').reset();
@@ -487,21 +493,21 @@ if (!$isSiteAuthorized) {
                         var succTip = document.getElementById('adminLoginSuccessTip');
                         if (succTip) {
                             var tipSpan = succTip.querySelector('span');
-                            if (tipSpan) tipSpan.innerText = res.message || '申请已提交，等待管理员审核后即可登录';
+                            if (tipSpan) tipSpan.innerText = res.message || t('auth.apply_submitted', null, '申请已提交，等待管理员审核后即可登录');
                             succTip.style.display = 'flex';
                         }
 
                         var pwdInput = document.getElementById('adminLoginPwd');
                         if (pwdInput) pwdInput.focus();
                     } else {
-                        err.innerText = res.message || '提交申请失败';
+                        err.innerText = res.message || t('auth.apply_failed', null, '提交申请失败');
                         err.style.display = 'block';
                     }
                 })
                 .catch(function() {
                     btn.disabled = false;
-                    btn.innerText = '申请加入';
-                    err.innerText = '网络异常，请重试';
+                    btn.innerText = t('auth.submit_apply', null, '申请加入');
+                    err.innerText = t('common.network_error', null, '网络异常，请重试');
                     err.style.display = 'block';
                 });
             }
@@ -516,14 +522,14 @@ if (!$isSiteAuthorized) {
 
                 var fixedDomain = emailInput ? (emailInput.getAttribute('data-fixed-domain') || '') : '';
                 if (!fixedDomain && email.indexOf('@') === -1) {
-                    err.innerText = '请输入完整工作邮箱，如 name@company.com';
+                    err.innerText = t('auth.enter_full_email', null, '请输入完整工作邮箱，如 name@company.com');
                     err.style.display = 'block';
                     emailInput.focus();
                     return;
                 }
 
                 btn.disabled = true;
-                btn.innerText = '登录中...';
+                btn.innerText = t('auth.logging_in', null, '登录中...');
                 err.style.display = 'none';
                 var succTip = document.getElementById('adminLoginSuccessTip');
                 if (succTip) succTip.style.display = 'none';
@@ -539,7 +545,7 @@ if (!$isSiteAuthorized) {
                         try {
                             return JSON.parse(text);
                         } catch(e) {
-                            throw new Error(text || ('服务响应异常 (HTTP ' + r.status + ')'));
+                            throw new Error(text || t('common.http_error', {status: r.status}, '服务响应异常 (HTTP ' + r.status + ')'));
                         }
                     });
                 })
@@ -547,17 +553,17 @@ if (!$isSiteAuthorized) {
                     if (res.success) {
                         window.location.reload();
                     } else {
-                        err.innerText = res.message || '登录失败，请重试';
+                        err.innerText = res.message || t('auth.login_failed', null, '登录失败，请重试');
                         err.style.display = 'block';
                         btn.disabled = false;
-                        btn.innerText = '登录';
+                        btn.innerText = t('auth.login_btn', null, '登录');
                     }
                 })
                 .catch(function(e) {
-                    err.innerText = (e && e.message) ? e.message : '网络异常，请重试';
+                    err.innerText = (e && e.message) ? e.message : t('common.network_error', null, '网络异常，请重试');
                     err.style.display = 'block';
                     btn.disabled = false;
-                    btn.innerText = '登录';
+                    btn.innerText = t('auth.login_btn', null, '登录');
                 });
             }
 
@@ -572,14 +578,14 @@ if (!$isSiteAuthorized) {
 
                 var fixedDomain = emailInput.getAttribute('data-fixed-domain') || '';
                 if (!fixedDomain && email.indexOf('@') === -1) {
-                    err.innerText = '请输入完整工作邮箱，如 name@company.com';
+                    err.innerText = t('auth.enter_full_email', null, '请输入完整工作邮箱，如 name@company.com');
                     err.style.display = 'block';
                     emailInput.focus();
                     return;
                 }
 
                 btn.disabled = true;
-                btn.innerText = '发送中...';
+                btn.innerText = t('common.sending', null, '发送中...');
                 err.style.display = 'none';
                 if (succ) succ.style.display = 'none';
 
@@ -591,22 +597,22 @@ if (!$isSiteAuthorized) {
                 .then(function(r) { return r.json(); })
                 .then(function(res) {
                     btn.disabled = false;
-                    btn.innerText = '发送重置邮件';
+                    btn.innerText = t('auth.send_reset_mail', null, '发送重置邮件');
                     if (res.success) {
                         if (succ) {
                             var tipSpan = succ.querySelector('span');
-                            if (tipSpan) tipSpan.innerText = res.message || '如果该邮箱已注册且状态正常，你将收到密码重置邮件';
+                            if (tipSpan) tipSpan.innerText = res.message || t('auth.reset_sent_tip', null, '如果该邮箱已注册且状态正常，你将收到密码重置邮件');
                             succ.style.display = 'flex';
                         }
                     } else {
-                        err.innerText = res.message || '发送失败，请重试';
+                        err.innerText = res.message || t('auth.send_failed', null, '发送失败，请重试');
                         err.style.display = 'block';
                     }
                 })
                 .catch(function() {
                     btn.disabled = false;
-                    btn.innerText = '发送重置邮件';
-                    err.innerText = '网络异常，请重试';
+                    btn.innerText = t('auth.send_reset_mail', null, '发送重置邮件');
+                    err.innerText = t('common.network_error', null, '网络异常，请重试');
                     err.style.display = 'block';
                 });
             }
@@ -627,10 +633,10 @@ if (!$isSiteAuthorized) {
                     return;
                 }
                 if (typeof showPasswordMismatchError === 'function'
-                    ? showPasswordMismatchError(newEl, confirmEl, null, '两次输入的新密码不一致')
+                    ? showPasswordMismatchError(newEl, confirmEl, null, t('auth.password_mismatch', null, '两次输入的新密码不一致'))
                     : (newPwd !== confirmPwd)) {
                     if (typeof showPasswordMismatchError !== 'function') {
-                        err.innerText = '两次输入的新密码不一致';
+                        err.innerText = t('auth.password_mismatch', null, '两次输入的新密码不一致');
                         err.style.display = 'block';
                         confirmEl.focus();
                     } else {
@@ -640,7 +646,7 @@ if (!$isSiteAuthorized) {
                 }
 
                 btn.disabled = true;
-                btn.innerText = '保存中...';
+                btn.innerText = t('common.saving', null, '保存中...');
                 err.style.display = 'none';
 
                 var fd = new FormData();
@@ -653,7 +659,7 @@ if (!$isSiteAuthorized) {
                 .then(function(r) { return r.json(); })
                 .then(function(res) {
                     btn.disabled = false;
-                    btn.innerText = '保存新密码';
+                    btn.innerText = t('auth.save_new_password', null, '保存新密码');
                     if (res.success) {
                         newEl.value = '';
                         confirmEl.value = '';
@@ -673,7 +679,7 @@ if (!$isSiteAuthorized) {
                         var succTip = document.getElementById('adminLoginSuccessTip');
                         if (succTip) {
                             var tipSpan = succTip.querySelector('span');
-                            if (tipSpan) tipSpan.innerText = res.message || '密码已重置，请使用新密码登录';
+                            if (tipSpan) tipSpan.innerText = res.message || t('auth.reset_success', null, '密码已重置，请使用新密码登录');
                             succTip.style.display = 'flex';
                         }
                         var pwdInput = document.getElementById('adminLoginPwd');
@@ -682,14 +688,14 @@ if (!$isSiteAuthorized) {
                             pwdInput.focus();
                         }
                     } else {
-                        err.innerText = res.message || '重置失败，请重试';
+                        err.innerText = res.message || t('auth.reset_failed', null, '重置失败，请重试');
                         err.style.display = 'block';
                     }
                 })
                 .catch(function() {
                     btn.disabled = false;
-                    btn.innerText = '保存新密码';
-                    err.innerText = '网络异常，请重试';
+                    btn.innerText = t('auth.save_new_password', null, '保存新密码');
+                    err.innerText = t('common.network_error', null, '网络异常，请重试');
                     err.style.display = 'block';
                 });
             }
@@ -754,7 +760,7 @@ foreach ($cats as $cat) {
 }
 ?>
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="<?php echo htmlspecialchars(I18n::htmlLang()); ?>">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -778,35 +784,35 @@ foreach ($cats as $cat) {
     <div class="workspace-sidebar" id="sidebar">
         <div class="sidebar-header">
             <div class="site-brand">
-                <img src="assets/images/logo-icon.svg?v=<?php echo APP_VERSION; ?>" alt="立象原型" onerror="this.style.display='none'">
+                <img src="assets/images/logo-icon.svg?v=<?php echo APP_VERSION; ?>" alt="<?php echo htmlspecialchars($systemName); ?>" onerror="this.style.display='none'">
                 <?php if (!empty($companyName)): ?>
                     <span class="brand-company-name" title="<?php echo htmlspecialchars($companyName); ?>"><?php echo htmlspecialchars($companyName); ?></span>
                 <?php else: ?>
-                    <span>立象原型</span>
+                    <span><?php echo htmlspecialchars($systemName); ?></span>
                 <?php endif; ?>
             </div>
             <?php if ($canManage): ?>
                 <div class="quick-add-wrap" id="quickAddWrap">
-                    <button class="btn-act duo-hover-btn" id="btnQuickAdd" data-duo-icon="plus-square" onclick="toggleQuickAddMenu(event)" title="快速创建">
+                    <button class="btn-act duo-hover-btn" id="btnQuickAdd" data-duo-icon="plus-square" onclick="toggleQuickAddMenu(event)" title="<?php echo htmlspecialchars(t('workspace.quick_add')); ?>">
                         <i class="ri-add-line duo-rest-icon" style="font-size:18px;"></i>
                     </button>
                     <div class="quick-add-menu" id="quickAddMenu" onclick="event.stopPropagation()">
                         <button type="button" class="quick-add-item" onclick="closeQuickAddMenu();openQuickUploadModal();">
                             <span class="duo-icon-slot" data-duo-icon="cloud-upload"><i class="ri-upload-cloud-line duo-rest-icon" style="color:var(--primary);"></i></span>
-                            <span>发布版本</span>
+                            <span><?php echo htmlspecialchars(t('workspace.publish_version')); ?></span>
                         </button>
                         <button type="button" class="quick-add-item" onclick="closeQuickAddMenu();openQuickItemModal('project');">
                             <span class="duo-icon-slot" data-duo-icon="file-text"><i class="ri-pages-line duo-rest-icon"></i></span>
-                            <span>新建项目</span>
+                            <span><?php echo htmlspecialchars(t('workspace.new_project')); ?></span>
                         </button>
                         <button type="button" class="quick-add-item" onclick="closeQuickAddMenu();openQuickItemModal('link');">
                             <span class="duo-icon-slot" data-duo-icon="link"><i class="ri-links-line duo-rest-icon"></i></span>
-                            <span>新建链接</span>
+                            <span><?php echo htmlspecialchars(t('workspace.new_link')); ?></span>
                         </button>
                         <div class="quick-add-divider"></div>
                         <button type="button" class="quick-add-item" onclick="closeQuickAddMenu();openCategoryModal();">
                             <span class="duo-icon-slot" data-duo-icon="folder-plus"><i class="ri-folder-add-line duo-rest-icon"></i></span>
-                            <span>新建文件夹</span>
+                            <span><?php echo htmlspecialchars(t('workspace.new_folder')); ?></span>
                         </button>
                     </div>
                 </div>
@@ -815,8 +821,8 @@ foreach ($cats as $cat) {
 
         <div class="search-wrap">
             <i class="ri-search-line search-icon"></i>
-            <input type="text" class="search-input" id="searchKeyword" placeholder="搜索项目或版本..." oninput="handleSearch(this.value)" onkeydown="if(event.key==='Escape')clearSearch()">
-            <button type="button" class="search-clear-btn" id="searchClearBtn" onclick="clearSearch()" title="清空搜索" style="display:none;">
+            <input type="text" class="search-input" id="searchKeyword" placeholder="<?php echo htmlspecialchars(t('workspace.search_placeholder')); ?>" oninput="handleSearch(this.value)" onkeydown="if(event.key==='Escape')clearSearch()">
+            <button type="button" class="search-clear-btn" id="searchClearBtn" onclick="clearSearch()" title="<?php echo htmlspecialchars(t('workspace.clear_search')); ?>" style="display:none;">
                 <i class="ri-close-line"></i>
             </button>
         </div>
@@ -825,17 +831,17 @@ foreach ($cats as $cat) {
         <div class="sidebar-menu" id="categoryTree">
             <div id="searchEmptyState" class="search-empty-state" style="display:none;">
                 <i class="ri-search-line"></i>
-                <span>搜了个寂寞，是不是敲错字了？</span>
-                <button type="button" class="search-empty-clear-btn" onclick="clearSearch()">清空搜索</button>
+                <span><?php echo htmlspecialchars(t('workspace.search_empty')); ?></span>
+                <button type="button" class="search-empty-clear-btn" onclick="clearSearch()"><?php echo htmlspecialchars(t('workspace.clear_search')); ?></button>
             </div>
             <?php if ($sidebarVisibleCats === 0): ?>
                 <div class="sidebar-empty-box">
                     <div class="sidebar-empty-icon"><i class="ri-folder-add-line"></i></div>
-                    <div class="sidebar-empty-title"><?php echo $canManage ? '目录树空空如也' : '空空如也'; ?></div>
-                    <div class="sidebar-empty-desc"><?php echo $canManage ? '建个文件夹治愈强迫症' : '产品经理还在疯狂赶稿中…'; ?></div>
+                    <div class="sidebar-empty-title"><?php echo htmlspecialchars($canManage ? t('workspace.sidebar_empty_title_mgr') : t('workspace.sidebar_empty_title_view')); ?></div>
+                    <div class="sidebar-empty-desc"><?php echo htmlspecialchars($canManage ? t('workspace.sidebar_empty_desc_mgr') : t('workspace.sidebar_empty_desc_view')); ?></div>
                     <?php if ($canManage): ?>
                         <button type="button" class="sidebar-empty-btn" onclick="openCategoryModal()">
-                            <span class="duo-icon-slot" data-duo-icon="folder-plus"><i class="ri-folder-add-line duo-rest-icon"></i></span> 新建文件夹
+                            <span class="duo-icon-slot" data-duo-icon="folder-plus"><i class="ri-folder-add-line duo-rest-icon"></i></span> <?php echo htmlspecialchars(t('workspace.new_folder')); ?>
                         </button>
                     <?php endif; ?>
                 </div>
@@ -861,7 +867,7 @@ foreach ($cats as $cat) {
                         <?php if ($canManage && empty($items)): ?>
                             <li class="empty-folder-item" style="padding:6px 10px 6px 30px;font-size:11.5px;color:var(--text-4);user-select:none;display:flex;align-items:center;gap:4px;">
                                 <i class="ri-inbox-line" style="font-size:12px;opacity:0.6;"></i>
-                                <span>暂无项目</span>
+                                <span><?php echo htmlspecialchars(t('workspace.no_items')); ?></span>
                             </li>
                         <?php else: ?>
                         <?php foreach ($items as $it): ?>
@@ -875,7 +881,7 @@ foreach ($cats as $cat) {
                                 $defaultVer = $it['versions'][0];
                             }
 
-                            $isShareDisabled = Auth::isItemShareDisabled($it['id']);
+                            $isShareDisabled = ($it['type'] === 'project') && Auth::isItemShareDisabled($it['id']);
                             $canEditThisItem = Auth::canEditItem($it, $currentUser);
                             $canDeleteThisItem = Auth::canDeleteItem($it, $currentUser);
                             ?>
@@ -905,17 +911,17 @@ foreach ($cats as $cat) {
                                     <i class="<?php echo $it['type'] === 'link' ? 'ri-external-link-line' : 'ri-pages-line'; ?> item-icon"></i>
                                     <span class="item-title" title="<?php echo htmlspecialchars($it['name']); ?>"><?php echo htmlspecialchars($it['name']); ?></span>
                                     <?php if ($it['is_visible'] == 0): ?>
-                                        <i class="ri-eye-off-line" style="font-size:12px;color:var(--warning);opacity:0.8;margin-left:2px;" title="已隐藏"></i>
+                                        <i class="ri-eye-off-line item-status-icon is-hidden-flag" title="<?php echo htmlspecialchars(t('workspace.hidden_tip')); ?>"></i>
                                     <?php endif; ?>
                                     <?php if ($isShareDisabled): ?>
-                                        <i class="ri-forbid-line" style="font-size:12px;color:var(--text-3);opacity:0.7;margin-left:2px;" title="分享已停用"></i>
+                                        <i class="ri-forbid-line item-status-icon is-share-off" title="<?php echo htmlspecialchars(t('workspace.share_disabled_tip')); ?>"></i>
                                     <?php endif; ?>
                                 </div>
 
                                 <!-- 侧栏原地操作收敛: 仅保留核心高频发版，设为隐藏与删除等统一收归控制台项目管理 -->
                                 <?php if ($canManage && $it['type'] === 'project' && $canEditThisItem): ?>
                                     <div class="admin-controls" onclick="event.stopPropagation()">
-                                        <button class="btn-act duo-hover-btn" data-duo-icon="cloud-upload" onclick="openUploadModal(<?php echo $it['id']; ?>, '<?php echo htmlspecialchars(addslashes($it['name'])); ?>')" title="发布版本"><i class="ri-upload-cloud-line duo-rest-icon"></i></button>
+                                        <button class="btn-act duo-hover-btn" data-duo-icon="cloud-upload" onclick="openUploadModal(<?php echo $it['id']; ?>, '<?php echo htmlspecialchars(addslashes($it['name'])); ?>')" title="<?php echo htmlspecialchars(t('workspace.publish_version')); ?>"><i class="ri-upload-cloud-line duo-rest-icon"></i></button>
                                     </div>
                                 <?php endif; ?>
                             </li>
@@ -933,18 +939,18 @@ foreach ($cats as $cat) {
                 <div style="display:flex;align-items:center;justify-content:space-between;width:100%;">
                     <button type="button" class="user-badge" style="min-width:0;max-width:calc(100% - 68px);" onclick="openProfileModal()">
                         <i class="ri-user-smile-line" style="color:var(--primary);flex-shrink:0;"></i>
-                        <?php $showName = !empty($currentUser['name']) ? $currentUser['name'] : (!empty($currentUser['email']) ? $currentUser['email'] : '用户'); ?>
+                        <?php $showName = !empty($currentUser['name']) ? $currentUser['name'] : (!empty($currentUser['email']) ? $currentUser['email'] : t('common.user_default')); ?>
                         <span style="font-weight:600;text-overflow:ellipsis;overflow:hidden;white-space:nowrap;" title="<?php echo htmlspecialchars($currentUser['email'] ?? ''); ?>"><?php echo htmlspecialchars($showName); ?></span>
-                        <span class="badge-tag <?php echo !empty($currentUser['is_owner']) ? 'badge-role-owner' : ($isAdmin ? 'badge-role-admin' : ($canManage ? 'badge-role-editor' : 'badge-role-viewer')); ?>" style="flex-shrink:0;"><?php echo !empty($currentUser['is_owner']) ? '主管理员' : ($isAdmin ? '管理员' : ($canManage ? '协作者' : '审阅人')); ?></span>
+                        <span class="badge-tag <?php echo !empty($currentUser['is_owner']) ? 'badge-role-owner' : ($isAdmin ? 'badge-role-admin' : ($canManage ? 'badge-role-editor' : 'badge-role-viewer')); ?>" style="flex-shrink:0;"><?php echo htmlspecialchars(!empty($currentUser['is_owner']) ? t('common.role.owner') : ($isAdmin ? t('common.role.admin') : ($canManage ? t('common.role.editor') : t('common.role.viewer')))); ?></span>
                     </button>
                     <div style="display:flex;align-items:center;gap:4px;flex-shrink:0;">
                         <?php if ($canManage): ?>
-                            <button class="btn-act duo-hover-btn" data-duo-icon="settings" onclick="openAdminConsole()" title="控制中心" style="position:relative;">
+                            <button class="btn-act duo-hover-btn" data-duo-icon="settings" onclick="openAdminConsole()" title="<?php echo htmlspecialchars(t('workspace.admin_console')); ?>" style="position:relative;">
                                 <i class="ri-settings-3-line duo-rest-icon"></i>
                                 <span id="adminSettingsDot" style="<?php echo ($isAdmin && $pendingUserCount > 0) ? '' : 'display:none;'; ?>position:absolute;top:4px;right:4px;width:7px;height:7px;background-color:var(--danger);border-radius:50%;border:1.5px solid var(--surface);pointer-events:none;z-index:2;"></span>
                             </button>
                         <?php endif; ?>
-                        <button class="btn-act duo-hover-btn" data-duo-icon="log-out" onclick="doLogout()" title="退出登录">
+                        <button class="btn-act duo-hover-btn" data-duo-icon="log-out" onclick="doLogout()" title="<?php echo htmlspecialchars(t('auth.logout_tooltip')); ?>">
                             <i class="ri-logout-box-r-line duo-rest-icon"></i>
                         </button>
                     </div>
@@ -957,29 +963,29 @@ foreach ($cats as $cat) {
     <div class="workspace-main">
         <div class="top-navbar">
             <div class="prototype-meta" style="position:relative;">
-                <span class="current-proto-title" id="barTitle">未选择项目</span>
+                <span class="current-proto-title" id="barTitle"><?php echo htmlspecialchars(t('workspace.no_project_selected')); ?></span>
                 <span class="current-ver-tag" id="barVer" style="display:none;"></span>
                 <div class="ver-picker-wrap" id="barVerPickerWrap" style="display:none;">
                     <select class="top-ver-select" id="barVerSelect" style="display:none;" onchange="onTopVersionChange(this)"></select>
                 </div>
                 <div class="top-changelog-wrap" id="barChangelogWrap" style="display:none;">
-                    <button type="button" class="btn-top-changelog" id="barChangelogBtn" onclick="toggleTopChangelog(this)" title="查看更新日志">
-                        <span class="duo-icon-slot" data-duo-icon="file-text"><i class="ri-file-list-2-line duo-rest-icon"></i></span> 日志
+                    <button type="button" class="btn-top-changelog" id="barChangelogBtn" onclick="toggleTopChangelog(this)" title="<?php echo htmlspecialchars(t('workspace.view_changelog')); ?>">
+                        <span class="duo-icon-slot" data-duo-icon="file-text"><i class="ri-file-list-2-line duo-rest-icon"></i></span> <?php echo htmlspecialchars(t('workspace.log_short')); ?>
                     </button>
                     <div class="top-changelog-popover" id="topChangelogPopover" style="display:none;" onclick="event.stopPropagation()">
                         <div class="top-changelog-head">
                             <div class="top-changelog-head-left">
-                                <span class="top-changelog-title"><i class="ri-file-list-2-line" style="color:var(--primary);"></i> 更新日志</span>
+                                <span class="top-changelog-title"><i class="ri-file-list-2-line" style="color:var(--primary);"></i> <?php echo htmlspecialchars(t('workspace.changelog')); ?></span>
                                 <span class="top-changelog-ver" id="topChangelogVerName"></span>
                             </div>
-                            <button type="button" class="close-x" onclick="toggleTopChangelog(false)" title="关闭 (ESC)"><i class="ri-close-line"></i></button>
+                            <button type="button" class="close-x" onclick="toggleTopChangelog(false)" title="<?php echo htmlspecialchars(t('common.close_esc')); ?>"><i class="ri-close-line"></i></button>
                         </div>
                         <div class="top-changelog-body" id="topChangelogBody"></div>
                     </div>
                 </div>
                 <?php if ($canManage): ?>
-                <button type="button" class="btn-top-ver-manage" id="barBtnVerManage" style="display:none;" onclick="openCurrentVersionManage()" title="管理此项目的历史版本与底稿">
-                    <span class="duo-icon-slot" data-duo-icon="history"><i class="ri-history-line duo-rest-icon"></i></span> 版本
+                <button type="button" class="btn-top-ver-manage" id="barBtnVerManage" style="display:none;" onclick="openCurrentVersionManage()" title="<?php echo htmlspecialchars(t('workspace.manage_ver_title')); ?>">
+                    <span class="duo-icon-slot" data-duo-icon="history"><i class="ri-history-line duo-rest-icon"></i></span> <?php echo htmlspecialchars(t('workspace.ver_short')); ?>
                 </button>
                 <?php endif; ?>
                 <span class="current-proto-author" id="barAuthor" style="display:none;"></span>
@@ -989,26 +995,26 @@ foreach ($cats as $cat) {
             <div class="top-actions">
                 <!-- RP 源文件一键下载按钮 -->
                 <a href="javascript:void(0)" id="btnDownloadRp" class="btn-tool btn-tool-primary" style="display:none;" download>
-                    <span class="duo-icon-slot" data-duo-icon="download"><i class="ri-download-cloud-2-line duo-rest-icon"></i></span> 下载 RP
+                    <span class="duo-icon-slot" data-duo-icon="download"><i class="ri-download-cloud-2-line duo-rest-icon"></i></span> <?php echo htmlspecialchars(t('workspace.download_rp')); ?>
                 </a>
                 <!-- RP 快捷补传按钮 (仅有发版/管理权限且当前版本未上传 RP 时展示) -->
                 <?php if ($canManage): ?>
-                <button type="button" id="btnUploadRpQuick" class="btn-tool btn-tool-dashed" style="display:none;" title="此版本暂无 RP 底稿，点击补传" onclick="triggerQuickRpUpload()">
-                    <span class="duo-icon-slot" data-duo-icon="upload"><i class="ri-upload-2-line duo-rest-icon"></i></span> 补传 RP
+                <button type="button" id="btnUploadRpQuick" class="btn-tool btn-tool-dashed" style="display:none;" title="<?php echo htmlspecialchars(t('workspace.no_rp_upload_tip')); ?>" onclick="triggerQuickRpUpload()">
+                    <span class="duo-icon-slot" data-duo-icon="upload"><i class="ri-upload-2-line duo-rest-icon"></i></span> <?php echo htmlspecialchars(t('workspace.upload_rp_quick')); ?>
                 </button>
                 <input type="file" id="quickRpFileInput" accept=".rp" style="display:none;" onchange="handleQuickRpFileSelected(this)">
                 <?php endif; ?>
-                <button class="btn-tool" onclick="reloadIframe()" title="刷新"><span class="duo-icon-slot" data-duo-icon="rotate-cw"><i class="ri-refresh-line duo-rest-icon"></i></span> 刷新</button>
+                <button class="btn-tool" onclick="reloadIframe()" title="<?php echo htmlspecialchars(t('workspace.reload')); ?>"><span class="duo-icon-slot" data-duo-icon="rotate-cw"><i class="ri-refresh-line duo-rest-icon"></i></span> <?php echo htmlspecialchars(t('workspace.reload')); ?></button>
                 <?php if (Auth::canAnnotate()): ?>
-                <button class="btn-tool" id="btnToggleAnnotation" onclick="toggleAnnotationDrawer()" title="页面批注与协作讨论 (快捷键 C)">
-                    <span class="duo-icon-slot" data-duo-icon="message-circle"><i class="ri-chat-3-line duo-rest-icon"></i></span> 批注
+                <button class="btn-tool" id="btnToggleAnnotation" onclick="toggleAnnotationDrawer()" title="<?php echo htmlspecialchars(t('workspace.anno_btn_tip')); ?>">
+                    <span class="duo-icon-slot" data-duo-icon="message-circle"><i class="ri-chat-3-line duo-rest-icon"></i></span> <?php echo htmlspecialchars(t('workspace.anno_short')); ?>
                     <span id="annoHeaderBadge" class="anno-badge" style="display:none;">0</span>
                 </button>
                 <?php endif; ?>
                 <?php if (Auth::canShare()): ?>
-                <button class="btn-tool" onclick="copyShareUrl()" title="分享"><span class="duo-icon-slot" data-duo-icon="share"><i class="ri-share-forward-line duo-rest-icon"></i></span> 分享</button>
+                <button class="btn-tool" onclick="copyShareUrl()" title="<?php echo htmlspecialchars(t('workspace.share_short')); ?>"><span class="duo-icon-slot" data-duo-icon="share"><i class="ri-share-forward-line duo-rest-icon"></i></span> <?php echo htmlspecialchars(t('workspace.share_short')); ?></button>
                 <?php endif; ?>
-                <button class="btn-tool" onclick="toggleFullscreen()" title="全屏"><span class="duo-icon-slot" data-duo-icon="maximize"><i class="ri-fullscreen-line duo-rest-icon"></i></span> 全屏</button>
+                <button class="btn-tool" onclick="toggleFullscreen()" title="<?php echo htmlspecialchars(t('workspace.fullscreen_short')); ?>"><span class="duo-icon-slot" data-duo-icon="maximize"><i class="ri-fullscreen-line duo-rest-icon"></i></span> <?php echo htmlspecialchars(t('workspace.fullscreen_short')); ?></button>
             </div>
         </div>
 
@@ -1062,19 +1068,19 @@ foreach ($cats as $cat) {
                                 </g>
                             </svg>
                         </div>
-                        <div class="empty-state-title">画布已就绪，静待第一份图纸</div>
-                        <div class="empty-state-desc">万事俱备，就差那份改了 18 版的“最终版_v3_真不改了”</div>
+                        <div class="empty-state-title"><?php echo htmlspecialchars(t('workspace.empty_canvas_title')); ?></div>
+                        <div class="empty-state-desc"><?php echo htmlspecialchars(t('workspace.empty_canvas_desc')); ?></div>
                         <?php if ($canManage): ?>
                             <div class="empty-state-actions">
                                 <?php if (empty($cats)): ?>
-                                <button type="button" class="empty-state-btn" onclick="openCategoryModal(0)"><span class="duo-icon-slot" data-duo-icon="folder-plus"><i class="ri-folder-add-line duo-rest-icon"></i></span> 新建文件夹</button>
+                                <button type="button" class="empty-state-btn" onclick="openCategoryModal(0)"><span class="duo-icon-slot" data-duo-icon="folder-plus"><i class="ri-folder-add-line duo-rest-icon"></i></span> <?php echo htmlspecialchars(t('workspace.new_folder')); ?></button>
                                 <?php else: ?>
-                                <button type="button" class="empty-state-btn" onclick="openQuickItemModal('project')"><span class="duo-icon-slot" data-duo-icon="circle-plus"><i class="ri-add-line duo-rest-icon"></i></span> 新建项目</button>
+                                <button type="button" class="empty-state-btn" onclick="openQuickItemModal('project')"><span class="duo-icon-slot" data-duo-icon="circle-plus"><i class="ri-add-line duo-rest-icon"></i></span> <?php echo htmlspecialchars(t('workspace.new_project')); ?></button>
                                 <?php endif; ?>
                             </div>
                         <?php else: ?>
                             <div style="margin-top:14px;font-size:13px;color:var(--text-3);">
-                                暂无公开图纸，请等待产品经理或项目成员发布
+                                <?php echo htmlspecialchars(t('workspace.empty_canvas_wait')); ?>
                             </div>
                         <?php endif; ?>
                     </div>
@@ -1112,9 +1118,9 @@ foreach ($cats as $cat) {
                                 <circle cx="95" cy="24" r="3.5" fill="#ff5d47"/>
                             </svg>
                         </div>
-                        <div class="empty-state-title">今天看哪份原型？</div>
-                        <div class="empty-state-desc">在左侧挑一个项目，见证每一次“按原样实现”的承诺</div>
-                        <div class="empty-kbd-hint"><kbd>/</kbd> 键快速搜索</div>
+                        <div class="empty-state-title"><?php echo htmlspecialchars(t('workspace.welcome_title')); ?></div>
+                        <div class="empty-state-desc"><?php echo htmlspecialchars(t('workspace.welcome_desc')); ?></div>
+                        <div class="empty-kbd-hint"><?php echo t('workspace.kbd_search'); ?></div>
                     </div>
                 <?php endif; ?>
             </div>
@@ -1128,52 +1134,52 @@ foreach ($cats as $cat) {
                 <div class="anno-header">
                     <div class="anno-header-title">
                         <i class="ri-chat-3-line" style="color:var(--primary);"></i>
-                        <span>页面批注</span>
+                        <span><?php echo htmlspecialchars(t('anno.drawer_title')); ?></span>
                     </div>
                     <div class="anno-filter-chips anno-scope-chips">
-                        <button type="button" class="anno-filter-btn active" id="annoFilterCurPage" onclick="switchAnnoFilterMode('page')">本页</button>
-                        <button type="button" class="anno-filter-btn" id="annoFilterAllPages" onclick="switchAnnoFilterMode('all')">全部</button>
+                        <button type="button" class="anno-filter-btn active" id="annoFilterCurPage" onclick="switchAnnoFilterMode('page')"><?php echo htmlspecialchars(t('anno.mode_page')); ?></button>
+                        <button type="button" class="anno-filter-btn" id="annoFilterAllPages" onclick="switchAnnoFilterMode('all')"><?php echo htmlspecialchars(t('anno.mode_all')); ?></button>
                     </div>
-                    <button type="button" class="close-x" onclick="toggleAnnotationDrawer(false)" title="收起"><i class="ri-close-line"></i></button>
+                    <button type="button" class="close-x" onclick="toggleAnnotationDrawer(false)" title="<?php echo htmlspecialchars(t('common.collapse')); ?>"><i class="ri-close-line"></i></button>
                 </div>
 
                 <div class="anno-context-bar">
-                    <div class="anno-cur-page" id="annoCurPageWrap" title="当前页面">
+                    <div class="anno-cur-page" id="annoCurPageWrap" title="<?php echo htmlspecialchars(t('anno.current_page_title')); ?>">
                         <i class="ri-file-text-line"></i>
-                        <span class="anno-cur-page-label">当前页：</span>
-                        <span id="annoCurPageTitle">当前页面</span>
+                        <span class="anno-cur-page-label"><?php echo htmlspecialchars(t('anno.current_page_label')); ?></span>
+                        <span id="annoCurPageTitle"><?php echo htmlspecialchars(t('anno.current_page_title')); ?></span>
                     </div>
                 </div>
 
                 <div class="anno-status-bar">
                     <div class="anno-filter-chips anno-status-chips">
-                        <button type="button" class="anno-filter-btn active" id="annoStatusAll" onclick="switchAnnoStatusFilter('all')">全部</button>
-                        <button type="button" class="anno-filter-btn" id="annoStatusPending" onclick="switchAnnoStatusFilter('pending')">待处理</button>
-                        <button type="button" class="anno-filter-btn" id="annoStatusResolved" onclick="switchAnnoStatusFilter('resolved')">已解决</button>
+                        <button type="button" class="anno-filter-btn active" id="annoStatusAll" onclick="switchAnnoStatusFilter('all')"><?php echo htmlspecialchars(t('anno.status_all')); ?></button>
+                        <button type="button" class="anno-filter-btn" id="annoStatusPending" onclick="switchAnnoStatusFilter('pending')"><?php echo htmlspecialchars(t('anno.status_pending')); ?></button>
+                        <button type="button" class="anno-filter-btn" id="annoStatusResolved" onclick="switchAnnoStatusFilter('resolved')"><?php echo htmlspecialchars(t('anno.status_resolved')); ?></button>
                         <span class="anno-filter-divider" id="annoHistoryDivider" hidden></span>
-                        <button type="button" class="anno-filter-btn" id="annoHistoryToolbar" onclick="togglePreviousAnnotations()" title="查看上一版未解决批注并引用到本版" hidden>上版未决</button>
+                        <button type="button" class="anno-filter-btn" id="annoHistoryToolbar" onclick="togglePreviousAnnotations()" title="<?php echo htmlspecialchars(t('anno.prev_unresolved_tip')); ?>" hidden><?php echo htmlspecialchars(t('anno.prev_unresolved')); ?></button>
                     </div>
                 </div>
 
                 <div id="annoPreviousPanel" class="anno-previous-panel" hidden></div>
                 <div class="anno-body" id="annoListBody">
-                    <div style="padding:32px 16px;text-align:center;color:var(--text-3);font-size:12px;">加载中...</div>
+                    <div style="padding:32px 16px;text-align:center;color:var(--text-3);font-size:12px;"><?php echo htmlspecialchars(t('common.loading')); ?></div>
                 </div>
 
                 <div class="anno-footer" id="annoFooter">
                     <?php if ($currentUser): ?>
-                        <textarea id="annoNewInput" class="anno-input-textarea" placeholder="对此页面发表批注或疑问... (Cmd/Ctrl+Enter 快捷发送)" maxlength="1000"></textarea>
+                        <textarea id="annoNewInput" class="anno-input-textarea" placeholder="<?php echo htmlspecialchars(t('anno.input_placeholder')); ?>" maxlength="1000"></textarea>
                         <div class="anno-footer-actions">
-                            <span class="anno-hint-text"><kbd>⌘/Ctrl</kbd> + <kbd>Enter</kbd> 发送</span>
+                            <span class="anno-hint-text"><?php echo t('anno.send_hint'); ?></span>
                             <button type="button" class="btn-primary btn-sm" id="btnSendAnno" onclick="submitNewAnnotation()">
-                                <span class="duo-icon-slot" data-duo-icon="send"><i class="ri-send-plane-fill duo-rest-icon"></i></span> 发送
+                                <span class="duo-icon-slot" data-duo-icon="send"><i class="ri-send-plane-fill duo-rest-icon"></i></span> <?php echo htmlspecialchars(t('anno.send')); ?>
                             </button>
                         </div>
                     <?php else: ?>
                         <div style="text-align:center;padding:8px 0;">
-                            <div style="font-size:12.5px;color:var(--text-2);margin-bottom:8px;">登录后参与批注</div>
+                            <div style="font-size:12.5px;color:var(--text-2);margin-bottom:8px;"><?php echo htmlspecialchars(t('anno.login_prompt')); ?></div>
                             <button type="button" class="btn-primary btn-sm" onclick="openLoginModal('login')">
-                                <i class="ri-login-box-line"></i> 登录 / 申请
+                                <span class="duo-icon-slot" data-duo-icon="log-in"><i class="ri-login-box-line duo-rest-icon"></i></span> <?php echo htmlspecialchars(t('anno.login_or_apply')); ?>
                             </button>
                         </div>
                     <?php endif; ?>
@@ -1187,7 +1193,16 @@ foreach ($cats as $cat) {
 <!-- 弹窗组件集合 -->
 <?php include __DIR__ . '/includes/modals.php'; ?>
 
+<?php
+    $wsI18nPrefixes = ['brand.', 'common.', 'auth.', 'pwd.', 'avatar.', 'profile.', 'workspace.', 'anno.', 'share.', 'ver.', 'mcp.'];
+    if ($canManage) {
+        $wsI18nPrefixes[] = 'admin.';
+    }
+    $wsI18nCatalog = I18n::jsCatalog($wsI18nPrefixes);
+?>
 <script>
+    window.__LOCALE__ = <?php echo json_encode(I18n::getLocale(), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>;
+    window.__I18N__ = <?php echo json_encode($wsI18nCatalog, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_UNESCAPED_UNICODE); ?>;
     var CURRENT_USER = <?php echo json_encode($currentUser ? [
         'id' => (int)$currentUser['id'],
         'email' => $currentUser['email'] ?? '',
@@ -1216,6 +1231,7 @@ $verSuffix = function($relPath) {
     return APP_VERSION . '.' . (file_exists($full) ? filemtime($full) : '0');
 };
 ?>
+<script src="assets/js/i18n.js?v=<?php echo $verSuffix('assets/js/i18n.js'); ?>"></script>
 <script src="assets/js/jquery.min.js"></script>
 <script src="assets/js/mcp.js?v=<?php echo $verSuffix('assets/js/mcp.js'); ?>"></script>
 <script src="assets/js/watermark.js?v=<?php echo $verSuffix('assets/js/watermark.js'); ?>"></script>

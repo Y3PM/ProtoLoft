@@ -9,7 +9,7 @@ class Storage {
 
     public static function versionRoot($version) {
         if (!self::validDir($version['storage_dir'] ?? '')) {
-            throw new DomainException('版本存储标识无效');
+            throw new DomainException(t('api.storage.invalid_dir_id'));
         }
         return PROTOTYPES_PATH . '/' . $version['storage_dir'];
     }
@@ -76,7 +76,7 @@ class Storage {
     }
 
     public static function deleteAnnotations($db, $column, $id) {
-        if (!in_array($column, ['item_id', 'ver_id'], true)) throw new InvalidArgumentException('无效关联');
+        if (!in_array($column, ['item_id', 'ver_id'], true)) throw new InvalidArgumentException(t('api.storage.invalid_relation'));
         $db->prepare('DELETE FROM annotation_replies WHERE annotation_id IN (SELECT id FROM annotations WHERE ' . $column . ' = ?)')->execute([$id]);
         $db->prepare('DELETE FROM annotations WHERE ' . $column . ' = ?')->execute([$id]);
     }
@@ -93,13 +93,13 @@ class Storage {
     }
 
     public static function chunkDir($uploadId, $userId) {
-        if (!preg_match('/^[a-zA-Z0-9_-]{1,100}$/D', $uploadId)) throw new DomainException('上传标识无效');
+        if (!preg_match('/^[a-zA-Z0-9_-]{1,100}$/D', $uploadId)) throw new DomainException(t('api.storage.invalid_upload_id'));
         return CHUNKS_PATH . '/' . (int)$userId . '_' . $uploadId;
     }
 
     public static function storeChunk($uploadId, $fileType, $index, $total, $tmp, $uid) {
         if (!in_array($fileType, ['zip', 'rp'], true) || $total < 1 || $total > 1000 || $index < 0 || $index >= $total
-            || !is_file($tmp) || filesize($tmp) < 1 || filesize($tmp) > 1024 * 1024) throw new DomainException('分片参数或大小无效');
+            || !is_file($tmp) || filesize($tmp) < 1 || filesize($tmp) > 1024 * 1024) throw new DomainException(t('api.storage.invalid_chunk'));
         $dir = Storage::chunkDir($uploadId, $uid);
         // 每个成员保留至多 8 份上传；过期切片在下一次上传时清理。
         $active = 0;
@@ -107,21 +107,21 @@ class Storage {
             if (filemtime($candidate) < time() - 86400) Storage::removeTree($candidate, CHUNKS_PATH);
             else $active++;
         }
-        if (!is_dir($dir) && $active >= 8) throw new DomainException('未完成上传过多，请稍后重试');
-        if (!is_dir($dir) && !mkdir($dir, 0700, true)) throw new DomainException('无法创建上传目录');
+        if (!is_dir($dir) && $active >= 8) throw new DomainException(t('api.storage.too_many_uploads'));
+        if (!is_dir($dir) && !mkdir($dir, 0700, true)) throw new DomainException(t('api.storage.mkdir_fail'));
         $lock = fopen($dir . '/lock', 'c+');
-        if (!$lock || !flock($lock, LOCK_EX)) throw new DomainException('无法锁定上传');
+        if (!$lock || !flock($lock, LOCK_EX)) throw new DomainException(t('api.storage.lock_fail'));
         try {
             $meta = is_file($dir . '/meta.json') ? json_decode(file_get_contents($dir . '/meta.json'), true) : null;
-            if ($meta && ($meta['file_type'] !== $fileType || (int)$meta['total'] !== $total || (int)$meta['user_id'] !== $uid)) throw new DomainException('上传参数不一致');
+            if ($meta && ($meta['file_type'] !== $fileType || (int)$meta['total'] !== $total || (int)$meta['user_id'] !== $uid)) throw new DomainException(t('api.storage.param_mismatch'));
             if (!$meta) {
                 $meta = ['user_id' => $uid, 'file_type' => $fileType, 'total' => $total, 'created_at' => time()];
-                if (file_put_contents($dir . '/meta.json', json_encode($meta)) === false) throw new DomainException('保存上传凭据失败');
+                if (file_put_contents($dir . '/meta.json', json_encode($meta)) === false) throw new DomainException(t('api.storage.meta_save_fail'));
             }
             $bytes = filesize($tmp);
             foreach (glob($dir . '/*.part') as $part) if (basename($part) !== $index . '.part') $bytes += filesize($part);
-            if ($bytes > 500 * 1024 * 1024) throw new DomainException('上传文件超过 500MB');
-            if (!rename($tmp, $dir . '/' . $index . '.part')) throw new DomainException('保存分片失败');
+            if ($bytes > 500 * 1024 * 1024) throw new DomainException(t('api.storage.over_500mb'));
+            if (!rename($tmp, $dir . '/' . $index . '.part')) throw new DomainException(t('api.storage.chunk_save_fail'));
             touch($dir);
         } finally { flock($lock, LOCK_UN); fclose($lock); }
     }
@@ -129,26 +129,26 @@ class Storage {
     public static function mergeChunks($uploadId, $fileType, $userId) {
         $dir = self::chunkDir($uploadId, $userId);
         $lock = @fopen($dir . '/lock', 'r+');
-        if (!$lock || !flock($lock, LOCK_EX)) throw new DomainException('上传不存在或已过期');
+        if (!$lock || !flock($lock, LOCK_EX)) throw new DomainException(t('api.storage.upload_missing_expired'));
         $merged = false;
         try {
             $meta = json_decode(@file_get_contents($dir . '/meta.json'), true);
             if (!$meta || (int)$meta['user_id'] !== (int)$userId || $meta['file_type'] !== $fileType || $meta['created_at'] < time() - 86400) {
-                throw new DomainException('上传凭据不匹配或已过期');
+                throw new DomainException(t('api.storage.meta_mismatch_expired'));
             }
             $merged = tempnam(CHUNKS_PATH, 'merged_');
             $out = fopen($merged, 'wb');
-            if (!$out) throw new DomainException('无法合并上传文件');
+            if (!$out) throw new DomainException(t('api.storage.merge_open_fail'));
             $bytes = 0;
             try {
                 for ($i = 0; $i < (int)$meta['total']; $i++) {
                     $part = $dir . '/' . $i . '.part';
-                    if (!is_file($part) || filesize($part) === 0) throw new DomainException('上传分片缺失，请重新上传');
+                    if (!is_file($part) || filesize($part) === 0) throw new DomainException(t('api.storage.chunk_missing'));
                     $bytes += filesize($part);
-                    if ($bytes > 500 * 1024 * 1024) throw new DomainException('上传文件超过 500MB');
+                    if ($bytes > 500 * 1024 * 1024) throw new DomainException(t('api.storage.over_500mb'));
                     $in = fopen($part, 'rb');
                     try {
-                        if (stream_copy_to_stream($in, $out) !== filesize($part)) throw new DomainException('分片合并失败');
+                        if (stream_copy_to_stream($in, $out) !== filesize($part)) throw new DomainException(t('api.storage.merge_fail'));
                     } finally { fclose($in); }
                 }
             } finally { fclose($out); }

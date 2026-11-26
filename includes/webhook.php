@@ -43,7 +43,7 @@ class Webhook {
 
     public static function send($url, $eventType, $data) {
         $url = trim($url);
-        if (!self::isAllowedUrl($url)) return ['success' => false, 'message' => '请使用企微、飞书或钉钉的 HTTPS 机器人地址'];
+        if (!self::isAllowedUrl($url)) return ['success' => false, 'message' => t('webhook.err_url')];
         $platform = self::detectPlatform($url);
         $jsonBody = json_encode(self::buildPayload($platform, $eventType, $data), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
         $status = 0;
@@ -60,7 +60,7 @@ class Webhook {
             $status = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
             $failed = curl_errno($ch) !== 0;
             curl_close($ch);
-            if ($failed) return ['success' => false, 'message' => '连接机器人失败'];
+            if ($failed) return ['success' => false, 'message' => t('webhook.err_connect')];
         } else {
             $context = stream_context_create([
                 'http' => ['method' => 'POST', 'header' => "Content-Type: application/json; charset=utf-8\r\n",
@@ -70,7 +70,7 @@ class Webhook {
             $response = @file_get_contents($url, false, $context);
             if (isset($http_response_header[0]) && preg_match('#^HTTP/\S+\s+(\d+)#', $http_response_header[0], $m)) $status = (int)$m[1];
         }
-        if ($response === false || $status < 200 || $status >= 300) return ['success' => false, 'message' => '机器人返回异常'];
+        if ($response === false || $status < 200 || $status >= 300) return ['success' => false, 'message' => t('webhook.err_http')];
         $result = json_decode($response, true);
         $code = is_array($result) ? ($result['errcode'] ?? ($result['code'] ?? ($result['StatusCode'] ?? null))) : null;
         if ($code === null || (int)$code !== 0) {
@@ -80,10 +80,10 @@ class Webhook {
             if (strpos($lowerErr, 'keyword') !== false || strpos($lowerErr, 'key word') !== false || strpos($lowerErr, 'sign') !== false || strpos($lowerErr, 'ip') !== false || (int)$code === 19024) {
                 return [
                     'success' => false,
-                    'message' => '机器人安全校验拦截：请在钉钉/飞书机器人安全设置中勾选「自定义关键词」，填入：立象原型'
+                    'message' => t('webhook.err_keyword')
                 ];
             }
-            return ['success' => false, 'message' => !empty($errMsg) ? '机器人拒绝接收：' . $errMsg : '机器人未接受通知，请检查配置'];
+            return ['success' => false, 'message' => !empty($errMsg) ? t('webhook.err_rejected', ['msg' => $errMsg]) : t('webhook.err_not_accepted')];
         }
         return ['success' => true];
     }
@@ -106,6 +106,9 @@ class Webhook {
         $isContent = ($kind === 'content');
         $hasNewline = $isContent && (strpos($val, "\n") !== false);
         $startsWithBlock = $isContent && (bool)preg_match('/^(?:#{1,6}\s|[-*+]\s|\d+\.\s)/u', $val);
+        $isEn = (I18n::getLocale() === 'en');
+        $colon = $isEn ? ': ' : '：';
+        $blockColon = $isEn ? ':' : '：';
 
         if ($platform === 'wecom') {
             $body = $val;
@@ -113,9 +116,9 @@ class Webhook {
                 $body = preg_replace('/^[-*]\s+/um', '• ', $body);
             }
             if ($startsWithBlock || $hasNewline) {
-                return "**{$label}**：\n{$body}\n";
+                return "**{$label}**{$blockColon}\n{$body}\n";
             }
-            return "**{$label}**：{$body}\n";
+            return "**{$label}**{$colon}{$body}\n";
         }
         if ($platform === 'dingtalk') {
             $body = $val;
@@ -136,47 +139,47 @@ class Webhook {
             }
             $suffix = $hasList ? "\n" : '';
             if ($startsWithBlock) {
-                return "**{$label}**：\n{$body}{$suffix}";
+                return "**{$label}**{$blockColon}\n{$body}{$suffix}";
             }
             if ($hasNewline) {
-                return "**{$label}**：\n{$body}{$suffix}";
+                return "**{$label}**{$blockColon}\n{$body}{$suffix}";
             }
-            return "**{$label}**：{$body}";
+            return "**{$label}**{$colon}{$body}";
         }
         if ($platform === 'feishu' && $isContent) {
             $val = preg_replace('/^[-*]\s+/um', '• ', $val);
         }
         if ($startsWithBlock || $hasNewline) {
-            return "**{$label}**：\n{$val}";
+            return "**{$label}**{$blockColon}\n{$val}";
         }
-        return "**{$label}**：{$val}";
+        return "**{$label}**{$colon}{$val}";
     }
 
     /**
      * 根据不同平台自适应构建数据载荷 (正文安全防爆截断，去除自嗨营销腔)
      */
     private static function buildPayload($platform, $eventType, $data) {
-        $rawItem = $data['item_name'] ?? '未命名项目';
+        $rawItem = $data['item_name'] ?? t('webhook.default_item');
         $rawVersion = $data['version_name'] ?? '';
         $rawPage = $data['page_title'] ?? ($data['page_path'] ?? '');
-        $rawAuthor = $data['author'] ?? '用户';
+        $rawAuthor = $data['author'] ?? t('webhook.default_author');
         $rawContent = trim($data['content'] ?? '');
         $link = $data['link'] ?? '';
         $time = date('Y-m-d H:i');
 
         // 项目通知统一按事件生成文案，各平台使用相同标题、字段和入口。
         $projectEvents = [
-            'version_update' => [!empty($data['is_overwrite']) ? '版本内容已更新' : '新版本已发布', '发布人', '更新说明', '查看原型'],
-            'annotation_new' => ['收到新批注', '批注人', '批注内容', '查看批注'],
-            'annotation_reply' => ['批注有新回复', '回复人', '回复内容', '查看批注'],
-            'annotation_resolve' => ['批注已解决', '处理人', '批注内容', '查看批注']
+            'version_update' => [!empty($data['is_overwrite']) ? t('webhook.ev_ver_updated') : t('webhook.ev_ver_published'), t('webhook.lbl_publisher'), t('webhook.lbl_changelog'), t('webhook.btn_view_proto')],
+            'annotation_new' => [t('webhook.ev_anno_new'), t('webhook.lbl_anno_author'), t('webhook.lbl_anno_content'), t('webhook.btn_view_anno')],
+            'annotation_reply' => [t('webhook.ev_anno_reply'), t('webhook.lbl_reply_author'), t('webhook.lbl_reply_content'), t('webhook.btn_view_anno')],
+            'annotation_resolve' => [t('webhook.ev_anno_resolve'), t('webhook.lbl_resolver'), t('webhook.lbl_anno_content'), t('webhook.btn_view_anno')]
         ];
         $isProjectEvent = isset($projectEvents[$eventType]);
         $isUserApplyEvent = ($eventType === 'user_apply');
-        $authorLabel = '操作人';
-        $contentLabel = '内容';
-        $linkLabel = '查看详情';
-        $rawTitle = $data['title'] ?? '协作通知';
+        $authorLabel = t('webhook.lbl_operator');
+        $contentLabel = t('webhook.lbl_content');
+        $linkLabel = t('webhook.btn_view_detail');
+        $rawTitle = $data['title'] ?? t('webhook.ev_default_title');
         if ($isProjectEvent) {
             $presentation = $projectEvents[$eventType];
             $rawTitle = $rawItem . ' · ' . $presentation[0];
@@ -184,10 +187,10 @@ class Webhook {
             $contentLabel = $presentation[2];
             $linkLabel = $presentation[3];
         } elseif ($isUserApplyEvent) {
-            $rawTitle = $data['title'] ?? '新成员申请待审批';
-            $authorLabel = '申请人';
-            $contentLabel = '申请说明';
-            $linkLabel = '前往审批';
+            $rawTitle = $data['title'] ?? t('webhook.ev_visitor_apply');
+            $authorLabel = t('webhook.lbl_applicant');
+            $contentLabel = t('webhook.lbl_apply_note');
+            $linkLabel = t('webhook.btn_approve');
         }
 
         // 面向 Markdown 渲染平台进行字符安全转义
@@ -209,12 +212,12 @@ class Webhook {
         // 统一组装属性行 [标签, 值, 语义类型]；存在结构化 fields 时跳过“内容”标签，逐行平铺展示
         $fieldRows = [];
         if (!$isProjectEvent && !$isUserApplyEvent) {
-            $fieldRows[] = ['项目', $item . ($version ? " ({$version})" : ''), 'info'];
+            $fieldRows[] = [t('webhook.field_project'), $item . ($version ? " ({$version})" : ''), 'info'];
         } elseif ($isProjectEvent && $version !== '') {
-            $fieldRows[] = ['版本', $version, 'plain'];
+            $fieldRows[] = [t('webhook.field_version'), $version, 'plain'];
         }
         if (!empty($page)) {
-            $fieldRows[] = ['页面', $page, 'plain'];
+            $fieldRows[] = [t('webhook.field_page'), $page, 'plain'];
         }
         $fieldRows[] = [$authorLabel, $author, 'plain'];
         if (!empty($data['fields']) && is_array($data['fields'])) {
@@ -231,7 +234,9 @@ class Webhook {
         } elseif (!empty($content)) {
             $fieldRows[] = [$contentLabel, $content, 'content'];
         }
-        $fieldRows[] = ['时间', $time, 'plain'];
+        $fieldRows[] = [t('webhook.field_time'), $time, 'plain'];
+
+        $footerSource = t('webhook.footer_source');
 
         // 1. 企业微信 (WeCom)
         if ($platform === 'wecom') {
@@ -246,7 +251,7 @@ class Webhook {
             if (!empty($link)) {
                 $md .= "\n[{$linkLabel}]({$link})\n";
             }
-            $md .= "\n<font color=\"comment\">来自 · 立象原型</font>";
+            $md .= "\n<font color=\"comment\">{$footerSource}</font>";
             return [
                 'msgtype' => 'markdown',
                 'markdown' => ['content' => $md]
@@ -280,7 +285,7 @@ class Webhook {
             if (!empty($link)) {
                 $footer[] = "[{$linkLabel}]({$link})";
             }
-            $footer[] = "*来自 · 立象原型*";
+            $footer[] = "*{$footerSource}*";
             $md .= "\n\n" . implode("<br>", $footer);
 
             return [
@@ -299,7 +304,7 @@ class Webhook {
             foreach ($fieldRows as $row) {
                 $lines[] = self::formatFieldLine('feishu', $row[0], $row[1], $row[2]);
             }
-            $mdText = implode("\n", $lines) . "\n\n来自 · 立象原型";
+            $mdText = implode("\n", $lines) . "\n\n" . $footerSource;
 
             $elements[] = [
                 'tag' => 'div',
@@ -346,7 +351,7 @@ class Webhook {
             'content' => $rawContent,
             'link' => $link,
             'time' => $time,
-            'source' => '立象原型'
+            'source' => I18n::brandName()
         ];
     }
 }

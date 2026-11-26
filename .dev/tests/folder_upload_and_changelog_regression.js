@@ -634,6 +634,7 @@ const capturedPackItems = [];
 
 const filterCtx = {
     versionUploadBusy: false,
+    esc: (s) => String(s === null || s === undefined ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;'),
     document: {
         getElementById: (id) => domIds[id] || null,
         createElement: (tag) => createMockEl(tag),

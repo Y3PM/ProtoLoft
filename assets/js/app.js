@@ -155,7 +155,7 @@ function apiFetch(action, formData, btnEl) {
         .then(function(response) {
             return response.text().then(function(text) {
                 try { return JSON.parse(text); }
-                catch (e) { throw new Error('服务响应异常 (HTTP ' + response.status + ')'); }
+                catch (e) { throw new Error((typeof t === 'function' ? t('common.http_error', {status: response.status}, '服务响应异常 (HTTP ' + response.status + ')') : ('服务响应异常 (HTTP ' + response.status + ')'))); }
             });
         }).then(function(value) {
             release();
@@ -218,7 +218,7 @@ function showToast(msg, type, duration, persist) {
         '<div class="toast-item toast-' + esc(type) + '">' +
             '<span class="toast-icon"><i class="' + iconClass + '"></i></span>' +
             '<span class="toast-content">' + esc(msg) + '</span>' +
-            '<span class="toast-close" title="关闭"><i class="ri-close-line"></i></span>' +
+            '<span class="toast-close" title="' + esc(typeof t === 'function' ? t('common.close', null, '关闭') : '关闭') + '"><i class="ri-close-line"></i></span>' +
         '</div>'
     );
 
@@ -286,10 +286,10 @@ function showConfirm(options, callback, isDangerShort) {
         };
     }
     options = options || {};
-    var title = options.title || '确认操作';
+    var title = options.title || (typeof t === 'function' ? t('common.confirm_action', null, '确认操作') : '确认操作');
     var message = options.message || '';
-    var confirmText = options.confirmText || '确定';
-    var cancelText = options.cancelText || '取消';
+    var confirmText = options.confirmText || (typeof t === 'function' ? t('common.ok', null, '确定') : '确定');
+    var cancelText = options.cancelText || (typeof t === 'function' ? t('common.cancel', null, '取消') : '取消');
     var isDanger = !!options.isDanger;
 
     return new Promise(function(resolve) {
@@ -637,11 +637,11 @@ function selectItem(itemId, el, targetVerName, isUserDirectClick) {
     // 格式化输出: @张三三 · 更新于 2026-10-26 08:58:03
     var metaHtml = '';
     if (authorName && time) {
-        metaHtml = '<i class="ri-user-line" style="margin-right:3px;font-size:12px;opacity:0.85;"></i>@' + esc(authorName) + ' · 更新于 ' + esc(time);
+        metaHtml = '<i class="ri-user-line" style="margin-right:3px;font-size:12px;opacity:0.85;"></i>' + esc(typeof t === 'function' ? t('workspace.author_updated_at', {author: authorName, time: time}, '@' + authorName + ' · 更新于 ' + time) : ('@' + authorName + ' · 更新于 ' + time));
     } else if (authorName) {
         metaHtml = '<i class="ri-user-line" style="margin-right:3px;font-size:12px;opacity:0.85;"></i>@' + esc(authorName);
     } else if (time) {
-        metaHtml = '<i class="ri-time-line" style="margin-right:3px;font-size:12px;opacity:0.85;"></i>更新于 ' + esc(time);
+        metaHtml = '<i class="ri-time-line" style="margin-right:3px;font-size:12px;opacity:0.85;"></i>' + esc(typeof t === 'function' ? t('workspace.updated_at', {time: time}, '更新于 ' + time) : ('更新于 ' + time));
     }
 
     if (metaHtml) {
@@ -675,23 +675,23 @@ function selectItem(itemId, el, targetVerName, isUserDirectClick) {
         $('#myFrame').hide().attr('src', 'about:blank');
         updateTopActionsState(false, type);
         var safeHref = esc(href || '');
-        var safeName = esc(name || '外部链接');
+        var safeName = esc(name || (typeof t === 'function' ? t('workspace.ext_link_default', null, '外部链接') : '外部链接'));
         $('#noVersionPlaceholder').html(
             '<div class="empty-state-box" style="max-width:520px;padding:40px 24px;">' +
                 '<div style="width:56px;height:56px;border-radius:14px;background:var(--primary-subtle);color:var(--primary);display:inline-flex;align-items:center;justify-content:center;font-size:28px;margin-bottom:16px;">' +
                     '<i class="ri-external-link-line"></i>' +
                 '</div>' +
                 '<div class="empty-state-title" style="font-size:16px;color:var(--text-1);margin-bottom:8px;">' + safeName + '</div>' +
-                '<div style="font-size:12px;color:var(--text-3);margin-bottom:14px;">此项目配置为在新标签页中打开的外部链接资产</div>' +
+                '<div style="font-size:12px;color:var(--text-3);margin-bottom:14px;">' + esc(typeof t === 'function' ? t('workspace.ext_link_desc', null, '此项目配置为在新标签页中打开的外部链接资产') : '此项目配置为在新标签页中打开的外部链接资产') + '</div>' +
                 '<div style="word-break:break-all;color:var(--text-2);font-size:12px;font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;background:var(--canvas);padding:10px 14px;border-radius:6px;border:1px solid var(--border);margin-bottom:20px;text-align:left;">' +
                     safeHref +
                 '</div>' +
                 '<div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;">' +
                     '<a href="' + safeHref + '" target="_blank" rel="noopener noreferrer" class="btn-primary btn-md" style="display:inline-flex;align-items:center;gap:6px;text-decoration:none;">' +
-                        '<span class="duo-icon-slot" data-duo-icon="external-link"><i class="ri-external-link-line duo-rest-icon"></i></span> 在新标签页打开' +
+                        '<span class="duo-icon-slot" data-duo-icon="external-link"><i class="ri-external-link-line duo-rest-icon"></i></span> ' + esc(typeof t === 'function' ? t('workspace.open_new_tab', null, '在新标签页打开') : '在新标签页打开') +
                     '</a>' +
                     '<button type="button" class="btn-cancel btn-md btn-copy-link" data-copy-url="' + safeHref + '">' +
-                        '<span class="duo-icon-slot" data-duo-icon="copy"><i class="ri-file-copy-line duo-rest-icon"></i></span> 复制链接' +
+                        '<span class="duo-icon-slot" data-duo-icon="copy"><i class="ri-file-copy-line duo-rest-icon"></i></span> ' + esc(typeof t === 'function' ? t('admin.item.copy_link_tip', null, '复制链接') : '复制链接') +
                     '</button>' +
                 '</div>' +
             '</div>'
@@ -724,10 +724,14 @@ function selectItem(itemId, el, targetVerName, isUserDirectClick) {
         var canEditEmptyProject = ($el && ($el.data('can-edit') === 1 || $el.data('can-edit') === '1'));
         var canPublishEmpty = isCanManage && canEditEmptyProject;
         var actionHtml = canPublishEmpty
-            ? '<div class="empty-state-actions"><button type="button" class="empty-state-btn" onclick="openUploadModal(' + itemId + ')"><span class="duo-icon-slot" data-duo-icon="cloud-upload"><i class="ri-upload-cloud-line duo-rest-icon"></i></span> 发布原型</button></div>'
+            ? '<div class="empty-state-actions"><button type="button" class="empty-state-btn" onclick="openUploadModal(' + itemId + ')"><span class="duo-icon-slot" data-duo-icon="cloud-upload"><i class="ri-upload-cloud-line duo-rest-icon"></i></span> ' + esc(typeof t === 'function' ? t('workspace.publish_proto', null, '发布原型') : '发布原型') + '</button></div>'
             : '';
-        var emptyTitle = canPublishEmpty ? '把“象”装进仓库，拢共分几步？' : '冰箱已就位，大象还在路上';
-        var emptyDesc = canPublishEmpty ? '1. 点下方发布 &rarr; 2. 丢进 ZIP 包 &rarr; 3. 马上开工！' : '产品经理正在打包原型图纸，装进来就能直接看啦';
+        var emptyTitle = canPublishEmpty
+            ? (typeof t === 'function' ? t('workspace.empty_ver_title_mgr', null, '把“象”装进仓库，拢共分几步？') : '把“象”装进仓库，拢共分几步？')
+            : (typeof t === 'function' ? t('workspace.empty_ver_title_view', null, '冰箱已就位，大象还在路上') : '冰箱已就位，大象还在路上');
+        var emptyDesc = canPublishEmpty
+            ? (typeof t === 'function' ? t('workspace.empty_ver_desc_mgr', null, '1. 点下方发布 &rarr; 2. 丢进 ZIP 包 &rarr; 3. 马上开工！') : '1. 点下方发布 &rarr; 2. 丢进 ZIP 包 &rarr; 3. 马上开工！')
+            : (typeof t === 'function' ? t('workspace.empty_ver_desc_view', null, '产品经理正在打包原型图纸，装进来就能直接看啦') : '产品经理正在打包原型图纸，装进来就能直接看啦');
         $('#noVersionPlaceholder').html(
             '<div class="empty-state-box">' +
                 '<div class="empty-state-illustration">' +
@@ -821,11 +825,11 @@ function onTopVersionChange(selectEl) {
 
     var metaHtml = '';
     if (author && time) {
-        metaHtml = '<i class="ri-user-line" style="margin-right:3px;font-size:12px;opacity:0.85;"></i>@' + esc(author) + ' · 更新于 ' + esc(time);
+        metaHtml = '<i class="ri-user-line" style="margin-right:3px;font-size:12px;opacity:0.85;"></i>' + esc(typeof t === 'function' ? t('workspace.author_updated_at', { author: author, time: time }, '@' + author + ' · 更新于 ' + time) : '@' + author + ' · 更新于 ' + time);
     } else if (author) {
         metaHtml = '<i class="ri-user-line" style="margin-right:3px;font-size:12px;opacity:0.85;"></i>@' + esc(author);
     } else if (time) {
-        metaHtml = '<i class="ri-time-line" style="margin-right:3px;font-size:12px;opacity:0.85;"></i>更新于 ' + esc(time);
+        metaHtml = '<i class="ri-time-line" style="margin-right:3px;font-size:12px;opacity:0.85;"></i>' + esc(typeof t === 'function' ? t('workspace.updated_at', { time: time }, '更新于 ' + time) : '更新于 ' + time);
     }
 
     if (metaHtml) {
@@ -926,35 +930,35 @@ function updateTopActionsState(hasActiveVersion, itemType) {
 
     if (itemType === 'link') {
         // 外链项目：批注协同与外发分享常驻可用
-        $btnAnnotation.prop('disabled', false).removeClass('is-disabled').attr('title', '页面批注与协作讨论 (快捷键 C)');
-        $btnShare.prop('disabled', false).removeClass('is-disabled').attr('title', '外发分享设置');
+        $btnAnnotation.prop('disabled', false).removeClass('is-disabled').attr('title', (typeof t === 'function' ? t('workspace.anno_btn_tip', null, '页面批注与协作讨论 (快捷键 C)') : '页面批注与协作讨论 (快捷键 C)'));
+        $btnShare.prop('disabled', false).removeClass('is-disabled').attr('title', (typeof t === 'function' ? t('workspace.share_btn_tip', null, '外发分享设置') : '外发分享设置'));
         $('#btnUploadRpQuick').hide();
 
         if (hasActiveVersion) {
             // 内嵌 iframe 预览模式：刷新与全屏可用
-            $btnReload.prop('disabled', false).removeClass('is-disabled').attr('title', '刷新当前网页');
-            $btnFullscreen.prop('disabled', false).removeClass('is-disabled').attr('title', '全屏预览');
+            $btnReload.prop('disabled', false).removeClass('is-disabled').attr('title', (typeof t === 'function' ? t('workspace.reload_web_tip', null, '刷新当前网页') : '刷新当前网页'));
+            $btnFullscreen.prop('disabled', false).removeClass('is-disabled').attr('title', (typeof t === 'function' ? t('workspace.fullscreen_tip', null, '全屏预览') : '全屏预览'));
         } else {
             // 新标签页落地卡片模式：刷新与全屏按需禁用
-            $btnReload.prop('disabled', true).addClass('is-disabled').attr('title', '外部链接资产');
-            $btnFullscreen.prop('disabled', true).addClass('is-disabled').attr('title', '外部链接资产');
+            $btnReload.prop('disabled', true).addClass('is-disabled').attr('title', (typeof t === 'function' ? t('workspace.external_link_asset', null, '外部链接资产') : '外部链接资产'));
+            $btnFullscreen.prop('disabled', true).addClass('is-disabled').attr('title', (typeof t === 'function' ? t('workspace.external_link_asset', null, '外部链接资产') : '外部链接资产'));
         }
         return;
     }
 
     if (hasActiveVersion) {
         $actions.prop('disabled', false).removeClass('is-disabled');
-        $btnAnnotation.attr('title', '页面批注与协作讨论 (快捷键 C)');
-        $btnShare.attr('title', '外发分享设置');
-        $btnReload.attr('title', '刷新当前原型');
-        $btnFullscreen.attr('title', '全屏预览');
+        $btnAnnotation.attr('title', (typeof t === 'function' ? t('workspace.anno_btn_tip', null, '页面批注与协作讨论 (快捷键 C)') : '页面批注与协作讨论 (快捷键 C)'));
+        $btnShare.attr('title', (typeof t === 'function' ? t('workspace.share_btn_tip', null, '外发分享设置') : '外发分享设置'));
+        $btnReload.attr('title', (typeof t === 'function' ? t('workspace.reload_proto_tip', null, '刷新当前原型') : '刷新当前原型'));
+        $btnFullscreen.attr('title', (typeof t === 'function' ? t('workspace.fullscreen_tip', null, '全屏预览') : '全屏预览'));
     } else {
         $actions.prop('disabled', true).addClass('is-disabled');
         $('#btnUploadRpQuick').hide();
-        $btnAnnotation.attr('title', '暂无原型版本，无法发起批注');
-        $btnShare.attr('title', '暂无原型版本，无法外发分享');
-        $btnReload.attr('title', '暂无原型页面');
-        $btnFullscreen.attr('title', '暂无原型页面');
+        $btnAnnotation.attr('title', (typeof t === 'function' ? t('workspace.anno_btn_disabled', null, '暂无原型版本，无法发起批注') : '暂无原型版本，无法发起批注'));
+        $btnShare.attr('title', (typeof t === 'function' ? t('workspace.share_btn_disabled', null, '暂无原型版本，无法外发分享') : '暂无原型版本，无法外发分享'));
+        $btnReload.attr('title', (typeof t === 'function' ? t('workspace.no_proto_page', null, '暂无原型页面') : '暂无原型页面'));
+        $btnFullscreen.attr('title', (typeof t === 'function' ? t('workspace.no_proto_page', null, '暂无原型页面') : '暂无原型页面'));
 
         // 如果此时批注抽屉刚好处于展开状态，自动收起它
         if (typeof window.toggleAnnotationDrawer === 'function') {
@@ -972,24 +976,24 @@ function changeVersion(itemId, selectEl) {
 function copyShareUrl(itemId) {
     var targetId = itemId || currentSelectedItemId;
     if (!targetId) {
-        showToast('请先在左侧选择一个原型项目', 'info');
+        showToast((typeof t === 'function' ? t('workspace.select_project_first', null, '请先在左侧选择一个原型项目') : '请先在左侧选择一个原型项目'), 'info');
         return;
     }
 
     if (!$('body').hasClass('can-share')) {
-        showToast('外发分享功能已关闭或当前账号无权分享', 'warning');
+        showToast((typeof t === 'function' ? t('workspace.no_share_perm', null, '外发分享功能已关闭或当前账号无权分享') : '外发分享功能已关闭或当前账号无权分享'), 'warning');
         return;
     }
 
     var $item = $('#item-node-' + targetId);
     if ($item.length && !$item.data('href')) {
-        showToast('当前项目尚未发布任何版本，暂无法分享', 'info');
+        showToast((typeof t === 'function' ? t('workspace.no_version_to_share', null, '当前项目尚未发布任何版本，暂无法分享') : '当前项目尚未发布任何版本，暂无法分享'), 'info');
         return;
     }
 
     // 未登录人员严禁获取或分享直链
     if (typeof openShareModal !== 'function' || !document.getElementById('shareManageModal')) {
-        showToast('访客无权分享原型，请先登录账号', 'info');
+        showToast((typeof t === 'function' ? t('workspace.guest_cannot_share', null, '访客无权分享原型，请先登录账号') : '访客无权分享原型，请先登录账号'), 'info');
         if (typeof openLoginModal === 'function') {
             openLoginModal();
         }
@@ -1414,15 +1418,15 @@ function openAnnotationLink(id) {
     var routeAtRequest = window.location.hash;
     return fetch('api.php?action=annotation_target&id=' + encodeURIComponent(id)).then(function(response) { return response.json(); }).then(function(res) {
         if (window.location.hash !== routeAtRequest) return;
-        if (!res.success) throw new Error(res.message || '批注不可访问');
+        if (!res.success) throw new Error(res.message || (typeof t === 'function' ? t('anno.inaccessible', null, '批注不可访问') : '批注不可访问'));
         var target = res.data;
         var node = document.getElementById('item-node-' + target.item_id);
-        if (!node) throw new Error('项目不存在或无权访问');
+        if (!node) throw new Error(typeof t === 'function' ? t('workspace.item_inaccessible', null, '项目不存在或无权访问') : '项目不存在或无权访问');
         var isLink = (node.getAttribute('data-type') === 'link' || parseInt(target.version_id, 10) === 0);
         if (!isLink) {
             var versions = JSON.parse(node.getAttribute('data-versions') || '[]');
             var match = versions.filter(function(version) { return parseInt(version.id,10) === target.version_id; })[0];
-            if (!match) throw new Error('版本已删除或不可访问');
+            if (!match) throw new Error(typeof t === 'function' ? t('workspace.ver_deleted_inaccessible', null, '版本已删除或不可访问') : '版本已删除或不可访问');
         }
         $(node).closest('.category-group').removeClass('collapsed');
         selectItem(target.item_id, node, isLink ? '' : target.version_name, false, true);
@@ -1435,9 +1439,9 @@ function openAnnotationLink(id) {
             window.history.replaceState(null, '', annoHash);
         }
         if (typeof window.focusAnnotation === 'function') window.focusAnnotation(parseInt(id,10));
-        if (!target.page_url && !isLink) showToast('原页面已不存在，已打开版本入口；请查看批注原文', 'warning');
-        else if (target.annotation && target.annotation.needs_review) showToast('原型已更新，此批注需要重新核对', 'info');
-    }).catch(function(error) { showToast(error.message || '批注不可访问', 'error'); });
+        if (!target.page_url && !isLink) showToast(typeof t === 'function' ? t('anno.page_missing_open_entry', null, '原页面已不存在，已打开版本入口；请查看批注原文') : '原页面已不存在，已打开版本入口；请查看批注原文', 'warning');
+        else if (target.annotation && target.annotation.needs_review) showToast(typeof t === 'function' ? t('anno.needs_review_toast', null, '原型已更新，此批注需要重新核对') : '原型已更新，此批注需要重新核对', 'info');
+    }).catch(function(error) { showToast(error.message || (typeof t === 'function' ? t('anno.inaccessible', null, '批注不可访问') : '批注不可访问'), 'error'); });
 }
 window.openAnnotationLink = openAnnotationLink;
 function setActiveAnnotationHash(id) {
@@ -1533,7 +1537,7 @@ function initHashRoute() {
                 if (mId) {
                     var versions = JSON.parse($target.attr('data-versions') || '[]');
                     var exact = versions.filter(function(v) { return parseInt(v.id,10) === parseInt(mId[1],10); })[0];
-                    if (!exact) { showToast('版本已删除或不可访问', 'error'); return; }
+                    if (!exact) { showToast((typeof t === 'function' ? t('workspace.ver_deleted_inaccessible', null, '版本已删除或不可访问') : '版本已删除或不可访问'), 'error'); return; }
                     targetVer = exact.version_name;
                 }
                 var mV = hash.match(/[?&]v=([^&]+)/);
@@ -1597,7 +1601,7 @@ function openModal(id, preferredId) {
         if (!heading.id) heading.id = id + 'Heading';
         modal.setAttribute('aria-labelledby', heading.id);
     } else if (!modal.hasAttribute('aria-label')) {
-        modal.setAttribute('aria-label', '对话框');
+        modal.setAttribute('aria-label', (typeof t === 'function' ? t('auth.dialog_label', null, '对话框') : '对话框'));
     }
     syncModalBackground();
     var fields = modalFocusable(modal);
@@ -1614,8 +1618,8 @@ function closeModal(id, force) {
     if (!force && id === 'uploadModal' && typeof versionUploadBusy !== 'undefined' && versionUploadBusy) {
         if (typeof showConfirm === 'function') {
             showConfirm({
-                title: '发版任务进行中',
-                message: '原型上传发布仍在进行中，关闭窗口不会中断后台任务，完成后将自动刷新页面。确定要关闭弹窗吗？',
+                title: (typeof t === 'function' ? t('admin.upload.in_progress_close_title', null, '发版任务进行中') : '发版任务进行中'),
+                message: (typeof t === 'function' ? t('admin.upload.in_progress_close_msg', null, '原型上传发布仍在进行中，关闭窗口不会中断后台任务，完成后将自动刷新页面。确定要关闭弹窗吗？') : '原型上传发布仍在进行中，关闭窗口不会中断后台任务，完成后将自动刷新页面。确定要关闭弹窗吗？'),
                 onConfirm: function() {
                     closeModal(id, true);
                 }
@@ -1709,9 +1713,9 @@ function closeLoginModal() {
 // 全员通用退出登录 (适用于管理员、协作者、审阅人)
 function doLogout() {
     showConfirm({
-        title: '退出登录',
-        message: '确定退出当前登录账号？',
-        confirmText: '退出',
+        title: (typeof t === 'function' ? t('auth.logout_title', null, '退出登录') : '退出登录'),
+        message: (typeof t === 'function' ? t('auth.logout_confirm', null, '确定退出当前登录账号？') : '确定退出当前登录账号？'),
+        confirmText: (typeof t === 'function' ? t('auth.logout_btn', null, '退出') : '退出'),
         onConfirm: function() {
             var fd = new FormData();
             fd.append('action', 'logout');
@@ -1813,7 +1817,7 @@ var workspaceWatermarkTimer = null;
 function updateWorkspaceWatermarkImage(customDate) {
     var $overlay = $('#watermarkOverlay');
     if (!$overlay.length || $overlay.is(':hidden')) return;
-    var uName = (typeof CURRENT_USER !== 'undefined' && CURRENT_USER && (CURRENT_USER.name || CURRENT_USER.email)) ? (CURRENT_USER.name || CURRENT_USER.email) : '立象成员';
+    var uName = (typeof CURRENT_USER !== 'undefined' && CURRENT_USER && (CURRENT_USER.name || CURRENT_USER.email)) ? (CURRENT_USER.name || CURRENT_USER.email) : (typeof t === 'function' ? t('common.member_default', null, '立象成员') : '立象成员');
     var now = customDate instanceof Date ? customDate : new Date();
     var pad = function(n) { return n < 10 ? '0' + n : n; };
     var timeStr = now.getFullYear() + '-' + (now.getMonth() + 1) + '-' + now.getDate() + ' ' + pad(now.getHours()) + ':' + pad(now.getMinutes());
@@ -1990,10 +1994,10 @@ function handleSaveProfile(e) {
     .then(function(res) {
         if (btn) btn.disabled = false;
         if (!res.success) {
-            showToast(res.message || '保存失败', 'error');
+            showToast(res.message || (typeof t === 'function' ? t('common.save_failed', null, '保存失败') : '保存失败'), 'error');
             return;
         }
-        showToast('个人资料已保存', 'success');
+        showToast((typeof t === 'function' ? t('profile.saved', null, '个人资料已保存') : '个人资料已保存'), 'success');
         markProfileSaved('profileForm', displayName);
         var newName = (res.data && res.data.name) ? res.data.name : displayName;
         if (typeof CURRENT_USER !== 'undefined' && CURRENT_USER) {
@@ -2001,9 +2005,9 @@ function handleSaveProfile(e) {
             CURRENT_USER.display_name = newName;
         }
         var headerName = document.getElementById('myProfileHeaderName');
-        if (headerName) headerName.textContent = newName || '用户';
+        if (headerName) headerName.textContent = newName || (typeof t === 'function' ? t('common.user_default', null, '用户') : '用户');
         var sidebarName = document.querySelector('.user-badge span');
-        if (sidebarName) sidebarName.textContent = newName || '用户';
+        if (sidebarName) sidebarName.textContent = newName || (typeof t === 'function' ? t('common.user_default', null, '用户') : '用户');
 
         // 全景热同步：更新当前用户负责的所有项目的展示与 DOM 属性
         if (typeof CURRENT_USER !== 'undefined' && CURRENT_USER && CURRENT_USER.id) {
@@ -2040,7 +2044,7 @@ function handleSaveProfile(e) {
                             $row.find('td').eq(colIdx).html(renderItemOwnersCellHtml(collabStr, cName));
                         }
                     } else if (isCreatorRow && !collabStr) {
-                        $row.find('td').eq(colIdx).text('所有协作者');
+                        $row.find('td').eq(colIdx).text(typeof t === 'function' ? t('admin.item.all_editors', null, '所有协作者') : '所有协作者');
                     }
                 });
 
@@ -2055,11 +2059,11 @@ function handleSaveProfile(e) {
                             var itemTime = $curNode.data('time') || '';
                             var metaHtml = '';
                             if (newName && itemTime) {
-                                metaHtml = '<i class="ri-user-line" style="margin-right:3px;font-size:12px;opacity:0.85;"></i>@' + esc(newName) + ' · 更新于 ' + esc(itemTime);
+                                metaHtml = '<i class="ri-user-line" style="margin-right:3px;font-size:12px;opacity:0.85;"></i>' + esc(typeof t === 'function' ? t('workspace.author_updated_at', {author: newName, time: itemTime}, '@' + newName + ' · 更新于 ' + itemTime) : ('@' + newName + ' · 更新于 ' + itemTime));
                             } else if (newName) {
                                 metaHtml = '<i class="ri-user-line" style="margin-right:3px;font-size:12px;opacity:0.85;"></i>@' + esc(newName);
                             } else if (itemTime) {
-                                metaHtml = '<i class="ri-time-line" style="margin-right:3px;font-size:12px;opacity:0.85;"></i>更新于 ' + esc(itemTime);
+                                metaHtml = '<i class="ri-time-line" style="margin-right:3px;font-size:12px;opacity:0.85;"></i>' + esc(typeof t === 'function' ? t('workspace.updated_at', {time: itemTime}, '更新于 ' + itemTime) : ('更新于 ' + itemTime));
                             }
                             if (metaHtml) {
                                 $barTime.html(metaHtml).show();
@@ -2080,7 +2084,8 @@ function handleSaveProfile(e) {
                     var labelEl = myCb.closest('label');
                     var spanEl = labelEl ? labelEl.querySelector('span') : null;
                     if (spanEl) {
-                        spanEl.textContent = newName + (CURRENT_USER.role === 'admin' ? ' (管理员)' : '');
+                        var adminTag = (typeof t === 'function' ? t('admin.item.role_admin_tag', null, ' (管理员)') : ' (管理员)');
+                        spanEl.textContent = newName + (CURRENT_USER.role === 'admin' ? adminTag : '');
                     }
                     if (typeof onItemOwnersChange === 'function') onItemOwnersChange();
                 }
@@ -2089,7 +2094,7 @@ function handleSaveProfile(e) {
     })
     .catch(function() {
         if (btn) btn.disabled = false;
-        showToast('网络异常，请重试', 'error');
+        showToast((typeof t === 'function' ? t('common.network_error', null, '网络异常，请重试') : '网络异常，请重试'), 'error');
     });
 }
 window.handleSaveProfile = handleSaveProfile;
@@ -2104,10 +2109,11 @@ function handleChangeMyPassword(e) {
     var confirmPwd = confirmInput.value;
 
     if (!oldPwd) {
+        var oldReqMsg = typeof t === 'function' ? t('profile.enter_old_password', null, '请输入当前密码') : '请输入当前密码';
         if (typeof setFieldError === 'function') {
-            setFieldError(oldPwdInput, null, '请输入当前密码');
+            setFieldError(oldPwdInput, null, oldReqMsg);
         } else {
-            showToast('请输入当前密码', 'warning');
+            showToast(oldReqMsg, 'warning');
             oldPwdInput.focus();
         }
         return;
@@ -2121,11 +2127,12 @@ function handleChangeMyPassword(e) {
         }
         return;
     }
+    var mismatchMsg = typeof t === 'function' ? t('auth.password_mismatch', null, '两次输入的新密码不一致') : '两次输入的新密码不一致';
     if (typeof showPasswordMismatchError === 'function'
-        ? showPasswordMismatchError(passwordInput, confirmInput, null, '两次输入的新密码不一致')
+        ? showPasswordMismatchError(passwordInput, confirmInput, null, mismatchMsg)
         : (newPwd !== confirmPwd)) {
         if (typeof showPasswordMismatchError !== 'function') {
-            showToast('两次输入的新密码不一致', 'warning');
+            showToast(mismatchMsg, 'warning');
             confirmInput.focus();
         }
         return;
@@ -2139,17 +2146,17 @@ function handleChangeMyPassword(e) {
     apiFetch('change_my_password', formData)
     .then(function(res) {
         if (!res.success) {
-            var msg = res.message || '修改密码失败';
+            var msg = res.message || (typeof t === 'function' ? t('profile.pwd_failed', null, '修改密码失败') : '修改密码失败');
             if (typeof setFieldError === 'function') {
-                if (msg.indexOf('当前密码') !== -1 || msg.indexOf('原密码') !== -1) {
+                if (/当前密码|原密码|目前密碼|current password/i.test(msg)) {
                     setFieldError(oldPwdInput, null, msg);
                     return;
                 }
-                if (msg.indexOf('不一致') !== -1) {
+                if (/不一致|目前與|match/i.test(msg)) {
                     setFieldError(confirmInput, null, msg);
                     return;
                 }
-                if (msg.indexOf('新密码') !== -1 || msg.indexOf('字符') !== -1 || msg.indexOf('字节') !== -1) {
+                if (/新密码|新密碼|字符|字元|字节|位元組|password|character|byte/i.test(msg)) {
                     setFieldError(passwordInput, null, msg);
                     return;
                 }
@@ -2157,7 +2164,7 @@ function handleChangeMyPassword(e) {
             showToast(msg, 'error');
             return;
         }
-        showToast('密码已成功修改', 'success');
+        showToast((typeof t === 'function' ? t('profile.pwd_updated', null, '密码已成功修改') : '密码已成功修改'), 'success');
         oldPwdInput.value = '';
         passwordInput.value = '';
         confirmInput.value = '';
@@ -2172,7 +2179,7 @@ function handleChangeMyPassword(e) {
         closeModal('profileModal');
     })
     .catch(function() {
-        showToast('网络异常，请重试', 'error');
+        showToast((typeof t === 'function' ? t('common.network_error', null, '网络异常，请重试') : '网络异常，请重试'), 'error');
     });
 }
 window.handleChangeMyPassword = handleChangeMyPassword;
@@ -2190,7 +2197,7 @@ function handleSaveProfileWebhook(e) {
     .then(function(res) {
         if (btn) btn.disabled = false;
         if (res.success) {
-            showToast('个人通知已保存', 'success');
+            showToast((typeof t === 'function' ? t('profile.webhook_saved', null, '个人通知已保存') : '个人通知已保存'), 'success');
             markProfileSaved('profileWebhookForm', wb);
             if (typeof CURRENT_USER !== 'undefined' && CURRENT_USER) {
                 CURRENT_USER.webhook_url = wb;
@@ -2199,12 +2206,12 @@ function handleSaveProfileWebhook(e) {
                 }
             }
         } else {
-            showToast(res.message || '保存失败', 'error');
+            showToast(res.message || (typeof t === 'function' ? t('common.save_failed', null, '保存失败') : '保存失败'), 'error');
         }
     })
     .catch(function() {
         if (btn) btn.disabled = false;
-        showToast('网络异常，请重试', 'error');
+        showToast((typeof t === 'function' ? t('common.network_error', null, '网络异常，请重试') : '网络异常，请重试'), 'error');
     });
 }
 window.handleSaveProfileWebhook = handleSaveProfileWebhook;
@@ -2213,14 +2220,14 @@ function testAnyWebhook(inputId, btnEl) {
     var input = document.getElementById(inputId);
     var url = input ? input.value.trim() : '';
     if (!url) {
-        showToast('请先输入 Webhook 地址', 'warning');
+        showToast((typeof t === 'function' ? t('profile.enter_webhook', null, '请先输入 Webhook 地址') : '请先输入 Webhook 地址'), 'warning');
         if (input) input.focus();
         return;
     }
     var origHtml = btnEl ? btnEl.innerHTML : '';
     if (btnEl) {
         btnEl.disabled = true;
-        btnEl.innerHTML = '<i class="ri-loader-4-line ri-spin"></i> 发送中...';
+        btnEl.innerHTML = '<i class="ri-loader-4-line ri-spin"></i> ' + esc(typeof t === 'function' ? t('common.sending', null, '发送中...') : '发送中...');
     }
     var restoreBtn = function() {
         if (btnEl) {
@@ -2233,13 +2240,14 @@ function testAnyWebhook(inputId, btnEl) {
     apiFetch('test_webhook', fd).then(function(res) {
         restoreBtn();
         if (res.success) {
-            showToast(res.message || '测试消息已送达', 'success');
+            showToast(res.message || (typeof t === 'function' ? t('profile.webhook_test_ok', null, '测试消息已送达') : '测试消息已送达'), 'success');
         } else {
-            showToast('推送失败: ' + (res.message || '网络超时或地址无效'), 'error');
+            var reason = res.message || (typeof t === 'function' ? t('profile.webhook_timeout', null, '网络超时或地址无效') : '网络超时或地址无效');
+            showToast((typeof t === 'function' ? t('profile.webhook_test_fail', {msg: reason}, '推送失败: ' + reason) : ('推送失败: ' + reason)), 'error');
         }
     }).catch(function() {
         restoreBtn();
-        showToast('网络请求异常', 'error');
+        showToast((typeof t === 'function' ? t('common.network_req_error', null, '网络请求异常') : '网络请求异常'), 'error');
     });
 }
 
@@ -2272,7 +2280,7 @@ function copyTextToClipboard(text, onSuccess) {
         if (copied) {
             if (typeof onSuccess === 'function') onSuccess();
         } else {
-            showToast('复制失败，请手动复制链接', 'error');
+            showToast((typeof t === 'function' ? t('workspace.copy_link_failed', null, '复制失败，请手动复制链接') : '复制失败，请手动复制链接'), 'error');
         }
         return copied;
     }
@@ -2307,7 +2315,7 @@ $(document).on('click', '.btn-copy-link', function(e) {
     var text = $(this).attr('data-copy-url') || $(this).data('copy-url');
     if (text) {
         copyTextToClipboard(text, function() {
-            showToast('链接已复制', 'success');
+            showToast((typeof t === 'function' ? t('common.link_copied', null, '链接已复制') : '链接已复制'), 'success');
         });
     }
 });
@@ -2770,7 +2778,7 @@ function renderMyProfileAvatar(avatarId) {
     var btn = document.getElementById('myProfileAvatarBtn');
     if (btn) {
         var meta = window.ProfileAvatars.getMeta(resolved, seed);
-        btn.title = '更换头像（当前：' + meta.label + '）';
+        btn.title = (typeof t === 'function' ? t('avatar.title_current', { label: meta.label }, '更换头像（当前：' + meta.label + '）') : '更换头像（当前：' + meta.label + '）');
     }
 }
 
@@ -2962,7 +2970,7 @@ function saveProfileAvatar() {
     .then(function(res) {
         profileAvatarSaving = false;
         if (!res || !res.success) {
-            profileAvatarSaveFailed(targetId, (res && res.message) ? res.message : '头像保存失败，请重试');
+            profileAvatarSaveFailed(targetId, (res && res.message) ? res.message : (typeof t === 'function' ? t('avatar.save_failed', null, '头像保存失败，请重试') : '头像保存失败，请重试'));
             syncProfileAvatarSavingState();
             return;
         }
@@ -2975,7 +2983,7 @@ function saveProfileAvatar() {
         syncProfileAvatarSavingState();
     }, function() {
         profileAvatarSaving = false;
-        profileAvatarSaveFailed(targetId, '网络异常，头像未保存，请重试');
+        profileAvatarSaveFailed(targetId, (typeof t === 'function' ? t('avatar.network_failed', null, '网络异常，头像未保存，请重试') : '网络异常，头像未保存，请重试'));
         syncProfileAvatarSavingState();
     });
 }

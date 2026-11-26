@@ -10,12 +10,12 @@ class PrototypeContext {
         $stmt = DB::getInstance()->prepare('SELECT * FROM versions WHERE id = ?');
         $stmt->execute([(int)$id]);
         $version = $stmt->fetch();
-        if (!$version) throw new DomainException('版本不存在或已删除');
+        if (!$version) throw new DomainException(t('api.proto.ver_missing'));
         $item = Auth::getItem($version['item_id']);
-        if (!$item) throw new DomainException('项目不存在');
+        if (!$item) throw new DomainException(t('api.proto.item_missing'));
         $curUser = Auth::getCurrentUser();
         $isAllowed = $curUser ? Auth::canViewItem($item) : Auth::hasShareAccess($item, $version);
-        if (!$isAllowed) throw new DomainException('版本不存在或无权访问');
+        if (!$isAllowed) throw new DomainException(t('api.proto.ver_forbidden'));
         return $version;
     }
     public static function revision($version) { return hash('sha256', $version['storage_dir']); }
@@ -43,7 +43,7 @@ class PrototypeContext {
     public static function read($version, $page, $limit = 30000) {
         list($relative, $hash) = self::pageParts($page, $version);
         $path = Storage::filePath($version, $relative);
-        if (!$path || !preg_match('/\.html?$/iD', $relative)) throw new DomainException('原型页面不存在');
+        if (!$path || !preg_match('/\.html?$/iD', $relative)) throw new DomainException(t('api.proto.page_missing'));
         $html = file_get_contents($path, false, null, 0, 1024 * 1024);
         $encodingWarning = !mb_check_encoding($html, 'UTF-8');
         $html = self::utf8($html);
@@ -59,8 +59,8 @@ class PrototypeContext {
             'revision' => self::revision($version), 'page_path' => $relative . ($hash ? '#' . $hash : ''),
             'title' => self::text($title[1] ?? '', 200), 'text' => self::text($html, $limit),
             'links' => $localLinks, 'preview_url' => self::pageUrl($version, $page),
-            'coverage' => '静态 HTML 内容；脚本生成内容、隐藏面板、跳转条件与业务校验未执行或验证。',
-            'encoding_note' => $encodingWarning ? '源内容含非UTF-8或截断字节，已替换；请核对原文。' : '',
+            'coverage' => t('api.proto.coverage_note'),
+            'encoding_note' => $encodingWarning ? t('api.proto.encoding_note') : '',
             'truncated' => filesize($path) > 1024 * 1024 || mb_strlen(self::text($html, $limit + 1), 'UTF-8') > $limit];
     }
     public static function pages($version, $offset = 0, $limit = 100) {

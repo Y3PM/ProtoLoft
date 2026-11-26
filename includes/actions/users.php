@@ -6,7 +6,7 @@ if (!defined('APP_VERSION')) exit;
 
 switch ($action) {
     case 'user_list':
-        if (!Auth::canManage()) jsonResponse(false, null, '未登录或权限不足');
+        if (!Auth::canManage()) jsonResponse(false, null, t('api.not_logged_in_or_perm'));
         $list = Auth::listUsers();
         if (!Auth::isAdmin()) {
             // 协作者仅可见只读通讯录脱敏字段
@@ -31,7 +31,7 @@ switch ($action) {
         break;
 
     case 'user_add':
-        if (!Auth::isAdmin()) jsonResponse(false, null, '无管理员权限');
+        if (!Auth::isAdmin()) jsonResponse(false, null, t('api.no_admin_perm'));
         $email = trim($_POST['email'] ?? ($_POST['username'] ?? ''));
         $name = trim($_POST['name'] ?? ($_POST['display_name'] ?? ''));
         $password = $_POST['password'] ?? '';
@@ -43,7 +43,7 @@ switch ($action) {
         break;
 
     case 'user_update':
-        if (!Auth::isAdmin()) jsonResponse(false, null, '无管理员权限');
+        if (!Auth::isAdmin()) jsonResponse(false, null, t('api.no_admin_perm'));
         $id = (int)($_POST['id'] ?? 0);
         $role = $_POST['role'] ?? null;
         $status = isset($_POST['status']) ? (int)$_POST['status'] : null;
@@ -57,14 +57,14 @@ switch ($action) {
         break;
 
     case 'user_delete':
-        if (!Auth::isAdmin()) jsonResponse(false, null, '无管理员权限');
+        if (!Auth::isAdmin()) jsonResponse(false, null, t('api.no_admin_perm'));
         $id = (int)($_POST['id'] ?? 0);
         $res = Auth::deleteUser($id);
         jsonResponse($res['success'], null, $res['message'] ?? '');
         break;
 
     case 'transfer_ownership':
-        if (!Auth::isOwner()) jsonResponse(false, null, '仅主超级管理员有权移交所有权');
+        if (!Auth::isOwner()) jsonResponse(false, null, t('api.users.owner_transfer_only'));
         $targetId = (int)($_POST['target_user_id'] ?? 0);
         $confirmPwd = $_POST['password'] ?? '';
         $res = Auth::transferOwnership($targetId, $confirmPwd);
@@ -72,7 +72,7 @@ switch ($action) {
         break;
 
     case 'user_handover':
-        if (!Auth::isAdmin()) jsonResponse(false, null, '无管理员权限');
+        if (!Auth::isAdmin()) jsonResponse(false, null, t('api.no_admin_perm'));
         $fromId = (int)($_POST['from_user_id'] ?? 0);
         $toId = (int)($_POST['to_user_id'] ?? 0);
         $deact = !empty($_POST['deactivate_from']) ? true : false;
@@ -81,7 +81,7 @@ switch ($action) {
         break;
 
     case 'pending_user_list':
-        if (!Auth::isAdmin()) jsonResponse(false, null, '无管理员权限');
+        if (!Auth::isAdmin()) jsonResponse(false, null, t('api.no_admin_perm'));
         if (($_POST['count_only'] ?? $_GET['count_only'] ?? '') === '1') {
             $count = (int)$db->query('SELECT COUNT(*) FROM users WHERE status = 0')->fetchColumn();
             jsonResponse(true, ['count' => $count]);
@@ -91,27 +91,27 @@ switch ($action) {
         break;
 
     case 'approve_user':
-        if (!Auth::isAdmin()) jsonResponse(false, null, '无管理员权限');
+        if (!Auth::isAdmin()) jsonResponse(false, null, t('api.no_admin_perm'));
         $id = (int)($_POST['id'] ?? 0);
-        if ($id <= 0) jsonResponse(false, null, '无效的用户 ID');
+        if ($id <= 0) jsonResponse(false, null, t('api.users.invalid_id'));
         $role = trim($_POST['role'] ?? 'viewer');
         if (!in_array($role, ['viewer', 'editor'], true)) {
             $role = 'viewer';
         }
         $stmt = $db->prepare("UPDATE users SET status = 1, role = ? WHERE id = ? AND status = 0");
         $stmt->execute([$role, $id]);
-        if ($stmt->rowCount() !== 1) jsonResponse(false, null, '申请不存在或已处理');
-        $roleLabel = ($role === 'editor' ? '协作者' : '审阅人');
-        jsonResponse(true, ['role' => $role, 'role_label' => $roleLabel], "已成功批准该用户入驻（角色：{$roleLabel}）");
+        if ($stmt->rowCount() !== 1) jsonResponse(false, null, t('api.users.apply_handled'));
+        $roleLabel = ($role === 'editor' ? t('common.role.editor') : t('common.role.viewer'));
+        jsonResponse(true, ['role' => $role, 'role_label' => $roleLabel], t('api.users.approved_msg', ['role' => $roleLabel]));
         break;
 
     case 'reject_user':
-        if (!Auth::isAdmin()) jsonResponse(false, null, '无管理员权限');
+        if (!Auth::isAdmin()) jsonResponse(false, null, t('api.no_admin_perm'));
         $id = (int)($_POST['id'] ?? 0);
-        if ($id <= 0) jsonResponse(false, null, '无效的用户 ID');
+        if ($id <= 0) jsonResponse(false, null, t('api.users.invalid_id'));
         $stmt = $db->prepare("DELETE FROM users WHERE id = ? AND status = 0 AND is_owner = 0");
         $stmt->execute([$id]);
-        if ($stmt->rowCount() !== 1) jsonResponse(false, null, '申请不存在或已处理');
-        jsonResponse(true, null, '已驳回该用户的申请');
+        if ($stmt->rowCount() !== 1) jsonResponse(false, null, t('api.users.apply_handled'));
+        jsonResponse(true, null, t('api.users.rejected_msg'));
         break;
 }

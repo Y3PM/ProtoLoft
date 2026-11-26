@@ -14,8 +14,8 @@ if (!empty(trim($allowedDomainsSetting))) {
 <div id="loginModal" class="custom-modal" style="display:none;">
     <div class="modal-dialog-box modal-sm" style="box-sizing:border-box;">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;">
-            <div style="font-size:15px;font-weight:600;color:var(--text-1);" id="loginModalTitle">账号登录</div>
-            <button type="button" onclick="closeLoginModal()" class="close-x" title="关闭"><i class="ri-close-line"></i></button>
+            <div style="font-size:15px;font-weight:600;color:var(--text-1);" id="loginModalTitle"><?php echo htmlspecialchars(t('auth.login_title')); ?></div>
+            <button type="button" onclick="closeLoginModal()" class="close-x" title="<?php echo htmlspecialchars(t('common.close')); ?>"><i class="ri-close-line"></i></button>
         </div>
 
         <!-- 1. 登录面板 -->
@@ -26,19 +26,19 @@ if (!empty(trim($allowedDomainsSetting))) {
                     <span></span>
                 </div>
                 <div class="m-form-group">
-                    <label class="m-label" for="loginEmail">工作邮箱</label>
+                    <label class="m-label" for="loginEmail"><?php echo htmlspecialchars(t('auth.work_email')); ?></label>
                     <div style="position:relative;display:flex;align-items:center;">
-                        <input type="text" id="loginEmail" name="username" class="m-input" data-fixed-domain="<?php echo htmlspecialchars($fixedEmailDomain); ?>" placeholder="<?php echo $fixedEmailDomain ? '输入邮箱名' : '输入工作邮箱'; ?>" autocomplete="username" required autofocus maxlength="100" style="flex:1;<?php echo $fixedEmailDomain ? ('padding-right:' . (mb_strlen($fixedEmailDomain)*8 + 34) . 'px;') : ''; ?>" oninput="handleEmailInputWithDomain(this, 'loginDomainBadge')">
+                        <input type="text" id="loginEmail" name="username" class="m-input" data-fixed-domain="<?php echo htmlspecialchars($fixedEmailDomain); ?>" placeholder="<?php echo htmlspecialchars($fixedEmailDomain ? t('auth.email_prefix_input') : t('auth.work_email')); ?>" autocomplete="username" required autofocus maxlength="100" style="flex:1;<?php echo $fixedEmailDomain ? ('padding-right:' . (mb_strlen($fixedEmailDomain)*8 + 34) . 'px;') : ''; ?>" oninput="handleEmailInputWithDomain(this, 'loginDomainBadge')">
                         <?php if ($fixedEmailDomain): ?>
                             <span id="loginDomainBadge" class="email-fixed-badge" style="position:absolute;right:8px;font-size:12px;color:var(--text-3);background:var(--bg-tag, #f1f5f9);border:1px solid var(--border-light, #e2e8f0);padding:2px 7px;border-radius:4px;pointer-events:none;user-select:none;">@<?php echo htmlspecialchars($fixedEmailDomain); ?></span>
                         <?php endif; ?>
                     </div>
                 </div>
                 <div class="m-form-group">
-                    <label class="m-label" for="loginPassword">密码</label>
+                    <label class="m-label" for="loginPassword"><?php echo htmlspecialchars(t('auth.password')); ?></label>
                     <div class="pwd-input-wrap">
-                        <input type="password" id="loginPassword" name="password" class="m-input" placeholder="输入密码" autocomplete="current-password" required maxlength="64">
-                        <button type="button" class="btn-eye-toggle" onclick="togglePasswordVisibility('loginPassword', this)" title="显示/隐藏密码">
+                        <input type="password" id="loginPassword" name="password" class="m-input" placeholder="<?php echo htmlspecialchars(t('auth.enter_password')); ?>" autocomplete="current-password" required maxlength="64">
+                        <button type="button" class="btn-eye-toggle" onclick="togglePasswordVisibility('loginPassword', this)" title="<?php echo htmlspecialchars(t('auth.toggle_password')); ?>">
                             <i class="ri-eye-line"></i>
                         </button>
                     </div>
@@ -46,18 +46,18 @@ if (!empty(trim($allowedDomainsSetting))) {
                 <div style="display:flex;align-items:center;justify-content:flex-start;margin:10px 0 14px;">
                     <label style="display:flex;align-items:center;gap:6px;font-size:12.5px;color:var(--text-2);cursor:pointer;user-select:none;">
                         <input type="checkbox" id="loginRememberMe" name="remember_me" value="1" checked style="cursor:pointer;accent-color:var(--primary);width:14px;height:14px;">
-                        <span>记住登录 (30天)</span>
+                        <span><?php echo htmlspecialchars(t('auth.remember_me')); ?></span>
                     </label>
                 </div>
                 <div id="loginError" class="m-error" style="display:none;margin-bottom:12px;"></div>
-                <button type="submit" id="btnLoginSubmit" class="btn-primary btn-block" style="margin-top:4px;">登录</button>
+                <button type="submit" id="btnLoginSubmit" class="btn-primary btn-block" style="margin-top:4px;"><?php echo htmlspecialchars(t('auth.login_btn')); ?></button>
                 <div class="auth-footer-links">
                     <?php if ($visitorRegEnabled): ?>
-                        <a href="javascript:void(0)" onclick="toggleLoginRegPane('reg')" id="linkToRegister">申请加入协作</a>
+                        <a href="javascript:void(0)" onclick="toggleLoginRegPane('reg')" id="linkToRegister"><?php echo htmlspecialchars(t('auth.apply_join_link')); ?></a>
                     <?php else: ?>
                         <span></span>
                     <?php endif; ?>
-                    <a href="javascript:void(0)" onclick="toggleLoginRegPane('forgot')" id="linkToForgot" class="auth-link-muted">忘记密码？</a>
+                    <a href="javascript:void(0)" onclick="toggleLoginRegPane('forgot')" id="linkToForgot" class="auth-link-muted"><?php echo htmlspecialchars(t('auth.forgot_link')); ?></a>
                 </div>
             </form>
         </div>
@@ -71,23 +71,23 @@ if (!empty(trim($allowedDomainsSetting))) {
                         <span></span>
                     </div>
                     <div class="m-form-group">
-                        <label class="m-label" for="modalForgotEmail">工作邮箱</label>
+                        <label class="m-label" for="modalForgotEmail"><?php echo htmlspecialchars(t('auth.work_email')); ?></label>
                         <div style="position:relative;display:flex;align-items:center;">
-                            <input type="text" id="modalForgotEmail" class="m-input" data-fixed-domain="<?php echo htmlspecialchars($fixedEmailDomain); ?>" placeholder="<?php echo $fixedEmailDomain ? '输入邮箱名' : '输入注册时的工作邮箱'; ?>" autocomplete="email" required maxlength="100" style="flex:1;<?php echo $fixedEmailDomain ? ('padding-right:' . (mb_strlen($fixedEmailDomain)*8 + 34) . 'px;') : ''; ?>" oninput="handleEmailInputWithDomain(this, 'modalForgotDomainBadge')">
+                            <input type="text" id="modalForgotEmail" class="m-input" data-fixed-domain="<?php echo htmlspecialchars($fixedEmailDomain); ?>" placeholder="<?php echo htmlspecialchars($fixedEmailDomain ? t('auth.email_prefix_input') : t('auth.email_example_placeholder')); ?>" autocomplete="email" required maxlength="100" style="flex:1;<?php echo $fixedEmailDomain ? ('padding-right:' . (mb_strlen($fixedEmailDomain)*8 + 34) . 'px;') : ''; ?>" oninput="handleEmailInputWithDomain(this, 'modalForgotDomainBadge')">
                             <?php if ($fixedEmailDomain): ?>
                                 <span id="modalForgotDomainBadge" class="email-fixed-badge" style="position:absolute;right:8px;font-size:12px;color:var(--text-3);background:var(--bg-tag, #f1f5f9);border:1px solid var(--border-light, #e2e8f0);padding:2px 7px;border-radius:4px;pointer-events:none;user-select:none;">@<?php echo htmlspecialchars($fixedEmailDomain); ?></span>
                             <?php endif; ?>
                         </div>
                     </div>
                     <div id="modalForgotError" class="m-error" style="display:none;margin-bottom:12px;"></div>
-                    <button type="submit" id="btnModalForgotSubmit" class="btn-primary btn-block" style="margin-top:4px;">发送重置邮件</button>
+                    <button type="submit" id="btnModalForgotSubmit" class="btn-primary btn-block" style="margin-top:4px;"><?php echo htmlspecialchars(t('auth.send_reset_mail')); ?></button>
                 </div>
                 <div id="modalForgotDisabledBox" style="display:none;">
-                    <div class="auth-sub-note">暂未启用邮件找回，请联系管理员重置密码。</div>
-                    <button type="button" class="btn-primary btn-block" onclick="toggleLoginRegPane('login')">返回登录</button>
+                    <div class="auth-sub-note"><?php echo htmlspecialchars(t('auth.mail_reset_disabled')); ?></div>
+                    <button type="button" class="btn-primary btn-block" onclick="toggleLoginRegPane('login')"><?php echo htmlspecialchars(t('auth.back_to_login')); ?></button>
                 </div>
                 <div id="modalForgotBackWrap" style="text-align:center;margin-top:12px;">
-                    <a href="javascript:void(0)" onclick="toggleLoginRegPane('login')" style="font-size:12.5px;color:var(--text-3);text-decoration:none;">返回登录</a>
+                    <a href="javascript:void(0)" onclick="toggleLoginRegPane('login')" style="font-size:12.5px;color:var(--text-3);text-decoration:none;"><?php echo htmlspecialchars(t('auth.back_to_login')); ?></a>
                 </div>
             </form>
         </div>
@@ -96,66 +96,66 @@ if (!empty(trim($allowedDomainsSetting))) {
         <div id="paneDoRegister" style="display:none;">
             <form id="registerForm" onsubmit="handleDoRegister(event)" novalidate>
                 <div class="m-form-group">
-                    <label class="m-label" for="regEmail">工作邮箱 <span class="req-star">*</span></label>
+                    <label class="m-label" for="regEmail"><?php echo htmlspecialchars(t('auth.work_email')); ?> <span class="req-star">*</span></label>
                     <div style="position:relative;display:flex;align-items:center;">
-                        <input type="text" id="regEmail" class="m-input" data-fixed-domain="<?php echo htmlspecialchars($fixedEmailDomain); ?>" placeholder="<?php echo $fixedEmailDomain ? '输入邮箱名' : '例如：admin@company.com'; ?>" autocomplete="email" required maxlength="100" data-error-target="regEmailFieldError" aria-errormessage="regEmailFieldError" style="flex:1;<?php echo $fixedEmailDomain ? ('padding-right:' . (mb_strlen($fixedEmailDomain)*8 + 34) . 'px;') : ''; ?>" oninput="handleEmailInputWithDomain(this, 'regDomainBadge')">
+                        <input type="text" id="regEmail" class="m-input" data-fixed-domain="<?php echo htmlspecialchars($fixedEmailDomain); ?>" placeholder="<?php echo htmlspecialchars($fixedEmailDomain ? t('auth.email_prefix_input') : t('auth.email_example_placeholder')); ?>" autocomplete="email" required maxlength="100" data-error-target="regEmailFieldError" aria-errormessage="regEmailFieldError" style="flex:1;<?php echo $fixedEmailDomain ? ('padding-right:' . (mb_strlen($fixedEmailDomain)*8 + 34) . 'px;') : ''; ?>" oninput="handleEmailInputWithDomain(this, 'regDomainBadge')">
                         <?php if ($fixedEmailDomain): ?>
                             <span id="regDomainBadge" class="email-fixed-badge" style="position:absolute;right:8px;font-size:12px;color:var(--text-3);background:var(--bg-tag, #f1f5f9);border:1px solid var(--border-light, #e2e8f0);padding:2px 7px;border-radius:4px;pointer-events:none;user-select:none;">@<?php echo htmlspecialchars($fixedEmailDomain); ?></span>
                         <?php endif; ?>
                     </div>
                     <div class="field-error-tip" id="regEmailFieldError" role="alert"></div>
                     <?php if ($fixedEmailDomain): ?>
-                        <div style="font-size:11px;color:var(--text-3);margin-top:4px;">可输入邮箱名或完整工作邮箱</div>
+                        <div style="font-size:11px;color:var(--text-3);margin-top:4px;"><?php echo htmlspecialchars(t('auth.email_hint_domain')); ?></div>
                     <?php endif; ?>
                 </div>
                 <div class="m-form-group">
-                    <label class="m-label" for="regName">真实姓名 <span class="req-star">*</span></label>
-                    <input type="text" id="regName" class="m-input" placeholder="例如：李明" required maxlength="20" data-error-target="regNameFieldError" aria-errormessage="regNameFieldError">
+                    <label class="m-label" for="regName"><?php echo htmlspecialchars(t('auth.real_name')); ?> <span class="req-star">*</span></label>
+                    <input type="text" id="regName" class="m-input" placeholder="<?php echo htmlspecialchars(t('auth.real_name_example')); ?>" required maxlength="20" data-error-target="regNameFieldError" aria-errormessage="regNameFieldError">
                     <div class="field-error-tip" id="regNameFieldError" role="alert"></div>
                 </div>
                 <div class="m-form-group">
                     <div class="field-label-row">
-                        <label class="m-label" for="regPassword">登录密码 <span class="req-star">*</span></label>
+                        <label class="m-label" for="regPassword"><?php echo htmlspecialchars(t('auth.login_password')); ?> <span class="req-star">*</span></label>
                         <span class="password-strength" id="regPasswordStrength" role="status"></span>
                     </div>
                     <div class="pwd-input-wrap">
-                        <input type="password" id="regPassword" class="m-input" placeholder="至少 6 个字符" autocomplete="new-password" required data-password-strength="regPasswordStrength" data-error-target="regPasswordError" aria-describedby="regPasswordStrength" aria-errormessage="regPasswordError">
-                        <button type="button" class="btn-eye-toggle" onclick="togglePasswordVisibility('regPassword', this)" title="显示/隐藏密码">
+                        <input type="password" id="regPassword" class="m-input" placeholder="<?php echo htmlspecialchars(t('auth.password_min_placeholder')); ?>" autocomplete="new-password" required data-password-strength="regPasswordStrength" data-error-target="regPasswordError" aria-describedby="regPasswordStrength" aria-errormessage="regPasswordError">
+                        <button type="button" class="btn-eye-toggle" onclick="togglePasswordVisibility('regPassword', this)" title="<?php echo htmlspecialchars(t('auth.toggle_password')); ?>">
                             <i class="ri-eye-line"></i>
                         </button>
                     </div>
                     <div class="field-error-tip" id="regPasswordError" role="alert"></div>
                 </div>
                 <div class="m-form-group">
-                    <div class="m-label">申请角色 <span class="req-star">*</span></div>
+                    <div class="m-label"><?php echo htmlspecialchars(t('auth.apply_role')); ?> <span class="req-star">*</span></div>
                     <div class="reg-role-grid">
                         <label class="reg-role-card" for="regRoleViewer">
                             <input type="radio" id="regRoleViewer" name="reg_role" value="viewer" checked>
                             <div class="reg-role-head">
-                                <span class="reg-role-title">审阅人</span>
+                                <span class="reg-role-title"><?php echo htmlspecialchars(t('common.role.viewer')); ?></span>
                                 <span class="reg-role-check" aria-hidden="true"></span>
                             </div>
-                            <div class="reg-role-desc">查看与批注 · 研发/测试</div>
+                            <div class="reg-role-desc"><?php echo htmlspecialchars(t('auth.role_viewer_desc')); ?></div>
                         </label>
                         <label class="reg-role-card" for="regRoleEditor">
                             <input type="radio" id="regRoleEditor" name="reg_role" value="editor">
                             <div class="reg-role-head">
-                                <span class="reg-role-title">协作者</span>
+                                <span class="reg-role-title"><?php echo htmlspecialchars(t('common.role.editor')); ?></span>
                                 <span class="reg-role-check" aria-hidden="true"></span>
                             </div>
-                            <div class="reg-role-desc">上传与管理 · 产品/交互</div>
+                            <div class="reg-role-desc"><?php echo htmlspecialchars(t('auth.role_editor_desc')); ?></div>
                         </label>
                     </div>
                 </div>
                 <div class="m-form-group">
-                    <label class="m-label" for="regDepartment">部门或职务 <span class="opt-tag">选填</span></label>
-                    <input type="text" id="regDepartment" class="m-input" placeholder="例如：研发部 · 前端开发" maxlength="30">
+                    <label class="m-label" for="regDepartment"><?php echo htmlspecialchars(t('auth.department')); ?> <span class="opt-tag"><?php echo htmlspecialchars(t('common.optional')); ?></span></label>
+                    <input type="text" id="regDepartment" class="m-input" placeholder="<?php echo htmlspecialchars(t('auth.department_example')); ?>" maxlength="30">
                 </div>
                 <div id="regError" class="m-error" style="display:none;margin-bottom:12px;"></div>
                 <div id="regSuccess" class="m-alert m-alert-success" style="display:none;"></div>
-                <button type="submit" id="btnRegSubmit" class="btn-primary btn-block" style="margin-top:4px;">申请加入</button>
+                <button type="submit" id="btnRegSubmit" class="btn-primary btn-block" style="margin-top:4px;"><?php echo htmlspecialchars(t('auth.submit_apply')); ?></button>
                 <div style="text-align:center;margin-top:12px;">
-                    <a href="javascript:void(0)" onclick="toggleLoginRegPane('login')" style="font-size:12.5px;color:var(--text-3);text-decoration:none;">已有账号？返回登录</a>
+                    <a href="javascript:void(0)" onclick="toggleLoginRegPane('login')" style="font-size:12.5px;color:var(--text-3);text-decoration:none;"><?php echo htmlspecialchars(t('auth.has_account_back')); ?></a>
                 </div>
             </form>
         </div>
@@ -234,7 +234,7 @@ if (!empty(trim($allowedDomainsSetting))) {
         if (paneForgot) paneForgot.style.display = (target === 'forgot') ? 'block' : 'none';
 
         if (target === 'reg') {
-            titleEl.textContent = '申请加入协作';
+            titleEl.textContent = t('auth.register_title', null, '申请加入协作');
             var succLogin = document.getElementById('loginSuccessNotice');
             if (succLogin) succLogin.style.display = 'none';
             var u = document.getElementById('regEmail');
@@ -243,7 +243,7 @@ if (!empty(trim($allowedDomainsSetting))) {
                 handleEmailInputWithDomain(u, 'regDomainBadge');
             }
         } else if (target === 'forgot') {
-            titleEl.textContent = '找回密码';
+            titleEl.textContent = t('auth.forgot_title', null, '找回密码');
             var succLogin2 = document.getElementById('loginSuccessNotice');
             if (succLogin2) succLogin2.style.display = 'none';
             var mailEnabled = isModalMailResetEnabled();
@@ -265,7 +265,7 @@ if (!empty(trim($allowedDomainsSetting))) {
                 }
             }
         } else {
-            titleEl.textContent = '账号登录';
+            titleEl.textContent = t('auth.login_title', null, '账号登录');
             var u2 = document.getElementById('loginEmail');
             if (u2) {
                 u2.focus();
@@ -287,7 +287,7 @@ if (!empty(trim($allowedDomainsSetting))) {
 
         var fixedDomain = emailInput ? (emailInput.getAttribute('data-fixed-domain') || '') : '';
         if (!fixedDomain && email.indexOf('@') === -1) {
-            err.innerText = '请输入完整工作邮箱，如 name@company.com';
+            err.innerText = t('auth.enter_full_email', null, '请输入完整工作邮箱，如 name@company.com');
             err.style.display = 'block';
             if (succLogin) succLogin.style.display = 'none';
             emailInput.focus();
@@ -295,7 +295,7 @@ if (!empty(trim($allowedDomainsSetting))) {
         }
 
         btn.disabled = true;
-        btn.innerText = '登录中...';
+        btn.innerText = t('auth.logging_in', null, '登录中...');
         err.style.display = 'none';
 
         var fd = new FormData();
@@ -310,28 +310,28 @@ if (!empty(trim($allowedDomainsSetting))) {
                 try {
                     return JSON.parse(text);
                 } catch(e) {
-                    throw new Error(text || ('服务响应异常 (HTTP ' + r.status + ')'));
+                    throw new Error(text || t('common.http_error', {status: r.status}, '服务响应异常 (HTTP ' + r.status + ')'));
                 }
             });
         })
         .then(function(res) {
             if (res.success) {
                 if (typeof showToast === 'function') {
-                    showToast('登录成功', 'success', 2000, true);
+                    showToast(t('auth.login_success', null, '登录成功'), 'success', 2000, true);
                 }
                 window.location.reload();
             } else {
-                err.innerText = res.message || '邮箱或密码错误';
+                err.innerText = res.message || t('auth.invalid_credentials', null, '邮箱或密码错误');
                 err.style.display = 'block';
                 btn.disabled = false;
-                btn.innerText = '登录';
+                btn.innerText = t('auth.login_btn', null, '登录');
             }
         })
         .catch(function(e) {
-            err.innerText = (e && e.message) ? e.message : '网络异常，请重试';
+            err.innerText = (e && e.message) ? e.message : t('common.network_error', null, '网络异常，请重试');
             err.style.display = 'block';
             btn.disabled = false;
-            btn.innerText = '登录';
+            btn.innerText = t('auth.login_btn', null, '登录');
         });
     }
 
@@ -353,18 +353,18 @@ if (!empty(trim($allowedDomainsSetting))) {
 
         var fixedDomain = emailInput ? (emailInput.getAttribute('data-fixed-domain') || '') : '';
         if (!rawEmailVal) {
-            if (typeof setFieldError === 'function') setFieldError(emailInput, null, '请输入工作邮箱');
-            else { err.innerText = '请输入工作邮箱'; err.style.display = 'block'; if (emailInput) emailInput.focus(); }
+            if (typeof setFieldError === 'function') setFieldError(emailInput, null, t('auth.enter_work_email', null, '请输入工作邮箱'));
+            else { err.innerText = t('auth.enter_work_email', null, '请输入工作邮箱'); err.style.display = 'block'; if (emailInput) emailInput.focus(); }
             return;
         }
         if (!fixedDomain && email.indexOf('@') === -1) {
-            if (typeof setFieldError === 'function') setFieldError(emailInput, null, '请输入完整工作邮箱，如 name@company.com');
-            else { err.innerText = '请输入完整工作邮箱，如 name@company.com'; err.style.display = 'block'; emailInput.focus(); }
+            if (typeof setFieldError === 'function') setFieldError(emailInput, null, t('auth.enter_full_email', null, '请输入完整工作邮箱，如 name@company.com'));
+            else { err.innerText = t('auth.enter_full_email', null, '请输入完整工作邮箱，如 name@company.com'); err.style.display = 'block'; emailInput.focus(); }
             return;
         }
         if (!name) {
-            if (typeof setFieldError === 'function') setFieldError(nameInput, null, '请输入真实姓名');
-            else { err.innerText = '请输入真实姓名'; err.style.display = 'block'; if (nameInput) nameInput.focus(); }
+            if (typeof setFieldError === 'function') setFieldError(nameInput, null, t('auth.enter_real_name', null, '请输入真实姓名'));
+            else { err.innerText = t('auth.enter_real_name', null, '请输入真实姓名'); err.style.display = 'block'; if (nameInput) nameInput.focus(); }
             return;
         }
 
@@ -374,7 +374,7 @@ if (!empty(trim($allowedDomainsSetting))) {
         }
 
         btn.disabled = true;
-        btn.innerText = '正在提交...';
+        btn.innerText = t('common.submitting', null, '正在提交...');
         err.style.display = 'none';
 
         var fd = new FormData();
@@ -389,7 +389,7 @@ if (!empty(trim($allowedDomainsSetting))) {
         .then(function(r) { return r.json(); })
         .then(function(res) {
             btn.disabled = false;
-            btn.innerText = '申请加入';
+            btn.innerText = t('auth.submit_apply', null, '申请加入');
             if (res.success) {
                 // 1. 重置注册表单并恢复域名徽标
                 var regForm = document.getElementById('registerForm');
@@ -414,7 +414,7 @@ if (!empty(trim($allowedDomainsSetting))) {
                 var succTip = document.getElementById('loginSuccessNotice');
                 if (succTip) {
                     var tipSpan = succTip.querySelector('span');
-                    if (tipSpan) tipSpan.innerText = res.message || '申请已提交，等待管理员审核后即可登录';
+                    if (tipSpan) tipSpan.innerText = res.message || t('auth.apply_submitted', null, '申请已提交，等待管理员审核后即可登录');
                     succTip.style.display = 'flex';
                 }
 
@@ -424,14 +424,14 @@ if (!empty(trim($allowedDomainsSetting))) {
                     pwdInput.focus();
                 }
             } else {
-                err.innerText = res.message || '提交申请失败';
+                err.innerText = res.message || t('auth.apply_failed', null, '提交申请失败');
                 err.style.display = 'block';
             }
         })
         .catch(function() {
             btn.disabled = false;
-            btn.innerText = '申请加入';
-            err.innerText = '网络连接异常，请重试';
+            btn.innerText = t('auth.submit_apply', null, '申请加入');
+            err.innerText = t('common.network_error', null, '网络连接异常，请重试');
             err.style.display = 'block';
         });
     }
@@ -447,14 +447,14 @@ if (!empty(trim($allowedDomainsSetting))) {
 
         var fixedDomain = emailInput.getAttribute('data-fixed-domain') || '';
         if (!fixedDomain && email.indexOf('@') === -1) {
-            err.innerText = '请输入完整工作邮箱，如 name@company.com';
+            err.innerText = t('auth.enter_full_email', null, '请输入完整工作邮箱，如 name@company.com');
             err.style.display = 'block';
             emailInput.focus();
             return;
         }
 
         btn.disabled = true;
-        btn.innerText = '发送中...';
+        btn.innerText = t('common.sending', null, '发送中...');
         err.style.display = 'none';
         if (succ) succ.style.display = 'none';
 
@@ -464,22 +464,22 @@ if (!empty(trim($allowedDomainsSetting))) {
         apiFetch('request_password_reset', fd, false)
         .then(function(res) {
             btn.disabled = false;
-            btn.innerText = '发送重置邮件';
+            btn.innerText = t('auth.send_reset_mail', null, '发送重置邮件');
             if (res.success) {
                 if (succ) {
                     var tipSpan = succ.querySelector('span');
-                    if (tipSpan) tipSpan.innerText = res.message || '如果该邮箱已注册且状态正常，你将收到密码重置邮件';
+                    if (tipSpan) tipSpan.innerText = res.message || t('auth.reset_sent_tip', null, '如果该邮箱已注册且状态正常，你将收到密码重置邮件');
                     succ.style.display = 'flex';
                 }
             } else {
-                err.innerText = res.message || '发送失败，请重试';
+                err.innerText = res.message || t('auth.send_failed', null, '发送失败，请重试');
                 err.style.display = 'block';
             }
         })
         .catch(function() {
             btn.disabled = false;
-            btn.innerText = '发送重置邮件';
-            err.innerText = '网络连接异常，请重试';
+            btn.innerText = t('auth.send_reset_mail', null, '发送重置邮件');
+            err.innerText = t('common.network_error', null, '网络连接异常，请重试');
             err.style.display = 'block';
         });
     }

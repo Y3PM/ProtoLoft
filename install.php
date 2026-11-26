@@ -8,14 +8,35 @@ require_once __DIR__ . '/includes/password_policy.php';
 header('X-Frame-Options: SAMEORIGIN');
 header("Content-Security-Policy: frame-ancestors 'self'");
 
+if (session_status() === PHP_SESSION_NONE && !headers_sent()) {
+    session_start();
+}
+
+$installLang = I18n::DEFAULT_LOCALE;
+if (!is_installed()) {
+    $candLang = $_POST['system_language'] ?? ($_GET['lang'] ?? ($_SESSION['install_lang'] ?? I18n::DEFAULT_LOCALE));
+    if (is_string($candLang) && I18n::isValidLocale(trim($candLang))) {
+        $installLang = trim($candLang);
+    }
+    $_SESSION['install_lang'] = $installLang;
+    I18n::setLocale($installLang);
+}
+
 // 检查是否已安装
 if (is_installed()) {
+    try {
+        if (file_exists(DB_FILE)) {
+            require_once __DIR__ . '/includes/db.php';
+            I18n::getLocale(true);
+        }
+    } catch (Throwable $e) {
+    }
     ?>
     <!DOCTYPE html>
-    <html lang="zh-CN">
+    <html lang="<?php echo htmlspecialchars(I18n::htmlLang()); ?>">
     <head>
         <meta charset="UTF-8">
-        <title>系统已安装</title>
+        <title><?php echo htmlspecialchars(t('install.installed_title')); ?></title>
         <link rel="stylesheet" href="assets/css/app.css?v=<?php echo APP_VERSION . '.' . filemtime(__DIR__ . '/assets/css/app.css'); ?>">
     </head>
     <body class="page-standalone">
@@ -23,18 +44,18 @@ if (is_installed()) {
             <picture>
                 <source srcset="assets/images/logo.svg?v=<?php echo APP_VERSION; ?>" type="image/svg+xml">
                 <source srcset="assets/images/logo.webp?v=<?php echo APP_VERSION; ?>" type="image/webp">
-                <img src="assets/images/logo.png?v=<?php echo APP_VERSION; ?>" alt="立象原型" class="brand-logo">
+                <img src="assets/images/logo.png?v=<?php echo APP_VERSION; ?>" alt="<?php echo htmlspecialchars(I18n::brandName()); ?>" class="brand-logo">
             </picture>
-            <p class="brand-subtitle">立象以尽意 · 披图而同心</p>
+            <p class="brand-subtitle"><?php echo htmlspecialchars(I18n::brandSlogan()); ?></p>
         </div>
         <div class="standalone-card" style="padding: 36px 32px; text-align: center;">
             <div style="font-size:44px;color:var(--success);margin-bottom:12px;line-height:1;">✓</div>
-            <h3 style="color:var(--text-1);margin-bottom:12px;font-size:18px;font-weight:700;">系统已安装</h3>
+            <h3 style="color:var(--text-1);margin-bottom:12px;font-size:18px;font-weight:700;"><?php echo htmlspecialchars(t('install.installed_title')); ?></h3>
             <p style="color:var(--text-3);margin-bottom:24px;font-size:13px;line-height:1.6;">
-                如需重新安装，请删除 <code>data/install.lock</code> 文件后刷新页面。
+                <?php echo t('install.installed_desc'); ?>
             </p>
             <div>
-                <a href="index.php" class="standalone-btn-primary" style="text-decoration:none;display:inline-flex;width:auto;padding:0 24px;">进入工作台</a>
+                <a href="index.php" class="standalone-btn-primary" style="text-decoration:none;display:inline-flex;width:auto;padding:0 24px;"><?php echo htmlspecialchars(t('install.enter_workspace')); ?></a>
             </div>
         </div>
     </body>
@@ -198,35 +219,35 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $rawInputToken = strtoupper(trim((string)($_POST['install_token'] ?? '')));
 
     if (!verify_csrf_token($_POST['csrf_token'] ?? '')) {
-        $error = '页面已过期，请刷新后重试';
+        $error = t('install.err_page_expired');
     } elseif ($isVerifyStepPost) {
         if (!$checkDataWritable || $expectedInstallToken === '') {
-            $error = 'data/ 目录不可写，无法生成安装密钥，请先赋予写入权限后再刷新。';
+            $error = t('install.data_not_writable');
         } elseif (!install_throttle_update($clientIp, 'check')) {
-            $error = '密钥尝试次数过多，请 15 分钟后再试';
+            $error = t('install.err_token_throttle');
         } elseif ($rawInputToken === '') {
-            $error = '请输入安装密钥';
+            $error = t('install.err_token_empty');
         } elseif (!hash_equals($expectedInstallToken, $rawInputToken)) {
             install_throttle_update($clientIp, 'hit');
-            $error = '安装密钥不正确，请核对 data/install_token.php';
+            $error = t('install.err_token_wrong');
         } else {
             $_SESSION['install_token_verified_hash'] = $expectedTokenHash;
             install_throttle_update($clientIp, 'clear');
-            header('Location: install.php');
+            header('Location: install.php?lang=' . rawurlencode($installLang));
             exit;
         }
     } else {
         // 未通过前置密钥验证时，若本次 POST 未同时携带有效密钥，严禁继续安装
         if (!$isTokenVerified) {
             if ($rawInputToken === '') {
-                $error = '请先完成安装密钥验证';
+                $error = t('install.err_token_first');
             } elseif (!$checkDataWritable || $expectedInstallToken === '') {
-                $error = 'data/ 目录不可写，无法生成安装密钥，请先赋予写入权限后再刷新。';
+                $error = t('install.data_not_writable');
             } elseif (!install_throttle_update($clientIp, 'check')) {
-                $error = '密钥尝试次数过多，请 15 分钟后再试';
+                $error = t('install.err_token_throttle');
             } elseif (!hash_equals($expectedInstallToken, $rawInputToken)) {
                 install_throttle_update($clientIp, 'hit');
-                $error = '安装密钥不正确，请核对 data/install_token.php';
+                $error = t('install.err_token_wrong');
             } else {
                 $_SESSION['install_token_verified_hash'] = $expectedTokenHash;
                 install_throttle_update($clientIp, 'clear');
@@ -242,7 +263,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $formAdminName = trim($_POST['admin_name'] ?? '');
 
             if (!$allPass) {
-                $error = '服务器环境检测未全部通过，无法进行安装。';
+                $error = t('install.err_env_fail');
             } else {
                 $siteTitle = $formSiteTitle;
                 require_once __DIR__ . '/includes/auth.php';
@@ -260,7 +281,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             $d = ltrim($d, '@');
                         }
                         if (empty($d) || strpos($d, '@') !== false || !preg_match($domainRegex, $d)) {
-                            $error = '邮箱域名格式不正确，例如 company.com';
+                            $error = t('install.err_domain_fmt');
                             break;
                         }
                         $domainCheckList[] = $d;
@@ -288,23 +309,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 if (!empty($error)) {
                     // 已有域名格式等前置错误，直接拦截阻断
                 } elseif (!empty($siteTitle) && mb_strlen($siteTitle, 'utf-8') > 20) {
-                    $error = '组织名称长度不能超过 20 个字符';
+                    $error = t('install.err_org_len');
                 } elseif (!empty($allowedDomains) && mb_strlen($allowedDomains, 'utf-8') > 200) {
-                    $error = '允许注册的邮箱域名配置长度不能超过 200 个字符';
+                    $error = t('install.err_domain_len');
                 } elseif (empty($adminEmail)) {
-                    $error = '请输入管理员工作邮箱';
+                    $error = t('install.err_admin_email_empty');
                 } elseif (strlen($adminEmail) > 100) {
-                    $error = '管理员工作邮箱长度不能超过 100 个字符';
+                    $error = t('install.err_admin_email_len');
                 } elseif (strpos($adminEmail, '@') === false) {
-                    $error = '请输入完整工作邮箱，如 admin@company.com';
+                    $error = t('install.err_admin_email_full');
                 } elseif (!filter_var($adminEmail, FILTER_VALIDATE_EMAIL)) {
-                    $error = '管理员工作邮箱格式不正确，请输入有效的邮箱地址';
+                    $error = t('install.err_admin_email_fmt');
                 } elseif (empty($adminName) || mb_strlen($adminName, 'utf-8') < 2 || mb_strlen($adminName, 'utf-8') > 20) {
-                    $error = '请输入管理员真实姓名（2~20 个字符）';
+                    $error = t('install.err_admin_name');
                 } elseif ($passwordError !== '') {
                     $error = $passwordError;
                 } elseif ($adminPassConfirm !== $adminPass) {
-                    $error = '两次输入的管理员密码不一致';
+                    $error = t('install.err_admin_pwd_mismatch');
                 } else {
                     try {
                         require_once __DIR__ . '/includes/db.php';
@@ -316,11 +337,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         $db = DB::getInstance();
                         $db->beginTransaction();
                         try {
-                            // 写入系统设置 (企业定制信息)
+                            // 写入系统设置 (企业定制信息与系统语言)
                             if (!empty($siteTitle)) {
                                 Auth::setSetting('site_title', $siteTitle);
                             }
                             Auth::setSetting('allowed_email_domains', $allowedDomains);
+                            Auth::setSetting('system_language', $installLang);
+                            I18n::setLocale($installLang);
 
                             // 创建首任主管理员 (is_owner = 1，拥有最高所有权)
                             $pHash = password_hash($adminPass, PASSWORD_DEFAULT);
@@ -345,11 +368,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         @unlink(INSTALL_TOKEN_FILE);
                         @unlink(DATA_PATH . '/install_token.txt');
                         @unlink(INSTALL_THROTTLE_FILE);
-                        unset($_SESSION['install_token_verified_hash']);
+                        unset($_SESSION['install_token_verified_hash'], $_SESSION['install_lang']);
 
                         $success = true;
                     } catch (Exception $e) {
-                        $error = '安装过程异常，请检查目录权限与数据库状态';
+                        $error = t('install.err_exception');
                     }
                 }
             }
@@ -358,11 +381,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 ?>
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="<?php echo htmlspecialchars(I18n::htmlLang()); ?>">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>立象原型 - 安装向导</title>
+    <title><?php echo htmlspecialchars(t('install.page_title')); ?></title>
     <link rel="icon" href="assets/images/favicon.svg?v=<?php echo substr(sha1_file(ROOT_PATH . '/assets/images/favicon.svg'), 0, 12); ?>" type="image/svg+xml">
     <link rel="alternate icon" href="assets/images/favicon.png?v=<?php echo substr(sha1_file(ROOT_PATH . '/assets/images/favicon.png'), 0, 12); ?>" type="image/png">
     <link rel="stylesheet" href="assets/css/remixicon.css">
@@ -751,10 +774,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <picture>
                 <source srcset="assets/images/logo.svg?v=<?php echo APP_VERSION; ?>" type="image/svg+xml">
                 <source srcset="assets/images/logo.webp?v=<?php echo APP_VERSION; ?>" type="image/webp">
-                <img src="assets/images/logo.png?v=<?php echo APP_VERSION; ?>" alt="立象原型" height="80">
+                <img src="assets/images/logo.png?v=<?php echo APP_VERSION; ?>" alt="<?php echo htmlspecialchars(I18n::brandName()); ?>" height="80">
             </picture>
         </div>
-        <p class="brand-subtitle">立象以尽意 · 披图而同心</p>
+        <p class="brand-subtitle"><?php echo htmlspecialchars(I18n::brandSlogan()); ?></p>
     </div>
 
     <div class="wizard-card">
@@ -770,10 +793,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <!-- 卡片内步骤头部 -->
             <div class="wizard-card-header">
                 <div class="step-title-wrap">
-                    <h2 id="stepCardTitle"><?php echo $isTokenVerified ? '运行环境检测' : '安装验证'; ?></h2>
-                    <p id="stepCardSub"><?php echo $isTokenVerified ? '检查 PHP 版本、核心扩展与目录写入权限' : '验证服务器安装密钥'; ?></p>
+                    <h2 id="stepCardTitle"><?php echo htmlspecialchars($isTokenVerified ? t('install.step2_title') : t('install.step1_title')); ?></h2>
+                    <p id="stepCardSub"><?php echo htmlspecialchars($isTokenVerified ? t('install.step2_sub') : t('install.step1_sub')); ?></p>
                 </div>
-                <div class="step-badge" id="stepIndicatorBadge"><?php echo $isTokenVerified ? '步骤 02 / 04' : '步骤 01 / 04'; ?></div>
+                <div style="display:flex;align-items:center;gap:8px;flex-shrink:0;">
+                    <select id="installLangSelect" class="m-select-sm" style="width:auto;min-width:104px;" aria-label="<?php echo htmlspecialchars(t('install.language_label')); ?>" onchange="changeInstallLocale(this.value)">
+                        <option value="zh-CN" <?php echo $installLang === 'zh-CN' ? 'selected' : ''; ?>>简体中文</option>
+                        <option value="zh-TW" <?php echo $installLang === 'zh-TW' ? 'selected' : ''; ?>>繁體中文</option>
+                        <option value="en" <?php echo $installLang === 'en' ? 'selected' : ''; ?>>English</option>
+                    </select>
+                    <div class="step-badge" id="stepIndicatorBadge"><?php echo htmlspecialchars($isTokenVerified ? t('install.step2_badge') : t('install.step1_badge')); ?></div>
+                </div>
             </div>
         <?php endif; ?>
 
@@ -782,12 +812,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 <div style="font-size: 54px; color: #16a34a; margin-bottom: 16px;">
                     <i class="ri-checkbox-circle-fill"></i>
                 </div>
-                <h3 style="font-weight: 700; color: #0f172a; margin-bottom: 12px; font-size: 20px;">安装完成</h3>
+                <h3 style="font-weight: 700; color: #0f172a; margin-bottom: 12px; font-size: 20px;"><?php echo htmlspecialchars(t('install.done_title')); ?></h3>
                 <p style="color: #64748b; font-size: 14px; line-height: 1.7; margin-bottom: 32px;">
-                    系统全套组件与数据存储已初始化就绪。
+                    <?php echo htmlspecialchars(t('install.done_desc')); ?>
                 </p>
                 <a href="index.php" class="btn-wizard btn-next" style="text-decoration: none; padding: 12px 36px; display: inline-flex; justify-content: center;">
-                    进入工作台 <i class="ri-arrow-right-line"></i>
+                    <?php echo htmlspecialchars(t('install.enter_workspace')); ?> <i class="ri-arrow-right-line"></i>
                 </a>
             </div>
         <?php elseif (!$isTokenVerified): ?>
@@ -795,24 +825,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <form id="verifyForm" method="POST" action="" onsubmit="return validateVerifyStep();">
                 <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars(get_csrf_token(), ENT_QUOTES, 'UTF-8'); ?>">
                 <input type="hidden" name="verify_step" value="1">
+                <input type="hidden" name="system_language" value="<?php echo htmlspecialchars($installLang, ENT_QUOTES, 'UTF-8'); ?>">
                 <div class="wizard-body">
                     <?php if (!empty($error)): ?>
                         <div class="alert-box"><?php echo htmlspecialchars($error, ENT_QUOTES, 'UTF-8'); ?></div>
                     <?php elseif (!$checkDataWritable || $expectedInstallToken === ''): ?>
-                        <div class="alert-box">data/ 目录不可写，无法生成安装密钥，请先赋予写入权限后再刷新。</div>
+                        <div class="alert-box"><?php echo htmlspecialchars(t('install.data_not_writable')); ?></div>
                     <?php endif; ?>
 
                     <div class="form-group">
-                        <label class="form-label" for="installTokenInput">安装密钥 <span class="req-star">*</span></label>
-                        <input type="text" name="install_token" id="installTokenInput" class="form-control" placeholder="输入 12 位安装密钥" autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false" maxlength="32" data-error-target="installTokenError" aria-errormessage="installTokenError" <?php echo (!$checkDataWritable || $expectedInstallToken === '') ? 'disabled' : 'autofocus'; ?>>
+                        <label class="form-label" for="installTokenInput"><?php echo htmlspecialchars(t('install.token_label')); ?> <span class="req-star">*</span></label>
+                        <input type="text" name="install_token" id="installTokenInput" class="form-control" placeholder="<?php echo htmlspecialchars(t('install.token_placeholder')); ?>" autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false" maxlength="32" data-error-target="installTokenError" aria-errormessage="installTokenError" <?php echo (!$checkDataWritable || $expectedInstallToken === '') ? 'disabled' : 'autofocus'; ?>>
                         <div class="field-error-tip" id="installTokenError" role="alert"></div>
-                        <div class="form-help">请查看服务器 <code>data/install_token.php</code>（或环境变量 <code>PROTOLOFT_INSTALL_TOKEN</code>）</div>
+                        <div class="form-help"><?php echo t('install.token_help'); ?></div>
                     </div>
 
                     <div class="wizard-footer">
                         <div></div>
                         <button type="submit" id="btnVerifyToken" class="btn-wizard btn-next <?php echo (!$checkDataWritable || $expectedInstallToken === '') ? 'btn-disabled' : ''; ?>" <?php echo (!$checkDataWritable || $expectedInstallToken === '') ? 'disabled' : ''; ?>>
-                            验证并继续 <i class="ri-arrow-right-line"></i>
+                            <?php echo htmlspecialchars(t('install.verify_continue')); ?> <i class="ri-arrow-right-line"></i>
                         </button>
                     </div>
                 </div>
@@ -822,6 +853,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             <form id="installForm" method="POST" action="">
             <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars(get_csrf_token(), ENT_QUOTES, 'UTF-8'); ?>">
+            <input type="hidden" name="system_language" value="<?php echo htmlspecialchars($installLang, ENT_QUOTES, 'UTF-8'); ?>">
                 <div class="wizard-body">
                     <?php if (!empty($error)): ?>
                         <div class="alert-box"><?php echo htmlspecialchars($error, ENT_QUOTES, 'UTF-8'); ?></div>
@@ -833,119 +865,119 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             <div class="check-row">
                                 <div>
                                     <div class="check-name">
-                                        <span>PHP 运行版本</span>
+                                        <span><?php echo htmlspecialchars(t('install.chk_php')); ?></span>
                                         <span class="check-code">PHP &ge; 7.0.0</span>
                                     </div>
-                                    <div class="check-desc">支持 PHP 7.0 及以上版本</div>
+                                    <div class="check-desc"><?php echo htmlspecialchars(t('install.chk_php_desc')); ?></div>
                                 </div>
                                 <?php if ($checkPhp): ?>
                                     <span class="tag-pass"><i class="ri-check-line"></i> PHP <?php echo PHP_VERSION; ?></span>
                                 <?php else: ?>
-                                    <span class="tag-fail"><i class="ri-close-line"></i> 版本过低 (需 &ge; 7.0)</span>
+                                    <span class="tag-fail"><i class="ri-close-line"></i> <?php echo htmlspecialchars(t('install.chk_php_fail')); ?></span>
                                 <?php endif; ?>
                             </div>
 
                             <div class="check-row">
                                 <div>
                                     <div class="check-name">
-                                        <span>PDO 数据库驱动</span>
+                                        <span><?php echo htmlspecialchars(t('install.chk_pdo')); ?></span>
                                         <span class="check-code">pdo_sqlite</span>
                                     </div>
-                                    <div class="check-desc">SQLite 本地数据库驱动</div>
+                                    <div class="check-desc"><?php echo htmlspecialchars(t('install.chk_pdo_desc')); ?></div>
                                 </div>
                                 <?php if ($checkPdo): ?>
-                                    <span class="tag-pass"><i class="ri-check-line"></i> 驱动已就绪</span>
+                                    <span class="tag-pass"><i class="ri-check-line"></i> <?php echo htmlspecialchars(t('install.chk_pdo_pass')); ?></span>
                                 <?php else: ?>
-                                    <span class="tag-fail"><i class="ri-close-line"></i> 驱动未开启</span>
+                                    <span class="tag-fail"><i class="ri-close-line"></i> <?php echo htmlspecialchars(t('install.chk_pdo_fail')); ?></span>
                                 <?php endif; ?>
                             </div>
 
                             <div class="check-row">
                                 <div>
                                     <div class="check-name">
-                                        <span>ZipArchive 压缩扩展</span>
+                                        <span><?php echo htmlspecialchars(t('install.chk_zip')); ?></span>
                                         <span class="check-code">ZipArchive</span>
                                     </div>
-                                    <div class="check-desc">用于原型 ZIP 压缩包自动解压</div>
+                                    <div class="check-desc"><?php echo htmlspecialchars(t('install.chk_zip_desc')); ?></div>
                                 </div>
                                 <?php if ($checkZip): ?>
-                                    <span class="tag-pass"><i class="ri-check-line"></i> 扩展已就绪</span>
+                                    <span class="tag-pass"><i class="ri-check-line"></i> <?php echo htmlspecialchars(t('install.chk_zip_pass')); ?></span>
                                 <?php else: ?>
-                                    <span class="tag-fail"><i class="ri-close-line"></i> 扩展缺失</span>
+                                    <span class="tag-fail"><i class="ri-close-line"></i> <?php echo htmlspecialchars(t('install.chk_zip_fail')); ?></span>
                                 <?php endif; ?>
                             </div>
 
                             <div class="check-row">
                                 <div>
                                     <div class="check-name">
-                                        <span>mbstring 编码扩展</span>
+                                        <span><?php echo htmlspecialchars(t('install.chk_mb')); ?></span>
                                         <span class="check-code">mbstring</span>
                                     </div>
-                                    <div class="check-desc">多语言及中文字符编码支持</div>
+                                    <div class="check-desc"><?php echo htmlspecialchars(t('install.chk_mb_desc')); ?></div>
                                 </div>
                                 <?php if ($checkMbstring): ?>
-                                    <span class="tag-pass"><i class="ri-check-line"></i> 支持</span>
+                                    <span class="tag-pass"><i class="ri-check-line"></i> <?php echo htmlspecialchars(t('install.chk_support')); ?></span>
                                 <?php else: ?>
-                                    <span class="tag-fail"><i class="ri-close-line"></i> 未开启</span>
+                                    <span class="tag-fail"><i class="ri-close-line"></i> <?php echo htmlspecialchars(t('install.chk_not_enabled')); ?></span>
                                 <?php endif; ?>
                             </div>
 
                             <div class="check-row">
                                 <div>
                                     <div class="check-name">
-                                        <span>DOM XML 解析扩展</span>
+                                        <span><?php echo htmlspecialchars(t('install.chk_dom')); ?></span>
                                         <span class="check-code">ext-dom / libxml</span>
                                     </div>
-                                    <div class="check-desc">矢量图形安全审查与 XML 语义解析</div>
+                                    <div class="check-desc"><?php echo htmlspecialchars(t('install.chk_dom_desc')); ?></div>
                                 </div>
                                 <?php if ($checkDom): ?>
-                                    <span class="tag-pass"><i class="ri-check-line"></i> 支持</span>
+                                    <span class="tag-pass"><i class="ri-check-line"></i> <?php echo htmlspecialchars(t('install.chk_support')); ?></span>
                                 <?php else: ?>
-                                    <span class="tag-fail"><i class="ri-close-line"></i> 未开启</span>
+                                    <span class="tag-fail"><i class="ri-close-line"></i> <?php echo htmlspecialchars(t('install.chk_not_enabled')); ?></span>
                                 <?php endif; ?>
                             </div>
 
                             <div class="check-row">
                                 <div>
                                     <div class="check-name">
-                                        <span>数据存储目录权限</span>
+                                        <span><?php echo htmlspecialchars(t('install.chk_data_perm')); ?></span>
                                         <span class="check-code">data/</span>
                                     </div>
-                                    <div class="check-desc">系统数据与配置文件存储目录</div>
+                                    <div class="check-desc"><?php echo htmlspecialchars(t('install.chk_data_desc')); ?></div>
                                 </div>
                                 <?php if ($checkDataWritable): ?>
-                                    <span class="tag-pass"><i class="ri-check-line"></i> 可读写</span>
+                                    <span class="tag-pass"><i class="ri-check-line"></i> <?php echo htmlspecialchars(t('install.chk_writable')); ?></span>
                                 <?php else: ?>
-                                    <span class="tag-fail"><i class="ri-close-line"></i> 不可写 (请设为 755/777)</span>
+                                    <span class="tag-fail"><i class="ri-close-line"></i> <?php echo htmlspecialchars(t('install.chk_unwritable')); ?></span>
                                 <?php endif; ?>
                             </div>
 
                             <div class="check-row">
                                 <div>
                                     <div class="check-name">
-                                        <span>原型素材目录权限</span>
+                                        <span><?php echo htmlspecialchars(t('install.chk_uploads_perm')); ?></span>
                                         <span class="check-code">uploads/</span>
                                     </div>
-                                    <div class="check-desc">原型发布文件与资源解压目录</div>
+                                    <div class="check-desc"><?php echo htmlspecialchars(t('install.chk_uploads_desc')); ?></div>
                                 </div>
                                 <?php if ($checkUploadsWritable): ?>
-                                    <span class="tag-pass"><i class="ri-check-line"></i> 可读写</span>
+                                    <span class="tag-pass"><i class="ri-check-line"></i> <?php echo htmlspecialchars(t('install.chk_writable')); ?></span>
                                 <?php else: ?>
-                                    <span class="tag-fail"><i class="ri-close-line"></i> 不可写 (请设为 755/777)</span>
+                                    <span class="tag-fail"><i class="ri-close-line"></i> <?php echo htmlspecialchars(t('install.chk_unwritable')); ?></span>
                                 <?php endif; ?>
                             </div>
                         </div>
 
                         <?php if (!$allPass): ?>
                             <div class="form-help" style="color: #dc2626; margin-bottom: 16px; background:#fef2f2; padding:10px 14px; border-radius:8px;">
-                                <i class="ri-information-line"></i> 请先为标记不可写的目录赋予写入权限后再继续。
+                                <i class="ri-information-line"></i> <?php echo htmlspecialchars(t('install.perm_warn')); ?>
                             </div>
                         <?php endif; ?>
 
                         <div class="wizard-footer">
                             <div></div>
                             <button type="button" class="btn-wizard btn-next <?php echo !$allPass ? 'btn-disabled' : ''; ?>" onclick="goToStep(3)" <?php echo !$allPass ? 'disabled' : ''; ?>>
-                                下一步：站点与团队 <i class="ri-arrow-right-line"></i>
+                                <?php echo htmlspecialchars(t('install.next_site')); ?> <i class="ri-arrow-right-line"></i>
                             </button>
                         </div>
                     </div>
@@ -953,28 +985,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 <!-- Step 3: 站点与团队 -->
                 <div class="step-pane" id="step-3" style="display: none;">
                     <div class="form-group">
-                        <label class="form-label" for="installSiteTitleInput">组织名称 <span class="opt-tag">选填</span></label>
-                        <input type="text" name="site_title" id="installSiteTitleInput" class="form-control" value="<?php echo htmlspecialchars($formSiteTitle, ENT_QUOTES, 'UTF-8'); ?>" placeholder="例如：某某科技" maxlength="20" data-error-target="installSiteTitleError" aria-errormessage="installSiteTitleError">
+                        <label class="form-label" for="installSiteTitleInput"><?php echo htmlspecialchars(t('admin.settings.org_name')); ?> <span class="opt-tag"><?php echo htmlspecialchars(t('common.optional')); ?></span></label>
+                        <input type="text" name="site_title" id="installSiteTitleInput" class="form-control" value="<?php echo htmlspecialchars($formSiteTitle, ENT_QUOTES, 'UTF-8'); ?>" placeholder="<?php echo htmlspecialchars(t('admin.settings.org_placeholder')); ?>" maxlength="20" data-error-target="installSiteTitleError" aria-errormessage="installSiteTitleError">
                         <div class="field-error-tip" id="installSiteTitleError" role="alert"></div>
-                        <div class="form-help">展示在登录页与工作台左上角</div>
+                        <div class="form-help"><?php echo htmlspecialchars(t('install.site_title_help')); ?></div>
                     </div>
 
                     <div class="form-group">
                         <label class="form-label" for="allowedEmailDomainsInput">
-                            <span>允许注册的邮箱域名</span>
-                            <span class="opt-tag">选填</span>
+                            <span><?php echo htmlspecialchars(t('install.allowed_domains_label')); ?></span>
+                            <span class="opt-tag"><?php echo htmlspecialchars(t('common.optional')); ?></span>
                         </label>
-                        <input type="text" name="allowed_email_domains" id="allowedEmailDomainsInput" class="form-control" value="<?php echo htmlspecialchars($formAllowedDomains, ENT_QUOTES, 'UTF-8'); ?>" placeholder="例如：company.com, group.cn" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-lpignore="true" data-form-type="other" maxlength="200" data-error-target="allowedEmailDomainsError" aria-errormessage="allowedEmailDomainsError" onblur="cleanEmailDomainsInput(this)">
+                        <input type="text" name="allowed_email_domains" id="allowedEmailDomainsInput" class="form-control" value="<?php echo htmlspecialchars($formAllowedDomains, ENT_QUOTES, 'UTF-8'); ?>" placeholder="<?php echo htmlspecialchars(t('admin.settings.allowed_domains_placeholder')); ?>" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-lpignore="true" data-form-type="other" maxlength="200" data-error-target="allowedEmailDomainsError" aria-errormessage="allowedEmailDomainsError" onblur="cleanEmailDomainsInput(this)">
                         <div class="field-error-tip" id="allowedEmailDomainsError" role="alert"></div>
-                        <div class="form-help">多个域名用逗号分隔；留空不限制</div>
+                        <div class="form-help"><?php echo htmlspecialchars(t('install.allowed_domains_help')); ?></div>
                     </div>
 
                     <div class="wizard-footer">
                         <button type="button" class="btn-wizard btn-prev" onclick="goToStep(2)">
-                            <i class="ri-arrow-left-line"></i> 上一步
+                            <i class="ri-arrow-left-line"></i> <?php echo htmlspecialchars(t('install.prev_step')); ?>
                         </button>
                         <button type="button" class="btn-wizard btn-next" onclick="validateStep3()">
-                            下一步：管理员账号 <i class="ri-arrow-right-line"></i>
+                            <?php echo htmlspecialchars(t('install.next_admin')); ?> <i class="ri-arrow-right-line"></i>
                         </button>
                     </div>
                 </div>
@@ -982,42 +1014,42 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 <!-- Step 4: 管理员账号 (邮箱 + 真实姓名) -->
                 <div class="step-pane" id="step-4" style="display: none;">
                     <div class="form-group">
-                        <label class="form-label" for="adminEmailInput">管理员工作邮箱 <span class="req-star">*</span></label>
+                        <label class="form-label" for="adminEmailInput"><?php echo htmlspecialchars(t('install.admin_email_label')); ?> <span class="req-star">*</span></label>
                         <div style="position:relative;display:flex;align-items:center;">
-                            <input type="text" name="admin_email" id="adminEmailInput" class="form-control" value="<?php echo htmlspecialchars($formAdminEmail, ENT_QUOTES, 'UTF-8'); ?>" placeholder="例如：admin@company.com" autocomplete="email" required maxlength="100" data-error-target="adminEmailError" aria-errormessage="adminEmailError" style="flex:1;">
+                            <input type="text" name="admin_email" id="adminEmailInput" class="form-control" value="<?php echo htmlspecialchars($formAdminEmail, ENT_QUOTES, 'UTF-8'); ?>" placeholder="<?php echo htmlspecialchars(t('auth.email_example_placeholder')); ?>" autocomplete="email" required maxlength="100" data-error-target="adminEmailError" aria-errormessage="adminEmailError" style="flex:1;">
                             <span id="installDomainBadge" style="position:absolute;right:8px;font-size:12px;color:var(--text-3);background:var(--bg-tag,#f1f5f9);border:1px solid var(--border-light,#e2e8f0);padding:2px 7px;border-radius:4px;pointer-events:none;user-select:none;display:none;"></span>
-                            <select id="installDomainSelect" class="m-select-sm install-domain-select" aria-label="选择邮箱域名" style="display:none;"></select>
+                            <select id="installDomainSelect" class="m-select-sm install-domain-select" aria-label="<?php echo htmlspecialchars(t('install.select_domain_aria')); ?>" style="display:none;"></select>
                         </div>
                         <div class="field-error-tip" id="adminEmailError" role="alert"></div>
                     </div>
 
                     <div class="form-group">
-                        <label class="form-label" for="adminNameInput">真实姓名 <span class="req-star">*</span></label>
-                        <input type="text" name="admin_name" id="adminNameInput" class="form-control" value="<?php echo htmlspecialchars($formAdminName, ENT_QUOTES, 'UTF-8'); ?>" placeholder="例如：李明" required maxlength="20" data-error-target="adminNameError" aria-errormessage="adminNameError">
+                        <label class="form-label" for="adminNameInput"><?php echo htmlspecialchars(t('auth.real_name')); ?> <span class="req-star">*</span></label>
+                        <input type="text" name="admin_name" id="adminNameInput" class="form-control" value="<?php echo htmlspecialchars($formAdminName, ENT_QUOTES, 'UTF-8'); ?>" placeholder="<?php echo htmlspecialchars(t('auth.real_name_example')); ?>" required maxlength="20" data-error-target="adminNameError" aria-errormessage="adminNameError">
                         <div class="field-error-tip" id="adminNameError" role="alert"></div>
                     </div>
 
                     <div class="form-group">
                         <div class="field-label-row">
-                            <label class="form-label" for="adminPassInput">管理员密码 <span class="req-star">*</span></label>
+                            <label class="form-label" for="adminPassInput"><?php echo htmlspecialchars(t('install.admin_pwd_label')); ?> <span class="req-star">*</span></label>
                             <span class="password-strength" id="adminPassStrength" role="status"></span>
                         </div>
-                        <input type="password" name="admin_password" id="adminPassInput" class="form-control" placeholder="至少 6 个字符" autocomplete="new-password" required data-password-strength="adminPassStrength" data-error-target="adminPassError" aria-describedby="adminPassStrength" aria-errormessage="adminPassError">
+                        <input type="password" name="admin_password" id="adminPassInput" class="form-control" placeholder="<?php echo htmlspecialchars(t('auth.password_min_placeholder')); ?>" autocomplete="new-password" required data-password-strength="adminPassStrength" data-error-target="adminPassError" aria-describedby="adminPassStrength" aria-errormessage="adminPassError">
                         <div class="field-error-tip" id="adminPassError" role="alert"></div>
                     </div>
 
                     <div class="form-group">
-                        <label class="form-label" for="adminPassConfirmInput">确认密码 <span class="req-star">*</span></label>
-                        <input type="password" name="admin_password_confirm" id="adminPassConfirmInput" class="form-control" placeholder="再次输入密码" autocomplete="new-password" required data-error-target="adminPassConfirmError" aria-describedby="adminPassConfirmError">
+                        <label class="form-label" for="adminPassConfirmInput"><?php echo htmlspecialchars(t('install.admin_pwd_confirm_label')); ?> <span class="req-star">*</span></label>
+                        <input type="password" name="admin_password_confirm" id="adminPassConfirmInput" class="form-control" placeholder="<?php echo htmlspecialchars(t('install.admin_pwd_confirm_placeholder')); ?>" autocomplete="new-password" required data-error-target="adminPassConfirmError" aria-describedby="adminPassConfirmError">
                         <div class="field-error-tip" id="adminPassConfirmError" role="alert"></div>
                     </div>
 
                     <div class="wizard-footer">
                         <button type="button" class="btn-wizard btn-prev" onclick="goToStep(3)">
-                            <i class="ri-arrow-left-line"></i> 上一步
+                            <i class="ri-arrow-left-line"></i> <?php echo htmlspecialchars(t('install.prev_step')); ?>
                         </button>
                         <button type="button" class="btn-wizard btn-submit" id="btnSubmitInstall" onclick="validateAndSubmit()">
-                            <i class="ri-check-line"></i> 立即安装
+                            <i class="ri-check-line"></i> <?php echo htmlspecialchars(t('install.submit_install')); ?>
                         </button>
                     </div>
                 </div>
@@ -1027,14 +1059,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     </div> <!-- .wizard-card -->
 </div> <!-- .installer-container -->
 
-<script src="assets/js/password-strength.js?v=<?php echo filemtime(__DIR__ . '/assets/js/password-strength.js'); ?>" defer></script>
+<?php
+    $installI18nCatalog = I18n::jsCatalog(['brand.', 'common.', 'auth.', 'pwd.', 'install.']);
+?>
 <script>
+    window.__LOCALE__ = <?php echo json_encode(I18n::getLocale(), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>;
+    window.__I18N__ = <?php echo json_encode($installI18nCatalog, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_UNESCAPED_UNICODE); ?>;
+</script>
+<script src="assets/js/i18n.js?v=<?php echo APP_VERSION . '.' . filemtime(__DIR__ . '/assets/js/i18n.js'); ?>"></script>
+<script src="assets/js/password-strength.js?v=<?php echo APP_VERSION . '.' . filemtime(__DIR__ . '/assets/js/password-strength.js'); ?>" defer></script>
+<script>
+    function changeInstallLocale(lang) {
+        if (!lang) return;
+        var url = new URL(window.location.href);
+        url.searchParams.set('lang', lang);
+        window.location.href = url.toString();
+    }
+
     var currentStep = <?php echo $isTokenVerified ? (int)$initialStep : 1; ?>;
     var stepMeta = [
-        { title: '安装验证', sub: '验证服务器安装密钥', badge: '步骤 01 / 04' },
-        { title: '运行环境检测', sub: '检查 PHP 版本、核心扩展与目录写入权限', badge: '步骤 02 / 04' },
-        { title: '站点与团队', sub: '个性化品牌展示与加入规则', badge: '步骤 03 / 04' },
-        { title: '管理员账号设置', sub: '创建首位系统管理员', badge: '步骤 04 / 04' }
+        { title: t('install.step1_title'), sub: t('install.step1_sub'), badge: t('install.step1_badge') },
+        { title: t('install.step2_title'), sub: t('install.step2_sub'), badge: t('install.step2_badge') },
+        { title: t('install.step3_title'), sub: t('install.step3_sub'), badge: t('install.step3_badge') },
+        { title: t('install.step4_title'), sub: t('install.step4_sub'), badge: t('install.step4_badge') }
     ];
 
     function reportInstallFieldError(input, message) {
@@ -1050,13 +1097,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         var input = document.getElementById('installTokenInput');
         var val = input ? input.value.trim() : '';
         if (!val) {
-            reportInstallFieldError(input, '请输入安装密钥');
+            reportInstallFieldError(input, t('install.err_token_empty'));
             return false;
         }
         var btn = document.getElementById('btnVerifyToken');
         if (btn) {
             btn.disabled = true;
-            btn.innerHTML = '<i class="ri-loader-4-line ri-spin"></i> 验证中...';
+            btn.innerHTML = '<i class="ri-loader-4-line ri-spin"></i> ' + t('install.verifying');
         }
         return true;
     }
@@ -1178,7 +1225,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 badge.style.display = 'inline-block';
             }
             emailInput.style.paddingRight = (domainList[0].length * 8 + 32) + 'px';
-            emailInput.placeholder = '输入邮箱前缀 (例如：admin)';
+            emailInput.placeholder = t('install.email_prefix_example');
         } else if (domainList.length > 1) {
             // 多域名：微型内嵌原生下拉切换器
             if (badge) badge.style.display = 'none';
@@ -1198,13 +1245,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 select.onchange = updateSelectPadding;
                 updateSelectPadding();
             }
-            emailInput.placeholder = '输入邮箱前缀 (例如：admin)';
+            emailInput.placeholder = t('install.email_prefix_example');
         } else {
             // 无域名：普通标准输入框，不显示徽标和下拉
             if (badge) badge.style.display = 'none';
             if (select) select.style.display = 'none';
             emailInput.style.paddingRight = '14px';
-            emailInput.placeholder = '例如：admin@company.com';
+            emailInput.placeholder = t('auth.email_example_placeholder');
         }
     }
 
@@ -1212,7 +1259,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         var titleInput = document.getElementById('installSiteTitleInput') || document.querySelector('input[name="site_title"]');
         var title = titleInput ? titleInput.value.trim() : '';
         if (title.length > 20) {
-            reportInstallFieldError(titleInput, '组织名称长度不能超过 20 个字符');
+            reportInstallFieldError(titleInput, t('install.err_org_len'));
             return;
         }
 
@@ -1222,7 +1269,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if (rawDomains) {
             var checkRes = validateEmailDomains(rawDomains);
             if (!checkRes.valid) {
-                reportInstallFieldError(domainsInput, '邮箱域名格式不正确，例如 company.com');
+                reportInstallFieldError(domainsInput, t('install.err_domain_fmt'));
                 return;
             }
             domainsInput.value = checkRes.clean;
@@ -1252,7 +1299,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         var select = document.getElementById('installDomainSelect');
 
         if (!email) {
-            reportInstallFieldError(emailInput, '请输入管理员工作邮箱');
+            reportInstallFieldError(emailInput, t('install.err_admin_email_empty'));
             return;
         }
 
@@ -1270,7 +1317,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } else {
             // 未配置企业邮箱域名：必须强制输入包含 @ 的完整邮箱
             if (finalEmail.indexOf('@') === -1) {
-                reportInstallFieldError(emailInput, '请输入完整邮箱（例如：admin@company.com）');
+                reportInstallFieldError(emailInput, t('install.err_admin_email_full'));
                 return;
             }
         }
@@ -1278,7 +1325,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         // 严格邮箱格式校验
         var emailRegex = /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@(?:[a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}$/;
         if (!emailRegex.test(finalEmail)) {
-            reportInstallFieldError(emailInput, '邮箱格式不正确，请输入有效的邮箱地址');
+            reportInstallFieldError(emailInput, t('install.err_admin_email_fmt'));
             return;
         }
 
@@ -1286,13 +1333,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             var parts = finalEmail.toLowerCase().split('@');
             var inputDomain = parts[parts.length - 1];
             if (domainList.indexOf(inputDomain) === -1) {
-                reportInstallFieldError(emailInput, '管理员邮箱后缀必须属于所配置的白名单域名');
+                reportInstallFieldError(emailInput, t('install.err_admin_email_domain'));
                 return;
             }
         }
 
         if (!name || name.length < 2 || name.length > 20) {
-            reportInstallFieldError(nameInput, '请输入管理员真实姓名（2~20 个字符）');
+            reportInstallFieldError(nameInput, t('install.err_admin_name'));
             return;
         }
         if (typeof showPasswordLengthError === 'function' ? showPasswordLengthError(passInput) : (typeof passwordLengthError === 'function' && passwordLengthError(pass))) {
@@ -1303,10 +1350,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             return;
         }
         if (typeof showPasswordMismatchError === 'function'
-            ? showPasswordMismatchError(passInput, passConfirmInput, null, '两次输入的管理员密码不一致')
+            ? showPasswordMismatchError(passInput, passConfirmInput, null, t('install.err_admin_pwd_mismatch'))
             : (pass !== passConfirm)) {
             if (typeof showPasswordMismatchError !== 'function') {
-                showToast('两次输入的管理员密码不一致', 'error');
+                showToast(t('install.err_admin_pwd_mismatch'), 'error');
                 passConfirmInput.focus();
             }
             return;
@@ -1324,7 +1371,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         var btn = document.getElementById('btnSubmitInstall');
         if (btn) {
             btn.disabled = true;
-            btn.innerHTML = '<i class="ri-loader-4-line ri-spin"></i> 正在安装...';
+            btn.innerHTML = '<i class="ri-loader-4-line ri-spin"></i> ' + t('install.installing');
         }
         document.getElementById('installForm').submit();
     }

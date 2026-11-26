@@ -53,7 +53,7 @@
 
     function saveGuestName(name, persist) {
         var trimmed = (name || '').trim();
-        var clean = trimmed || '外部访客';
+        var clean = trimmed || (typeof t === 'function' ? t('common.role.external_guest', null, '外部访客') : '外部访客');
         if (clean.length > 20) clean = clean.substring(0, 20);
         if (persist && trimmed) {
             try {
@@ -74,13 +74,14 @@
     }
 
     function resolveGuestName(onConfirm) {
+        var _tG = (typeof t === 'function') ? t : function(k, p, f) { return f; };
         var saved = readSavedGuestName();
         if (saved) {
             onConfirm(saved);
             return;
         }
         if (typeof document === 'undefined' || typeof document.createElement !== 'function' || !document.body) {
-            onConfirm('外部访客');
+            onConfirm(_tG('common.role.external_guest', null, '外部访客'));
             return;
         }
 
@@ -101,11 +102,11 @@
             head.className = 'modal-head';
             var title = document.createElement('h4');
             title.id = 'annoGuestNameTitle';
-            title.textContent = '请留下您的称呼';
+            title.textContent = _tG('anno.guest_modal_title', null, '请留下您的称呼');
             var closeBtn = document.createElement('button');
             closeBtn.type = 'button';
             closeBtn.className = 'close-x';
-            closeBtn.title = '关闭';
+            closeBtn.title = _tG('common.close', null, '关闭');
             closeBtn.innerHTML = '<i class="ri-close-line"></i>';
             head.appendChild(title);
             head.appendChild(closeBtn);
@@ -117,10 +118,10 @@
             var label = document.createElement('label');
             label.className = 'm-label';
             label.setAttribute('for', 'annoGuestNameInput');
-            label.textContent = '团队辨识称呼 ';
+            label.textContent = _tG('anno.guest_label', null, '团队辨识称呼 ');
             var opt = document.createElement('span');
             opt.className = 'opt-tag';
-            opt.textContent = '选填';
+            opt.textContent = _tG('common.optional', null, '选填');
             label.appendChild(opt);
 
             var input = document.createElement('input');
@@ -128,7 +129,7 @@
             input.id = 'annoGuestNameInput';
             input.className = 'm-input';
             input.maxLength = 20;
-            input.placeholder = '例如：客户李总、前端小王';
+            input.placeholder = _tG('anno.guest_placeholder', null, '例如：客户李总、前端小王');
             input.autocomplete = 'nickname';
             group.appendChild(label);
             group.appendChild(input);
@@ -139,11 +140,11 @@
             skipBtn.type = 'button';
             skipBtn.id = 'annoGuestNameSkip';
             skipBtn.className = 'btn-cancel btn-standard';
-            skipBtn.textContent = '匿名发布';
+            skipBtn.textContent = _tG('anno.guest_skip', null, '匿名发布');
             var submitBtn = document.createElement('button');
             submitBtn.type = 'submit';
             submitBtn.className = 'btn-primary btn-standard';
-            submitBtn.textContent = '确定并发布';
+            submitBtn.textContent = _tG('anno.guest_submit', null, '确定并发布');
             footer.appendChild(skipBtn);
             footer.appendChild(submitBtn);
 
@@ -297,14 +298,14 @@
 
     function timeAgo(dateStr) {
         if (!dateStr) return '';
-        var t = annotationTimestamp(dateStr);
-        if (isNaN(t)) return dateStr;
+        var ts = annotationTimestamp(dateStr);
+        if (isNaN(ts)) return dateStr;
         var now = Date.now();
-        var diff = Math.floor((now - t) / 1000);
-        if (diff < 60) return '刚刚';
-        if (diff < 3600) return Math.floor(diff / 60) + ' 分钟前';
-        if (diff < 86400) return Math.floor(diff / 3600) + ' 小时前';
-        if (diff < 2592000) return Math.floor(diff / 86400) + ' 天前';
+        var diff = Math.floor((now - ts) / 1000);
+        if (diff < 60) return (typeof t === 'function' ? t('common.just_now', null, '刚刚') : '刚刚');
+        if (diff < 3600) return (typeof t === 'function' ? t('common.mins_ago', { n: Math.floor(diff / 60) }, Math.floor(diff / 60) + ' 分钟前') : Math.floor(diff / 60) + ' 分钟前');
+        if (diff < 86400) return (typeof t === 'function' ? t('common.hours_ago', { n: Math.floor(diff / 3600) }, Math.floor(diff / 3600) + ' 小时前') : Math.floor(diff / 3600) + ' 小时前');
+        if (diff < 2592000) return (typeof t === 'function' ? t('common.days_ago', { n: Math.floor(diff / 86400) }, Math.floor(diff / 86400) + ' 天前') : Math.floor(diff / 86400) + ' 天前');
         return dateStr.substring(0, 10);
     }
 
@@ -509,8 +510,8 @@
         var pageLabel = (typeof document.querySelector === 'function') ? document.querySelector('.anno-cur-page-label') : null;
         if (isLink) {
             // 外链模式：自适应标题与页面路径
-            if (pageLabel) pageLabel.textContent = '链接：';
-            var itemName = (node ? node.getAttribute('data-name') : '') || (document.getElementById('barTitle') ? document.getElementById('barTitle').textContent.trim() : '') || (document.querySelector('.share-title') ? document.querySelector('.share-title').textContent.trim() : '') || '外部链接';
+            if (pageLabel) pageLabel.textContent = (typeof t === 'function' ? t('anno.link_label', null, '链接：') : '链接：');
+            var itemName = (node ? node.getAttribute('data-name') : '') || (document.getElementById('barTitle') ? document.getElementById('barTitle').textContent.trim() : '') || (document.querySelector('.share-title') ? document.querySelector('.share-title').textContent.trim() : '') || (typeof t === 'function' ? t('workspace.ext_link_default', null, '外部链接') : '外部链接');
             AnnoState.ready = true;
             AnnoState.submitting = false;
             AnnoState.pagePath = 'link';
@@ -522,13 +523,13 @@
             }
             syncComposer();
         } else {
-            if (pageLabel) pageLabel.textContent = '当前页：';
+            if (pageLabel) pageLabel.textContent = (typeof t === 'function' ? t('anno.current_page_label', null, '当前页：') : '当前页：');
             AnnoState.ready = false;
             AnnoState.submitting = false;
             AnnoState.pagePath = '';
             AnnoState.pageTitle = '';
             var title = document.getElementById('annoCurPageTitle');
-            if (title) title.textContent = '当前页面';
+            if (title) title.textContent = (typeof t === 'function' ? t('anno.current_page_title', null, '当前页面') : '当前页面');
             syncComposer();
         }
 
@@ -734,20 +735,21 @@
         });
 
         if (filtered.length === 0) {
-            var emptyTitle = '页面一片祥和，暂无挑刺与吐槽';
-            var emptyDesc = '按快捷键 C，在页面任意位置留下你的第一条高见';
+            var _tA = (typeof t === 'function') ? t : function(k, p, f) { return f; };
+            var emptyTitle = _tA('anno.empty_title', null, '页面一片祥和，暂无挑刺与吐槽');
+            var emptyDesc = _tA('anno.empty_desc', null, '按快捷键 C，在页面任意位置留下你的第一条高见');
             var emptyType = 'all';
 
             if (AnnoState.itemType !== 'link' && !AnnoState.verId) {
-                emptyTitle = '该项目还没有版本';
+                emptyTitle = _tA('anno.empty_no_ver', null, '该项目还没有版本');
                 emptyDesc = '';
             } else if (AnnoState.statusFilter === 'pending') {
-                emptyTitle = '暂无待处理批注';
-                emptyDesc = '所有待办批注已妥善解决';
+                emptyTitle = _tA('anno.empty_pending_title', null, '暂无待处理批注');
+                emptyDesc = _tA('anno.empty_pending_desc', null, '所有待办批注已妥善解决');
                 emptyType = 'pending';
             } else if (AnnoState.statusFilter === 'resolved') {
-                emptyTitle = '暂无已解决批注';
-                emptyDesc = '处理完毕的批注将归档至此处';
+                emptyTitle = _tA('anno.empty_resolved_title', null, '暂无已解决批注');
+                emptyDesc = _tA('anno.empty_resolved_desc', null, '处理完毕的批注将归档至此处');
                 emptyType = 'resolved';
             }
 
@@ -756,13 +758,14 @@
                     <div style="margin-bottom:14px;display:flex;justify-content:center;">
                         ${getAnnoEmptySvg(emptyType)}
                     </div>
-                    <div style="font-size:13.5px;font-weight:600;color:var(--text-2);margin-bottom:4px;letter-spacing:0.01em;">${emptyTitle}</div>
-                    ${emptyDesc ? `<div style="font-size:12px;color:var(--text-3);line-height:1.5;">${emptyDesc}</div>` : ''}
+                    <div style="font-size:13.5px;font-weight:600;color:var(--text-2);margin-bottom:4px;letter-spacing:0.01em;">${esc(emptyTitle)}</div>
+                    ${emptyDesc ? `<div style="font-size:12px;color:var(--text-3);line-height:1.5;">${esc(emptyDesc)}</div>` : ''}
                 </div>
             `;
             return;
         }
 
+        var _tAct = (typeof t === 'function') ? t : function(k, p, f) { return f; };
         var isLogin = (typeof CURRENT_USER !== 'undefined' && CURRENT_USER && CURRENT_USER.id);
         var curUserId = isLogin ? parseInt(CURRENT_USER.id, 10) : 0;
         var isCurAdmin = isLogin && (CURRENT_USER.role === 'admin');
@@ -777,17 +780,17 @@
             var canDelete = isAuthor || (isLogin && CURRENT_USER.role === 'admin');
 
             var statusPill = isResolved ? 
-                '<span class="anno-status-pill anno-status-resolved"><i class="ri-check-line"></i> 已解决</span>' :
-                '<span class="anno-status-pill anno-status-pending"><i class="ri-time-line"></i> 待处理</span>';
+                '<span class="anno-status-pill anno-status-resolved"><i class="ri-check-line"></i> ' + esc(_tAct('anno.status_resolved', null, '已解决')) + '</span>' :
+                '<span class="anno-status-pill anno-status-pending"><i class="ri-time-line"></i> ' + esc(_tAct('anno.status_pending', null, '待处理')) + '</span>';
 
             var toggleBtnHtml = canToggle ? `
                 <button type="button" class="anno-act-btn" onclick="toggleAnnoStatus(${a.id})">
-                    <span class="duo-icon-slot" data-duo-icon="${isResolved ? 'rotate-cw' : 'circle-check'}"><i class="${isResolved ? 'ri-restart-line' : 'ri-check-line'} duo-rest-icon"></i></span> ${isResolved ? '重新开启' : '标为已解决'}
+                    <span class="duo-icon-slot" data-duo-icon="${isResolved ? 'rotate-cw' : 'circle-check'}"><i class="${isResolved ? 'ri-restart-line' : 'ri-check-line'} duo-rest-icon"></i></span> ${esc(isResolved ? _tAct('anno.action_reopen', null, '重开') : _tAct('anno.action_resolve', null, '解决'))}
                 </button>
             ` : '';
 
             var deleteBtnHtml = canDelete ? `
-                <button type="button" class="anno-act-btn act-danger" onclick="deleteAnno(${a.id})" title="删除此批注">
+                <button type="button" class="anno-act-btn act-danger" onclick="deleteAnno(${a.id})" title="${esc(_tAct('anno.delete_tip', null, '删除此批注'))}">
                     <span class="duo-icon-slot" data-duo-icon="trash"><i class="ri-delete-bin-line duo-rest-icon"></i></span>
                 </button>
             ` : '';
@@ -813,8 +816,8 @@
             var replyBoxHtml = `
                 <div id="replyBox_${a.id}" style="display:none;margin-top:8px;">
                     <div class="m-form-row">
-                        <input type="text" id="replyInput_${a.id}" class="m-input m-input-sm" placeholder="写回复..." maxlength="1000" onkeydown="if((event.key==='Enter'||event.keyCode===13)&&!event.isComposing){event.preventDefault();event.stopPropagation();submitReply(${a.id});}">
-                        <button type="button" class="btn-primary btn-sm" onclick="submitReply(${a.id})">回复</button>
+                        <input type="text" id="replyInput_${a.id}" class="m-input m-input-sm" placeholder="${esc(_tAct('anno.reply_placeholder', null, '写回复...'))}" maxlength="1000" onkeydown="if((event.key==='Enter'||event.keyCode===13)&&!event.isComposing){event.preventDefault();event.stopPropagation();submitReply(${a.id});}">
+                        <button type="button" class="btn-primary btn-sm" onclick="submitReply(${a.id})">${esc(_tAct('anno.reply', null, '回复'))}</button>
                     </div>
                 </div>
             `;
@@ -822,13 +825,13 @@
             var pageBadge = '';
             var pTitle = a.page_title || (a.page_path && a.page_path !== 'link' ? a.page_path : '');
             if (AnnoState.filterMode === 'all' && pTitle) {
-                pageBadge = `<button type="button" class="btn-cancel btn-sm anno-page-link" onclick="event.stopPropagation();jumpToAnnotationPage(${a.id})" title="跳转至此页面"><i class="ri-file-text-line" aria-hidden="true"></i><span class="anno-page-title-text">${esc(pTitle)}</span><i class="ri-arrow-right-s-line anno-page-jump-icon" aria-hidden="true"></i></button>`;
+                pageBadge = `<button type="button" class="btn-cancel btn-sm anno-page-link" onclick="event.stopPropagation();jumpToAnnotationPage(${a.id})" title="${esc(_tAct('anno.jump_page_tip', null, '跳转至此页面'))}"><i class="ri-file-text-line" aria-hidden="true"></i><span class="anno-page-title-text">${esc(pTitle)}</span><i class="ri-arrow-right-s-line anno-page-jump-icon" aria-hidden="true"></i></button>`;
             }
 
-            var reviewNote = a.origin_outdated ? `<div class="anno-review-note">${a.needs_review ? '原型已更新，待复核' : '此批注创建后，原型内容曾更新'}
-                ${a.needs_review && a.can_review ? `<button type="button" class="btn-cancel btn-sm" onclick="reviewAnno(${a.id})">仍需修改</button>` : ''}
-                ${a.page_snapshot ? `<details><summary>创建时页面文字</summary><div class="anno-snapshot">${esc(a.page_snapshot)}</div></details>` : ''}</div>` : '';
-            var sourceNote = a.source_annotation_id ? `<div class="anno-source-note"><span>引用自旧版</span><a class="anno-link-btn" href="index.php#annotation=${parseInt(a.source_annotation_id,10)}" target="_blank" rel="noopener">查看原批注</a></div>` : '';
+            var reviewNote = a.origin_outdated ? `<div class="anno-review-note">${esc(a.needs_review ? _tAct('anno.outdated_needs_review', null, '原型已更新，待复核') : _tAct('anno.outdated_edited', null, '此批注创建后，原型内容曾更新'))}
+                ${a.needs_review && a.can_review ? `<button type="button" class="btn-cancel btn-sm" onclick="reviewAnno(${a.id})">${esc(_tAct('anno.confirm_still_needed', null, '仍需修改'))}</button>` : ''}
+                ${a.page_snapshot ? `<details><summary>${esc(_tAct('anno.snapshot_summary', null, '创建时页面文字'))}</summary><div class="anno-snapshot">${esc(a.page_snapshot)}</div></details>` : ''}</div>` : '';
+            var sourceNote = a.source_annotation_id ? `<div class="anno-source-note"><span>${esc(_tAct('anno.source_from_old', null, '引用自旧版'))}</span><a class="anno-link-btn" href="index.php#annotation=${parseInt(a.source_annotation_id,10)}" target="_blank" rel="noopener">${esc(_tAct('anno.view_original', null, '查看原批注'))}</a></div>` : '';
             html += `
                 <div class="anno-card ${isResolved ? 'anno-resolved' : ''} ${focusedAnnotationId === parseInt(a.id,10) ? 'anno-focus' : ''}" id="annoCard_${a.id}">
                     ${pageBadge}
@@ -845,9 +848,9 @@
                     ${replyBoxHtml}
                     <div class="anno-card-actions">
                         <button type="button" class="anno-act-btn" data-anno-reply-toggle="${a.id}" onclick="toggleReplyInput(${a.id})">
-                            <span class="duo-icon-slot" data-duo-icon="message-circle"><i class="ri-chat-1-line duo-rest-icon"></i></span> 回复 ${a.replies ? '(' + a.replies.length + ')' : ''}
+                            <span class="duo-icon-slot" data-duo-icon="message-circle"><i class="ri-chat-1-line duo-rest-icon"></i></span> ${esc(_tAct('anno.reply', null, '回复'))} ${a.replies ? '(' + a.replies.length + ')' : ''}
                         </button>
-                        <button type="button" class="anno-act-btn" onclick="copyAnnotationLink(${a.id})">复制链接</button>
+                        <button type="button" class="anno-act-btn" onclick="copyAnnotationLink(${a.id})">${esc(_tAct('anno.copy_link', null, '复制链接'))}</button>
                         ${toggleBtnHtml}
                         <span style="margin-left:auto;">${deleteBtnHtml}</span>
                     </div>
@@ -880,7 +883,7 @@
             if (typeof openLoginModal === 'function') {
                 openLoginModal();
             } else if (typeof showToast === 'function') {
-                showToast('请先登录后再发表批注', 'warning');
+                showToast((typeof t === 'function' ? t('anno.login_required', null, '请先登录后再发表批注') : '请先登录后再发表批注'), 'warning');
             }
             return;
         }
@@ -896,7 +899,7 @@
             verId: AnnoState.verId || 0,
             itemType: AnnoState.itemType,
             pagePath: AnnoState.pagePath || 'link',
-            pageTitle: AnnoState.pageTitle || '外部链接',
+            pageTitle: AnnoState.pageTitle || (typeof t === 'function' ? t('workspace.ext_link_default', null, '外部链接') : '外部链接'),
             contextSequence: contextSequence,
             content: content
         };
@@ -910,7 +913,7 @@
                 || snapshot.verId !== currentVerId
                 || snapshot.pagePath !== currentPath) {
                 if (typeof showToast === 'function') {
-                    showToast('页面已切换，请返回原页面「' + snapshot.pageTitle + '」或重新发送确认', 'warning');
+                    showToast((typeof t === 'function' ? t('anno.page_switched_warn', {title: snapshot.pageTitle}, '页面已切换，请返回原页面「' + snapshot.pageTitle + '」或重新发送确认') : ('页面已切换，请返回原页面「' + snapshot.pageTitle + '」或重新发送确认')), 'warning');
                 }
                 if (input && typeof input.focus === 'function') input.focus();
                 return;
@@ -953,11 +956,11 @@
                     updateHeaderBadge();
                     renderAnnotationList();
                     if (typeof showToast === 'function') {
-                        showToast('批注已发布', 'success');
+                        showToast((typeof t === 'function' ? t('anno.published', null, '批注已发布') : '批注已发布'), 'success');
                     }
                 } else {
                     if (typeof showToast === 'function') {
-                        showToast(res.message || '发布失败', 'error');
+                        showToast(res.message || (typeof t === 'function' ? t('anno.publish_failed', null, '发布失败') : '发布失败'), 'error');
                     }
                 }
                 restoreDrawerFocus();
@@ -967,7 +970,7 @@
                 AnnoState.submitting = false;
                 syncComposer();
                 if (typeof showToast === 'function') {
-                    showToast('网络异常，请重试', 'error');
+                    showToast((typeof t === 'function' ? t('common.network_error', null, '网络异常，请重试') : '网络异常，请重试'), 'error');
                 }
                 restoreDrawerFocus();
             });
@@ -1005,7 +1008,7 @@
             if (replySubmitting[annoId]) return;
             if (replySnapshot.contextSequence !== contextSequence) {
                 if (typeof showToast === 'function') {
-                    showToast('上下文已切换，请重新点击回复确认', 'warning');
+                    showToast((typeof t === 'function' ? t('anno.context_switched', null, '上下文已切换，请重新点击回复确认') : '上下文已切换，请重新点击回复确认'), 'warning');
                 }
                 if (input && typeof input.focus === 'function') input.focus();
                 return;
@@ -1040,7 +1043,7 @@
                     renderAnnotationList();
                 } else {
                     if (typeof showToast === 'function') {
-                        showToast(res.message || '回复失败', 'error');
+                        showToast(res.message || (typeof t === 'function' ? t('anno.reply_failed', null, '回复失败') : '回复失败'), 'error');
                     }
                 }
                 if (AnnoState.isOpen && typeof document !== 'undefined' && (!document.activeElement || document.activeElement === document.body)) {
@@ -1058,7 +1061,7 @@
                 delete replySubmitting[annoId];
                 if (btn) btn.disabled = false;
                 if (typeof showToast === 'function') {
-                    showToast('网络异常，请重试', 'error');
+                    showToast((typeof t === 'function' ? t('common.network_error', null, '网络异常，请重试') : '网络异常，请重试'), 'error');
                 }
                 if (AnnoState.isOpen && typeof document !== 'undefined' && (!document.activeElement || document.activeElement === document.body)) {
                     if (replyFocusTarget && replyFocusTarget.isConnected && !replyFocusTarget.disabled && typeof replyFocusTarget.focus === 'function') {
@@ -1098,13 +1101,13 @@
                 }
             } else {
                 if (typeof showToast === 'function') {
-                    showToast(res.message || '操作失败', 'error');
+                    showToast(res.message || (typeof t === 'function' ? t('common.op_failed', null, '操作失败') : '操作失败'), 'error');
                 }
             }
         })
         .catch(function(err) {
             if (typeof showToast === 'function') {
-                showToast((err && err.message) || '网络请求失败，请稍后重试', 'error');
+                showToast((err && err.message) || (typeof t === 'function' ? t('anno.req_failed', null, '网络请求失败，请稍后重试') : '网络请求失败，请稍后重试'), 'error');
             }
         });
     };
@@ -1122,27 +1125,28 @@
                     AnnoState.pendingCount = AnnoState.list.filter(function(i) { return i.status === 0; }).length;
                     updateHeaderBadge();
                     renderAnnotationList();
-                    if (typeof showToast === 'function') showToast('批注已删除', 'info');
+                    if (typeof showToast === 'function') showToast((typeof t === 'function' ? t('anno.deleted', null, '批注已删除') : '批注已删除'), 'info');
                 } else {
-                    if (typeof showToast === 'function') showToast(res.message || '删除失败', 'error');
+                    if (typeof showToast === 'function') showToast(res.message || (typeof t === 'function' ? t('anno.delete_failed', null, '删除失败') : '删除失败'), 'error');
                 }
             })
             .catch(function(err) {
                 if (typeof showToast === 'function') {
-                    showToast((err && err.message) || '删除失败，请稍后重试', 'error');
+                    showToast((err && err.message) || (typeof t === 'function' ? t('anno.delete_retry', null, '删除失败，请稍后重试') : '删除失败，请稍后重试'), 'error');
                 }
             });
         };
 
+        var _confirmMsg = typeof t === 'function' ? t('anno.delete_confirm', null, '确定删除此批注及其全部回复？') : '确定删除此批注及其全部回复？';
         if (typeof showConfirm === 'function') {
             showConfirm({
-                title: '删除批注',
-                message: '确定删除此批注及其全部回复？',
-                confirmText: '删除',
+                title: typeof t === 'function' ? t('anno.delete_title', null, '删除批注') : '删除批注',
+                message: _confirmMsg,
+                confirmText: typeof t === 'function' ? t('common.delete', null, '删除') : '删除',
                 isDanger: true,
                 onConfirm: doDelete
             });
-        } else if (window.confirm('确定删除此批注及其全部回复？')) {
+        } else if (window.confirm(_confirmMsg)) {
             doDelete();
         }
     };
@@ -1180,11 +1184,11 @@
         var requestUrl = 'api.php?action=annotation_target&id=' + encodeURIComponent(id);
         return fetch(requestUrl).then(function(r) { return r.json(); }).then(function(res) {
             if (!isCurrent()) return;
-            if (!res || !res.success) throw new Error((res && res.message) || '批注不可访问');
+            if (!res || !res.success) throw new Error((res && res.message) || (typeof t === 'function' ? t('anno.inaccessible', null, '批注不可访问') : '批注不可访问'));
             var target = res.data;
-            if (!target) throw new Error('批注目标无效');
+            if (!target) throw new Error(typeof t === 'function' ? t('anno.target_invalid', null, '批注目标无效') : '批注目标无效');
             if (parseInt(target.item_id, 10) !== itemId || parseInt(target.version_id, 10) !== verId) {
-                throw new Error('批注不属于当前项目或版本');
+                throw new Error(typeof t === 'function' ? t('anno.wrong_context', null, '批注不属于当前项目或版本') : '批注不属于当前项目或版本');
             }
 
             if (target.page_url) {
@@ -1196,7 +1200,7 @@
                 var sameDocument = currentUrl.origin === targetUrl.origin
                     && currentUrl.pathname === targetUrl.pathname && currentUrl.search === targetUrl.search;
                 if (sameDocument && currentUrl.hash === targetUrl.hash) {
-                    if (typeof showToast === 'function') showToast('当前已在此页面', 'info', 1800);
+                    if (typeof showToast === 'function') showToast((typeof t === 'function' ? t('anno.already_on_page', null, '当前已在此页面') : '当前已在此页面'), 'info', 1800);
                 } else {
                     try {
                         if (sameDocument) frame.contentWindow.location.hash = targetUrl.hash;
@@ -1206,7 +1210,7 @@
                     }
                 }
             } else if (typeof showToast === 'function') {
-                showToast('原页面已不存在，请查看批注原文', 'warning');
+                showToast((typeof t === 'function' ? t('anno.page_missing', null, '原页面已不存在，请查看批注原文') : '原页面已不存在，请查看批注原文'), 'warning');
             }
 
             if (typeof window.setActiveAnnotationHash === 'function') {
@@ -1216,11 +1220,11 @@
             }
             window.focusAnnotation(id);
             if (target.annotation && target.annotation.needs_review && typeof showToast === 'function') {
-                showToast('原型已更新，此批注需要重新核对', 'info');
+                showToast((typeof t === 'function' ? t('anno.needs_review_toast', null, '原型已更新，此批注需要重新核对') : '原型已更新，此批注需要重新核对'), 'info');
             }
         }).catch(function(err) {
             if (!isCurrent()) return;
-            if (typeof showToast === 'function') showToast(err.message || '跳转失败', 'error');
+            if (typeof showToast === 'function') showToast(err.message || (typeof t === 'function' ? t('anno.jump_failed', null, '跳转失败') : '跳转失败'), 'error');
         });
     };
     function copyTextDirectly(text) {
@@ -1239,7 +1243,11 @@
             : Promise.resolve(fallback());
         return copying.then(function(copied) {
             if (typeof showToast === 'function') {
-                showToast(copied ? '链接已复制到剪贴板' : '复制失败，请手动选择复制', copied ? 'success' : 'error');
+                showToast(
+                    copied ? (typeof t === 'function' ? t('common.link_clipboard_copied', null, '链接已复制到剪贴板') : '链接已复制到剪贴板')
+                           : (typeof t === 'function' ? t('common.copy_failed', null, '复制失败，请手动选择复制') : '复制失败，请手动选择复制'),
+                    copied ? 'success' : 'error'
+                );
             }
             return copied;
         });
@@ -1264,9 +1272,9 @@
     window.reviewAnno = function(id) {
         var fd = new FormData();fd.append('id',id);
         apiFetch('review_annotation',fd).then(function(res) {
-            if (!res.success) throw new Error(res.message || '复核失败');
+            if (!res.success) throw new Error(res.message || (typeof t === 'function' ? t('anno.review_failed', null, '复核失败') : '复核失败'));
             window.loadAnnotations(true);
-        }).catch(function(e) {showToast(e.message || '复核失败','error');});
+        }).catch(function(e) {showToast(e.message || (typeof t === 'function' ? t('anno.review_failed', null, '复核失败') : '复核失败'),'error');});
     };
     window.togglePreviousAnnotations = function() {
         // 【核心铁律】链接无版本，严格拦截「上版未决」读取
@@ -1282,18 +1290,20 @@
     };
 
     function historyCard(annotation, versionName) {
+        var _tH = (typeof t === 'function') ? t : function(k, p, f) { return f; };
         var id = parseInt(annotation.id, 10);
         var timestamp = annotationTimestamp(annotation.created_at);
         var days = isNaN(timestamp) ? 0 : Math.max(0, Math.floor((Date.now() - timestamp) / 86400000));
         var ageClass = days > 30 ? 'aged' : (days > 7 ? 'settled' : 'recent');
+        var timeLabel = days ? _tH('anno.days_ago', {n: days}, days + ' 天前') : _tH('anno.today', null, '今天');
         var time = isNaN(timestamp) ? '' : '<time class="anno-history-age" datetime="' + esc(new Date(timestamp).toISOString()) +
-            '" title="' + esc(new Date(timestamp).toLocaleString()) + '">' + (days ? days + ' 天前' : '今天') + '</time>';
+            '" title="' + esc(new Date(timestamp).toLocaleString()) + '">' + esc(timeLabel) + '</time>';
         return '<article class="anno-history-card anno-history-card--' + ageClass + '" data-annotation-id="' + id + '">' +
             '<div class="anno-history-meta"><span>' + esc(versionName) + '</span>' + time + '</div>' +
             '<strong class="anno-history-page">' + esc(annotation.page_title || annotation.page_path) + '</strong>' +
             '<p>' + esc(annotation.content) + '</p><div class="anno-history-actions">' +
-            '<a class="anno-link-btn" href="index.php#annotation=' + id + '" target="_blank" rel="noopener">查看原批注</a>' +
-            '<button type="button" class="btn-cancel btn-sm" onclick="carryAnnotation(' + id + ')">引用到本版</button></div></article>';
+            '<a class="anno-link-btn" href="index.php#annotation=' + id + '" target="_blank" rel="noopener">' + esc(_tH('anno.view_original', null, '查看原批注')) + '</a>' +
+            '<button type="button" class="btn-cancel btn-sm" onclick="carryAnnotation(' + id + ')">' + esc(_tH('anno.carry_to_current', null, '引用到本版')) + '</button></div></article>';
     }
 
     function loadPreviousAnnotations() {
@@ -1308,14 +1318,14 @@
             return sequence === previousRequestSequence && context === contextSequence && item === AnnoState.itemId &&
                 version === AnnoState.verId && AnnoState.statusFilter === 'previous';
         }
-        panel.innerHTML = '<div class="anno-history-message" role="status">正在读取上一版未解决批注…</div>';
+        panel.innerHTML = '<div class="anno-history-message" role="status">' + esc(typeof t === 'function' ? t('anno.loading_prev', null, '正在读取上一版未解决批注…') : '正在读取上一版未解决批注…') + '</div>';
 
         return fetch('api.php?action=previous_annotations&ver_id=' + version).then(function(r) { return r.json(); }).then(function(res) {
             if (!isCurrent()) return;
-            if (!res.success) throw new Error(res.message || '读取失败');
+            if (!res.success) throw new Error(res.message || (typeof t === 'function' ? t('anno.load_failed', null, '读取失败') : '读取失败'));
             var list = res.data.list || [];
             if (!list.length) {
-                panel.innerHTML = '<div class="anno-history-message">' + getAnnoEmptySvg('previous') + '<p>上一版没有未解决批注</p></div>';
+                panel.innerHTML = '<div class="anno-history-message">' + getAnnoEmptySvg('previous') + '<p>' + esc(typeof t === 'function' ? t('anno.no_prev_unresolved', null, '上一版没有未解决批注') : '上一版没有未解决批注') + '</p></div>';
                 return;
             }
             panel.innerHTML = list.map(function(a) {
@@ -1323,7 +1333,7 @@
             }).join('');
         }).catch(function(e) {
             if (isCurrent()) {
-                panel.innerHTML = '<div class="anno-history-message anno-history-error" role="alert">' + esc(e.message || '读取失败') + '</div>';
+                panel.innerHTML = '<div class="anno-history-message anno-history-error" role="alert">' + esc(e.message || (typeof t === 'function' ? t('anno.load_failed', null, '读取失败') : '读取失败')) + '</div>';
             }
         });
     }
@@ -1333,9 +1343,9 @@
         var fd = new FormData();fd.append('id',id);fd.append('ver_id',AnnoState.verId);
         apiFetch('carry_annotation',fd).then(function(res) {
             if (sequence !== contextSequence) return;
-            if (!res.success) throw new Error(res.message || '引用失败');
-            window.focusAnnotation(parseInt(res.data.id,10));window.loadAnnotations(true);showToast('已引用到当前版本','success');
-        }).catch(function(e) {if (sequence === contextSequence) showToast(e.message || '引用失败','error');});
+            if (!res.success) throw new Error(res.message || (typeof t === 'function' ? t('anno.carry_failed', null, '引用失败') : '引用失败'));
+            window.focusAnnotation(parseInt(res.data.id,10));window.loadAnnotations(true);showToast((typeof t === 'function' ? t('anno.carried', null, '已引用到当前版本') : '已引用到当前版本'),'success');
+        }).catch(function(e) {if (sequence === contextSequence) showToast(e.message || (typeof t === 'function' ? t('anno.carry_failed', null, '引用失败') : '引用失败'),'error');});
     };
 
     // 统一处理批注快捷键 C 与 ESC
@@ -1760,7 +1770,7 @@
 
             var titleEl = document.getElementById('annoCurPageTitle');
             if (titleEl) {
-                var displayTitle = resolved.pageTitle || resolved.pagePath || '原型页面';
+                var displayTitle = resolved.pageTitle || resolved.pagePath || (typeof t === 'function' ? t('anno.proto_page', null, '原型页面') : '原型页面');
                 titleEl.textContent = displayTitle;
                 titleEl.setAttribute('title', displayTitle);
             }

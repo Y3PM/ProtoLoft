@@ -325,7 +325,6 @@ def main():
                   and "立象原型" in test_html
                   and "ProtoLoft" in test_html
                   and "立象以尽意 · 披图而同心" in test_html
-                  and "Give ideas a shared home." in test_html
                   and 'src="cid:protoloft-brand-icon"' in test_html
                   and "protoloft-brand-icon" in test_cids
                   and test_cids["protoloft-brand-icon"].startswith(b"\x89PNG"))

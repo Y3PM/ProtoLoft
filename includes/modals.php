@@ -10,7 +10,7 @@ foreach ($db->query("SELECT id, email, name, role, status FROM users")->fetchAll
 }
 $editorShareAllowed = Auth::getSetting('perm_editor_share', '1') !== '0';
 $renderItemOwnersCell = function($item, $usersMap) use ($editorShareAllowed) {
-    $actions = $editorShareAllowed ? '版本与分享' : '版本';
+    $actions = $editorShareAllowed ? t('admin.item.perm_ver_share') : t('admin.item.perm_ver');
     $collabIds = Auth::parseItemCollaborators($item);
     if (!empty($collabIds)) {
         $names = [];
@@ -19,13 +19,18 @@ $renderItemOwnersCell = function($item, $usersMap) use ($editorShareAllowed) {
             if ($u) {
                 $names[] = !empty($u['name']) ? $u['name'] : $u['email'];
             } else {
-                $names[] = '成员 #' . $cid;
+                $names[] = t('admin.item.member_id', ['id' => $cid]);
             }
         }
-        $fullText = implode('、', $names);
-        return '<span title="' . $actions . '：仅' . htmlspecialchars($fullText, ENT_QUOTES, 'UTF-8') . '">仅' . htmlspecialchars($fullText) . '</span>';
+        $sep = I18n::getLocale() === 'en' ? ', ' : '、';
+        $colon = I18n::getLocale() === 'en' ? ': ' : '：';
+        $fullText = implode($sep, $names);
+        $onlyText = t('admin.item.only_owners', ['names' => $fullText]);
+        return '<span title="' . htmlspecialchars($actions . $colon . $onlyText, ENT_QUOTES, 'UTF-8') . '">' . htmlspecialchars($onlyText) . '</span>';
     }
-    return '<span title="' . $actions . '：所有协作者">所有协作者</span>';
+    $colon = I18n::getLocale() === 'en' ? ': ' : '：';
+    $allText = t('admin.item.all_editors');
+    return '<span title="' . htmlspecialchars($actions . $colon . $allText, ENT_QUOTES, 'UTF-8') . '">' . htmlspecialchars($allText) . '</span>';
 };
 ?>
 <?php if ($canManage): ?>
@@ -33,14 +38,14 @@ $renderItemOwnersCell = function($item, $usersMap) use ($editorShareAllowed) {
 <div id="uploadModal" class="custom-modal" style="display:none;">
     <div class="modal-dialog-box modal-md">
         <div class="modal-head">
-            <h4 id="uploadModalTitle">发布版本</h4>
-            <button type="button" class="close-x" onclick="closeModal('uploadModal')" title="关闭"><i class="ri-close-line"></i></button>
+            <h4 id="uploadModalTitle"><?php echo htmlspecialchars(t('admin.upload.title')); ?></h4>
+            <button type="button" class="close-x" onclick="closeModal('uploadModal')" title="<?php echo htmlspecialchars(t('common.close')); ?>"><i class="ri-close-line"></i></button>
         </div>
         <form id="uploadVersionForm" onsubmit="handleVersionUpload(event)" novalidate>
             <input type="hidden" id="uploadItemId" name="item_id">
             
             <div class="m-form-group">
-                <label class="m-label">所属项目 <span class="req-star">*</span></label>
+                <label class="m-label"><?php echo htmlspecialchars(t('admin.upload.project_label')); ?> <span class="req-star">*</span></label>
                 <select id="uploadItemSelect" class="m-input" required onchange="onUploadItemSelectChange(this.value)">
                     <?php 
                     if (!empty($cats) && !empty($catItems)) {
@@ -69,81 +74,81 @@ $renderItemOwnersCell = function($item, $usersMap) use ($editorShareAllowed) {
 
             <div class="m-form-group">
                 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
-                    <label class="m-label" style="margin-bottom:0;">版本名称 <span class="req-star">*</span></label>
+                    <label class="m-label" style="margin-bottom:0;"><?php echo htmlspecialchars(t('admin.upload.ver_label')); ?> <span class="req-star">*</span></label>
                     <span id="uploadLastVerHint" class="upload-last-ver-hint" style="display:none;font-size:12px;color:var(--text-3);">
-                        上一版本：<strong style="color:var(--text-1);font-weight:550;cursor:pointer;" id="uploadLastVerName" onclick="applyUploadLastVerSuggestion()" title="点击填入此版本号"></strong>
+                        <?php echo htmlspecialchars(t('admin.upload.last_ver_prefix')); ?><strong style="color:var(--text-1);font-weight:550;cursor:pointer;" id="uploadLastVerName" onclick="applyUploadLastVerSuggestion()" title="<?php echo htmlspecialchars(t('admin.upload.last_ver_tip')); ?>"></strong>
                     </span>
                 </div>
-                <input type="text" id="uploadVerName" name="version_name" class="m-input" placeholder="如 V1.1.1、评审稿" required autocomplete="off" maxlength="30" oninput="onUploadVersionNameInput(this)">
+                <input type="text" id="uploadVerName" name="version_name" class="m-input" placeholder="<?php echo htmlspecialchars(t('ver.name_placeholder')); ?>" required autocomplete="off" maxlength="30" oninput="onUploadVersionNameInput(this)">
                 <span id="uploadVersionHint" class="m-form-hint" hidden style="margin-top:4px;font-size:12px;color:var(--warning);display:block;"></span>
             </div>
 
             <div class="m-form-group">
-                <label class="m-label">原型内容 (ZIP 包或原型文件夹) <span class="req-star">*</span></label>
+                <label class="m-label"><?php echo htmlspecialchars(t('admin.upload.proto_label')); ?> <span class="req-star">*</span></label>
                 <div class="proto-drop-zone" id="protoDropZone">
                     <input type="file" id="uploadZipFile" name="zip_file" accept=".zip" class="custom-file-input" onchange="handleZipSelected(this)">
                     <input type="file" id="uploadFolderInput" webkitdirectory directory class="custom-file-input" onchange="handleFolderSelected(this)">
                     <div class="proto-drop-actions" id="protoDropActions">
-                        <button type="button" class="btn-file-select" onclick="triggerFileInput('uploadZipFile')"><span class="duo-icon-slot" data-duo-icon="file-archive"><i class="ri-file-zip-line duo-rest-icon"></i></span> 选择 ZIP 包</button>
-                        <button type="button" class="btn-file-select" onclick="triggerFileInput('uploadFolderInput')"><span class="duo-icon-slot" data-duo-icon="folder-open"><i class="ri-folder-upload-line duo-rest-icon"></i></span> 选择文件夹</button>
-                        <span class="proto-drop-hint">或将 ZIP 包 / 文件夹直接拖放至此处</span>
+                        <button type="button" class="btn-file-select" onclick="triggerFileInput('uploadZipFile')"><span class="duo-icon-slot" data-duo-icon="file-archive"><i class="ri-file-zip-line duo-rest-icon"></i></span> <?php echo htmlspecialchars(t('admin.upload.pick_zip')); ?></button>
+                        <button type="button" class="btn-file-select" onclick="triggerFileInput('uploadFolderInput')"><span class="duo-icon-slot" data-duo-icon="folder-open"><i class="ri-folder-upload-line duo-rest-icon"></i></span> <?php echo htmlspecialchars(t('admin.upload.pick_folder')); ?></button>
+                        <span class="proto-drop-hint"><?php echo htmlspecialchars(t('admin.upload.drop_proto_hint')); ?></span>
                     </div>
                     <div class="proto-file-badge" id="protoFileBadge" style="display:none;">
                         <i class="ri-file-check-line" id="protoFileBadgeIcon"></i>
-                        <span class="proto-file-badge-text" id="protoFileBadgeText">未选择文件</span>
-                        <button type="button" id="protoFolderManageBtn" class="btn-sm btn-cancel proto-folder-manage-btn" hidden onclick="openFolderFilesModal()" title="查看或取消勾选不需要上传的文件"><span class="duo-icon-slot" data-duo-icon="list-checks"><i class="ri-list-check-2 duo-rest-icon"></i></span> 筛选文件</button>
-                        <button type="button" class="proto-file-badge-clear" onclick="clearSelectedProtoSource(event)" title="移除并重新选择"><i class="ri-close-line"></i></button>
+                        <span class="proto-file-badge-text" id="protoFileBadgeText"></span>
+                        <button type="button" id="protoFolderManageBtn" class="btn-sm btn-cancel proto-folder-manage-btn" hidden onclick="openFolderFilesModal()" title="<?php echo htmlspecialchars(t('admin.upload.filter_files_tip')); ?>"><span class="duo-icon-slot" data-duo-icon="list-checks"><i class="ri-list-check-2 duo-rest-icon"></i></span> <?php echo htmlspecialchars(t('admin.upload.filter_files')); ?></button>
+                        <button type="button" class="proto-file-badge-clear" onclick="clearSelectedProtoSource(event)" title="<?php echo htmlspecialchars(t('admin.upload.clear_file_tip')); ?>"><i class="ri-close-line"></i></button>
                     </div>
-                    <span class="file-name-display" id="uploadZipName" style="display:none;">未选择文件</span>
+                    <span class="file-name-display" id="uploadZipName" style="display:none;"></span>
                 </div>
             </div>
 
             <div class="m-form-group">
-                <label class="m-label">RP 源文件 (.rp) <span class="opt-tag">选填</span></label>
+                <label class="m-label"><?php echo htmlspecialchars(t('admin.upload.rp_label')); ?> <span class="opt-tag"><?php echo htmlspecialchars(t('common.optional')); ?></span></label>
                 <div class="proto-drop-zone" id="rpDropZone">
                     <input type="file" id="uploadRpFile" name="rp_file" accept=".rp" class="custom-file-input" onchange="handleRpSelected(this)">
                     <div class="proto-drop-actions" id="rpDropActions">
-                        <button type="button" class="btn-file-select" onclick="triggerFileInput('uploadRpFile')"><span class="duo-icon-slot" data-duo-icon="file-text"><i class="ri-draft-line duo-rest-icon"></i></span> 选择 RP 底稿</button>
-                        <span class="proto-drop-hint">或将 .rp 底稿文件直接拖放至此处</span>
+                        <button type="button" class="btn-file-select" onclick="triggerFileInput('uploadRpFile')"><span class="duo-icon-slot" data-duo-icon="file-text"><i class="ri-draft-line duo-rest-icon"></i></span> <?php echo htmlspecialchars(t('admin.upload.pick_rp')); ?></button>
+                        <span class="proto-drop-hint"><?php echo htmlspecialchars(t('admin.upload.drop_rp_hint')); ?></span>
                     </div>
                     <div class="proto-file-badge" id="rpFileBadge" style="display:none;">
                         <i class="ri-draft-line" id="rpFileBadgeIcon"></i>
-                        <span class="proto-file-badge-text" id="rpFileBadgeText">未选择文件</span>
-                        <button type="button" class="proto-file-badge-clear" onclick="clearSelectedRpFile(event)" title="移除并重新选择"><i class="ri-close-line"></i></button>
+                        <span class="proto-file-badge-text" id="rpFileBadgeText"></span>
+                        <button type="button" class="proto-file-badge-clear" onclick="clearSelectedRpFile(event)" title="<?php echo htmlspecialchars(t('admin.upload.clear_file_tip')); ?>"><i class="ri-close-line"></i></button>
                     </div>
-                    <span class="file-name-display" id="uploadRpName" style="display:none;">未选择文件</span>
+                    <span class="file-name-display" id="uploadRpName" style="display:none;"></span>
                 </div>
             </div>
 
             <div class="m-form-group">
                 <div class="upload-label-row">
                     <label class="m-label" id="uploadChangelogLabel" for="uploadChangelog">
-                        <span>更新日志 <span class="req-star" id="changelogReqStar" style="display:none;">*</span></span>
-                        <span class="opt-tag" id="changelogOptTag">选填</span>
+                        <span><?php echo htmlspecialchars(t('ver.changelog_label')); ?> <span class="req-star" id="changelogReqStar" style="display:none;">*</span></span>
+                        <span class="opt-tag" id="changelogOptTag"><?php echo htmlspecialchars(t('common.optional')); ?></span>
                     </label>
-                    <button type="button" id="uploadLastLogBtn" class="upload-last-log-btn" hidden onclick="appendUploadLastChangelog()" title="将上一版本的更新日志添加到末尾">
-                        <i class="ri-add-line"></i> 上版日志
+                    <button type="button" id="uploadLastLogBtn" class="upload-last-log-btn" hidden onclick="appendUploadLastChangelog()" title="<?php echo htmlspecialchars(t('admin.upload.append_last_log_tip')); ?>">
+                        <i class="ri-add-line"></i> <?php echo htmlspecialchars(t('admin.upload.append_last_log')); ?>
                     </button>
                 </div>
-                <textarea id="uploadChangelog" name="changelog" class="m-input upload-changelog" placeholder="本次版本的改动说明，支持换行与 Markdown（如 - 列表、**加粗**、# 标题）" maxlength="3000" oninput="this.classList.remove('m-input-error')"></textarea>
+                <textarea id="uploadChangelog" name="changelog" class="m-input upload-changelog" placeholder="<?php echo htmlspecialchars(t('admin.upload.changelog_placeholder')); ?>" maxlength="3000" oninput="this.classList.remove('m-input-error')"></textarea>
             </div>
 
             <!-- 发送群通知双列独立控制 (常驻显示，避免认知波动) -->
             <div class="m-form-group">
-                <label class="m-label">通知设置</label>
+                <label class="m-label"><?php echo htmlspecialchars(t('admin.upload.notify_label')); ?></label>
                 <div class="upload-notify-grid" id="uploadNotifyGrid">
                     <!-- 左列：项目群通知 -->
                     <div class="upload-notify-card" id="uploadNotifyItemCard">
                         <div class="upload-notify-card-info">
                             <div class="upload-notify-card-title">
                                 <i class="ri-team-line"></i>
-                                <span>项目群通知</span>
+                                <span><?php echo htmlspecialchars(t('admin.upload.notify_item')); ?></span>
                             </div>
-                            <div class="upload-notify-card-status" id="uploadNotifyItemStatus">未配置</div>
+                            <div class="upload-notify-card-status" id="uploadNotifyItemStatus"><?php echo htmlspecialchars(t('common.unconfigured')); ?></div>
                         </div>
                         <div class="upload-notify-card-control">
                             <label class="linear-switch" id="uploadNotifyItemSwitchLabel">
-                                <input type="checkbox" id="notifyItemWebhook" name="notify_item" value="1" onchange="handleNotifyTargetChange()" aria-label="项目群通知">
+                                <input type="checkbox" id="notifyItemWebhook" name="notify_item" value="1" onchange="handleNotifyTargetChange()" aria-label="<?php echo htmlspecialchars(t('admin.upload.notify_item')); ?>">
                                 <span class="linear-switch-slider"></span>
                             </label>
                         </div>
@@ -154,13 +159,13 @@ $renderItemOwnersCell = function($item, $usersMap) use ($editorShareAllowed) {
                         <div class="upload-notify-card-info">
                             <div class="upload-notify-card-title">
                                 <i class="ri-broadcast-line"></i>
-                                <span>评审群通知</span>
+                                <span><?php echo htmlspecialchars(t('admin.upload.notify_global')); ?></span>
                             </div>
-                            <div class="upload-notify-card-status" id="uploadNotifyGlobalStatus">未配置</div>
+                            <div class="upload-notify-card-status" id="uploadNotifyGlobalStatus"><?php echo htmlspecialchars(t('common.unconfigured')); ?></div>
                         </div>
                         <div class="upload-notify-card-control">
                             <label class="linear-switch" id="uploadNotifyGlobalSwitchLabel">
-                                <input type="checkbox" id="notifyGlobalWebhook" name="notify_global" value="1" onchange="handleNotifyTargetChange()" aria-label="评审群通知">
+                                <input type="checkbox" id="notifyGlobalWebhook" name="notify_global" value="1" onchange="handleNotifyTargetChange()" aria-label="<?php echo htmlspecialchars(t('admin.upload.notify_global')); ?>">
                                 <span class="linear-switch-slider"></span>
                             </label>
                         </div>
@@ -172,7 +177,7 @@ $renderItemOwnersCell = function($item, $usersMap) use ($editorShareAllowed) {
 
             <div id="uploadProgressWrap" style="display:none;margin-bottom:16px;">
                 <div style="font-size:12px;color:var(--primary);display:flex;justify-content:space-between;margin-bottom:4px;">
-                    <span id="uploadProgressText">正在传输...</span>
+                    <span id="uploadProgressText"><?php echo htmlspecialchars(t('admin.upload.uploading_default')); ?></span>
                     <span id="uploadProgressPercent">0%</span>
                 </div>
                 <div style="height:5px;background:var(--surface-active);border-radius:3px;overflow:hidden;">
@@ -181,8 +186,8 @@ $renderItemOwnersCell = function($item, $usersMap) use ($editorShareAllowed) {
             </div>
 
             <div class="m-modal-footer">
-                <button type="button" class="btn-cancel btn-standard" onclick="closeModal('uploadModal')">取消</button>
-                <button type="submit" class="btn-primary btn-standard" id="btnUploadSubmit">发布</button>
+                <button type="button" class="btn-cancel btn-standard" onclick="closeModal('uploadModal')"><?php echo htmlspecialchars(t('common.cancel')); ?></button>
+                <button type="submit" class="btn-primary btn-standard" id="btnUploadSubmit"><?php echo htmlspecialchars(t('admin.upload.submit')); ?></button>
             </div>
         </form>
     </div>
@@ -193,24 +198,24 @@ $renderItemOwnersCell = function($item, $usersMap) use ($editorShareAllowed) {
     <div class="modal-dialog-box modal-lg folder-files-modal-box">
         <div class="modal-head folder-files-head">
             <div class="ver-modal-heading">
-                <h4>筛选上传文件</h4>
+                <h4><?php echo htmlspecialchars(t('admin.ff.title')); ?></h4>
                 <span id="folderFilesRootBadge" class="m-badge m-badge-neutral"></span>
             </div>
-            <button type="button" class="close-x" onclick="closeModal('folderFilesModal')" title="关闭"><i class="ri-close-line"></i></button>
+            <button type="button" class="close-x" onclick="closeModal('folderFilesModal')" title="<?php echo htmlspecialchars(t('common.close')); ?>"><i class="ri-close-line"></i></button>
         </div>
 
         <div class="folder-files-toolbar">
             <div class="m-input m-input-sm ver-manage-search-wrap folder-files-search-wrap">
                 <i class="ri-search-line ver-manage-search-icon" aria-hidden="true"></i>
-                <input type="text" id="folderFilesSearchInput" class="ver-manage-search-input" aria-label="搜索文件名或路径" placeholder="搜索文件名或路径..." autocomplete="off" oninput="onFolderFilesSearchInput(this.value)">
-                <button type="button" id="folderFilesSearchClear" class="close-x" hidden onclick="clearFolderFilesSearch()" title="清空搜索"><i class="ri-close-line"></i></button>
+                <input type="text" id="folderFilesSearchInput" class="ver-manage-search-input" aria-label="<?php echo htmlspecialchars(t('admin.ff.search_placeholder')); ?>" placeholder="<?php echo htmlspecialchars(t('admin.ff.search_placeholder')); ?>" autocomplete="off" oninput="onFolderFilesSearchInput(this.value)">
+                <button type="button" id="folderFilesSearchClear" class="close-x" hidden onclick="clearFolderFilesSearch()" title="<?php echo htmlspecialchars(t('workspace.clear_search')); ?>"><i class="ri-close-line"></i></button>
             </div>
             <div class="folder-files-toolbar-actions">
-                <button type="button" id="folderFilesViewAllBtn" class="btn-sm btn-cancel is-active" onclick="setFolderFilesViewMode('all')">全部</button>
-                <button type="button" id="folderFilesViewExclBtn" class="btn-sm btn-cancel" onclick="setFolderFilesViewMode('excluded')">已排除 (<span id="folderFilesExclCount">0</span>)</button>
+                <button type="button" id="folderFilesViewAllBtn" class="btn-sm btn-cancel is-active" onclick="setFolderFilesViewMode('all')"><?php echo htmlspecialchars(t('admin.ff.view_all')); ?></button>
+                <button type="button" id="folderFilesViewExclBtn" class="btn-sm btn-cancel" onclick="setFolderFilesViewMode('excluded')"><?php echo htmlspecialchars(t('admin.ff.view_excluded')); ?> (<span id="folderFilesExclCount">0</span>)</button>
                 <span class="folder-files-toolbar-sep" aria-hidden="true"></span>
-                <button type="button" id="folderFilesCheckAllBtn" class="btn-sm btn-cancel" onclick="toggleFolderFilesVisibleSelection(true)">全选</button>
-                <button type="button" id="folderFilesUncheckAllBtn" class="btn-sm btn-cancel" onclick="toggleFolderFilesVisibleSelection(false)">全不选</button>
+                <button type="button" id="folderFilesCheckAllBtn" class="btn-sm btn-cancel" onclick="toggleFolderFilesVisibleSelection(true)"><?php echo htmlspecialchars(t('admin.ff.check_all')); ?></button>
+                <button type="button" id="folderFilesUncheckAllBtn" class="btn-sm btn-cancel" onclick="toggleFolderFilesVisibleSelection(false)"><?php echo htmlspecialchars(t('admin.ff.uncheck_all')); ?></button>
             </div>
         </div>
 
@@ -222,8 +227,8 @@ $renderItemOwnersCell = function($item, $usersMap) use ($editorShareAllowed) {
         <div class="folder-files-footer">
             <div class="folder-files-summary" id="folderFilesSummary"></div>
             <div class="folder-files-footer-btns">
-                <button type="button" class="btn-cancel btn-standard" onclick="closeModal('folderFilesModal')">取消</button>
-                <button type="button" id="folderFilesApplyBtn" class="btn-primary btn-standard" onclick="applyFolderFilesFilter()">确认</button>
+                <button type="button" class="btn-cancel btn-standard" onclick="closeModal('folderFilesModal')"><?php echo htmlspecialchars(t('common.cancel')); ?></button>
+                <button type="button" id="folderFilesApplyBtn" class="btn-primary btn-standard" onclick="applyFolderFilesFilter()"><?php echo htmlspecialchars(t('common.confirm')); ?></button>
             </div>
         </div>
     </div>
@@ -234,18 +239,18 @@ $renderItemOwnersCell = function($item, $usersMap) use ($editorShareAllowed) {
     <div class="modal-dialog-box modal-ver">
         <div class="modal-head">
             <div class="ver-modal-heading">
-                <h4 id="verManageTitle">版本管理</h4>
+                <h4 id="verManageTitle"><?php echo htmlspecialchars(t('ver.manage_title')); ?></h4>
                 <span id="verManageCountBadge" class="m-badge m-badge-neutral" style="display:none;"></span>
             </div>
             <div class="m-input m-input-md ver-manage-search-wrap" id="verManageSearchWrap" style="display:none;">
                 <i class="ri-search-line ver-manage-search-icon" aria-hidden="true"></i>
-                <input type="text" id="verManageSearchInput" class="ver-manage-search-input" aria-label="搜索版本、日志或发版人" placeholder="搜索版本、日志或发版人..." oninput="handleVerManageSearch(this.value)">
-                <button type="button" id="verManageSearchClear" class="close-x" onclick="clearVerManageSearch()" style="display:none;" title="清空搜索"><i class="ri-close-line"></i></button>
+                <input type="text" id="verManageSearchInput" class="ver-manage-search-input" aria-label="<?php echo htmlspecialchars(t('ver.search_placeholder')); ?>" placeholder="<?php echo htmlspecialchars(t('ver.search_placeholder')); ?>" oninput="handleVerManageSearch(this.value)">
+                <button type="button" id="verManageSearchClear" class="close-x" onclick="clearVerManageSearch()" style="display:none;" title="<?php echo htmlspecialchars(t('workspace.clear_search')); ?>"><i class="ri-close-line"></i></button>
             </div>
-            <button type="button" id="btnVerManagePublish" class="btn-primary btn-sm" hidden style="margin-left:auto;margin-right:6px;" onclick="publishFromVerManage()" title="为此项目发布新版本">
-                <span class="duo-icon-slot" data-duo-icon="cloud-upload"><i class="ri-upload-cloud-line duo-rest-icon"></i></span> 发布新版本
+            <button type="button" id="btnVerManagePublish" class="btn-primary btn-sm" hidden style="margin-left:auto;margin-right:6px;" onclick="publishFromVerManage()" title="<?php echo htmlspecialchars(t('ver.publish_new_tip')); ?>">
+                <span class="duo-icon-slot" data-duo-icon="cloud-upload"><i class="ri-upload-cloud-line duo-rest-icon"></i></span> <?php echo htmlspecialchars(t('ver.publish_new')); ?>
             </button>
-            <button type="button" class="close-x" onclick="closeModal('versionManageModal')" title="关闭"><i class="ri-close-line"></i></button>
+            <button type="button" class="close-x" onclick="closeModal('versionManageModal')" title="<?php echo htmlspecialchars(t('common.close')); ?>"><i class="ri-close-line"></i></button>
         </div>
         <div id="verManageTableWrap" class="ver-manage-table-wrap">
             <div id="verManageTable" class="ver-manage-table ver-manage-flow-wrap" style="display:none;">
@@ -265,26 +270,26 @@ $renderItemOwnersCell = function($item, $usersMap) use ($editorShareAllowed) {
 <div id="versionEditModal" class="custom-modal" style="display:none;">
     <div class="modal-dialog-box modal-sm">
         <div class="modal-head">
-            <h4 id="verEditModalTitle">编辑版本信息</h4>
-            <button type="button" class="close-x" onclick="closeModal('versionEditModal')" title="关闭"><i class="ri-close-line"></i></button>
+            <h4 id="verEditModalTitle"><?php echo htmlspecialchars(t('ver.edit_title')); ?></h4>
+            <button type="button" class="close-x" onclick="closeModal('versionEditModal')" title="<?php echo htmlspecialchars(t('common.close')); ?>"><i class="ri-close-line"></i></button>
         </div>
         <form id="versionEditForm" onsubmit="handleVersionEditSubmit(event)" novalidate>
             <input type="hidden" id="editVerId" value="0">
             <input type="hidden" id="editVerItemId" value="0">
             
             <div class="m-form-group">
-                <label class="m-label">版本名称 <span class="req-star">*</span></label>
-                <input type="text" id="editVerName" class="m-input" placeholder="如 V1.1.1、评审稿" required autocomplete="off" maxlength="30">
+                <label class="m-label"><?php echo htmlspecialchars(t('ver.name_label')); ?> <span class="req-star">*</span></label>
+                <input type="text" id="editVerName" class="m-input" placeholder="<?php echo htmlspecialchars(t('ver.name_placeholder')); ?>" required autocomplete="off" maxlength="30">
             </div>
 
             <div class="m-form-group">
-                <label class="m-label">更新日志</label>
-                <textarea id="editVerChangelog" class="m-input" style="height:90px;resize:vertical;line-height:1.5;padding:8px 10px;" placeholder="选填，简述本次版本的核心变动..." maxlength="3000"></textarea>
+                <label class="m-label"><?php echo htmlspecialchars(t('ver.changelog_label')); ?></label>
+                <textarea id="editVerChangelog" class="m-input" style="height:90px;resize:vertical;line-height:1.5;padding:8px 10px;" placeholder="<?php echo htmlspecialchars(t('ver.changelog_edit_placeholder')); ?>" maxlength="3000"></textarea>
             </div>
 
             <div class="m-modal-footer">
-                <button type="button" class="btn-cancel btn-standard" onclick="closeModal('versionEditModal')">取消</button>
-                <button type="submit" id="btnSaveVerEdit" class="btn-primary btn-standard">保存</button>
+                <button type="button" class="btn-cancel btn-standard" onclick="closeModal('versionEditModal')"><?php echo htmlspecialchars(t('common.cancel')); ?></button>
+                <button type="submit" id="btnSaveVerEdit" class="btn-primary btn-standard"><?php echo htmlspecialchars(t('common.save')); ?></button>
             </div>
         </form>
     </div>
@@ -294,19 +299,19 @@ $renderItemOwnersCell = function($item, $usersMap) use ($editorShareAllowed) {
 <div id="categoryModal" class="custom-modal" style="display:none;">
     <div class="modal-dialog-box modal-sm">
         <div class="modal-head">
-            <h4 id="catModalTitle">新建文件夹</h4>
-            <button type="button" class="close-x" onclick="closeModal('categoryModal')" title="关闭"><i class="ri-close-line"></i></button>
+            <h4 id="catModalTitle"><?php echo htmlspecialchars(t('admin.cat.new_title')); ?></h4>
+            <button type="button" class="close-x" onclick="closeModal('categoryModal')" title="<?php echo htmlspecialchars(t('common.close')); ?>"><i class="ri-close-line"></i></button>
         </div>
         <form onsubmit="handleCategorySave(event)" novalidate>
             <input type="hidden" id="catId" value="0">
             <div class="m-form-group">
-                <label class="m-label" for="catName">文件夹名称 <span class="req-star">*</span></label>
-                <input type="text" id="catName" class="m-input" placeholder="输入文件夹名称" required maxlength="20" data-error-target="catNameError" aria-errormessage="catNameError">
+                <label class="m-label" for="catName"><?php echo htmlspecialchars(t('admin.cat.name_label')); ?> <span class="req-star">*</span></label>
+                <input type="text" id="catName" class="m-input" placeholder="<?php echo htmlspecialchars(t('admin.cat.name_placeholder')); ?>" required maxlength="20" data-error-target="catNameError" aria-errormessage="catNameError">
                 <div class="field-error-tip" id="catNameError" role="alert"></div>
             </div>
             <div class="m-modal-footer">
-                <button type="button" class="btn-cancel btn-standard" onclick="closeModal('categoryModal')">取消</button>
-                <button type="submit" class="btn-primary btn-standard">保存</button>
+                <button type="button" class="btn-cancel btn-standard" onclick="closeModal('categoryModal')"><?php echo htmlspecialchars(t('common.cancel')); ?></button>
+                <button type="submit" class="btn-primary btn-standard"><?php echo htmlspecialchars(t('common.save')); ?></button>
             </div>
         </form>
     </div>
@@ -316,15 +321,15 @@ $renderItemOwnersCell = function($item, $usersMap) use ($editorShareAllowed) {
 <div id="itemModal" class="custom-modal" style="display:none;">
     <div class="modal-dialog-box modal-md">
         <div class="modal-head">
-            <h4 id="itemModalTitle">新建项目</h4>
-            <button type="button" class="close-x" onclick="closeModal('itemModal')" title="关闭"><i class="ri-close-line"></i></button>
+            <h4 id="itemModalTitle"><?php echo htmlspecialchars(t('admin.item.new_project')); ?></h4>
+            <button type="button" class="close-x" onclick="closeModal('itemModal')" title="<?php echo htmlspecialchars(t('common.close')); ?>"><i class="ri-close-line"></i></button>
         </div>
         <form onsubmit="handleItemSave(event)" novalidate>
             <input type="hidden" id="editItemId" value="0">
             <input type="hidden" id="itemType" value="project">
             
             <div class="m-form-group">
-                <label class="m-label">所属文件夹 <span class="req-star">*</span></label>
+                <label class="m-label"><?php echo htmlspecialchars(t('admin.item.folder_label')); ?> <span class="req-star">*</span></label>
                 <select id="itemCatSelect" class="m-input" required>
                     <?php foreach ($cats as $c): ?>
                         <option value="<?php echo $c['id']; ?>"><?php echo htmlspecialchars($c['name']); ?></option>
@@ -333,26 +338,26 @@ $renderItemOwnersCell = function($item, $usersMap) use ($editorShareAllowed) {
             </div>
 
             <div class="m-form-group">
-                <label class="m-label" id="itemNameLabel">项目名称 <span class="req-star">*</span></label>
-                <input type="text" id="itemName" class="m-input" placeholder="输入项目名称" required maxlength="40">
+                <label class="m-label" id="itemNameLabel"><?php echo htmlspecialchars(t('admin.item.project_name')); ?> <span class="req-star">*</span></label>
+                <input type="text" id="itemName" class="m-input" placeholder="<?php echo htmlspecialchars(t('admin.item.project_name_placeholder')); ?>" required maxlength="40">
             </div>
 
             <div class="m-form-group item-owners-group" id="itemOwnersGroup" data-editor-share="<?php echo $editorShareAllowed ? '1' : '0'; ?>">
-                <label class="m-label" for="itemCollaborationScope">协作权限</label>
+                <label class="m-label" for="itemCollaborationScope"><?php echo htmlspecialchars(t('admin.item.collab_scope')); ?></label>
                 <select id="itemCollaborationScope" class="m-select" onchange="onItemCollaborationScopeChange()" aria-controls="itemOwnersSelection">
-                    <option value="all">所有协作者可管理版本<?php echo $editorShareAllowed ? '和分享' : ''; ?></option>
-                    <option value="selected">仅指定成员可管理版本<?php echo $editorShareAllowed ? '和分享' : ''; ?></option>
+                    <option value="all"><?php echo htmlspecialchars($editorShareAllowed ? t('admin.item.scope_all_ver_share') : t('admin.item.scope_all_ver')); ?></option>
+                    <option value="selected"><?php echo htmlspecialchars($editorShareAllowed ? t('admin.item.scope_sel_ver_share') : t('admin.item.scope_sel_ver')); ?></option>
                 </select>
                 <input type="hidden" id="itemCollaborators" value="">
                 <div id="itemOwnersSelection" class="item-owners-selection" hidden>
-                <label class="m-label" id="itemOwnersLabel">协作成员</label>
+                <label class="m-label" id="itemOwnersLabel"><?php echo htmlspecialchars(t('admin.item.owners_label')); ?></label>
                 <button type="button" id="itemOwnersTrigger" class="m-input m-input-trigger" aria-labelledby="itemOwnersLabel" aria-describedby="itemCollaboratorsError" data-error-target="itemCollaboratorsError" aria-expanded="false" aria-controls="itemOwnersMenu" onclick="toggleItemOwnersDropdown(event)">
                     <span id="itemOwnersTags" class="item-owners-tags"></span>
                     <i class="ri-arrow-down-s-line item-owners-arrow"></i>
                 </button>
                 <div id="itemOwnersMenu" class="mcp-dropdown-menu" role="group" aria-labelledby="itemOwnersLabel" style="display:none;" onclick="event.stopPropagation()">
                     <div class="mcp-dropdown-header">
-                        <span>选择协作成员</span>
+                        <span><?php echo htmlspecialchars(t('admin.item.select_owners')); ?></span>
                     </div>
                     <div id="itemOwnersOptions" class="mcp-dropdown-options">
                         <?php foreach ($allUsers as $u): ?>
@@ -360,7 +365,7 @@ $renderItemOwnersCell = function($item, $usersMap) use ($editorShareAllowed) {
                             <?php $uDisplay = !empty($u['name']) ? $u['name'] : $u['email']; ?>
                             <label class="mcp-project-option">
                                 <input type="checkbox" class="item-owner-cb" value="<?php echo (int)$u['id']; ?>" data-name="<?php echo htmlspecialchars($uDisplay, ENT_QUOTES, 'UTF-8'); ?>" onchange="onItemOwnersChange()">
-                                <span><?php echo htmlspecialchars($uDisplay); ?><?php echo $u['role'] === 'admin' ? ' (管理员)' : ''; ?></span>
+                                <span><?php echo htmlspecialchars($uDisplay); ?><?php echo $u['role'] === 'admin' ? htmlspecialchars(t('admin.item.role_admin_tag')) : ''; ?></span>
                             </label>
                         <?php endforeach; ?>
                     </div>
@@ -371,35 +376,35 @@ $renderItemOwnersCell = function($item, $usersMap) use ($editorShareAllowed) {
 
             <div id="linkFields" style="display:none;">
                 <div class="m-form-group">
-                    <label class="m-label">链接地址 <span class="req-star">*</span></label>
+                    <label class="m-label"><?php echo htmlspecialchars(t('admin.item.link_url')); ?> <span class="req-star">*</span></label>
                     <input type="text" id="itemLinkUrl" class="m-input" placeholder="https://..." maxlength="2000">
                 </div>
                 <div class="m-form-group">
-                    <label class="m-label">打开方式</label>
+                    <label class="m-label"><?php echo htmlspecialchars(t('admin.item.open_mode')); ?></label>
                     <select id="itemLinkTarget" class="m-input">
-                        <option value="_blank">新标签页打开</option>
-                        <option value="myFrame">在工作区内嵌入</option>
+                        <option value="_blank"><?php echo htmlspecialchars(t('admin.proj.open_new_tab')); ?></option>
+                        <option value="myFrame"><?php echo htmlspecialchars(t('admin.proj.open_embed')); ?></option>
                     </select>
                 </div>
             </div>
 
             <div class="m-form-group" id="itemWebhookGroup">
                 <label class="m-label">
-                    <span>项目群通知</span>
-                    <span class="opt-tag">选填</span>
+                    <span><?php echo htmlspecialchars(t('admin.upload.notify_item')); ?></span>
+                    <span class="opt-tag"><?php echo htmlspecialchars(t('common.optional')); ?></span>
                 </label>
                 <div class="m-form-row">
-                    <input type="text" id="itemWebhookUrl" class="m-input" placeholder="企微 / 飞书 / 钉钉群机器人 Webhook 地址" style="flex:1" maxlength="1000">
+                    <input type="text" id="itemWebhookUrl" class="m-input" placeholder="<?php echo htmlspecialchars(t('profile.webhook_placeholder')); ?>" style="flex:1" maxlength="1000">
                     <button type="button" class="btn-cancel btn-standard" onclick="testAnyWebhook('itemWebhookUrl', this)">
-                        <span class="duo-icon-slot" data-duo-icon="send"><i class="ri-send-plane-line duo-rest-icon"></i></span> 测试
+                        <span class="duo-icon-slot" data-duo-icon="send"><i class="ri-send-plane-line duo-rest-icon"></i></span> <?php echo htmlspecialchars(t('common.test')); ?>
                     </button>
                 </div>
-                <div style="font-size:11.5px;color:var(--text-3);margin-top:5px;line-height:1.4;">接收该项目发版与新批注通知；钉钉/飞书安全设置勾选「自定义关键词」，填入：<strong>立象原型</strong></div>
+                <div style="font-size:11.5px;color:var(--text-3);margin-top:5px;line-height:1.4;"><?php echo t('admin.item.item_webhook_hint'); ?></div>
             </div>
 
             <div class="m-modal-footer">
-                <button type="button" class="btn-cancel btn-standard" onclick="closeModal('itemModal')">取消</button>
-                <button type="submit" class="btn-primary btn-standard" id="btnItemSubmit">保存</button>
+                <button type="button" class="btn-cancel btn-standard" onclick="closeModal('itemModal')"><?php echo htmlspecialchars(t('common.cancel')); ?></button>
+                <button type="submit" class="btn-primary btn-standard" id="btnItemSubmit"><?php echo htmlspecialchars(t('common.save')); ?></button>
             </div>
         </form>
     </div>
@@ -411,10 +416,10 @@ $renderItemOwnersCell = function($item, $usersMap) use ($editorShareAllowed) {
     <div class="modal-dialog-box modal-md" style="max-height:88vh; display:flex; flex-direction:column; padding: 22px 24px;">
         <div class="modal-head" style="margin-bottom: 16px; padding-bottom: 12px; flex-shrink:0;">
             <div style="display:flex;align-items:center;min-width:0;">
-                <h4 style="margin:0;font-size:15.5px;font-weight:600;color:var(--text-1);">分享设置</h4>
+                <h4 style="margin:0;font-size:15.5px;font-weight:600;color:var(--text-1);"><?php echo htmlspecialchars(t('share.modal_title')); ?></h4>
                 <span id="shareItemName" style="font-size:12.5px;color:var(--text-2);background:var(--canvas);border:1px solid var(--border);padding:2px 8px;border-radius:4px;margin-left:8px;max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"></span>
             </div>
-            <button type="button" class="close-x" onclick="closeModal('shareManageModal')" title="关闭"><i class="ri-close-line"></i></button>
+            <button type="button" class="close-x" onclick="closeModal('shareManageModal')" title="<?php echo htmlspecialchars(t('common.close')); ?>"><i class="ri-close-line"></i></button>
         </div>
 
         <input type="hidden" id="shareItemId" value="0">
@@ -425,41 +430,41 @@ $renderItemOwnersCell = function($item, $usersMap) use ($editorShareAllowed) {
             <div style="margin-bottom: 20px;">
                 <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
                     <div style="font-size:13px;font-weight:600;color:var(--text-1);display:inline-flex;align-items:center;gap:6px;">
-                        <i class="ri-links-line" style="color:var(--primary);"></i> 默认公共链接
+                        <i class="ri-links-line" style="color:var(--primary);"></i> <?php echo htmlspecialchars(t('share.default_link_title')); ?>
                     </div>
-                    <span style="font-size:11.5px;color:var(--text-3);">跟随项目默认版本</span>
+                    <span style="font-size:11.5px;color:var(--text-3);"><?php echo htmlspecialchars(t('share.follow_default_ver')); ?></span>
                 </div>
 
                 <!-- 默认短参直链展示与快捷复制 -->
                 <div style="display:flex;gap:8px;align-items:center;margin-bottom:14px;">
                     <input type="text" id="shareUrlDisplay" class="m-input" readonly style="font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;flex:1;background:var(--canvas);color:var(--text-1)" onclick="this.select()">
                     <button type="button" class="btn-primary btn-standard" id="btnCopyShareModal" onclick="copyFromShareModal()">
-                        <span class="duo-icon-slot" data-duo-icon="copy"><i class="ri-file-copy-line duo-rest-icon"></i></span> 复制
+                        <span class="duo-icon-slot" data-duo-icon="copy"><i class="ri-file-copy-line duo-rest-icon"></i></span> <?php echo htmlspecialchars(t('common.copy')); ?>
                     </button>
-                    <a href="javascript:void(0)" id="btnOpenSharePreview" target="_blank" class="btn-cancel btn-standard" style="color:var(--text-2)" title="新标签页打开"><span class="duo-icon-slot" data-duo-icon="external-link"><i class="ri-external-link-line duo-rest-icon"></i></span></a>
+                    <a href="javascript:void(0)" id="btnOpenSharePreview" target="_blank" class="btn-cancel btn-standard" style="color:var(--text-2)" title="<?php echo htmlspecialchars(t('share.open_preview_tip')); ?>"><span class="duo-icon-slot" data-duo-icon="external-link"><i class="ri-external-link-line duo-rest-icon"></i></span></a>
                 </div>
 
                 <!-- 默认密码 -->
                 <div data-share-manage style="display:flex;align-items:center;gap:12px;margin-bottom:14px;">
-                    <label class="m-label share-form-label">访问密码 <span class="opt-tag">选填</span></label>
+                    <label class="m-label share-form-label"><?php echo htmlspecialchars(t('share.access_pwd')); ?> <span class="opt-tag"><?php echo htmlspecialchars(t('common.optional')); ?></span></label>
                     <div class="m-form-row" style="flex:1">
-                        <input type="text" id="sharePasswordInput" class="m-input" placeholder="留空免密" style="flex:1" maxlength="16">
-                        <button type="button" class="btn-cancel btn-standard" onclick="generateRandomSharePwd()">随机</button>
+                        <input type="text" id="sharePasswordInput" class="m-input" placeholder="<?php echo htmlspecialchars(t('share.pwd_placeholder')); ?>" style="flex:1" maxlength="16">
+                        <button type="button" class="btn-cancel btn-standard" onclick="generateRandomSharePwd()"><?php echo htmlspecialchars(t('share.random_btn')); ?></button>
                     </div>
                 </div>
 
                 <!-- 默认外链状态开关与保存 -->
                 <div data-share-manage style="display:flex;align-items:center;justify-content:space-between;padding-top:2px;">
                     <div style="display:flex;align-items:center;gap:10px;">
-                        <label class="m-label share-form-label">公共链接访问</label>
+                        <label class="m-label share-form-label"><?php echo htmlspecialchars(t('share.public_access')); ?></label>
                         <label class="switch-control" style="margin:0;">
                             <input type="checkbox" id="shareEnabledSwitch" checked onchange="onShareSwitchChange(this.checked)">
                             <span class="switch-slider"></span>
-                            <span class="switch-label-text" id="shareEnabledText" style="color:var(--success);font-weight:500;">允许访问</span>
+                            <span class="switch-label-text" id="shareEnabledText" style="color:var(--success);font-weight:500;"><?php echo htmlspecialchars(t('share.allow_access')); ?></span>
                         </label>
                     </div>
                     <button type="button" class="btn-cancel btn-standard" id="btnSaveDefaultShare" onclick="saveShareSettingsFromModal()">
-                        <span class="duo-icon-slot" data-duo-icon="save"><i class="ri-save-line duo-rest-icon"></i></span> 保存
+                        <span class="duo-icon-slot" data-duo-icon="save"><i class="ri-save-line duo-rest-icon"></i></span> <?php echo htmlspecialchars(t('common.save')); ?>
                     </button>
                 </div>
             </div>
@@ -471,45 +476,45 @@ $renderItemOwnersCell = function($item, $usersMap) use ($editorShareAllowed) {
             <div>
                 <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
                     <div style="font-size:13px;font-weight:600;color:var(--text-1);display:inline-flex;align-items:center;gap:6px;">
-                        <i class="ri-shield-user-line" style="color:var(--primary);"></i> 专属外发链接
-                        <span id="activeShareBadge" style="font-size:11px;font-weight:600;color:var(--primary);background:var(--primary-subtle);padding:1px 6px;border-radius:10px;">0 条生效中</span>
+                        <i class="ri-shield-user-line" style="color:var(--primary);"></i> <?php echo htmlspecialchars(t('share.custom_links_title')); ?>
+                        <span id="activeShareBadge" style="font-size:11px;font-weight:600;color:var(--primary);background:var(--primary-subtle);padding:1px 6px;border-radius:10px;"></span>
                     </div>
-                    <button type="button" class="btn-act duo-hover-btn" id="btnToggleNewCustomShare" data-duo-icon="plus-square" onclick="toggleCustomSharePanel()" title="创建专属外发链接">
+                    <button type="button" class="btn-act duo-hover-btn" id="btnToggleNewCustomShare" data-duo-icon="plus-square" onclick="toggleCustomSharePanel()" title="<?php echo htmlspecialchars(t('share.create_custom_tip')); ?>">
                         <i class="ri-add-line duo-rest-icon"></i>
                     </button>
                 </div>
 
                 <!-- 创建专属分享轻量展开面板 -->
                 <div id="customShareCreatePanel" style="display:none;background:var(--canvas);border:1px solid var(--border);border-radius:8px;padding:14px 16px;margin-bottom:14px;">
-                    <div style="font-size:12.5px;font-weight:600;color:var(--text-1);margin-bottom:10px;">创建专属链接</div>
+                    <div style="font-size:12.5px;font-weight:600;color:var(--text-1);margin-bottom:10px;"><?php echo htmlspecialchars(t('share.create_custom_title')); ?></div>
                     <div style="display:flex;flex-direction:column;gap:10px;">
                         <div style="display:flex;align-items:center;gap:10px;">
-                            <label class="m-label share-form-label">分享备注 <span class="opt-tag">选填</span></label>
-                            <input type="text" id="customShareLabelInput" class="m-input" placeholder="如：客户评审" style="flex:1" maxlength="20">
+                            <label class="m-label share-form-label"><?php echo htmlspecialchars(t('share.label_field')); ?> <span class="opt-tag"><?php echo htmlspecialchars(t('common.optional')); ?></span></label>
+                            <input type="text" id="customShareLabelInput" class="m-input" placeholder="<?php echo htmlspecialchars(t('share.label_placeholder')); ?>" style="flex:1" maxlength="20">
                         </div>
                         <div style="display:flex;align-items:center;gap:10px;">
-                            <label class="m-label share-form-label">访问密码 <span class="opt-tag">选填</span></label>
+                            <label class="m-label share-form-label"><?php echo htmlspecialchars(t('share.access_pwd')); ?> <span class="opt-tag"><?php echo htmlspecialchars(t('common.optional')); ?></span></label>
                             <div class="m-form-row" style="flex:1">
-                                <input type="text" id="customSharePwdInput" class="m-input" placeholder="留空免密" style="flex:1" maxlength="16">
-                                <button type="button" class="btn-cancel btn-standard" style="color:var(--text-2)" onclick="generateRandomCustomSharePwd()">随机</button>
+                                <input type="text" id="customSharePwdInput" class="m-input" placeholder="<?php echo htmlspecialchars(t('share.pwd_placeholder')); ?>" style="flex:1" maxlength="16">
+                                <button type="button" class="btn-cancel btn-standard" style="color:var(--text-2)" onclick="generateRandomCustomSharePwd()"><?php echo htmlspecialchars(t('share.random_btn')); ?></button>
                             </div>
                         </div>
                         <div style="display:flex;align-items:center;gap:10px;">
-                            <label class="m-label share-form-label">有效期限</label>
+                            <label class="m-label share-form-label"><?php echo htmlspecialchars(t('share.expire_field')); ?></label>
                             <div style="flex:1;">
                                 <select id="customShareExpirePreset" class="m-input" style="width:100%" onchange="onCustomShareExpirePresetChange(this.value)">
-                                    <option value="7d">7 天</option>
-                                    <option value="30d">30 天</option>
-                                    <option value="custom">指定截止日期...</option>
-                                    <option value="forever">永久有效</option>
+                                    <option value="7d"><?php echo htmlspecialchars(t('share.expire_7d')); ?></option>
+                                    <option value="30d"><?php echo htmlspecialchars(t('share.expire_30d')); ?></option>
+                                    <option value="custom"><?php echo htmlspecialchars(t('share.expire_custom')); ?></option>
+                                    <option value="forever"><?php echo htmlspecialchars(t('share.expire_forever')); ?></option>
                                 </select>
-                                <div id="customShareDateGroup" hidden class="m-form-group share-date-group"><label class="m-label" for="customShareExpireCustomDate">截止日期 <span class="req-star">*</span></label><input type="date" id="customShareExpireCustomDate" class="m-input"></div>
+                                <div id="customShareDateGroup" hidden class="m-form-group share-date-group"><label class="m-label" for="customShareExpireCustomDate"><?php echo htmlspecialchars(t('share.expire_date_label')); ?> <span class="req-star">*</span></label><input type="date" id="customShareExpireCustomDate" class="m-input"></div>
                             </div>
                         </div>
                         <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:4px;">
-                            <button type="button" class="btn-cancel btn-standard" onclick="toggleCustomSharePanel(false)">取消</button>
+                            <button type="button" class="btn-cancel btn-standard" onclick="toggleCustomSharePanel(false)"><?php echo htmlspecialchars(t('common.cancel')); ?></button>
                             <button type="button" class="btn-primary btn-standard" id="btnSubmitCustomShare" onclick="submitCreateCustomShare()">
-                                <span class="duo-icon-slot" data-duo-icon="circle-check"><i class="ri-check-line duo-rest-icon"></i></span> 创建并复制
+                                <span class="duo-icon-slot" data-duo-icon="circle-check"><i class="ri-check-line duo-rest-icon"></i></span> <?php echo htmlspecialchars(t('share.create_and_copy')); ?>
                             </button>
                         </div>
                     </div>
@@ -526,47 +531,47 @@ $renderItemOwnersCell = function($item, $usersMap) use ($editorShareAllowed) {
 
 <?php if ($canManage): ?>
 <!-- ===================== 4. 专业管理控制中心 (左侧导航 + 右侧主设置面板) ===================== -->
-<div id="adminConsoleModal" class="admin-console-modal" aria-label="控制中心" style="display:none;">
+<div id="adminConsoleModal" class="admin-console-modal" aria-label="<?php echo htmlspecialchars(t('admin.console')); ?>" style="display:none;">
     <div class="admin-console-box">
         <!-- 左侧二级功能导航 -->
         <div class="admin-nav">
             <div class="admin-nav-header">
                 <i class="ri-dashboard-2-line" style="font-size:18px;color:var(--primary);"></i>
-                <div style="font-weight:600;font-size:14px;color:var(--text-1);">控制中心</div>
+                <div style="font-weight:600;font-size:14px;color:var(--text-1);"><?php echo htmlspecialchars(t('admin.console')); ?></div>
             </div>
             <div class="admin-nav-body">
                 <button type="button" class="admin-nav-item" id="nav-dashboard" onclick="switchAdminTab('dashboard')">
-                    <i class="ri-dashboard-3-line"></i>
-                    <span>数据概览</span>
+                    <span class="duo-icon-slot" data-duo-icon="gauge"><i class="ri-dashboard-3-line duo-rest-icon"></i></span>
+                    <span><?php echo htmlspecialchars(t('admin.nav.dashboard')); ?></span>
                 </button>
                 <button type="button" class="admin-nav-item" id="nav-overview" onclick="switchAdminTab('overview')">
-                    <i class="ri-layout-grid-line"></i>
-                    <span>项目管理</span>
+                    <span class="duo-icon-slot" data-duo-icon="layout-dashboard"><i class="ri-layout-grid-line duo-rest-icon"></i></span>
+                    <span><?php echo htmlspecialchars(t('admin.nav.overview')); ?></span>
                 </button>
                 <button type="button" class="admin-nav-item" id="nav-users" onclick="switchAdminTab('users')">
-                    <i class="ri-group-line"></i>
-                    <span>团队成员</span>
+                    <span class="duo-icon-slot" data-duo-icon="users"><i class="ri-group-line duo-rest-icon"></i></span>
+                    <span><?php echo htmlspecialchars(t('admin.nav.users')); ?></span>
                     <span id="pendingUserBadge" style="<?php echo ($isAdmin && $pendingUserCount > 0) ? '' : 'display:none;'; ?>margin-left:auto;background-color:var(--warning);color:var(--surface);border-radius:10px;padding:1px 6px;font-size:11px;font-weight:600;"><?php echo $pendingUserCount; ?></span>
                 </button>
                 <?php if ($isAdmin): ?>
                 <button type="button" class="admin-nav-item" id="nav-roles" onclick="switchAdminTab('roles')">
-                    <i class="ri-shield-user-line"></i>
-                    <span>角色权限</span>
+                    <span class="duo-icon-slot" data-duo-icon="shield-user"><i class="ri-shield-user-line duo-rest-icon"></i></span>
+                    <span><?php echo htmlspecialchars(t('admin.nav.roles')); ?></span>
                 </button>
                 <button type="button" class="admin-nav-item" id="nav-brand" onclick="switchAdminTab('brand')">
-                    <i class="ri-settings-4-line"></i>
-                    <span>系统设置</span>
+                    <span class="duo-icon-slot" data-duo-icon="settings"><i class="ri-settings-4-line duo-rest-icon"></i></span>
+                    <span><?php echo htmlspecialchars(t('admin.nav.brand')); ?></span>
                 </button>
                 <button type="button" class="admin-nav-item" id="nav-logs" onclick="switchAdminTab('logs')">
-                    <i class="ri-file-list-3-line"></i>
-                    <span>系统日志</span>
+                    <span class="duo-icon-slot" data-duo-icon="file-text"><i class="ri-file-list-3-line duo-rest-icon"></i></span>
+                    <span><?php echo htmlspecialchars(t('admin.nav.logs')); ?></span>
                 </button>
                 <?php endif; ?>
             </div>
             <div class="admin-nav-footer">
-                <span style="font-size:12px;color:var(--text-3);">立象原型 v<?php echo APP_VERSION; ?></span>
-                <a href="https://github.com/Y3PM/ProtoLoft" target="_blank" rel="noopener noreferrer" class="admin-nav-github" title="GitHub 仓库" aria-label="GitHub 仓库">
-                    <i class="ri-github-line"></i>
+                <span style="font-size:12px;color:var(--text-3);"><?php echo htmlspecialchars(t('admin.footer_brand', ['version' => APP_VERSION])); ?></span>
+                <a href="https://github.com/Y3PM/ProtoLoft" target="_blank" rel="noopener noreferrer" class="admin-nav-github" title="<?php echo htmlspecialchars(t('admin.github_repo')); ?>" aria-label="<?php echo htmlspecialchars(t('admin.github_repo')); ?>">
+                    <span class="duo-icon-slot" data-duo-icon="github"><i class="ri-github-line duo-rest-icon"></i></span>
                 </a>
             </div>
         </div>
@@ -574,10 +579,10 @@ $renderItemOwnersCell = function($item, $usersMap) use ($editorShareAllowed) {
         <!-- 右侧主体面板内容区 -->
         <div class="admin-content">
             <div class="admin-content-header">
-                <div style="font-weight:600;font-size:15px;color:var(--text-1);" id="adminPanelTitle">数据概览</div>
-                <div class="form-save-state roles-save-state"><span id="rolesSaveStatus" role="status" aria-live="polite"></span><button type="button" class="btn-cancel btn-sm" id="rolesSaveRetry" hidden onclick="retryAutoSave('save_role_permissions')">重试</button></div>
-                <div class="form-save-state settings-save-state"><span id="settingsSaveStatus" role="status" aria-live="polite"></span><button type="button" class="btn-cancel btn-sm" id="settingsSaveRetry" hidden onclick="retryAutoSave('save_settings')">重试</button></div>
-                <button type="button" class="close-x" onclick="closeAdminConsole()" title="关闭"><i class="ri-close-line"></i></button>
+                <div style="font-weight:600;font-size:15px;color:var(--text-1);" id="adminPanelTitle"><?php echo htmlspecialchars(t('admin.nav.dashboard')); ?></div>
+                <div class="form-save-state roles-save-state"><span id="rolesSaveStatus" role="status" aria-live="polite"></span><button type="button" class="btn-cancel btn-sm" id="rolesSaveRetry" hidden onclick="retryAutoSave('save_role_permissions')"><?php echo htmlspecialchars(t('common.retry')); ?></button></div>
+                <div class="form-save-state settings-save-state"><span id="settingsSaveStatus" role="status" aria-live="polite"></span><button type="button" class="btn-cancel btn-sm" id="settingsSaveRetry" hidden onclick="retryAutoSave('save_settings')"><?php echo htmlspecialchars(t('common.retry')); ?></button></div>
+                <button type="button" class="close-x" onclick="closeAdminConsole()" title="<?php echo htmlspecialchars(t('common.close')); ?>"><i class="ri-close-line"></i></button>
             </div>
             
             <div class="admin-content-body">
@@ -656,7 +661,7 @@ $renderItemOwnersCell = function($item, $usersMap) use ($editorShareAllowed) {
                 foreach ($itemsRaw as $it) {
                     $itemInfoMap[$it['id']] = [
                         'name' => $it['name'],
-                        'cat_name' => $catMap[$it['category_id']] ?? '文件夹'
+                        'cat_name' => $catMap[$it['category_id']] ?? t('admin.dash.folders')
                     ];
                 }
 
@@ -667,7 +672,7 @@ $renderItemOwnersCell = function($item, $usersMap) use ($editorShareAllowed) {
                     $dStr = date('Y-m-d', strtotime("-$i days"));
                     $trendDays[$dStr] = [
                         'date' => $dStr,
-                        'label' => ($i === 0) ? '今日' : date('m/d', strtotime("-$i days")),
+                        'label' => ($i === 0) ? t('common.today_label') : date('m/d', strtotime("-$i days")),
                         'pv' => 0,
                         'pv_viewer' => 0,
                         'pv_editor' => 0,
@@ -681,7 +686,7 @@ $renderItemOwnersCell = function($item, $usersMap) use ($editorShareAllowed) {
                     $dStr = date('Y-m-d', strtotime("-$i days"));
                     $trendMonthDays[$dStr] = [
                         'date' => $dStr,
-                        'label' => ($i === 0) ? '今日' : (($i % 6 === 0) ? date('m/d', strtotime("-$i days")) : ''),
+                        'label' => ($i === 0) ? t('common.today_label') : (($i % 6 === 0) ? date('m/d', strtotime("-$i days")) : ''),
                         'pv' => 0,
                         'pv_viewer' => 0,
                         'pv_editor' => 0,
@@ -824,9 +829,9 @@ $renderItemOwnersCell = function($item, $usersMap) use ($editorShareAllowed) {
                             $ts = !empty($ur['created_at']) ? strtotime($ur['created_at'] . ' UTC') : 0;
                             $dStr = $ts ? date('Y-m-d', $ts) : '';
                             if ($dStr === $todayStr) {
-                                $timeFmt = '今天 ' . date('H:i', $ts);
+                                $timeFmt = t('common.today') . ' ' . date('H:i', $ts);
                             } elseif ($dStr === $yesterdayStr) {
-                                $timeFmt = '昨天 ' . date('H:i', $ts);
+                                $timeFmt = t('common.yesterday') . ' ' . date('H:i', $ts);
                             } elseif ($ts) {
                                 $timeFmt = date('m-d', $ts);
                             } else {
@@ -837,7 +842,7 @@ $renderItemOwnersCell = function($item, $usersMap) use ($editorShareAllowed) {
                                 'ver_id' => (int)$ur['id'],
                                 'item_id' => (int)$ur['item_id'],
                                 'version_name' => $ur['version_name'],
-                                'item_name' => $ur['item_name'] ?? '未命名项目',
+                                'item_name' => $ur['item_name'] ?? t('common.unnamed'),
                                 'cat_name' => $catName,
                                 'has_rp' => !empty($ur['rp_file']),
                                 'author' => $author,
@@ -923,24 +928,24 @@ $renderItemOwnersCell = function($item, $usersMap) use ($editorShareAllowed) {
                     <!-- 上层: 4 核心指标卡 (资产规模 -> 受众热度 -> 团队协作 -> 存储底座) -->
                     <div class="stat-grid" style="grid-template-columns: repeat(4, 1fr); margin-bottom:12px; gap:10px;">
                         <div class="stat-card" style="padding:13px 15px;background:var(--surface);border:1px solid var(--border);">
-                            <div class="stat-card-title"><i class="ri-apps-line"></i> 托管资产</div>
-                            <div class="stat-card-val" style="font-size:18px;font-weight:700;margin:5px 0 2px;color:var(--text-1);"><?php echo $totalProjCount; ?> <span style="font-size:12px;font-weight:500;color:var(--text-3);">项目</span> · <?php echo $totalVerCount; ?> <span style="font-size:12px;font-weight:500;color:var(--text-3);">版本</span></div>
-                            <div style="font-size:11.5px;color:var(--text-3);">近30天发布 <?php echo $recentVerCount; ?> 个版本</div>
+                            <div class="stat-card-title"><i class="ri-apps-line"></i> <?php echo htmlspecialchars(t('admin.dash.assets')); ?></div>
+                            <div class="stat-card-val" style="font-size:18px;font-weight:700;margin:5px 0 2px;color:var(--text-1);"><?php echo $totalProjCount; ?> <span style="font-size:12px;font-weight:500;color:var(--text-3);"><?php echo htmlspecialchars(t('admin.dash.unit_proj')); ?></span> · <?php echo $totalVerCount; ?> <span style="font-size:12px;font-weight:500;color:var(--text-3);"><?php echo htmlspecialchars(t('admin.dash.unit_ver')); ?></span></div>
+                            <div style="font-size:11.5px;color:var(--text-3);"><?php echo htmlspecialchars(t('admin.dash.assets_sub', ['n' => $recentVerCount])); ?></div>
                         </div>
                         <div class="stat-card" style="padding:13px 15px;background:var(--surface);border:1px solid var(--border);">
-                            <div class="stat-card-title"><i class="ri-eye-line"></i> 累计查阅</div>
-                            <div class="stat-card-val" style="font-size:18px;font-weight:700;margin:5px 0 2px;color:var(--text-1);"><?php echo number_format($totalAllPv); ?> <span style="font-size:12px;font-weight:500;color:var(--text-3);">次</span></div>
-                            <div style="font-size:11.5px;color:var(--text-3);">近7天 +<?php echo number_format($totalWeekPv); ?> · 今日 +<?php echo $todayPv; ?></div>
+                            <div class="stat-card-title"><i class="ri-eye-line"></i> <?php echo htmlspecialchars(t('admin.dash.views')); ?></div>
+                            <div class="stat-card-val" style="font-size:18px;font-weight:700;margin:5px 0 2px;color:var(--text-1);"><?php echo number_format($totalAllPv); ?> <span style="font-size:12px;font-weight:500;color:var(--text-3);"><?php echo htmlspecialchars(t('admin.dash.unit_times')); ?></span></div>
+                            <div style="font-size:11.5px;color:var(--text-3);"><?php echo htmlspecialchars(t('admin.dash.views_sub', ['week' => number_format($totalWeekPv), 'today' => $todayPv])); ?></div>
                         </div>
                         <div class="stat-card" style="padding:13px 15px;background:var(--surface);border:1px solid var(--border);">
-                            <div class="stat-card-title"><i class="ri-group-line"></i> 协作团队</div>
-                            <div class="stat-card-val" style="font-size:18px;font-weight:700;margin:5px 0 2px;color:var(--text-1);"><?php echo $totalUserCount; ?> <span style="font-size:12px;font-weight:500;color:var(--text-3);">位成员</span></div>
-                            <div style="font-size:11.5px;color:var(--text-3);"><?php echo $totalCatCount; ?> 个工作文件夹</div>
+                            <div class="stat-card-title"><i class="ri-group-line"></i> <?php echo htmlspecialchars(t('admin.dash.team')); ?></div>
+                            <div class="stat-card-val" style="font-size:18px;font-weight:700;margin:5px 0 2px;color:var(--text-1);"><?php echo $totalUserCount; ?> <span style="font-size:12px;font-weight:500;color:var(--text-3);"><?php echo htmlspecialchars(t('admin.dash.unit_members')); ?></span></div>
+                            <div style="font-size:11.5px;color:var(--text-3);"><?php echo htmlspecialchars(t('admin.dash.team_sub', ['n' => $totalCatCount])); ?></div>
                         </div>
                         <div class="stat-card" style="padding:13px 15px;background:var(--surface);border:1px solid var(--border);">
-                            <div class="stat-card-title"><i class="ri-hard-drive-2-line"></i> 存储占用</div>
+                            <div class="stat-card-title"><i class="ri-hard-drive-2-line"></i> <?php echo htmlspecialchars(t('admin.dash.storage')); ?></div>
                             <div class="stat-card-val" style="font-size:18px;font-weight:700;margin:5px 0 2px;color:var(--text-1);"><?php echo htmlspecialchars($strTotalStorage); ?></div>
-                            <div style="font-size:11.5px;color:var(--text-3);">归档 <?php echo $totalRpCount; ?> 份 RP 源文件</div>
+                            <div style="font-size:11.5px;color:var(--text-3);"><?php echo htmlspecialchars(t('admin.dash.storage_sub', ['n' => $totalRpCount])); ?></div>
                         </div>
                     </div>
 
@@ -949,16 +954,16 @@ $renderItemOwnersCell = function($item, $usersMap) use ($editorShareAllowed) {
                         <!-- 左侧: 批注待办与评审闭环 (支持按项目/版本向下钻取) -->
                         <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-md);padding:13px 15px;display:flex;flex-direction:column;justify-content:space-between;">
                             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;gap:8px;">
-                                <span style="font-size:13px;font-weight:600;color:var(--text-1);">批注待办与闭环</span>
+                                <span style="font-size:13px;font-weight:600;color:var(--text-1);"><?php echo htmlspecialchars(t('admin.dash.anno_card')); ?></span>
                                 <div style="display:flex;align-items:center;gap:6px;">
-                                    <select id="filterAnnoProject" class="m-select-sm dashboard-project-filter" onchange="onAnnoProjectFilterChange(this.value)" title="按项目筛选">
-                                        <option value="0">全部项目</option>
+                                    <select id="filterAnnoProject" class="m-select-sm dashboard-project-filter" onchange="onAnnoProjectFilterChange(this.value)" title="<?php echo htmlspecialchars(t('admin.dash.filter_project_tip')); ?>">
+                                        <option value="0"><?php echo htmlspecialchars(t('admin.dash.all_projects')); ?></option>
                                         <?php foreach ($projectFilterList as $pf): ?>
                                             <option value="<?php echo $pf['id']; ?>" data-cat-id="<?php echo (int)$pf['category_id']; ?>"><?php echo htmlspecialchars($pf['name']); ?></option>
                                         <?php endforeach; ?>
                                     </select>
-                                    <select id="filterAnnoVersion" class="m-select-sm dashboard-version-filter" onchange="onAnnoVersionFilterChange(this.value)" style="display:none;" title="按版本筛选">
-                                        <option value="0">全部版本</option>
+                                    <select id="filterAnnoVersion" class="m-select-sm dashboard-version-filter" onchange="onAnnoVersionFilterChange(this.value)" style="display:none;" title="<?php echo htmlspecialchars(t('admin.dash.filter_version_tip')); ?>">
+                                        <option value="0"><?php echo htmlspecialchars(t('admin.dash.all_versions')); ?></option>
                                     </select>
                                 </div>
                             </div>
@@ -967,7 +972,7 @@ $renderItemOwnersCell = function($item, $usersMap) use ($editorShareAllowed) {
                                     <div id="chartAnnotationDonut" style="width:100%;height:100%;"></div>
                                     <div id="chartDonutCenterText" style="position:absolute;top:50%;left:50%;transform:translate(-50%, -50%);text-align:center;pointer-events:none;width:100%;line-height:1.15;">
                                         <div id="donutCenterRate" style="font-size:18px;font-weight:700;color:var(--text-1);">100%</div>
-                                        <div id="donutCenterLabel" style="font-size:10px;color:var(--text-3);margin-top:2px;">闭环率</div>
+                                        <div id="donutCenterLabel" style="font-size:10px;color:var(--text-3);margin-top:2px;"><?php echo htmlspecialchars(t('admin.dash.close_rate')); ?></div>
                                     </div>
                                 </div>
                                 <div id="annoDetailBox" style="flex:1;min-width:0;display:flex;flex-direction:column;justify-content:center;height:100%;overflow:hidden;"></div>
@@ -978,16 +983,16 @@ $renderItemOwnersCell = function($item, $usersMap) use ($editorShareAllowed) {
                         <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-md);padding:13px 15px;">
                             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
                                 <div style="display:flex;align-items:center;gap:8px;">
-                                    <span style="font-size:13px;font-weight:600;color:var(--text-1);" id="trendChartTitle">查阅走势</span>
+                                    <span style="font-size:13px;font-weight:600;color:var(--text-1);" id="trendChartTitle"><?php echo htmlspecialchars(t('admin.dash.trend_title')); ?></span>
                                     <span style="font-size:10.5px;color:var(--text-3);display:inline-flex;align-items:center;gap:6px;">
-                                        <span style="display:inline-flex;align-items:center;gap:2px;"><i class="m-status-dot dot-success"></i>内部审阅人</span>
-                                        <span style="display:inline-flex;align-items:center;gap:2px;"><i class="m-status-dot dot-primary"></i>管理与协作者</span>
-                                        <span style="display:inline-flex;align-items:center;gap:2px;"><i class="m-status-dot dot-warning"></i>外发访客</span>
+                                        <span style="display:inline-flex;align-items:center;gap:2px;"><i class="m-status-dot dot-success"></i><?php echo htmlspecialchars(t('admin.dash.legend_viewer')); ?></span>
+                                        <span style="display:inline-flex;align-items:center;gap:2px;"><i class="m-status-dot dot-primary"></i><?php echo htmlspecialchars(t('admin.dash.legend_editor')); ?></span>
+                                        <span style="display:inline-flex;align-items:center;gap:2px;"><i class="m-status-dot dot-warning"></i><?php echo htmlspecialchars(t('admin.dash.legend_guest')); ?></span>
                                     </span>
                                 </div>
                                 <div class="trend-tab-group">
-                                    <button type="button" class="trend-tab-btn active" id="tabTrend7d" onclick="switchTrendRange('7d')">7天</button>
-                                    <button type="button" class="trend-tab-btn" id="tabTrend30d" onclick="switchTrendRange('30d')">30天</button>
+                                    <button type="button" class="trend-tab-btn active" id="tabTrend7d" onclick="switchTrendRange('7d')"><?php echo htmlspecialchars(t('admin.dash.range_7d')); ?></button>
+                                    <button type="button" class="trend-tab-btn" id="tabTrend30d" onclick="switchTrendRange('30d')"><?php echo htmlspecialchars(t('admin.dash.range_30d')); ?></button>
                                 </div>
                             </div>
                             <div id="chartTrend" style="width:100%;height:140px;"></div>
@@ -999,15 +1004,15 @@ $renderItemOwnersCell = function($item, $usersMap) use ($editorShareAllowed) {
                         <!-- 左侧: 最近上传 (最新发版 Top 5) -->
                         <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-md);padding:13px 15px;">
                             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
-                                <span style="font-size:13px;font-weight:600;color:var(--text-1);">最近上传</span>
-                                <span style="font-size:11.5px;color:var(--text-3);">最新 5 项</span>
+                                <span style="font-size:13px;font-weight:600;color:var(--text-1);"><?php echo htmlspecialchars(t('admin.dash.recent_uploads')); ?></span>
+                                <span style="font-size:11.5px;color:var(--text-3);"><?php echo htmlspecialchars(t('admin.dash.latest_5')); ?></span>
                             </div>
 
                             <div class="recent-upload-list" style="display:flex;flex-direction:column;gap:8px;">
                                 <?php if (empty($recentUploads)): ?>
                                     <div style="text-align:center;padding:28px 0;color:var(--text-3);font-size:12px;">
                                         <i class="ri-history-line" style="font-size:18px;display:block;margin-bottom:4px;opacity:0.6;"></i>
-                                        暂无版本上传记录
+                                        <?php echo htmlspecialchars(t('admin.dash.no_uploads')); ?>
                                     </div>
                                 <?php else: ?>
                                     <?php foreach ($recentUploads as $ur): ?>
@@ -1018,7 +1023,7 @@ $renderItemOwnersCell = function($item, $usersMap) use ($editorShareAllowed) {
                                             <span class="upload-item-cat"><?php echo htmlspecialchars($ur['cat_name']); ?></span>
                                         <?php endif; ?>
                                         <?php if ($ur['has_rp']): ?>
-                                            <span class="upload-rp-badge" title="已归档 RP 原型底稿">RP</span>
+                                            <span class="upload-rp-badge" title="<?php echo htmlspecialchars(t('admin.dash.rp_archived_tip')); ?>">RP</span>
                                         <?php endif; ?>
                                         <span class="upload-time"><?php echo htmlspecialchars($ur['time_str']); ?></span>
                                     </div>
@@ -1030,15 +1035,15 @@ $renderItemOwnersCell = function($item, $usersMap) use ($editorShareAllowed) {
                         <!-- 右侧: 原型热度排行 (近 30 天 Top 5) -->
                         <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-md);padding:13px 15px;">
                             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
-                                <span style="font-size:13px;font-weight:600;color:var(--text-1);">热度排行</span>
-                                <span style="font-size:11.5px;color:var(--text-3);">近 30 天</span>
+                                <span style="font-size:13px;font-weight:600;color:var(--text-1);"><?php echo htmlspecialchars(t('admin.dash.hot_rank')); ?></span>
+                                <span style="font-size:11.5px;color:var(--text-3);"><?php echo htmlspecialchars(t('admin.dash.last_30d')); ?></span>
                             </div>
 
                             <div class="rank-list" style="display:flex;flex-direction:column;gap:8px;">
                                 <?php if (empty($topRankItems)): ?>
                                     <div style="text-align:center;padding:28px 0;color:var(--text-3);font-size:12px;">
                                         <i class="ri-bar-chart-line" style="font-size:18px;display:block;margin-bottom:4px;opacity:0.6;"></i>
-                                        暂无项目查阅记录
+                                        <?php echo htmlspecialchars(t('admin.dash.no_views')); ?>
                                     </div>
                                 <?php else: ?>
                                     <?php
@@ -1057,7 +1062,7 @@ $renderItemOwnersCell = function($item, $usersMap) use ($editorShareAllowed) {
                                         <div class="rank-bar-bg">
                                             <div class="rank-bar-fill" style="width:<?php echo max(6, $pct); ?>%;"></div>
                                         </div>
-                                        <span class="rank-item-cnt"><?php echo $rk['pv_cnt']; ?> <span style="font-size:10.5px;font-weight:normal;color:var(--text-3);">次</span></span>
+                                        <span class="rank-item-cnt"><?php echo $rk['pv_cnt']; ?> <span style="font-size:10.5px;font-weight:normal;color:var(--text-3);"><?php echo htmlspecialchars(t('admin.dash.unit_times')); ?></span></span>
                                     </div>
                                     <?php
                                         $rkIdx++;
@@ -1073,15 +1078,15 @@ $renderItemOwnersCell = function($item, $usersMap) use ($editorShareAllowed) {
                         <!-- 左侧: 文件夹 (分类项目分布) -->
                         <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-md);padding:13px 15px;">
                             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
-                                <span style="font-size:13px;font-weight:600;color:var(--text-1);">文件夹</span>
-                                <span style="font-size:11.5px;color:var(--text-3);"><?php echo $totalCatCount; ?> 个文件夹</span>
+                                <span style="font-size:13px;font-weight:600;color:var(--text-1);"><?php echo htmlspecialchars(t('admin.dash.folders')); ?></span>
+                                <span style="font-size:11.5px;color:var(--text-3);"><?php echo htmlspecialchars(t('admin.dash.folders_sub', ['n' => $totalCatCount])); ?></span>
                             </div>
 
                             <div class="cat-stat-list" style="display:flex;flex-direction:column;gap:8px;">
                                 <?php if (empty($categoryStats)): ?>
                                     <div style="text-align:center;padding:28px 0;color:var(--text-3);font-size:12px;">
                                         <i class="ri-folder-line" style="font-size:18px;display:block;margin-bottom:4px;opacity:0.6;"></i>
-                                        暂无文件夹分类
+                                        <?php echo htmlspecialchars(t('admin.dash.no_folders')); ?>
                                     </div>
                                 <?php else: ?>
                                     <?php foreach ($categoryStats as $cs): 
@@ -1092,7 +1097,7 @@ $renderItemOwnersCell = function($item, $usersMap) use ($editorShareAllowed) {
                                         <div class="cat-stat-bar-bg">
                                             <div class="cat-stat-bar-fill" style="width:<?php echo max(8, $cBarPct); ?>%;"></div>
                                         </div>
-                                        <span class="cat-stat-count"><?php echo $cs['proj_count']; ?> <span style="font-size:10.5px;font-weight:normal;color:var(--text-3);">项目</span> · <?php echo $cs['ver_count']; ?> <span style="font-size:10.5px;font-weight:normal;color:var(--text-3);">版本</span></span>
+                                        <span class="cat-stat-count"><?php echo $cs['proj_count']; ?> <span style="font-size:10.5px;font-weight:normal;color:var(--text-3);"><?php echo htmlspecialchars(t('admin.dash.unit_proj')); ?></span> · <?php echo $cs['ver_count']; ?> <span style="font-size:10.5px;font-weight:normal;color:var(--text-3);"><?php echo htmlspecialchars(t('admin.dash.unit_ver')); ?></span></span>
                                     </div>
                                     <?php endforeach; ?>
                                 <?php endif; ?>
@@ -1103,20 +1108,20 @@ $renderItemOwnersCell = function($item, $usersMap) use ($editorShareAllowed) {
                         <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-md);padding:13px 15px;display:flex;flex-direction:column;justify-content:space-between;">
                             <div>
                                 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
-                                    <span style="font-size:13px;font-weight:600;color:var(--text-1);">存储空间</span>
+                                    <span style="font-size:13px;font-weight:600;color:var(--text-1);"><?php echo htmlspecialchars(t('admin.dash.storage_space')); ?></span>
                                     <span style="font-size:13px;font-weight:600;color:var(--primary);"><?php echo htmlspecialchars($strTotalStorage); ?></span>
                                 </div>
 
                                 <!-- 分段彩色比例条 (5px) -->
                                 <div style="height:5px;background-color:var(--border);border-radius:3px;overflow:hidden;display:flex;margin-bottom:12px;">
                                     <?php if ($barWidthHtml > 0): ?>
-                                        <div style="width:<?php echo $barWidthHtml; ?>%;background-color:var(--primary);height:100%;transition:width 0.3s;" title="HTML 预览包: <?php echo $lblHtmlPct; ?>"></div>
+                                        <div style="width:<?php echo $barWidthHtml; ?>%;background-color:var(--primary);height:100%;transition:width 0.3s;" title="<?php echo htmlspecialchars(t('admin.dash.html_pkg')); ?>: <?php echo $lblHtmlPct; ?>"></div>
                                     <?php endif; ?>
                                     <?php if ($barWidthRp > 0): ?>
-                                        <div style="width:<?php echo $barWidthRp; ?>%;background-color:var(--warning);height:100%;transition:width 0.3s;" title="RP 源文件: <?php echo $lblRpPct; ?>"></div>
+                                        <div style="width:<?php echo $barWidthRp; ?>%;background-color:var(--warning);height:100%;transition:width 0.3s;" title="<?php echo htmlspecialchars(t('admin.dash.rp_source')); ?>: <?php echo $lblRpPct; ?>"></div>
                                     <?php endif; ?>
                                     <?php if ($barWidthOther > 0): ?>
-                                        <div style="width:<?php echo $barWidthOther; ?>%;background-color:var(--text-3);height:100%;transition:width 0.3s;" title="数据库与媒体: <?php echo $lblOtherPct; ?>"></div>
+                                        <div style="width:<?php echo $barWidthOther; ?>%;background-color:var(--text-3);height:100%;transition:width 0.3s;" title="<?php echo htmlspecialchars(t('admin.dash.db_media')); ?>: <?php echo $lblOtherPct; ?>"></div>
                                     <?php endif; ?>
                                 </div>
                             </div>
@@ -1126,21 +1131,21 @@ $renderItemOwnersCell = function($item, $usersMap) use ($editorShareAllowed) {
                                 <div style="display:flex;justify-content:space-between;align-items:center;">
                                     <span style="color:var(--text-2);display:inline-flex;align-items:center;gap:6px;">
                                         <span style="width:7px;height:7px;border-radius:50%;background-color:var(--primary);display:inline-block;"></span>
-                                        <span>HTML 预览包</span>
+                                        <span><?php echo htmlspecialchars(t('admin.dash.html_pkg')); ?></span>
                                     </span>
                                     <span style="font-weight:600;color:var(--text-1);"><?php echo htmlspecialchars($strHtmlStorage); ?> <span style="font-weight:400;color:var(--text-3);font-size:11px;">(<?php echo $lblHtmlPct; ?>)</span></span>
                                 </div>
                                 <div style="display:flex;justify-content:space-between;align-items:center;">
                                     <span style="color:var(--text-2);display:inline-flex;align-items:center;gap:6px;">
                                         <span style="width:7px;height:7px;border-radius:50%;background-color:var(--warning);display:inline-block;"></span>
-                                        <span>RP 源文件</span>
+                                        <span><?php echo htmlspecialchars(t('admin.dash.rp_source')); ?></span>
                                     </span>
                                     <span style="font-weight:600;color:var(--text-1);"><?php echo htmlspecialchars($strRpStorage); ?> <span style="font-weight:400;color:var(--text-3);font-size:11px;">(<?php echo $lblRpPct; ?>)</span></span>
                                 </div>
                                 <div style="display:flex;justify-content:space-between;align-items:center;">
                                     <span style="color:var(--text-2);display:inline-flex;align-items:center;gap:6px;">
                                         <span style="width:7px;height:7px;border-radius:50%;background-color:var(--text-3);display:inline-block;"></span>
-                                        <span>数据库与媒体</span>
+                                        <span><?php echo htmlspecialchars(t('admin.dash.db_media')); ?></span>
                                     </span>
                                     <span style="font-weight:600;color:var(--text-1);"><?php echo htmlspecialchars($strOtherStorage); ?> <span style="font-weight:400;color:var(--text-3);font-size:11px;">(<?php echo $lblOtherPct; ?>)</span></span>
                                 </div>
@@ -1182,19 +1187,19 @@ $renderItemOwnersCell = function($item, $usersMap) use ($editorShareAllowed) {
                     ?>
                     <div class="stat-grid" style="grid-template-columns: repeat(4, 1fr);">
                         <div class="stat-card">
-                            <div class="stat-card-title"><i class="ri-folder-line"></i> 文件夹</div>
+                            <div class="stat-card-title"><i class="ri-folder-line"></i> <?php echo htmlspecialchars(t('admin.proj.stat_folders')); ?></div>
                             <div class="stat-card-val"><?php echo count($cats); ?></div>
                         </div>
                         <div class="stat-card">
-                            <div class="stat-card-title"><i class="ri-pages-line"></i> 原型</div>
+                            <div class="stat-card-title"><i class="ri-pages-line"></i> <?php echo htmlspecialchars(t('admin.proj.stat_protos')); ?></div>
                             <div class="stat-card-val"><?php echo count($projectItems); ?></div>
                         </div>
                         <div class="stat-card">
-                            <div class="stat-card-title"><i class="ri-external-link-line"></i> 外链</div>
+                            <div class="stat-card-title"><i class="ri-external-link-line"></i> <?php echo htmlspecialchars(t('admin.proj.stat_links')); ?></div>
                             <div class="stat-card-val"><?php echo count($linkItems); ?></div>
                         </div>
                         <div class="stat-card">
-                            <div class="stat-card-title"><i class="ri-history-line"></i> 版本</div>
+                            <div class="stat-card-title"><i class="ri-history-line"></i> <?php echo htmlspecialchars(t('admin.proj.stat_versions')); ?></div>
                             <div class="stat-card-val"><?php echo count($versionsRaw); ?></div>
                         </div>
                     </div>
@@ -1202,30 +1207,30 @@ $renderItemOwnersCell = function($item, $usersMap) use ($editorShareAllowed) {
                     <!-- 二级子 Tab 胶囊切换器与动态操作区 -->
                     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
                         <div class="console-subtab-group user-subtab-group">
-                            <button type="button" id="btnSubtabProjects" class="console-subtab-btn log-subtab-btn active" onclick="switchOverviewSubTab('projects')">原型项目</button>
-                            <button type="button" id="btnSubtabLinks" class="console-subtab-btn log-subtab-btn" onclick="switchOverviewSubTab('links')">外部链接</button>
-                            <button type="button" id="btnSubtabFolders" class="console-subtab-btn log-subtab-btn" onclick="switchOverviewSubTab('folders')">文件夹管理</button>
+                            <button type="button" id="btnSubtabProjects" class="console-subtab-btn log-subtab-btn active" onclick="switchOverviewSubTab('projects')"><?php echo htmlspecialchars(t('admin.proj.tab_projects')); ?></button>
+                            <button type="button" id="btnSubtabLinks" class="console-subtab-btn log-subtab-btn" onclick="switchOverviewSubTab('links')"><?php echo htmlspecialchars(t('admin.proj.tab_links')); ?></button>
+                            <button type="button" id="btnSubtabFolders" class="console-subtab-btn log-subtab-btn" onclick="switchOverviewSubTab('folders')"><?php echo htmlspecialchars(t('admin.proj.tab_folders')); ?></button>
                         </div>
                         <div id="overviewActionsProjects" style="display:flex;gap:8px;align-items:center;">
-                            <select id="filterProjectCategory" class="m-select-md" onchange="filterProjectsByCategory(this.value)" style="min-width:130px;" title="筛选文件夹以聚焦调序">
-                                <option value="0">全部文件夹</option>
+                            <select id="filterProjectCategory" class="m-select-md" onchange="filterProjectsByCategory(this.value)" style="min-width:130px;" title="<?php echo htmlspecialchars(t('admin.proj.filter_folder_tip')); ?>">
+                                <option value="0"><?php echo htmlspecialchars(t('admin.proj.all_folders')); ?></option>
                                 <?php foreach ($cats as $c): ?>
                                     <option value="<?php echo $c['id']; ?>"><?php echo htmlspecialchars($c['name']); ?></option>
                                 <?php endforeach; ?>
                             </select>
-                            <button type="button" class="btn-primary btn-md" onclick="openItemModal(0, <?php echo !empty($cats) ? $cats[0]['id'] : 0; ?>, 'project')"><span class="duo-icon-slot" data-duo-icon="circle-plus"><i class="ri-add-line duo-rest-icon"></i></span> 新建项目</button>
+                            <button type="button" class="btn-primary btn-md" onclick="openItemModal(0, <?php echo !empty($cats) ? $cats[0]['id'] : 0; ?>, 'project')"><span class="duo-icon-slot" data-duo-icon="circle-plus"><i class="ri-add-line duo-rest-icon"></i></span> <?php echo htmlspecialchars(t('admin.item.new_project')); ?></button>
                         </div>
                         <div id="overviewActionsLinks" style="display:none;gap:8px;align-items:center;">
-                            <select id="filterLinkCategory" class="m-select-md" onchange="filterLinksByCategory(this.value)" style="min-width:130px;" title="筛选文件夹以聚焦调序">
-                                <option value="0">全部文件夹</option>
+                            <select id="filterLinkCategory" class="m-select-md" onchange="filterLinksByCategory(this.value)" style="min-width:130px;" title="<?php echo htmlspecialchars(t('admin.proj.filter_folder_tip')); ?>">
+                                <option value="0"><?php echo htmlspecialchars(t('admin.proj.all_folders')); ?></option>
                                 <?php foreach ($cats as $c): ?>
                                     <option value="<?php echo $c['id']; ?>"><?php echo htmlspecialchars($c['name']); ?></option>
                                 <?php endforeach; ?>
                             </select>
-                            <button type="button" class="btn-primary btn-md" onclick="openItemModal(0, <?php echo !empty($cats) ? $cats[0]['id'] : 0; ?>, 'link')"><span class="duo-icon-slot" data-duo-icon="circle-plus"><i class="ri-add-line duo-rest-icon"></i></span> 新建外链</button>
+                            <button type="button" class="btn-primary btn-md" onclick="openItemModal(0, <?php echo !empty($cats) ? $cats[0]['id'] : 0; ?>, 'link')"><span class="duo-icon-slot" data-duo-icon="circle-plus"><i class="ri-add-line duo-rest-icon"></i></span> <?php echo htmlspecialchars(t('admin.item.new_link')); ?></button>
                         </div>
                         <div id="overviewActionsFolders" style="display:none;gap:8px;align-items:center;">
-                            <button type="button" class="btn-primary btn-md" onclick="openCategoryModal()"><span class="duo-icon-slot" data-duo-icon="folder-plus"><i class="ri-folder-add-line duo-rest-icon"></i></span> 新建文件夹</button>
+                            <button type="button" class="btn-primary btn-md" onclick="openCategoryModal()"><span class="duo-icon-slot" data-duo-icon="folder-plus"><i class="ri-folder-add-line duo-rest-icon"></i></span> <?php echo htmlspecialchars(t('admin.cat.new_title')); ?></button>
                         </div>
                     </div>
 
@@ -1234,12 +1239,12 @@ $renderItemOwnersCell = function($item, $usersMap) use ($editorShareAllowed) {
                         <table style="width:100%;border-collapse:collapse;font-size:13px;">
                             <thead>
                                 <tr style="background:var(--canvas);text-align:left;color:var(--text-2);border-bottom:1px solid var(--border);">
-                                    <th style="padding:9px 12px;">项目</th>
-                                    <th style="padding:9px 12px;">所属文件夹</th>
-                                    <th style="padding:9px 12px;">协作权限</th>
-                                    <th style="padding:9px 12px;">当前版本</th>
-                                    <th style="padding:9px 12px;">历史版本</th>
-                                    <th style="padding:9px 12px;text-align:right;">操作</th>
+                                    <th style="padding:9px 12px;"><?php echo htmlspecialchars(t('admin.proj.col_project')); ?></th>
+                                    <th style="padding:9px 12px;"><?php echo htmlspecialchars(t('admin.proj.col_folder')); ?></th>
+                                    <th style="padding:9px 12px;"><?php echo htmlspecialchars(t('admin.proj.col_collab')); ?></th>
+                                    <th style="padding:9px 12px;"><?php echo htmlspecialchars(t('admin.proj.col_cur_ver')); ?></th>
+                                    <th style="padding:9px 12px;"><?php echo htmlspecialchars(t('admin.proj.col_hist_ver')); ?></th>
+                                    <th style="padding:9px 12px;text-align:right;"><?php echo htmlspecialchars(t('admin.proj.col_actions')); ?></th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -1260,10 +1265,10 @@ $renderItemOwnersCell = function($item, $usersMap) use ($editorShareAllowed) {
                                                 <path d="M10 8L18 16L14 17L16 21L14 22L12 18L9 20Z" fill="var(--primary)" stroke="var(--surface)" stroke-width="1" stroke-linejoin="round"/>
                                             </g>
                                         </svg>
-                                        <div style="font-weight:600;font-size:13.5px;color:var(--text-1);margin-top:10px;">暂无原型项目</div>
-                                        <div style="font-size:12px;color:var(--text-3);margin-top:3px;margin-bottom:14px;">万事俱备，点击下方创建团队的第一份图纸</div>
+                                        <div style="font-weight:600;font-size:13.5px;color:var(--text-1);margin-top:10px;"><?php echo htmlspecialchars(t('admin.proj.empty_title')); ?></div>
+                                        <div style="font-size:12px;color:var(--text-3);margin-top:3px;margin-bottom:14px;"><?php echo htmlspecialchars(t('admin.proj.empty_desc')); ?></div>
                                         <?php if ($canManage): ?>
-                                            <button type="button" class="btn-primary btn-sm" onclick="openQuickItemModal('project')"><span class="duo-icon-slot" data-duo-icon="circle-plus"><i class="ri-add-line duo-rest-icon"></i></span> 新建项目</button>
+                                            <button type="button" class="btn-primary btn-sm" onclick="openQuickItemModal('project')"><span class="duo-icon-slot" data-duo-icon="circle-plus"><i class="ri-add-line duo-rest-icon"></i></span> <?php echo htmlspecialchars(t('admin.item.new_project')); ?></button>
                                         <?php endif; ?>
                                     </td></tr>
                                 <?php else: ?>
@@ -1297,31 +1302,31 @@ $renderItemOwnersCell = function($item, $usersMap) use ($editorShareAllowed) {
                                         <td style="padding:9px 12px;font-weight:600;color:var(--text-1);">
                                             <?php echo htmlspecialchars($it['name']); ?>
                                             <?php if (!empty($it['webhook_url'])): ?>
-                                                <span class="badge-tag" style="background:var(--success-subtle);color:var(--success);border:1px solid var(--success-border);font-size:10.5px;margin-left:4px;" title="已绑定专属群机器人"><i class="ri-robot-line"></i> 机器人</span>
+                                                <span class="badge-tag" style="background:var(--success-subtle);color:var(--success);border:1px solid var(--success-border);font-size:10.5px;margin-left:4px;" title="<?php echo htmlspecialchars(t('admin.proj.bound_bot_tip')); ?>"><i class="ri-robot-line"></i> <?php echo htmlspecialchars(t('admin.proj.bot_tag')); ?></span>
                                             <?php endif; ?>
                                             <?php if ($pAnnoCount > 0): ?>
-                                                <span class="badge-tag" style="background:var(--warning-subtle);color:var(--warning);border:1px solid var(--warning-border);font-size:10.5px;margin-left:4px;" title="有 <?php echo $pAnnoCount; ?> 条待处理批注">● <?php echo $pAnnoCount; ?> 待办</span>
+                                                <span class="badge-tag" style="background:var(--warning-subtle);color:var(--warning);border:1px solid var(--warning-border);font-size:10.5px;margin-left:4px;" title="<?php echo htmlspecialchars(t('admin.proj.pending_anno_tip', ['n' => $pAnnoCount])); ?>">● <?php echo htmlspecialchars(t('admin.proj.todo_tag', ['n' => $pAnnoCount])); ?></span>
                                             <?php endif; ?>
                                         </td>
-                                        <td style="padding:9px 12px;color:var(--text-2);"><?php echo htmlspecialchars($catMap[$it['category_id']] ?? '未归类'); ?></td>
+                                        <td style="padding:9px 12px;color:var(--text-2);"><?php echo htmlspecialchars($catMap[$it['category_id']] ?? t('admin.proj.uncategorized')); ?></td>
                                         <td style="padding:9px 12px;color:var(--text-2);"><?php echo $renderItemOwnersCell($it, $allUsersMap); ?></td>
                                         <td style="padding:9px 12px;"><span class="badge-ver"><?php echo htmlspecialchars($defaultV); ?></span></td>
                                         <td style="padding:9px 12px;">
-                                            <button type="button" class="btn-cancel btn-sm btn-table-ver" onclick="openVersionManageModal(<?php echo $it['id']; ?>)" title="管理此项目的历史版本与底稿">
-                                                <span class="duo-icon-slot" data-duo-icon="history"><i class="ri-history-line duo-rest-icon"></i></span> <?php echo count($vList); ?> 个版本
+                                            <button type="button" class="btn-cancel btn-sm btn-table-ver" onclick="openVersionManageModal(<?php echo $it['id']; ?>)" title="<?php echo htmlspecialchars(t('workspace.manage_ver_title')); ?>">
+                                                <span class="duo-icon-slot" data-duo-icon="history"><i class="ri-history-line duo-rest-icon"></i></span> <?php echo htmlspecialchars(t('ver.count_btn', ['n' => count($vList)])); ?>
                                             </button>
                                         </td>
                                         <td style="padding:9px 12px;text-align:right;white-space:nowrap;">
                                             <!-- 项目调序按钮组 (按文件夹筛选时动态激活) -->
-                                            <button type="button" class="btn-act project-order-btn btn-proj-move-up" style="display:none;margin-right:2px;" onclick="moveItemOrder(this, -1)" title="上移"><i class="ri-arrow-up-s-line"></i></button>
-                                            <button type="button" class="btn-act project-order-btn btn-proj-move-down" style="display:none;margin-right:6px;" onclick="moveItemOrder(this, 1)" title="下移"><i class="ri-arrow-down-s-line"></i></button>
+                                            <button type="button" class="btn-act project-order-btn btn-proj-move-up" style="display:none;margin-right:2px;" onclick="moveItemOrder(this, -1)" title="<?php echo htmlspecialchars(t('common.move_up')); ?>"><i class="ri-arrow-up-s-line"></i></button>
+                                            <button type="button" class="btn-act project-order-btn btn-proj-move-down" style="display:none;margin-right:6px;" onclick="moveItemOrder(this, 1)" title="<?php echo htmlspecialchars(t('common.move_down')); ?>"><i class="ri-arrow-down-s-line"></i></button>
 
                                             <?php if ($canPublishThisItem): ?>
-                                                <button class="btn-act" onclick="openUploadModal(<?php echo $it['id']; ?>, '<?php echo htmlspecialchars(addslashes($it['name'])); ?>')" title="发布新版本"><span class="duo-icon-slot" data-duo-icon="cloud-upload"><i class="ri-upload-cloud-line duo-rest-icon"></i></span></button>
+                                                <button class="btn-act" onclick="openUploadModal(<?php echo $it['id']; ?>, '<?php echo htmlspecialchars(addslashes($it['name'])); ?>')" title="<?php echo htmlspecialchars(t('ver.publish_new')); ?>"><span class="duo-icon-slot" data-duo-icon="cloud-upload"><i class="ri-upload-cloud-line duo-rest-icon"></i></span></button>
                                             <?php endif; ?>
                                             <?php if ($canManageThisItem): ?>
                                                 <?php if ($isAdmin): ?>
-                                                    <button class="btn-act" onclick="rotateShareToken(<?php echo $it['id']; ?>)" title="重置安全短链"><span class="duo-icon-slot" data-duo-icon="rotate-cw"><i class="ri-refresh-line duo-rest-icon" style="color:var(--text-3);"></i></span></button>
+                                                    <button class="btn-act" onclick="rotateShareToken(<?php echo $it['id']; ?>)" title="<?php echo htmlspecialchars(t('admin.proj.rotate_share_tip')); ?>"><span class="duo-icon-slot" data-duo-icon="rotate-cw"><i class="ri-refresh-line duo-rest-icon" style="color:var(--text-3);"></i></span></button>
                                                 <?php endif; ?>
                                                 <button class="btn-act btn-edit-item-trigger" onclick="openEditItemModal(<?php echo htmlspecialchars(json_encode([
                                                     'id' => $it['id'],
@@ -1335,12 +1340,12 @@ $renderItemOwnersCell = function($item, $usersMap) use ($editorShareAllowed) {
                                                     'collaborators' => $it['collaborators'] ?? '',
                                                     'watermark_enabled' => (int)($it['watermark_enabled'] ?? 0),
                                                     'has_versions' => !empty($it['versions'])
-                                                ]), ENT_QUOTES, 'UTF-8'); ?>)" title="编辑属性"><span class="duo-icon-slot" data-duo-icon="pencil"><i class="ri-edit-line duo-rest-icon"></i></span></button>
+                                                ]), ENT_QUOTES, 'UTF-8'); ?>)" title="<?php echo htmlspecialchars(t('admin.proj.edit_props_tip')); ?>"><span class="duo-icon-slot" data-duo-icon="pencil"><i class="ri-edit-line duo-rest-icon"></i></span></button>
                                                 <?php if ($canDeleteThisItem): ?>
-                                                    <button class="btn-act" onclick="deleteItem(<?php echo $it['id']; ?>)" title="删除"><span class="duo-icon-slot" data-duo-icon="trash"><i class="ri-delete-bin-line duo-rest-icon"></i></span></button>
+                                                    <button class="btn-act" onclick="deleteItem(<?php echo $it['id']; ?>)" title="<?php echo htmlspecialchars(t('common.delete')); ?>"><span class="duo-icon-slot" data-duo-icon="trash"><i class="ri-delete-bin-line duo-rest-icon"></i></span></button>
                                                 <?php endif; ?>
                                             <?php elseif (!$canPublishThisItem): ?>
-                                                <span style="font-size:11px;color:var(--text-3);padding:0 4px;" title="受保护">受保护</span>
+                                                <span style="font-size:11px;color:var(--text-3);padding:0 4px;" title="<?php echo htmlspecialchars(t('common.protected')); ?>"><?php echo htmlspecialchars(t('common.protected')); ?></span>
                                             <?php endif; ?>
                                         </td>
                                     </tr>
@@ -1355,12 +1360,12 @@ $renderItemOwnersCell = function($item, $usersMap) use ($editorShareAllowed) {
                         <table style="width:100%;border-collapse:collapse;font-size:13px;">
                             <thead>
                                 <tr style="background:var(--canvas);text-align:left;color:var(--text-2);border-bottom:1px solid var(--border);">
-                                    <th style="padding:9px 12px;width:24%;">链接名称</th>
-                                    <th style="padding:9px 12px;width:14%;">所属文件夹</th>
-                                    <th style="padding:9px 12px;width:12%;">打开方式</th>
-                                    <th style="padding:9px 12px;width:28%;">目标地址</th>
-                                    <th style="padding:9px 12px;width:10%;">创建者</th>
-                                    <th style="padding:9px 12px;text-align:right;width:12%;">操作</th>
+                                    <th style="padding:9px 12px;width:24%;"><?php echo htmlspecialchars(t('admin.proj.col_link_name')); ?></th>
+                                    <th style="padding:9px 12px;width:14%;"><?php echo htmlspecialchars(t('admin.proj.col_folder')); ?></th>
+                                    <th style="padding:9px 12px;width:12%;"><?php echo htmlspecialchars(t('admin.proj.col_open_mode')); ?></th>
+                                    <th style="padding:9px 12px;width:28%;"><?php echo htmlspecialchars(t('admin.proj.col_target_url')); ?></th>
+                                    <th style="padding:9px 12px;width:10%;"><?php echo htmlspecialchars(t('admin.proj.col_creator')); ?></th>
+                                    <th style="padding:9px 12px;text-align:right;width:12%;"><?php echo htmlspecialchars(t('admin.proj.col_actions')); ?></th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -1380,17 +1385,17 @@ $renderItemOwnersCell = function($item, $usersMap) use ($editorShareAllowed) {
                                                 <path d="M11 17L17 11M17 11H12M17 11V16" stroke="var(--primary)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
                                             </g>
                                         </svg>
-                                        <div style="font-weight:600;font-size:13.5px;color:var(--text-1);margin-top:10px;">暂无外部链接</div>
-                                        <div style="font-size:12px;color:var(--text-3);margin-top:3px;margin-bottom:14px;">将 Figma、蓝湖、飞书文档或外部演示地址收纳至此，统一看板索引</div>
+                                        <div style="font-weight:600;font-size:13.5px;color:var(--text-1);margin-top:10px;"><?php echo htmlspecialchars(t('admin.proj.empty_links_title')); ?></div>
+                                        <div style="font-size:12px;color:var(--text-3);margin-top:3px;margin-bottom:14px;"><?php echo htmlspecialchars(t('admin.proj.empty_links_desc')); ?></div>
                                         <?php if ($canManage): ?>
-                                            <button type="button" class="btn-primary btn-sm" onclick="openItemModal(0, <?php echo !empty($cats) ? $cats[0]['id'] : 0; ?>, 'link')"><span class="duo-icon-slot" data-duo-icon="circle-plus"><i class="ri-add-line duo-rest-icon"></i></span> 新建外链</button>
+                                            <button type="button" class="btn-primary btn-sm" onclick="openItemModal(0, <?php echo !empty($cats) ? $cats[0]['id'] : 0; ?>, 'link')"><span class="duo-icon-slot" data-duo-icon="circle-plus"><i class="ri-add-line duo-rest-icon"></i></span> <?php echo htmlspecialchars(t('admin.item.new_link')); ?></button>
                                         <?php endif; ?>
                                     </td></tr>
                                 <?php else: ?>
                                     <?php foreach ($linkItems as $it): 
                                         $canManageThisItem = Auth::canManageItemConfig($it, $currentUser);
                                         $canDeleteThisItem = Auth::canDeleteItem($it, $currentUser);
-                                        $targetText = ($it['link_target'] === '_blank') ? '新标签页' : '内嵌预览';
+                                        $targetText = ($it['link_target'] === '_blank') ? t('admin.proj.open_new_tab') : t('admin.proj.open_embed');
                                         $targetBadgeStyle = ($it['link_target'] === '_blank') ? 'background:var(--primary-subtle);color:var(--primary);border:1px solid var(--primary-border);' : 'background:var(--canvas);color:var(--text-3);border:1px solid var(--border);';
                                     ?>
                                     <tr id="admin-item-row-<?php echo $it['id']; ?>" data-can-edit="<?php echo $canManageThisItem ? '1' : '0'; ?>"
@@ -1406,9 +1411,9 @@ $renderItemOwnersCell = function($item, $usersMap) use ($editorShareAllowed) {
                                             <i class="ri-external-link-line" style="color:var(--primary);margin-right:4px;font-size:14px;vertical-align:-1px;"></i>
                                             <?php echo htmlspecialchars($it['name']); ?>
                                         </td>
-                                        <td style="padding:9px 12px;color:var(--text-2);"><?php echo htmlspecialchars($catMap[$it['category_id']] ?? '未归类'); ?></td>
+                                        <td style="padding:9px 12px;color:var(--text-2);"><?php echo htmlspecialchars($catMap[$it['category_id']] ?? t('admin.proj.uncategorized')); ?></td>
                                         <td style="padding:9px 12px;">
-                                            <span class="badge-tag" style="<?php echo $targetBadgeStyle; ?>font-size:11px;"><?php echo $targetText; ?></span>
+                                            <span class="badge-tag" style="<?php echo $targetBadgeStyle; ?>font-size:11px;"><?php echo htmlspecialchars($targetText); ?></span>
                                         </td>
                                         <td style="padding:9px 12px;max-width:260px;">
                                             <div style="display:flex;align-items:center;gap:6px;">
@@ -1416,7 +1421,7 @@ $renderItemOwnersCell = function($item, $usersMap) use ($editorShareAllowed) {
                                                     <?php echo htmlspecialchars($it['link_url'] ?? '-'); ?>
                                                 </a>
                                                 <?php if (!empty($it['link_url'])): ?>
-                                                <button type="button" class="btn-act" onclick="copyTextToClipboard('<?php echo htmlspecialchars(addslashes($it['link_url'])); ?>', function(){ showToast('链接已复制', 'success'); })" title="复制链接">
+                                                <button type="button" class="btn-act" onclick="copyTextToClipboard('<?php echo htmlspecialchars(addslashes($it['link_url'])); ?>', function(){ showToast(t('common.link_copied', null, '链接已复制'), 'success'); })" title="<?php echo htmlspecialchars(t('admin.item.copy_link_tip')); ?>">
                                                     <span class="duo-icon-slot" data-duo-icon="copy"><i class="ri-file-copy-line duo-rest-icon"></i></span>
                                                 </button>
                                                 <?php endif; ?>
@@ -1424,8 +1429,8 @@ $renderItemOwnersCell = function($item, $usersMap) use ($editorShareAllowed) {
                                         </td>
                                         <td style="padding:9px 12px;color:var(--text-2);"><?php echo !empty($it['creator_name']) ? htmlspecialchars($it['creator_name']) : '-'; ?></td>
                                         <td style="padding:9px 12px;text-align:right;white-space:nowrap;">
-                                            <button type="button" class="btn-act link-order-btn btn-link-move-up" style="display:none;margin-right:2px;" onclick="moveItemOrder(this, -1)" title="上移"><i class="ri-arrow-up-s-line"></i></button>
-                                            <button type="button" class="btn-act link-order-btn btn-link-move-down" style="display:none;margin-right:6px;" onclick="moveItemOrder(this, 1)" title="下移"><i class="ri-arrow-down-s-line"></i></button>
+                                            <button type="button" class="btn-act link-order-btn btn-link-move-up" style="display:none;margin-right:2px;" onclick="moveItemOrder(this, -1)" title="<?php echo htmlspecialchars(t('common.move_up')); ?>"><i class="ri-arrow-up-s-line"></i></button>
+                                            <button type="button" class="btn-act link-order-btn btn-link-move-down" style="display:none;margin-right:6px;" onclick="moveItemOrder(this, 1)" title="<?php echo htmlspecialchars(t('common.move_down')); ?>"><i class="ri-arrow-down-s-line"></i></button>
                                             <?php if ($canManageThisItem): ?>
                                                 <button class="btn-act btn-edit-item-trigger" onclick="openEditItemModal(<?php echo htmlspecialchars(json_encode([
                                                     'id' => $it['id'],
@@ -1439,12 +1444,12 @@ $renderItemOwnersCell = function($item, $usersMap) use ($editorShareAllowed) {
                                                     'collaborators' => $it['collaborators'] ?? '',
                                                     'watermark_enabled' => (int)($it['watermark_enabled'] ?? 0),
                                                     'has_versions' => false
-                                                ]), ENT_QUOTES, 'UTF-8'); ?>)" title="编辑属性"><span class="duo-icon-slot" data-duo-icon="pencil"><i class="ri-edit-line duo-rest-icon"></i></span></button>
+                                                ]), ENT_QUOTES, 'UTF-8'); ?>)" title="<?php echo htmlspecialchars(t('admin.proj.edit_props_tip')); ?>"><span class="duo-icon-slot" data-duo-icon="pencil"><i class="ri-edit-line duo-rest-icon"></i></span></button>
                                                 <?php if ($canDeleteThisItem): ?>
-                                                    <button class="btn-act" onclick="deleteItem(<?php echo $it['id']; ?>)" title="删除"><span class="duo-icon-slot" data-duo-icon="trash"><i class="ri-delete-bin-line duo-rest-icon"></i></span></button>
+                                                    <button class="btn-act" onclick="deleteItem(<?php echo $it['id']; ?>)" title="<?php echo htmlspecialchars(t('common.delete')); ?>"><span class="duo-icon-slot" data-duo-icon="trash"><i class="ri-delete-bin-line duo-rest-icon"></i></span></button>
                                                 <?php endif; ?>
                                             <?php else: ?>
-                                                <span style="font-size:11px;color:var(--text-3);padding:0 4px;" title="受保护">受保护</span>
+                                                <span style="font-size:11px;color:var(--text-3);padding:0 4px;" title="<?php echo htmlspecialchars(t('common.protected')); ?>"><?php echo htmlspecialchars(t('common.protected')); ?></span>
                                             <?php endif; ?>
                                         </td>
                                     </tr>
@@ -1459,10 +1464,10 @@ $renderItemOwnersCell = function($item, $usersMap) use ($editorShareAllowed) {
                         <table style="width:100%;border-collapse:collapse;font-size:13px;">
                             <thead>
                                 <tr style="background:var(--canvas);text-align:left;color:var(--text-2);border-bottom:1px solid var(--border);">
-                                    <th style="padding:9px 12px;width:40%;">文件夹名称</th>
-                                    <th style="padding:9px 12px;width:25%;">包含项目</th>
-                                    <th style="padding:9px 12px;width:15%;">排序调整</th>
-                                    <th style="padding:9px 12px;text-align:right;width:20%;">操作</th>
+                                    <th style="padding:9px 12px;width:40%;"><?php echo htmlspecialchars(t('admin.proj.col_folder_name')); ?></th>
+                                    <th style="padding:9px 12px;width:25%;"><?php echo htmlspecialchars(t('admin.proj.col_folder_items')); ?></th>
+                                    <th style="padding:9px 12px;width:15%;"><?php echo htmlspecialchars(t('admin.proj.col_sort')); ?></th>
+                                    <th style="padding:9px 12px;text-align:right;width:20%;"><?php echo htmlspecialchars(t('admin.proj.col_actions')); ?></th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -1480,10 +1485,10 @@ $renderItemOwnersCell = function($item, $usersMap) use ($editorShareAllowed) {
                                                 <path d="M14 9V19M9 14H19" stroke="var(--primary)" stroke-width="2" stroke-linecap="round"/>
                                             </g>
                                         </svg>
-                                        <div style="font-weight:600;font-size:13.5px;color:var(--text-1);margin-top:10px;">暂无文件夹分类</div>
-                                        <div style="font-size:12px;color:var(--text-3);margin-top:3px;margin-bottom:14px;">创建文件夹以井井有条地组织您的原型项目</div>
+                                        <div style="font-weight:600;font-size:13.5px;color:var(--text-1);margin-top:10px;"><?php echo htmlspecialchars(t('admin.proj.empty_folders_title')); ?></div>
+                                        <div style="font-size:12px;color:var(--text-3);margin-top:3px;margin-bottom:14px;"><?php echo htmlspecialchars(t('admin.proj.empty_folders_desc')); ?></div>
                                         <?php if ($canManage): ?>
-                                            <button type="button" class="btn-primary btn-sm" onclick="openCategoryModal(0)"><span class="duo-icon-slot" data-duo-icon="folder-plus"><i class="ri-folder-add-line duo-rest-icon"></i></span> 新建文件夹</button>
+                                            <button type="button" class="btn-primary btn-sm" onclick="openCategoryModal(0)"><span class="duo-icon-slot" data-duo-icon="folder-plus"><i class="ri-folder-add-line duo-rest-icon"></i></span> <?php echo htmlspecialchars(t('admin.cat.new_title')); ?></button>
                                         <?php endif; ?>
                                     </td></tr>
                                 <?php else: ?>
@@ -1500,15 +1505,15 @@ $renderItemOwnersCell = function($item, $usersMap) use ($editorShareAllowed) {
                                             <span><?php echo htmlspecialchars($c['name']); ?></span>
                                         </td>
                                         <td style="padding:10px 12px;color:var(--text-2);font-size:12.5px;">
-                                            <span style="font-weight:500;color:var(--text-1);"><?php echo $cItemCount; ?></span> <span style="color:var(--text-3);font-size:11.5px;">个项目</span>
+                                            <span style="font-weight:500;color:var(--text-1);"><?php echo $cItemCount; ?></span> <span style="color:var(--text-3);font-size:11.5px;"><?php echo htmlspecialchars(t('admin.proj.item_count_unit')); ?></span>
                                         </td>
                                         <td style="padding:10px 12px;white-space:nowrap;">
-                                            <button type="button" class="btn-act btn-cat-move-up" onclick="moveCategoryOrder(this, -1)" title="上移" <?php if ($isFirstCat) echo 'disabled style="opacity:0.28;cursor:not-allowed;"'; ?>><i class="ri-arrow-up-s-line"></i></button>
-                                            <button type="button" class="btn-act btn-cat-move-down" onclick="moveCategoryOrder(this, 1)" title="下移" <?php if ($isLastCat) echo 'disabled style="opacity:0.28;cursor:not-allowed;"'; ?>><i class="ri-arrow-down-s-line"></i></button>
+                                            <button type="button" class="btn-act btn-cat-move-up" onclick="moveCategoryOrder(this, -1)" title="<?php echo htmlspecialchars(t('common.move_up')); ?>" <?php if ($isFirstCat) echo 'disabled style="opacity:0.28;cursor:not-allowed;"'; ?>><i class="ri-arrow-up-s-line"></i></button>
+                                            <button type="button" class="btn-act btn-cat-move-down" onclick="moveCategoryOrder(this, 1)" title="<?php echo htmlspecialchars(t('common.move_down')); ?>" <?php if ($isLastCat) echo 'disabled style="opacity:0.28;cursor:not-allowed;"'; ?>><i class="ri-arrow-down-s-line"></i></button>
                                         </td>
                                         <td style="padding:10px 12px;text-align:right;white-space:nowrap;">
-                                            <button type="button" class="btn-act" onclick="openCategoryModal(<?php echo $c['id']; ?>, '<?php echo htmlspecialchars(addslashes($c['name'])); ?>')" title="编辑名称"><span class="duo-icon-slot" data-duo-icon="pencil"><i class="ri-edit-line duo-rest-icon"></i></span></button>
-                                            <button type="button" class="btn-act" onclick="confirmDeleteCategory(<?php echo $c['id']; ?>, '<?php echo htmlspecialchars(addslashes($c['name'])); ?>', <?php echo $cItemCount; ?>)" title="删除文件夹"><span class="duo-icon-slot" data-duo-icon="trash"><i class="ri-delete-bin-line duo-rest-icon"></i></span></button>
+                                            <button type="button" class="btn-act" onclick="openCategoryModal(<?php echo $c['id']; ?>, '<?php echo htmlspecialchars(addslashes($c['name'])); ?>')" title="<?php echo htmlspecialchars(t('admin.proj.edit_name_tip')); ?>"><span class="duo-icon-slot" data-duo-icon="pencil"><i class="ri-edit-line duo-rest-icon"></i></span></button>
+                                            <button type="button" class="btn-act" onclick="confirmDeleteCategory(<?php echo $c['id']; ?>, '<?php echo htmlspecialchars(addslashes($c['name'])); ?>', <?php echo $cItemCount; ?>)" title="<?php echo htmlspecialchars(t('admin.proj.delete_folder_tip')); ?>"><span class="duo-icon-slot" data-duo-icon="trash"><i class="ri-delete-bin-line duo-rest-icon"></i></span></button>
                                         </td>
                                     </tr>
                                     <?php endforeach; ?>
@@ -1522,17 +1527,17 @@ $renderItemOwnersCell = function($item, $usersMap) use ($editorShareAllowed) {
                 <div id="panel-users" class="admin-panel">
                     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
                         <div class="console-subtab-group user-subtab-group">
-                            <button type="button" id="subtab-btn-active-users" class="console-subtab-btn log-subtab-btn active" onclick="switchUserSubTab('active')"><?php echo $isAdmin ? '正式成员' : '团队通讯录'; ?></button>
+                            <button type="button" id="subtab-btn-active-users" class="console-subtab-btn log-subtab-btn active" onclick="switchUserSubTab('active')"><?php echo htmlspecialchars($isAdmin ? t('admin.users.tab_active_admin') : t('admin.users.tab_active_dir')); ?></button>
                             <?php if ($isAdmin): ?>
                             <button type="button" id="subtab-btn-pending-users" class="console-subtab-btn log-subtab-btn" onclick="switchUserSubTab('pending')">
-                                <span>入驻申请</span>
+                                <span><?php echo htmlspecialchars(t('admin.users.tab_pending')); ?></span>
                                 <span id="pendingSubTabCount" style="<?php echo ($isAdmin && $pendingUserCount > 0) ? '' : 'display:none;'; ?>background-color:var(--warning);color:var(--surface);border-radius:10px;padding:1px 6px;font-size:11px;font-weight:600;line-height:1.2;"><?php echo $pendingUserCount; ?></span>
                             </button>
                             <?php endif; ?>
                         </div>
                         <?php if ($isAdmin): ?>
                         <div id="activeUserActions">
-                            <button type="button" class="btn-primary btn-md" onclick="showAddUserBox()"><span class="duo-icon-slot" data-duo-icon="user-plus"><i class="ri-user-add-line duo-rest-icon"></i></span> 添加成员</button>
+                            <button type="button" class="btn-primary btn-md" onclick="showAddUserBox()"><span class="duo-icon-slot" data-duo-icon="user-plus"><i class="ri-user-add-line duo-rest-icon"></i></span> <?php echo htmlspecialchars(t('admin.users.add_btn')); ?></button>
                         </div>
                         <?php endif; ?>
                     </div>
@@ -1543,12 +1548,12 @@ $renderItemOwnersCell = function($item, $usersMap) use ($editorShareAllowed) {
                         <table style="width:100%;border-collapse:collapse;font-size:13px;">
                             <thead>
                                 <tr style="background:var(--canvas);text-align:left;color:var(--text-2);border-bottom:1px solid var(--border);">
-                                    <th style="padding:9px 12px;">姓名 / 工作邮箱</th>
-                                    <th style="padding:9px 12px;">角色权限</th>
-                                    <th style="padding:9px 12px;white-space:nowrap;">发版数/项目数</th>
-                                    <th style="padding:9px 12px;">部门 / 说明</th>
-                                    <th style="padding:9px 12px;">加入时间</th>
-                                    <th style="padding:9px 12px;text-align:right;"><?php echo $isAdmin ? '操作' : '状态'; ?></th>
+                                    <th style="padding:9px 12px;"><?php echo htmlspecialchars(t('admin.users.col_name_email')); ?></th>
+                                    <th style="padding:9px 12px;"><?php echo htmlspecialchars(t('admin.users.col_role')); ?></th>
+                                    <th style="padding:9px 12px;white-space:nowrap;"><?php echo htmlspecialchars(t('admin.users.col_contrib')); ?></th>
+                                    <th style="padding:9px 12px;"><?php echo htmlspecialchars(t('admin.users.col_dept')); ?></th>
+                                    <th style="padding:9px 12px;"><?php echo htmlspecialchars(t('admin.users.col_joined')); ?></th>
+                                    <th style="padding:9px 12px;text-align:right;"><?php echo htmlspecialchars($isAdmin ? t('admin.proj.col_actions') : t('admin.users.col_status')); ?></th>
                                 </tr>
                             </thead>
                             <tbody id="userTableBody">
@@ -1563,15 +1568,15 @@ $renderItemOwnersCell = function($item, $usersMap) use ($editorShareAllowed) {
                         <table style="width:100%;border-collapse:collapse;font-size:13px;">
                             <thead>
                                 <tr style="background:var(--canvas);text-align:left;color:var(--text-2);border-bottom:1px solid var(--border);">
-                                    <th style="padding:9px 12px;">姓名 / 申请邮箱</th>
-                                    <th style="padding:9px 12px;">所属部门 / 说明</th>
-                                    <th style="padding:9px 12px;">申请角色</th>
-                                    <th style="padding:9px 12px;">申请时间</th>
-                                    <th style="padding:9px 12px;text-align:right;">审批操作</th>
+                                    <th style="padding:9px 12px;"><?php echo htmlspecialchars(t('admin.users.col_apply_email')); ?></th>
+                                    <th style="padding:9px 12px;"><?php echo htmlspecialchars(t('admin.users.col_apply_dept')); ?></th>
+                                    <th style="padding:9px 12px;"><?php echo htmlspecialchars(t('admin.users.col_apply_role')); ?></th>
+                                    <th style="padding:9px 12px;"><?php echo htmlspecialchars(t('admin.users.col_apply_time')); ?></th>
+                                    <th style="padding:9px 12px;text-align:right;"><?php echo htmlspecialchars(t('admin.users.col_approve_act')); ?></th>
                                 </tr>
                             </thead>
                             <tbody id="pendingUsersTbody">
-                                <tr><td colspan="5" style="padding:24px;text-align:center;color:var(--text-3);">正在加载待审批申请...</td></tr>
+                                <tr><td colspan="5" style="padding:24px;text-align:center;color:var(--text-3);"><?php echo htmlspecialchars(t('admin.users.loading_pending')); ?></td></tr>
                             </tbody>
                         </table>
                     </div>
@@ -1592,17 +1597,17 @@ $renderItemOwnersCell = function($item, $usersMap) use ($editorShareAllowed) {
                             <table style="width:100%;min-width:560px;border-collapse:collapse;font-size:13px;">
                                     <thead>
                                         <tr style="background:var(--canvas);text-align:left;color:var(--text-2);border-bottom:1px solid var(--border);">
-                                            <th style="padding:10px 16px;width:28%;font-weight:600;">权限项</th>
-                                            <th style="padding:10px 12px;text-align:center;width:18%;font-weight:600;color:var(--text-1);">管理员</th>
-                                            <th style="padding:10px 12px;text-align:center;width:18%;font-weight:600;color:var(--text-1);">协作者</th>
-                                            <th style="padding:10px 12px;text-align:center;width:18%;font-weight:600;color:var(--text-1);">审阅人</th>
-                                            <th style="padding:10px 12px;text-align:center;width:18%;font-weight:600;color:var(--text-1);">访客</th>
+                                            <th style="padding:10px 16px;width:28%;font-weight:600;"><?php echo htmlspecialchars(t('admin.roles.col_perm')); ?></th>
+                                            <th style="padding:10px 12px;text-align:center;width:18%;font-weight:600;color:var(--text-1);"><?php echo htmlspecialchars(t('common.role.admin')); ?></th>
+                                            <th style="padding:10px 12px;text-align:center;width:18%;font-weight:600;color:var(--text-1);"><?php echo htmlspecialchars(t('common.role.editor')); ?></th>
+                                            <th style="padding:10px 12px;text-align:center;width:18%;font-weight:600;color:var(--text-1);"><?php echo htmlspecialchars(t('common.role.viewer')); ?></th>
+                                            <th style="padding:10px 12px;text-align:center;width:18%;font-weight:600;color:var(--text-1);"><?php echo htmlspecialchars(t('common.role.guest')); ?></th>
                                         </tr>
                                     </thead>
                                     <tbody>
                                         <!-- 项 1: 管理后台 -->
                                         <tr style="border-bottom:1px solid var(--border);">
-                                            <td style="padding:11px 16px;font-weight:500;color:var(--text-1);">管理后台</td>
+                                            <td style="padding:11px 16px;font-weight:500;color:var(--text-1);"><?php echo htmlspecialchars(t('admin.roles.perm_admin')); ?></td>
                                             <td style="padding:11px 12px;text-align:center;">
                                                 <i class="ri-check-line" style="color:var(--success);font-size:18px;font-weight:bold;"></i>
                                             </td>
@@ -1619,7 +1624,7 @@ $renderItemOwnersCell = function($item, $usersMap) use ($editorShareAllowed) {
 
                                         <!-- 项 2: 管理项目与版本 -->
                                         <tr style="border-bottom:1px solid var(--border);">
-                                            <td style="padding:11px 16px;font-weight:500;color:var(--text-1);">管理项目与版本</td>
+                                            <td style="padding:11px 16px;font-weight:500;color:var(--text-1);"><?php echo htmlspecialchars(t('admin.roles.perm_manage')); ?></td>
                                             <td style="padding:11px 12px;text-align:center;">
                                                 <i class="ri-check-line" style="color:var(--success);font-size:18px;font-weight:bold;"></i>
                                             </td>
@@ -1636,7 +1641,7 @@ $renderItemOwnersCell = function($item, $usersMap) use ($editorShareAllowed) {
 
                                         <!-- 项 3: 下载 RP 源文件 -->
                                         <tr style="border-bottom:1px solid var(--border);">
-                                            <td style="padding:11px 16px;font-weight:500;color:var(--text-1);">下载 RP 源文件</td>
+                                            <td style="padding:11px 16px;font-weight:500;color:var(--text-1);"><?php echo htmlspecialchars(t('admin.roles.perm_download_rp')); ?></td>
                                             <td style="padding:11px 12px;text-align:center;">
                                                 <i class="ri-check-line" style="color:var(--success);font-size:18px;font-weight:bold;"></i>
                                             </td>
@@ -1653,7 +1658,7 @@ $renderItemOwnersCell = function($item, $usersMap) use ($editorShareAllowed) {
 
                                         <!-- 项 4: 外发分享 -->
                                         <tr style="border-bottom:1px solid var(--border);">
-                                            <td style="padding:11px 16px;font-weight:500;color:var(--text-1);">外发分享</td>
+                                            <td style="padding:11px 16px;font-weight:500;color:var(--text-1);"><?php echo htmlspecialchars(t('admin.roles.perm_share')); ?></td>
                                             <td style="padding:11px 12px;text-align:center;">
                                                 <i class="ri-check-line" style="color:var(--success);font-size:18px;font-weight:bold;"></i>
                                             </td>
@@ -1670,7 +1675,7 @@ $renderItemOwnersCell = function($item, $usersMap) use ($editorShareAllowed) {
 
                                         <!-- 项 5: 页面批注 -->
                                         <tr>
-                                            <td style="padding:11px 16px;font-weight:500;color:var(--text-1);">页面批注</td>
+                                            <td style="padding:11px 16px;font-weight:500;color:var(--text-1);"><?php echo htmlspecialchars(t('admin.roles.perm_annotate')); ?></td>
                                             <td style="padding:11px 12px;text-align:center;">
                                                 <i class="ri-check-line" style="color:var(--success);font-size:18px;font-weight:bold;"></i>
                                             </td>
@@ -1703,57 +1708,58 @@ $renderItemOwnersCell = function($item, $usersMap) use ($editorShareAllowed) {
                         ?>
                         <div class="settings-section-card">
                             <div class="settings-section-header">
-                                <div class="settings-section-title"><i class="ri-building-line"></i> 组织</div>
+                                <div class="settings-section-title"><i class="ri-building-line"></i> <?php echo htmlspecialchars(t('admin.settings.org_title')); ?></div>
                             </div>
                             
                             <div class="m-form-group" style="margin-bottom:0;">
-                                <label class="m-label" for="settingSiteTitle">组织名称 <span class="opt-tag">选填</span></label>
-                                <input type="text" id="settingSiteTitle" name="site_title" class="m-input" value="<?php echo htmlspecialchars($currCompanyName); ?>" placeholder="例如：某某科技" maxlength="20">
+                                <label class="m-label" for="settingSiteTitle"><?php echo htmlspecialchars(t('admin.settings.org_name')); ?> <span class="opt-tag"><?php echo htmlspecialchars(t('common.optional')); ?></span></label>
+                                <input type="text" id="settingSiteTitle" name="site_title" class="m-input" value="<?php echo htmlspecialchars($currCompanyName); ?>" placeholder="<?php echo htmlspecialchars(t('admin.settings.org_placeholder')); ?>" maxlength="20">
                             </div>
                         </div>
 
                         <!-- 卡片 2: 基础设置 -->
                         <?php
+                            $currentSystemLang = I18n::getLocale();
                             $currentTimezone = Auth::getSetting('system_timezone', 'Asia/Shanghai');
-                            $timezones = [
-                                'Pacific/Midway' => 'UTC-11 (中途岛 / 萨摩亚)',
-                                'Pacific/Honolulu' => 'UTC-10 (夏威夷时间)',
-                                'America/Anchorage' => 'UTC-9 (阿拉斯加时间)',
-                                'America/Los_Angeles' => 'UTC-8 (太平洋时间 / 洛杉矶)',
-                                'America/Denver' => 'UTC-7 (山地时间 / 丹佛)',
-                                'America/Chicago' => 'UTC-6 (中部时间 / 芝加哥)',
-                                'America/New_York' => 'UTC-5 (东部时间 / 纽约)',
-                                'America/Santiago' => 'UTC-4 (大西洋时间 / 圣地亚哥)',
-                                'America/Sao_Paulo' => 'UTC-3 (巴西利亚 / 圣保罗)',
-                                'America/Noronha' => 'UTC-2 (费尔南多·迪诺罗尼亚)',
-                                'Atlantic/Azores' => 'UTC-1 (亚速尔群岛 / 佛得角)',
-                                'UTC' => 'UTC+0 (世界协调时间 / 伦敦)',
-                                'Europe/Paris' => 'UTC+1 (中欧时间 / 巴黎 / 柏林)',
-                                'Europe/Athens' => 'UTC+2 (东欧时间 / 雅典 / 开罗)',
-                                'Europe/Moscow' => 'UTC+3 (莫斯科时间 / 伊斯坦布尔)',
-                                'Asia/Dubai' => 'UTC+4 (海湾时间 / 迪拜)',
-                                'Asia/Karachi' => 'UTC+5 (巴基斯坦时间 / 卡拉奇)',
-                                'Asia/Dhaka' => 'UTC+6 (孟加拉时间 / 达卡)',
-                                'Asia/Bangkok' => 'UTC+7 (中南半岛时间 / 曼谷 / 雅加达)',
-                                'Asia/Shanghai' => 'UTC+8 (北京时间 / 中国标准时间)',
-                                'Asia/Tokyo' => 'UTC+9 (日本标准时间 / 东京 / 首尔)',
-                                'Australia/Sydney' => 'UTC+10 (澳大利亚东部时间 / 悉尼)',
-                                'Pacific/Guadalcanal' => 'UTC+11 (所罗门群岛 / 努美阿)',
-                                'Pacific/Fiji' => 'UTC+12 (斐济 / 马绍尔群岛 / 堪察加)'
+                            $timezoneKeys = [
+                                'Pacific/Midway',
+                                'Pacific/Honolulu',
+                                'America/Anchorage',
+                                'America/Los_Angeles',
+                                'America/Denver',
+                                'America/Chicago',
+                                'America/New_York',
+                                'America/Santiago',
+                                'America/Sao_Paulo',
+                                'America/Noronha',
+                                'Atlantic/Azores',
+                                'UTC',
+                                'Europe/Paris',
+                                'Europe/Athens',
+                                'Europe/Moscow',
+                                'Asia/Dubai',
+                                'Asia/Karachi',
+                                'Asia/Dhaka',
+                                'Asia/Bangkok',
+                                'Asia/Shanghai',
+                                'Asia/Tokyo',
+                                'Australia/Sydney',
+                                'Pacific/Guadalcanal',
+                                'Pacific/Fiji'
                             ];
-                            if (empty($currentTimezone) || !isset($timezones[$currentTimezone])) {
+                            if (empty($currentTimezone) || !in_array($currentTimezone, $timezoneKeys, true)) {
                                 $currentTimezone = 'Asia/Shanghai';
                             }
                         ?>
                         <div class="settings-section-card">
                             <div class="settings-section-header">
-                                <div class="settings-section-title"><i class="ri-equalizer-line"></i> 基础设置</div>
+                                <div class="settings-section-title"><i class="ri-equalizer-line"></i> <?php echo htmlspecialchars(t('admin.settings.basic_title')); ?></div>
                             </div>
 
                             <div class="settings-row" style="margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid var(--border);">
                                 <div class="settings-row-info">
-                                    <label class="settings-row-label" for="settingGlobalWatermark">全站身份水印</label>
-                                    <div style="font-size:12px;color:var(--text-3);margin-top:2px;">在原型预览中显示访问者信息与时间</div>
+                                    <label class="settings-row-label" for="settingGlobalWatermark"><?php echo htmlspecialchars(t('admin.settings.watermark')); ?></label>
+                                    <div style="font-size:12px;color:var(--text-3);margin-top:2px;"><?php echo htmlspecialchars(t('admin.settings.watermark_desc')); ?></div>
                                 </div>
                                 <div class="settings-row-control">
                                     <label class="linear-switch">
@@ -1765,13 +1771,26 @@ $renderItemOwnersCell = function($item, $usersMap) use ($editorShareAllowed) {
 
                             <div class="settings-row" style="margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid var(--border);">
                                 <div class="settings-row-info">
-                                    <label class="settings-row-label" for="settingTimezone">系统时区</label>
+                                    <label class="settings-row-label" for="settingSystemLanguage"><?php echo htmlspecialchars(t('admin.settings.language')); ?></label>
+                                </div>
+                                <div class="settings-row-control">
+                                    <select id="settingSystemLanguage" name="system_language" class="m-select-md" style="min-width:260px;">
+                                        <option value="zh-CN" <?php echo $currentSystemLang === 'zh-CN' ? 'selected' : ''; ?>>简体中文</option>
+                                        <option value="zh-TW" <?php echo $currentSystemLang === 'zh-TW' ? 'selected' : ''; ?>>繁體中文</option>
+                                        <option value="en" <?php echo $currentSystemLang === 'en' ? 'selected' : ''; ?>>English</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div class="settings-row" style="margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid var(--border);">
+                                <div class="settings-row-info">
+                                    <label class="settings-row-label" for="settingTimezone"><?php echo htmlspecialchars(t('admin.settings.timezone')); ?></label>
                                 </div>
                                 <div class="settings-row-control">
                                     <select id="settingTimezone" name="system_timezone" class="m-select-md" style="min-width:260px;">
-                                        <?php foreach ($timezones as $tzKey => $tzLabel): ?>
+                                        <?php foreach ($timezoneKeys as $tzKey): ?>
                                             <option value="<?php echo $tzKey; ?>" <?php echo $currentTimezone === $tzKey ? 'selected' : ''; ?>>
-                                                <?php echo htmlspecialchars($tzLabel); ?>
+                                                <?php echo htmlspecialchars(t('tz.' . $tzKey)); ?>
                                             </option>
                                         <?php endforeach; ?>
                                     </select>
@@ -1780,18 +1799,18 @@ $renderItemOwnersCell = function($item, $usersMap) use ($editorShareAllowed) {
 
                             <div class="settings-row">
                                 <div class="settings-row-info">
-                                    <label class="settings-row-label" for="settingMaxCustomShares">单项目专属分享上限</label>
+                                    <label class="settings-row-label" for="settingMaxCustomShares"><?php echo htmlspecialchars(t('admin.settings.max_shares')); ?></label>
                                 </div>
                                 <div class="settings-row-control">
                                     <div class="linear-stepper-wrap">
-                                        <button type="button" class="stepper-btn stepper-btn-dec" onclick="stepNumberInput('settingMaxCustomShares', -1, 1, 99)" title="减少">
+                                        <button type="button" class="stepper-btn stepper-btn-dec" onclick="stepNumberInput('settingMaxCustomShares', -1, 1, 99)" title="<?php echo htmlspecialchars(t('admin.settings.dec')); ?>">
                                             <i class="ri-subtract-line"></i>
                                         </button>
                                         <div class="stepper-input-box">
                                             <input type="number" id="settingMaxCustomShares" name="max_custom_shares_per_item" min="1" max="99" value="<?php echo htmlspecialchars(Auth::getSetting('max_custom_shares_per_item', '5')); ?>" required onblur="clampStepperInput(this, 1, 99)">
-                                            <span class="stepper-unit">条</span>
+                                            <span class="stepper-unit"><?php echo htmlspecialchars(t('admin.settings.unit_links')); ?></span>
                                         </div>
-                                        <button type="button" class="stepper-btn stepper-btn-inc" onclick="stepNumberInput('settingMaxCustomShares', 1, 1, 99)" title="增加">
+                                        <button type="button" class="stepper-btn stepper-btn-inc" onclick="stepNumberInput('settingMaxCustomShares', 1, 1, 99)" title="<?php echo htmlspecialchars(t('admin.settings.inc')); ?>">
                                             <i class="ri-add-line"></i>
                                         </button>
                                     </div>
@@ -1800,10 +1819,10 @@ $renderItemOwnersCell = function($item, $usersMap) use ($editorShareAllowed) {
 
                             <div class="m-form-group" style="margin-bottom:0;margin-top:14px;padding-top:14px;border-top:1px solid var(--border);">
                                 <label class="m-label" for="settingSiteBaseUrl">
-                                    <span>站点访问地址</span>
-                                    <span class="opt-tag">邮件找回密码需填写完整 HTTPS 地址</span>
+                                    <span><?php echo htmlspecialchars(t('admin.settings.site_base_url')); ?></span>
+                                    <span class="opt-tag"><?php echo htmlspecialchars(t('admin.settings.site_base_url_tip')); ?></span>
                                 </label>
-                                <input type="text" id="settingSiteBaseUrl" name="site_base_url" class="m-input" value="<?php echo htmlspecialchars(Auth::getSetting('site_base_url', '')); ?>" placeholder="例如：https://proto.company.com" maxlength="200">
+                                <input type="text" id="settingSiteBaseUrl" name="site_base_url" class="m-input" value="<?php echo htmlspecialchars(Auth::getSetting('site_base_url', '')); ?>" placeholder="<?php echo htmlspecialchars(t('admin.settings.site_base_url_placeholder')); ?>" maxlength="200">
                             </div>
                         </div>
 
@@ -1819,12 +1838,12 @@ $renderItemOwnersCell = function($item, $usersMap) use ($editorShareAllowed) {
                         ?>
                         <div class="settings-section-card">
                             <div class="settings-section-header">
-                                <div class="settings-section-title"><i class="ri-user-shared-line"></i> 成员注册</div>
+                                <div class="settings-section-title"><i class="ri-user-shared-line"></i> <?php echo htmlspecialchars(t('admin.settings.reg_title')); ?></div>
                             </div>
 
                             <div class="settings-row">
                                 <div class="settings-row-info">
-                                    <label class="settings-row-label" for="settingVisitorReg">开放自主注册</label>
+                                    <label class="settings-row-label" for="settingVisitorReg"><?php echo htmlspecialchars(t('admin.settings.visitor_reg')); ?></label>
                                 </div>
                                 <div class="settings-row-control">
                                     <label class="linear-switch">
@@ -1836,39 +1855,39 @@ $renderItemOwnersCell = function($item, $usersMap) use ($editorShareAllowed) {
 
                             <div class="m-form-group" style="margin-bottom:0;margin-top:14px;">
                                 <label class="m-label" for="settingAllowedDomains">
-                                    <span>允许注册的邮箱域名</span>
-                                    <span class="opt-tag">选填。多个域名用逗号分隔；留空不限制</span>
+                                    <span><?php echo htmlspecialchars(t('admin.settings.allowed_domains')); ?></span>
+                                    <span class="opt-tag"><?php echo htmlspecialchars(t('admin.settings.allowed_domains_tip')); ?></span>
                                 </label>
-                                <input type="text" id="settingAllowedDomains" name="allowed_email_domains" class="m-input" value="<?php echo htmlspecialchars($allowedDomains); ?>" placeholder="例如：company.com, group.cn" maxlength="200" onblur="if(window.cleanEmailDomains) this.value = cleanEmailDomains(this.value)">
+                                <input type="text" id="settingAllowedDomains" name="allowed_email_domains" class="m-input" value="<?php echo htmlspecialchars($allowedDomains); ?>" placeholder="<?php echo htmlspecialchars(t('admin.settings.allowed_domains_placeholder')); ?>" maxlength="200" onblur="if(window.cleanEmailDomains) this.value = cleanEmailDomains(this.value)">
                             </div>
                         </div>
 
                         <!-- 卡片 4: 通知设置 -->
                         <div class="settings-section-card">
                             <div class="settings-section-header">
-                                <div class="settings-section-title"><i class="ri-notification-3-line"></i> 通知设置</div>
+                                <div class="settings-section-title"><i class="ri-notification-3-line"></i> <?php echo htmlspecialchars(t('admin.settings.notify_title')); ?></div>
                             </div>
 
                             <!-- 评审群通知 Webhook -->
                             <div class="m-form-group">
                                 <label class="m-label" for="settingGlobalWebhook">
-                                    <span>评审群通知</span>
-                                    <span class="opt-tag">选填</span>
+                                    <span><?php echo htmlspecialchars(t('admin.settings.global_webhook')); ?></span>
+                                    <span class="opt-tag"><?php echo htmlspecialchars(t('common.optional')); ?></span>
                                 </label>
                                 <div class="m-form-row">
-                                    <input type="text" id="settingGlobalWebhook" name="global_webhook_url" class="m-input" value="<?php echo htmlspecialchars($reviewWebhook); ?>" placeholder="企微 / 飞书 / 钉钉群机器人 Webhook 地址" maxlength="1000">
+                                    <input type="text" id="settingGlobalWebhook" name="global_webhook_url" class="m-input" value="<?php echo htmlspecialchars($reviewWebhook); ?>" placeholder="<?php echo htmlspecialchars(t('profile.webhook_placeholder')); ?>" maxlength="1000">
                                     <button type="button" class="btn-cancel btn-standard" onclick="testAnyWebhook('settingGlobalWebhook', this)">
-                                        <span class="duo-icon-slot" data-duo-icon="send"><i class="ri-send-plane-line duo-rest-icon"></i></span> 测试
+                                        <span class="duo-icon-slot" data-duo-icon="send"><i class="ri-send-plane-line duo-rest-icon"></i></span> <?php echo htmlspecialchars(t('common.test')); ?>
                                     </button>
                                 </div>
-                                <div style="font-size:11.5px;color:var(--text-3);margin-top:5px;line-height:1.4;">全站任意项目发布新版本时统一推送到此群，组织团队集中评审；钉钉/飞书安全设置勾选「自定义关键词」，填入：<strong>立象原型</strong></div>
+                                <div style="font-size:11.5px;color:var(--text-3);margin-top:5px;line-height:1.4;"><?php echo t('admin.settings.global_webhook_hint'); ?></div>
                             </div>
 
                             <!-- 新成员审批通知人 -->
                             <div class="m-form-group" style="position:relative;margin-bottom:0;margin-top:14px;padding-top:14px;border-top:1px solid var(--border);">
                                 <label class="m-label" id="adminRecipientsLabel">
-                                    <span>新成员审批通知人</span>
-                                    <span class="opt-tag">选填。留空不通知</span>
+                                    <span><?php echo htmlspecialchars(t('admin.settings.notify_admins')); ?></span>
+                                    <span class="opt-tag"><?php echo htmlspecialchars(t('admin.settings.notify_admins_tip')); ?></span>
                                 </label>
                                 
                                 <!-- 下拉触发选择框 -->
@@ -1882,10 +1901,10 @@ $renderItemOwnersCell = function($item, $usersMap) use ($editorShareAllowed) {
                                 <!-- 浮层下拉列表卡片 -->
                                 <div id="adminMultiSelectMenu" role="group" aria-labelledby="adminRecipientsLabel" style="display:none;position:absolute;left:0;right:0;top:calc(100% + 4px);z-index:120;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-md);box-shadow:0 6px 20px rgba(16,24,40,0.1);max-height:220px;overflow-y:auto;padding:6px;">
                                     <div class="mcp-dropdown-header">
-                                        <span>选择审批通知管理员</span>
+                                        <span><?php echo htmlspecialchars(t('admin.settings.select_notify_admins')); ?></span>
                                         <div class="mcp-dropdown-tools">
-                                            <button type="button" class="inline-action-btn is-primary" onclick="selectAllAdmins(true)">全选</button>
-                                            <button type="button" class="inline-action-btn" onclick="selectAllAdmins(false)">清空</button>
+                                            <button type="button" class="inline-action-btn is-primary" onclick="selectAllAdmins(true)"><?php echo htmlspecialchars(t('common.select_all')); ?></button>
+                                            <button type="button" class="inline-action-btn" onclick="selectAllAdmins(false)"><?php echo htmlspecialchars(t('common.clear')); ?></button>
                                         </div>
                                     </div>
                                     <div id="adminMultiSelectOptions" style="display:flex;flex-direction:column;gap:2px;padding-top:4px;">
@@ -1899,9 +1918,9 @@ $renderItemOwnersCell = function($item, $usersMap) use ($editorShareAllowed) {
                                             <span style="font-weight:600;color:var(--text-1);"><?php echo $uName; ?></span>
                                             <span class="admin-select-webhook-status" data-admin-webhook-status>
                                                 <?php if ($hasHook): ?>
-                                                    <i class="ri-robot-line" title="已配置个人机器人 Webhook" role="img" aria-label="已配置个人机器人 Webhook"></i>
+                                                    <i class="ri-robot-line" title="<?php echo htmlspecialchars(t('admin.users.bot_configured_tip')); ?>" role="img" aria-label="<?php echo htmlspecialchars(t('admin.users.bot_configured_tip')); ?>"></i>
                                                 <?php else: ?>
-                                                    未配置机器人
+                                                    <?php echo htmlspecialchars(t('admin.settings.no_bot')); ?>
                                                 <?php endif; ?>
                                             </span>
                                         </label>
@@ -1919,12 +1938,12 @@ $renderItemOwnersCell = function($item, $usersMap) use ($editorShareAllowed) {
                         ?>
                         <div class="settings-section-card">
                             <div class="settings-section-header">
-                                <div class="settings-section-title"><i class="ri-mail-settings-line"></i> 邮件服务</div>
+                                <div class="settings-section-title"><i class="ri-mail-settings-line"></i> <?php echo htmlspecialchars(t('admin.settings.mail_title')); ?></div>
                             </div>
 
                             <div class="settings-row" style="margin-bottom:14px;padding-top:0;padding-bottom:14px;">
                                 <div class="settings-row-info">
-                                    <label class="settings-row-label" for="settingSmtpEnabled">邮件找回密码</label>
+                                    <label class="settings-row-label" for="settingSmtpEnabled"><?php echo htmlspecialchars(t('admin.settings.mail_reset')); ?></label>
                                 </div>
                                 <div class="settings-row-control">
                                     <label class="linear-switch">
@@ -1936,7 +1955,7 @@ $renderItemOwnersCell = function($item, $usersMap) use ($editorShareAllowed) {
 
                             <div class="settings-grid-2">
                                 <div class="m-form-group" style="margin-bottom:0;">
-                                    <label class="m-label" for="settingSmtpPreset">服务商预设 <span class="opt-tag">自动填入服务器、端口和加密方式</span></label>
+                                    <label class="m-label" for="settingSmtpPreset"><?php echo htmlspecialchars(t('admin.settings.smtp_preset')); ?> <span class="opt-tag"><?php echo htmlspecialchars(t('admin.settings.smtp_preset_tip')); ?></span></label>
                                     <select id="settingSmtpPreset" name="smtp_preset" class="m-select-md" style="width:100%;" onchange="onSmtpPresetChange(this.value)">
                                         <?php foreach ($smtpPresets as $pKey => $pInfo): ?>
                                             <option value="<?php echo htmlspecialchars($pKey); ?>"
@@ -1950,39 +1969,39 @@ $renderItemOwnersCell = function($item, $usersMap) use ($editorShareAllowed) {
                                     </select>
                                 </div>
                                 <div class="m-form-group" style="margin-bottom:0;">
-                                    <label class="m-label" for="settingSmtpEncryption">加密方式</label>
+                                    <label class="m-label" for="settingSmtpEncryption"><?php echo htmlspecialchars(t('admin.settings.smtp_encryption')); ?></label>
                                     <select id="settingSmtpEncryption" name="smtp_encryption" class="m-select-md" style="width:100%;" onchange="onSmtpEncryptionChange(this.value)">
                                         <option value="ssl" <?php echo $smtpCfg['encryption'] === 'ssl' ? 'selected' : ''; ?>>SSL / TLS</option>
                                         <option value="tls" <?php echo $smtpCfg['encryption'] === 'tls' ? 'selected' : ''; ?>>STARTTLS</option>
-                                        <option value="none" <?php echo $smtpCfg['encryption'] === 'none' ? 'selected' : ''; ?>>无加密</option>
+                                        <option value="none" <?php echo $smtpCfg['encryption'] === 'none' ? 'selected' : ''; ?>><?php echo htmlspecialchars(t('admin.settings.smtp_enc_none')); ?></option>
                                     </select>
                                 </div>
                             </div>
 
                             <div class="settings-grid-2">
                                 <div class="m-form-group" style="margin-bottom:0;">
-                                    <label class="m-label" for="settingSmtpHost">SMTP 服务器</label>
-                                    <input type="text" id="settingSmtpHost" name="smtp_host" class="m-input" value="<?php echo htmlspecialchars($smtpCfg['host']); ?>" placeholder="例如：smtp.qiye.163.com" maxlength="120" oninput="syncSmtpPresetFromManual()">
+                                    <label class="m-label" for="settingSmtpHost"><?php echo htmlspecialchars(t('admin.settings.smtp_host')); ?></label>
+                                    <input type="text" id="settingSmtpHost" name="smtp_host" class="m-input" value="<?php echo htmlspecialchars($smtpCfg['host']); ?>" placeholder="<?php echo htmlspecialchars(t('admin.settings.smtp_host_placeholder')); ?>" maxlength="120" oninput="syncSmtpPresetFromManual()">
                                 </div>
                                 <div class="m-form-group" style="margin-bottom:0;">
-                                    <label class="m-label" for="settingSmtpPort">端口</label>
+                                    <label class="m-label" for="settingSmtpPort"><?php echo htmlspecialchars(t('admin.settings.smtp_port')); ?></label>
                                     <input type="number" id="settingSmtpPort" name="smtp_port" class="m-input" min="1" max="65535" value="<?php echo (int)$smtpCfg['port']; ?>" placeholder="465" oninput="syncSmtpPresetFromManual()">
                                 </div>
                             </div>
 
                             <div class="settings-grid-2">
                                 <div class="m-form-group" style="margin-bottom:0;">
-                                    <label class="m-label" for="settingSmtpUser">发信邮箱</label>
-                                    <input type="email" id="settingSmtpUser" name="smtp_user" class="m-input" value="<?php echo htmlspecialchars($smtpCfg['user']); ?>" placeholder="例如：noreply@company.com" maxlength="100" autocomplete="off">
+                                    <label class="m-label" for="settingSmtpUser"><?php echo htmlspecialchars(t('admin.settings.smtp_user')); ?></label>
+                                    <input type="email" id="settingSmtpUser" name="smtp_user" class="m-input" value="<?php echo htmlspecialchars($smtpCfg['user']); ?>" placeholder="<?php echo htmlspecialchars(t('admin.settings.smtp_user_placeholder')); ?>" maxlength="100" autocomplete="off">
                                 </div>
                                 <div class="m-form-group" style="margin-bottom:0;">
                                     <label class="m-label" for="settingSmtpPass" style="display:flex;align-items:center;justify-content:space-between;">
-                                        <span>授权码 / 密码 <span class="opt-tag" id="smtpPassBadge"><?php echo $smtpCfg['has_pass'] ? '已配置' : '请使用客户端授权码'; ?></span></span>
-                                        <button type="button" id="btnClearSmtpPass" class="inline-action-btn is-compact" onclick="clearSavedSmtpPass()" style="<?php echo $smtpCfg['has_pass'] ? '' : 'display:none;'; ?>">清除</button>
+                                        <span><?php echo htmlspecialchars(t('admin.settings.smtp_pass')); ?> <span class="opt-tag" id="smtpPassBadge"><?php echo $smtpCfg['has_pass'] ? htmlspecialchars(t('common.configured')) : htmlspecialchars(t('admin.settings.smtp_pass_unset_badge')); ?></span></span>
+                                        <button type="button" id="btnClearSmtpPass" class="inline-action-btn is-compact" onclick="clearSavedSmtpPass()" style="<?php echo $smtpCfg['has_pass'] ? '' : 'display:none;'; ?>"><?php echo htmlspecialchars(t('common.clear')); ?></button>
                                     </label>
                                     <div class="pwd-input-wrap">
-                                        <input type="password" id="settingSmtpPass" name="smtp_pass" class="m-input" value="" data-has-pass="<?php echo $smtpCfg['has_pass'] ? '1' : '0'; ?>" placeholder="<?php echo $smtpCfg['has_pass'] ? '已配置，留空保持不变' : '输入客户端授权码'; ?>" maxlength="128" autocomplete="new-password">
-                                        <button type="button" class="btn-eye-toggle" onclick="togglePasswordVisibility('settingSmtpPass', this)" title="显示/隐藏授权码">
+                                        <input type="password" id="settingSmtpPass" name="smtp_pass" class="m-input" value="" data-has-pass="<?php echo $smtpCfg['has_pass'] ? '1' : '0'; ?>" placeholder="<?php echo $smtpCfg['has_pass'] ? htmlspecialchars(t('admin.settings.smtp_pass_set_placeholder')) : htmlspecialchars(t('admin.settings.smtp_pass_unset_placeholder')); ?>" maxlength="128" autocomplete="new-password">
+                                        <button type="button" class="btn-eye-toggle" onclick="togglePasswordVisibility('settingSmtpPass', this)" title="<?php echo htmlspecialchars(t('admin.settings.smtp_pass_toggle_tip')); ?>">
                                             <i class="ri-eye-line"></i>
                                         </button>
                                     </div>
@@ -1991,21 +2010,21 @@ $renderItemOwnersCell = function($item, $usersMap) use ($editorShareAllowed) {
 
                             <div class="m-form-group">
                                 <label class="m-label" for="settingSmtpFromName">
-                                    <span>发件人名称</span>
-                                    <span class="opt-tag">选填</span>
+                                    <span><?php echo htmlspecialchars(t('admin.settings.smtp_from_name')); ?></span>
+                                    <span class="opt-tag"><?php echo htmlspecialchars(t('common.optional')); ?></span>
                                 </label>
-                                <input type="text" id="settingSmtpFromName" name="smtp_from_name" class="m-input" value="<?php echo htmlspecialchars($smtpCfg['from_name']); ?>" placeholder="默认使用当前站点名称" maxlength="40">
+                                <input type="text" id="settingSmtpFromName" name="smtp_from_name" class="m-input" value="<?php echo htmlspecialchars($smtpCfg['from_name']); ?>" placeholder="<?php echo htmlspecialchars(t('admin.settings.smtp_from_placeholder')); ?>" maxlength="40">
                             </div>
 
                             <div class="m-form-group" style="margin-bottom:0;margin-top:14px;padding-top:14px;border-top:1px solid var(--border);">
                                 <label class="m-label" for="smtpTestEmail">
-                                    <span>测试发信</span>
-                                    <span class="opt-tag">填写收件邮箱验证配置</span>
+                                    <span><?php echo htmlspecialchars(t('admin.settings.smtp_test')); ?></span>
+                                    <span class="opt-tag"><?php echo htmlspecialchars(t('admin.settings.smtp_test_tip')); ?></span>
                                 </label>
                                 <div class="m-form-row">
-                                    <input type="email" id="smtpTestEmail" class="m-input" value="<?php echo $curAdminEmail; ?>" placeholder="收件测试邮箱" maxlength="100" data-error-target="smtpTestEmailError" aria-errormessage="smtpTestEmailError">
+                                    <input type="email" id="smtpTestEmail" class="m-input" value="<?php echo $curAdminEmail; ?>" placeholder="<?php echo htmlspecialchars(t('admin.settings.smtp_test_placeholder')); ?>" maxlength="100" data-error-target="smtpTestEmailError" aria-errormessage="smtpTestEmailError">
                                     <button type="button" class="btn-cancel btn-standard" onclick="handleTestSmtp(this)">
-                                        <span class="duo-icon-slot" data-duo-icon="send"><i class="ri-send-plane-line duo-rest-icon"></i></span> 测试
+                                        <span class="duo-icon-slot" data-duo-icon="send"><i class="ri-send-plane-line duo-rest-icon"></i></span> <?php echo htmlspecialchars(t('common.test')); ?>
                                     </button>
                                 </div>
                                 <div class="field-error-tip" id="smtpTestEmailError" role="alert"></div>
@@ -2018,12 +2037,12 @@ $renderItemOwnersCell = function($item, $usersMap) use ($editorShareAllowed) {
                 <div id="panel-logs" class="admin-panel">
                     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
                         <div class="console-subtab-group log-subtab-group">
-                            <button type="button" id="subtab-btn-login" class="console-subtab-btn log-subtab-btn active" onclick="switchLogSubTab('login')">登录日志</button>
-                            <button type="button" id="subtab-btn-access" class="console-subtab-btn log-subtab-btn" onclick="switchLogSubTab('access')">访问日志</button>
+                            <button type="button" id="subtab-btn-login" class="console-subtab-btn log-subtab-btn active" onclick="switchLogSubTab('login')"><?php echo htmlspecialchars(t('admin.logs.tab_login')); ?></button>
+                            <button type="button" id="subtab-btn-access" class="console-subtab-btn log-subtab-btn" onclick="switchLogSubTab('access')"><?php echo htmlspecialchars(t('admin.logs.tab_access')); ?></button>
                         </div>
                         <div style="display:flex;gap:8px;align-items:center;">
-                            <button type="button" class="btn-cancel btn-md" onclick="loadLogsData()" title="刷新日志数据"><span class="duo-icon-slot" data-duo-icon="rotate-cw"><i class="ri-refresh-line duo-rest-icon"></i></span> 刷新</button>
-                            <button type="button" class="btn-cancel btn-md" onclick="handleClearLogs()" style="color:var(--danger)" title="清空全部系统日志"><span class="duo-icon-slot" data-duo-icon="trash"><i class="ri-delete-bin-line duo-rest-icon"></i></span> 清空日志</button>
+                            <button type="button" class="btn-cancel btn-md" onclick="loadLogsData()" title="<?php echo htmlspecialchars(t('admin.logs.refresh_tip')); ?>"><span class="duo-icon-slot" data-duo-icon="rotate-cw"><i class="ri-refresh-line duo-rest-icon"></i></span> <?php echo htmlspecialchars(t('common.refresh')); ?></button>
+                            <button type="button" class="btn-cancel btn-md" onclick="handleClearLogs()" style="color:var(--danger)" title="<?php echo htmlspecialchars(t('admin.logs.clear_tip')); ?>"><span class="duo-icon-slot" data-duo-icon="trash"><i class="ri-delete-bin-line duo-rest-icon"></i></span> <?php echo htmlspecialchars(t('admin.logs.clear_btn')); ?></button>
                         </div>
                     </div>
 
@@ -2032,12 +2051,12 @@ $renderItemOwnersCell = function($item, $usersMap) use ($editorShareAllowed) {
                         <table style="width:100%;border-collapse:collapse;font-size:13px;">
                             <thead>
                                 <tr style="background:var(--canvas);text-align:left;color:var(--text-2);border-bottom:1px solid var(--border);">
-                                    <th style="padding:9px 12px;width:150px;">登录时间</th>
-                                    <th style="padding:9px 12px;width:110px;">操作账号</th>
-                                    <th style="padding:9px 12px;width:90px;">状态</th>
-                                    <th style="padding:9px 12px;width:130px;">客户端 IP</th>
-                                    <th style="padding:9px 12px;width:150px;">设备 / 浏览器</th>
-                                    <th style="padding:9px 12px;">说明</th>
+                                    <th style="padding:9px 12px;width:150px;"><?php echo htmlspecialchars(t('admin.logs.col_login_time')); ?></th>
+                                    <th style="padding:9px 12px;width:110px;"><?php echo htmlspecialchars(t('admin.logs.col_account')); ?></th>
+                                    <th style="padding:9px 12px;width:90px;"><?php echo htmlspecialchars(t('admin.logs.col_status')); ?></th>
+                                    <th style="padding:9px 12px;width:130px;"><?php echo htmlspecialchars(t('admin.logs.col_ip')); ?></th>
+                                    <th style="padding:9px 12px;width:150px;"><?php echo htmlspecialchars(t('admin.logs.col_device')); ?></th>
+                                    <th style="padding:9px 12px;"><?php echo htmlspecialchars(t('admin.logs.col_desc')); ?></th>
                                 </tr>
                             </thead>
                             <tbody id="loginLogsTableBody">
@@ -2054,18 +2073,18 @@ $renderItemOwnersCell = function($item, $usersMap) use ($editorShareAllowed) {
                                             ?></td>
                                             <td style="padding:9px 12px;">
                                                 <?php if ((int)$l['status'] === 1): ?>
-                                                    <span class="m-badge-tag tag-success">成功</span>
+                                                    <span class="m-badge-tag tag-success"><?php echo htmlspecialchars(t('admin.logs.login_ok')); ?></span>
                                                 <?php else: ?>
-                                                    <span class="m-badge-tag tag-danger">失败</span>
+                                                    <span class="m-badge-tag tag-danger"><?php echo htmlspecialchars(t('admin.logs.login_fail')); ?></span>
                                                 <?php endif; ?>
                                             </td>
                                             <td style="padding:9px 12px;font-family:ui-monospace,monospace;font-size:12px;color:var(--text-2);"><?php echo htmlspecialchars($l['ip']); ?></td>
-                                            <td style="padding:9px 12px;color:var(--text-2);font-size:12.5px;" title="<?php echo htmlspecialchars($l['user_agent'] ?? ''); ?>"><?php echo htmlspecialchars($l['device'] ?: '未知设备'); ?></td>
+                                            <td style="padding:9px 12px;color:var(--text-2);font-size:12.5px;" title="<?php echo htmlspecialchars($l['user_agent'] ?? ''); ?>"><?php echo htmlspecialchars($l['device'] ?: t('common.unknown_device')); ?></td>
                                             <td style="padding:9px 12px;color:var(--text-3);font-size:12.5px;"><?php echo htmlspecialchars($l['message'] ?? ''); ?></td>
                                         </tr>
                                     <?php endforeach; ?>
                                 <?php else: ?>
-                                    <tr><td colspan="6" style="padding:28px;text-align:center;color:var(--text-3);">暂无登录日志记录</td></tr>
+                                    <tr><td colspan="6" style="padding:28px;text-align:center;color:var(--text-3);"><?php echo htmlspecialchars(t('admin.logs.login_empty')); ?></td></tr>
                                 <?php endif; ?>
                             </tbody>
                         </table>
@@ -2076,12 +2095,12 @@ $renderItemOwnersCell = function($item, $usersMap) use ($editorShareAllowed) {
                         <table style="width:100%;border-collapse:collapse;font-size:13px;">
                             <thead>
                                 <tr style="background:var(--canvas);text-align:left;color:var(--text-2);border-bottom:1px solid var(--border);">
-                                    <th style="padding:9px 12px;width:150px;">访问时间</th>
-                                    <th style="padding:9px 12px;">原型项目</th>
-                                    <th style="padding:9px 12px;width:100px;">版本</th>
-                                    <th style="padding:9px 12px;width:100px;">渠道</th>
-                                    <th style="padding:9px 12px;width:130px;">访客 IP</th>
-                                    <th style="padding:9px 12px;width:160px;">设备 / 浏览器</th>
+                                    <th style="padding:9px 12px;width:150px;"><?php echo htmlspecialchars(t('admin.logs.col_access_time')); ?></th>
+                                    <th style="padding:9px 12px;"><?php echo htmlspecialchars(t('admin.logs.col_proto_project')); ?></th>
+                                    <th style="padding:9px 12px;width:100px;"><?php echo htmlspecialchars(t('admin.logs.col_version')); ?></th>
+                                    <th style="padding:9px 12px;width:100px;"><?php echo htmlspecialchars(t('admin.logs.col_channel')); ?></th>
+                                    <th style="padding:9px 12px;width:130px;"><?php echo htmlspecialchars(t('admin.logs.col_visitor_ip')); ?></th>
+                                    <th style="padding:9px 12px;width:160px;"><?php echo htmlspecialchars(t('admin.logs.col_device')); ?></th>
                                 </tr>
                             </thead>
                             <tbody id="accessLogsTableBody">
@@ -2096,17 +2115,17 @@ $renderItemOwnersCell = function($item, $usersMap) use ($editorShareAllowed) {
                                             <td style="padding:9px 12px;color:var(--primary);font-weight:500;"><?php echo htmlspecialchars($al['version_name'] ?: '-'); ?></td>
                                             <td style="padding:9px 12px;">
                                                 <?php if ($al['access_type'] === 'share'): ?>
-                                                    <span class="badge-tag" style="color:var(--primary);background:var(--primary-subtle);border:1px solid var(--primary-border);">独立短链</span>
+                                                    <span class="badge-tag" style="color:var(--primary);background:var(--primary-subtle);border:1px solid var(--primary-border);"><?php echo htmlspecialchars(t('admin.logs.channel_share')); ?></span>
                                                 <?php else: ?>
-                                                    <span class="badge-tag" style="color:var(--text-2);background:var(--canvas);border:1px solid var(--border);">工作台</span>
+                                                    <span class="badge-tag" style="color:var(--text-2);background:var(--canvas);border:1px solid var(--border);"><?php echo htmlspecialchars(t('admin.logs.channel_workspace')); ?></span>
                                                 <?php endif; ?>
                                             </td>
                                             <td style="padding:9px 12px;font-family:ui-monospace,monospace;font-size:12px;color:var(--text-2);"><?php echo htmlspecialchars($al['ip']); ?></td>
-                                            <td style="padding:9px 12px;color:var(--text-2);font-size:12.5px;" title="<?php echo htmlspecialchars($al['user_agent'] ?? ''); ?>"><?php echo htmlspecialchars($al['device'] ?: '未知设备'); ?></td>
+                                            <td style="padding:9px 12px;color:var(--text-2);font-size:12.5px;" title="<?php echo htmlspecialchars($al['user_agent'] ?? ''); ?>"><?php echo htmlspecialchars($al['device'] ?: t('common.unknown_device')); ?></td>
                                         </tr>
                                     <?php endforeach; ?>
                                 <?php else: ?>
-                                    <tr><td colspan="6" style="padding:28px;text-align:center;color:var(--text-3);">暂无访问日志记录</td></tr>
+                                    <tr><td colspan="6" style="padding:28px;text-align:center;color:var(--text-3);"><?php echo htmlspecialchars(t('admin.logs.access_empty')); ?></td></tr>
                                 <?php endif; ?>
                             </tbody>
                         </table>
@@ -2127,33 +2146,33 @@ $renderItemOwnersCell = function($item, $usersMap) use ($editorShareAllowed) {
     <div class="modal-dialog-box modal-sm" style="padding:22px 24px;">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
             <div style="font-size:15px;font-weight:600;color:var(--text-1);display:flex;align-items:center;gap:6px;">
-                <i class="ri-key-2-line" style="color:var(--primary);"></i> 移交主管理员权限
+                <i class="ri-key-2-line" style="color:var(--primary);"></i> <?php echo htmlspecialchars(t('admin.transfer.title')); ?>
             </div>
-            <button type="button" onclick="closeModal('transferOwnerModal')" class="close-x" title="关闭"><i class="ri-close-line"></i></button>
+            <button type="button" onclick="closeModal('transferOwnerModal')" class="close-x" title="<?php echo htmlspecialchars(t('common.close')); ?>"><i class="ri-close-line"></i></button>
         </div>
         <div class="m-alert-tip is-warning">
             <i class="ri-alert-line" style="vertical-align:middle;margin-right:2px;font-size:15px;flex-shrink:0;"></i>
-            <span>移交后，接收人将成为主管理员，您将转为管理员。</span>
+            <span><?php echo htmlspecialchars(t('admin.transfer.warn')); ?></span>
         </div>
         <form onsubmit="handleDoTransferOwner(event)" novalidate>
             <input type="hidden" id="transferTargetUserId" value="0">
             <div class="m-form-group">
-                <label class="m-label">接收人</label>
+                <label class="m-label"><?php echo htmlspecialchars(t('admin.transfer.recipient')); ?></label>
                 <div id="transferTargetUserName" style="font-weight:600;font-size:13.5px;color:var(--primary);padding:8px 0;"></div>
             </div>
             <div class="m-form-group">
-                <label class="m-label" for="transferConfirmPwd">当前密码 <span class="req-star">*</span></label>
+                <label class="m-label" for="transferConfirmPwd"><?php echo htmlspecialchars(t('profile.old_password')); ?> <span class="req-star">*</span></label>
                 <div class="pwd-input-wrap">
-                    <input type="password" id="transferConfirmPwd" class="m-input" placeholder="输入您当前的登录密码以确认移交" required maxlength="64" data-error-target="transferConfirmPwdError" aria-errormessage="transferConfirmPwdError">
-                    <button type="button" class="btn-eye-toggle" onclick="togglePasswordVisibility('transferConfirmPwd', this)" title="显示/隐藏密码">
+                    <input type="password" id="transferConfirmPwd" class="m-input" placeholder="<?php echo htmlspecialchars(t('admin.transfer.pwd_placeholder')); ?>" required maxlength="64" data-error-target="transferConfirmPwdError" aria-errormessage="transferConfirmPwdError">
+                    <button type="button" class="btn-eye-toggle" onclick="togglePasswordVisibility('transferConfirmPwd', this)" title="<?php echo htmlspecialchars(t('auth.toggle_password')); ?>">
                         <i class="ri-eye-line"></i>
                     </button>
                 </div>
                 <div class="field-error-tip" id="transferConfirmPwdError" role="alert"></div>
             </div>
             <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:18px;">
-                <button type="button" class="btn-cancel btn-standard" onclick="closeModal('transferOwnerModal')">取消</button>
-                <button type="submit" class="btn-danger btn-standard" id="btnTransferSubmit">确认移交</button>
+                <button type="button" class="btn-cancel btn-standard" onclick="closeModal('transferOwnerModal')"><?php echo htmlspecialchars(t('common.cancel')); ?></button>
+                <button type="submit" class="btn-danger btn-standard" id="btnTransferSubmit"><?php echo htmlspecialchars(t('admin.transfer.submit')); ?></button>
             </div>
         </form>
     </div>
@@ -2163,29 +2182,29 @@ $renderItemOwnersCell = function($item, $usersMap) use ($editorShareAllowed) {
 <div id="userHandoverModal" class="custom-modal" style="display:none;">
     <div class="modal-dialog-box modal-sm">
         <div class="modal-head">
-            <h4>工作交接</h4>
-            <button type="button" class="close-x" onclick="closeModal('userHandoverModal')" title="关闭"><i class="ri-close-line"></i></button>
+            <h4><?php echo htmlspecialchars(t('admin.handover.title')); ?></h4>
+            <button type="button" class="close-x" onclick="closeModal('userHandoverModal')" title="<?php echo htmlspecialchars(t('common.close')); ?>"><i class="ri-close-line"></i></button>
         </div>
         <form onsubmit="handleUserHandover(event)">
             <input type="hidden" id="handoverFromUserId" value="0">
             <div style="font-size:13px;color:var(--text-2);line-height:1.5;margin-bottom:14px;" id="handoverDescText">
-                将负责的项目交接给接管人。
+                <?php echo htmlspecialchars(t('admin.handover.default_desc')); ?>
             </div>
             <div class="m-form-group">
-                <label class="m-label">接管成员 <span class="req-star">*</span></label>
+                <label class="m-label"><?php echo htmlspecialchars(t('admin.handover.target_label')); ?> <span class="req-star">*</span></label>
                 <select id="handoverToUserId" class="m-input" required>
-                    <option value="">-- 选择接管成员 --</option>
+                    <option value=""><?php echo htmlspecialchars(t('admin.handover.select_target')); ?></option>
                 </select>
             </div>
             <div class="m-form-group" style="margin-top:14px;">
                 <label style="display:inline-flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;color:var(--text-1);">
                     <input type="checkbox" id="handoverDeactivateFrom" style="accent-color:var(--primary);width:15px;height:15px;cursor:pointer;">
-                    <span>同时停用原成员账号</span>
+                    <span><?php echo htmlspecialchars(t('admin.handover.deactivate_src')); ?></span>
                 </label>
             </div>
             <div class="m-modal-footer">
-                <button type="button" class="btn-cancel btn-standard" onclick="closeModal('userHandoverModal')">取消</button>
-                <button type="submit" class="btn-primary btn-standard" id="btnHandoverSubmit">确认交接</button>
+                <button type="button" class="btn-cancel btn-standard" onclick="closeModal('userHandoverModal')"><?php echo htmlspecialchars(t('common.cancel')); ?></button>
+                <button type="submit" class="btn-primary btn-standard" id="btnHandoverSubmit"><?php echo htmlspecialchars(t('admin.handover.submit')); ?></button>
             </div>
         </form>
     </div>
@@ -2196,20 +2215,20 @@ $renderItemOwnersCell = function($item, $usersMap) use ($editorShareAllowed) {
 <div id="addUserModal" class="custom-modal" style="display:none;" role="dialog" aria-modal="true" aria-labelledby="addUserModalTitle">
     <div class="modal-dialog-box modal-lg">
         <div class="modal-head">
-            <h4 id="addUserModalTitle">添加成员</h4>
-            <button type="button" class="close-x" onclick="closeModal('addUserModal')" title="关闭"><i class="ri-close-line"></i></button>
+            <h4 id="addUserModalTitle"><?php echo htmlspecialchars(t('admin.users.add_title')); ?></h4>
+            <button type="button" class="close-x" onclick="closeModal('addUserModal')" title="<?php echo htmlspecialchars(t('common.close')); ?>"><i class="ri-close-line"></i></button>
         </div>
         <form onsubmit="handleCreateUser(event)" novalidate>
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px 14px;">
                 <div>
-                    <label class="m-label" for="newName">真实姓名 <span class="req-star">*</span></label>
-                    <input type="text" id="newName" class="m-input" placeholder="例如：李明" required autocomplete="off" maxlength="20" data-error-target="newNameError" aria-errormessage="newNameError">
+                    <label class="m-label" for="newName"><?php echo htmlspecialchars(t('auth.real_name')); ?> <span class="req-star">*</span></label>
+                    <input type="text" id="newName" class="m-input" placeholder="<?php echo htmlspecialchars(t('auth.real_name_example')); ?>" required autocomplete="off" maxlength="20" data-error-target="newNameError" aria-errormessage="newNameError">
                     <div class="field-error-tip" id="newNameError" role="alert"></div>
                 </div>
                 <div>
-                    <label class="m-label" for="newEmail">工作邮箱 <span class="req-star">*</span></label>
+                    <label class="m-label" for="newEmail"><?php echo htmlspecialchars(t('auth.work_email')); ?> <span class="req-star">*</span></label>
                     <div style="position:relative;display:flex;align-items:center;">
-                        <input type="text" id="newEmail" class="m-input" data-fixed-domain="<?php echo htmlspecialchars($fixedEmailDomain); ?>" placeholder="<?php echo $fixedEmailDomain ? '邮箱名' : '如：name@company.com'; ?>" required maxlength="100" data-error-target="newEmailError" aria-errormessage="newEmailError" style="flex:1;<?php echo $fixedEmailDomain ? ('padding-right:' . (mb_strlen($fixedEmailDomain)*8 + 32) . 'px;') : ''; ?>" oninput="handleEmailInputWithDomain(this, 'newUserDomainBadge')" autocomplete="off">
+                        <input type="text" id="newEmail" class="m-input" data-fixed-domain="<?php echo htmlspecialchars($fixedEmailDomain); ?>" placeholder="<?php echo $fixedEmailDomain ? htmlspecialchars(t('auth.email_prefix_placeholder')) : htmlspecialchars(t('auth.email_example_placeholder')); ?>" required maxlength="100" data-error-target="newEmailError" aria-errormessage="newEmailError" style="flex:1;<?php echo $fixedEmailDomain ? ('padding-right:' . (mb_strlen($fixedEmailDomain)*8 + 32) . 'px;') : ''; ?>" oninput="handleEmailInputWithDomain(this, 'newUserDomainBadge')" autocomplete="off">
                         <?php if ($fixedEmailDomain): ?>
                             <span id="newUserDomainBadge" class="m-domain-badge">@<?php echo htmlspecialchars($fixedEmailDomain); ?></span>
                         <?php endif; ?>
@@ -2218,41 +2237,41 @@ $renderItemOwnersCell = function($item, $usersMap) use ($editorShareAllowed) {
                 </div>
                 <div>
                     <div class="field-label-row">
-                        <label class="m-label" for="newPassword">初始密码 <span class="req-star">*</span></label>
+                        <label class="m-label" for="newPassword"><?php echo htmlspecialchars(t('admin.users.init_password')); ?> <span class="req-star">*</span></label>
                         <span class="password-strength" id="newPasswordStrength" role="status"></span>
                     </div>
-                    <input type="password" id="newPassword" class="m-input" placeholder="至少 6 个字符" autocomplete="new-password" required data-password-strength="newPasswordStrength" data-error-target="newPasswordError" aria-describedby="newPasswordStrength" aria-errormessage="newPasswordError">
+                    <input type="password" id="newPassword" class="m-input" placeholder="<?php echo htmlspecialchars(t('auth.password_min_placeholder')); ?>" autocomplete="new-password" required data-password-strength="newPasswordStrength" data-error-target="newPasswordError" aria-describedby="newPasswordStrength" aria-errormessage="newPasswordError">
                     <div class="field-error-tip" id="newPasswordError" role="alert"></div>
                 </div>
                 <div>
-                    <label class="m-label" for="newRole">角色</label>
+                    <label class="m-label" for="newRole"><?php echo htmlspecialchars(t('admin.users.role_label')); ?></label>
                     <select id="newRole" class="m-input">
-                        <option value="viewer">审阅人</option>
-                        <option value="editor">协作者</option>
-                        <option value="admin">管理员</option>
+                        <option value="viewer"><?php echo htmlspecialchars(t('common.role.viewer')); ?></option>
+                        <option value="editor"><?php echo htmlspecialchars(t('common.role.editor')); ?></option>
+                        <option value="admin"><?php echo htmlspecialchars(t('common.role.admin')); ?></option>
                     </select>
                 </div>
                 <div style="grid-column: span 2;">
-                    <label class="m-label" for="newDepartment">部门或职务 <span class="opt-tag">选填</span></label>
-                    <input type="text" id="newDepartment" class="m-input" placeholder="如：研发部 · 前端工程师" maxlength="30">
+                    <label class="m-label" for="newDepartment"><?php echo htmlspecialchars(t('auth.department')); ?> <span class="opt-tag"><?php echo htmlspecialchars(t('common.optional')); ?></span></label>
+                    <input type="text" id="newDepartment" class="m-input" placeholder="<?php echo htmlspecialchars(t('auth.department_placeholder')); ?>" maxlength="30">
                 </div>
                 <div style="grid-column: span 2;">
                     <label class="m-label" for="newWebhookUrl">
-                        <span>个人通知</span>
-                        <span class="opt-tag">选填</span>
+                        <span><?php echo htmlspecialchars(t('profile.my_webhook')); ?></span>
+                        <span class="opt-tag"><?php echo htmlspecialchars(t('common.optional')); ?></span>
                     </label>
                     <div class="m-form-row">
-                        <input type="text" id="newWebhookUrl" class="m-input" placeholder="企微 / 飞书 / 钉钉群机器人 Webhook 地址" style="flex:1" maxlength="1000">
+                        <input type="text" id="newWebhookUrl" class="m-input" placeholder="<?php echo htmlspecialchars(t('profile.webhook_placeholder')); ?>" style="flex:1" maxlength="1000">
                         <button type="button" class="btn-cancel btn-standard" onclick="testAnyWebhook('newWebhookUrl', this)">
-                            <span class="duo-icon-slot" data-duo-icon="send"><i class="ri-send-plane-line duo-rest-icon"></i></span> 测试
+                            <span class="duo-icon-slot" data-duo-icon="send"><i class="ri-send-plane-line duo-rest-icon"></i></span> <?php echo htmlspecialchars(t('common.test')); ?>
                         </button>
                     </div>
-                    <div style="font-size:11px;color:var(--text-3);margin-top:4px;line-height:1.4;">接收与该成员相关的批注回复与解决通知；钉钉/飞书安全设置勾选「自定义关键词」，填入：<strong>立象原型</strong></div>
+                    <div style="font-size:11px;color:var(--text-3);margin-top:4px;line-height:1.4;"><?php echo t('admin.users.personal_webhook_hint'); ?></div>
                 </div>
             </div>
             <div class="m-modal-footer">
-                <button type="button" class="btn-cancel btn-standard" onclick="closeModal('addUserModal')">取消</button>
-                <button type="submit" class="btn-primary btn-standard" id="btnUserAddSubmit">添加成员</button>
+                <button type="button" class="btn-cancel btn-standard" onclick="closeModal('addUserModal')"><?php echo htmlspecialchars(t('common.cancel')); ?></button>
+                <button type="submit" class="btn-primary btn-standard" id="btnUserAddSubmit"><?php echo htmlspecialchars(t('admin.users.add_btn')); ?></button>
             </div>
         </form>
     </div>
@@ -2263,68 +2282,68 @@ $renderItemOwnersCell = function($item, $usersMap) use ($editorShareAllowed) {
     <div class="modal-dialog-box modal-lg">
         <div class="modal-head">
             <div style="display:flex;align-items:center;min-width:0;">
-                <h4 id="editUserModalTitle" style="margin:0;">编辑成员</h4>
+                <h4 id="editUserModalTitle" style="margin:0;"><?php echo htmlspecialchars(t('admin.users.edit_title')); ?></h4>
                 <span id="editUserTargetName" style="font-size:12px;color:var(--text-2);background:var(--canvas);border:1px solid var(--border);padding:2px 8px;border-radius:4px;margin-left:8px;max-width:240px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"></span>
             </div>
-            <button type="button" class="close-x" onclick="closeModal('editUserModal')" title="关闭"><i class="ri-close-line"></i></button>
+            <button type="button" class="close-x" onclick="closeModal('editUserModal')" title="<?php echo htmlspecialchars(t('common.close')); ?>"><i class="ri-close-line"></i></button>
         </div>
         <form onsubmit="handleUpdateUser(event)" novalidate>
             <input type="hidden" id="editUserId" value="0">
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px 14px;">
                 <div>
-                    <label class="m-label" for="editUserName">真实姓名 <span class="req-star">*</span></label>
-                    <input type="text" id="editUserName" class="m-input" placeholder="输入真实姓名" required autocomplete="off" maxlength="20" data-error-target="editUserNameError" aria-errormessage="editUserNameError">
+                    <label class="m-label" for="editUserName"><?php echo htmlspecialchars(t('auth.real_name')); ?> <span class="req-star">*</span></label>
+                    <input type="text" id="editUserName" class="m-input" placeholder="<?php echo htmlspecialchars(t('auth.real_name_example')); ?>" required autocomplete="off" maxlength="20" data-error-target="editUserNameError" aria-errormessage="editUserNameError">
                     <div class="field-error-tip" id="editUserNameError" role="alert"></div>
                 </div>
                 <div>
-                    <label class="m-label" for="editUserEmail">工作邮箱 <span class="req-star">*</span></label>
-                    <input type="email" id="editUserEmail" class="m-input" placeholder="输入工作邮箱" required autocomplete="off" maxlength="100" data-error-target="editUserEmailError" aria-errormessage="editUserEmailError">
+                    <label class="m-label" for="editUserEmail"><?php echo htmlspecialchars(t('auth.work_email')); ?> <span class="req-star">*</span></label>
+                    <input type="email" id="editUserEmail" class="m-input" placeholder="<?php echo htmlspecialchars(t('auth.email_example_placeholder')); ?>" required autocomplete="off" maxlength="100" data-error-target="editUserEmailError" aria-errormessage="editUserEmailError">
                     <div class="field-error-tip" id="editUserEmailError" role="alert"></div>
                 </div>
                 <div>
                     <div class="field-label-row">
-                        <label class="m-label" for="editUserPassword">新密码 <span class="opt-tag">选填</span></label>
+                        <label class="m-label" for="editUserPassword"><?php echo htmlspecialchars(t('auth.new_password')); ?> <span class="opt-tag"><?php echo htmlspecialchars(t('common.optional')); ?></span></label>
                         <span class="password-strength" id="editUserPasswordStrength" role="status"></span>
                     </div>
-                    <input type="password" id="editUserPassword" class="m-input" placeholder="留空则不修改密码" autocomplete="new-password" data-password-strength="editUserPasswordStrength" data-error-target="editUserPasswordError" aria-describedby="editUserPasswordStrength" aria-errormessage="editUserPasswordError">
+                    <input type="password" id="editUserPassword" class="m-input" placeholder="<?php echo htmlspecialchars(t('admin.users.keep_pwd_placeholder')); ?>" autocomplete="new-password" data-password-strength="editUserPasswordStrength" data-error-target="editUserPasswordError" aria-describedby="editUserPasswordStrength" aria-errormessage="editUserPasswordError">
                     <div class="field-error-tip" id="editUserPasswordError" role="alert"></div>
                 </div>
                 <div>
-                    <label class="m-label" for="editUserRole">角色</label>
+                    <label class="m-label" for="editUserRole"><?php echo htmlspecialchars(t('admin.users.role_label')); ?></label>
                     <select id="editUserRole" class="m-input">
-                        <option value="viewer">审阅人</option>
-                        <option value="editor">协作者</option>
-                        <option value="admin">管理员</option>
+                        <option value="viewer"><?php echo htmlspecialchars(t('common.role.viewer')); ?></option>
+                        <option value="editor"><?php echo htmlspecialchars(t('common.role.editor')); ?></option>
+                        <option value="admin"><?php echo htmlspecialchars(t('common.role.admin')); ?></option>
                     </select>
                 </div>
                 <div>
-                    <label class="m-label" for="editUserStatus">账号状态</label>
+                    <label class="m-label" for="editUserStatus"><?php echo htmlspecialchars(t('admin.users.status_label')); ?></label>
                     <select id="editUserStatus" class="m-input">
-                        <option value="1">已启用</option>
-                        <option value="0">已停用</option>
+                        <option value="1"><?php echo htmlspecialchars(t('common.enabled')); ?></option>
+                        <option value="0"><?php echo htmlspecialchars(t('common.disabled')); ?></option>
                     </select>
                 </div>
                 <div>
-                    <label class="m-label" for="editUserDepartment">部门或职务 <span class="opt-tag">选填</span></label>
-                    <input type="text" id="editUserDepartment" class="m-input" placeholder="如：研发部 · 前端工程师" maxlength="30">
+                    <label class="m-label" for="editUserDepartment"><?php echo htmlspecialchars(t('auth.department')); ?> <span class="opt-tag"><?php echo htmlspecialchars(t('common.optional')); ?></span></label>
+                    <input type="text" id="editUserDepartment" class="m-input" placeholder="<?php echo htmlspecialchars(t('auth.department_placeholder')); ?>" maxlength="30">
                 </div>
                 <div style="grid-column: span 2;">
                     <label class="m-label" for="editUserWebhook">
-                        <span>个人通知</span>
-                        <span class="opt-tag">选填</span>
+                        <span><?php echo htmlspecialchars(t('profile.my_webhook')); ?></span>
+                        <span class="opt-tag"><?php echo htmlspecialchars(t('common.optional')); ?></span>
                     </label>
                     <div class="m-form-row">
-                        <input type="text" id="editUserWebhook" class="m-input" placeholder="企微 / 飞书 / 钉钉群机器人 Webhook 地址" style="flex:1" maxlength="1000">
+                        <input type="text" id="editUserWebhook" class="m-input" placeholder="<?php echo htmlspecialchars(t('profile.webhook_placeholder')); ?>" style="flex:1" maxlength="1000">
                         <button type="button" class="btn-cancel btn-standard" onclick="testAnyWebhook('editUserWebhook', this)">
-                            <span class="duo-icon-slot" data-duo-icon="send"><i class="ri-send-plane-line duo-rest-icon"></i></span> 测试
+                            <span class="duo-icon-slot" data-duo-icon="send"><i class="ri-send-plane-line duo-rest-icon"></i></span> <?php echo htmlspecialchars(t('common.test')); ?>
                         </button>
                     </div>
-                    <div style="font-size:11px;color:var(--text-3);margin-top:4px;line-height:1.4;">接收与该成员相关的批注回复与解决通知；钉钉/飞书安全设置勾选「自定义关键词」，填入：<strong>立象原型</strong></div>
+                    <div style="font-size:11px;color:var(--text-3);margin-top:4px;line-height:1.4;"><?php echo t('admin.users.personal_webhook_hint'); ?></div>
                 </div>
             </div>
             <div class="m-modal-footer">
-                <button type="button" class="btn-cancel btn-standard" onclick="closeModal('editUserModal')">取消</button>
-                <button type="submit" class="btn-primary btn-standard" id="btnUserUpdateSubmit">保存</button>
+                <button type="button" class="btn-cancel btn-standard" onclick="closeModal('editUserModal')"><?php echo htmlspecialchars(t('common.cancel')); ?></button>
+                <button type="submit" class="btn-primary btn-standard" id="btnUserUpdateSubmit"><?php echo htmlspecialchars(t('common.save')); ?></button>
             </div>
         </form>
     </div>
@@ -2333,11 +2352,11 @@ $renderItemOwnersCell = function($item, $usersMap) use ($editorShareAllowed) {
 
 <?php if (!empty($currentUser)): ?>
 <!-- 全员个人设置：账号摘要 + 基本资料 / 安全设置 / MCP。 -->
-<div id="profileModal" class="custom-modal" style="display:none;" aria-label="个人信息">
+<div id="profileModal" class="custom-modal" style="display:none;" aria-label="<?php echo htmlspecialchars(t('profile.title')); ?>">
     <div class="modal-dialog-box modal-md">
         <div class="modal-head profile-modal-head">
             <div class="profile-account">
-                <button type="button" id="myProfileAvatarBtn" class="profile-avatar profile-avatar-btn" title="更换头像" aria-label="更换头像" aria-haspopup="dialog" aria-expanded="false" aria-controls="profileAvatarPopover" onclick="toggleProfileAvatarPicker(event)">
+                <button type="button" id="myProfileAvatarBtn" class="profile-avatar profile-avatar-btn" title="<?php echo htmlspecialchars(t('avatar.title')); ?>" aria-label="<?php echo htmlspecialchars(t('avatar.title')); ?>" aria-haspopup="dialog" aria-expanded="false" aria-controls="profileAvatarPopover" onclick="toggleProfileAvatarPicker(event)">
                     <span id="myProfileAvatarGraphic" class="profile-avatar-graphic">
                         <i class="ri-user-3-line" aria-hidden="true"></i>
                     </span>
@@ -2346,116 +2365,116 @@ $renderItemOwnersCell = function($item, $usersMap) use ($editorShareAllowed) {
                     </span>
                 </button>
                 <div class="profile-account-meta">
-                    <div class="profile-name" id="myProfileHeaderName"><?php echo htmlspecialchars(!empty($currentUser['name']) ? $currentUser['name'] : (!empty($currentUser['email']) ? $currentUser['email'] : '用户')); ?></div>
+                    <div class="profile-name" id="myProfileHeaderName"><?php echo htmlspecialchars(!empty($currentUser['name']) ? $currentUser['name'] : (!empty($currentUser['email']) ? $currentUser['email'] : t('common.user_default'))); ?></div>
                     <div class="profile-meta-row">
                         <span><?php echo htmlspecialchars($currentUser['email'] ?? ''); ?></span>
-                        <span class="badge-tag <?php echo !empty($currentUser['is_owner']) ? 'badge-role-owner' : ($isAdmin ? 'badge-role-admin' : ($canManage ? 'badge-role-editor' : 'badge-role-viewer')); ?>"><?php echo !empty($currentUser['is_owner']) ? '主管理员' : ($isAdmin ? '管理员' : ($canManage ? '协作者' : '审阅人')); ?></span>
+                        <span class="badge-tag <?php echo !empty($currentUser['is_owner']) ? 'badge-role-owner' : ($isAdmin ? 'badge-role-admin' : ($canManage ? 'badge-role-editor' : 'badge-role-viewer')); ?>"><?php echo htmlspecialchars(!empty($currentUser['is_owner']) ? t('common.role.owner') : ($isAdmin ? t('common.role.admin') : ($canManage ? t('common.role.editor') : t('common.role.viewer')))); ?></span>
                     </div>
                 </div>
             </div>
-            <button type="button" class="close-x" onclick="closeModal('profileModal')" title="关闭"><i class="ri-close-line" aria-hidden="true"></i></button>
+            <button type="button" class="close-x" onclick="closeModal('profileModal')" title="<?php echo htmlspecialchars(t('common.close')); ?>"><i class="ri-close-line" aria-hidden="true"></i></button>
         </div>
 
-        <div id="profileAvatarPopover" class="profile-avatar-popover" role="dialog" aria-label="选择品牌头像" hidden>
+        <div id="profileAvatarPopover" class="profile-avatar-popover" role="dialog" aria-label="<?php echo htmlspecialchars(t('avatar.picker_aria')); ?>" hidden>
             <div class="profile-avatar-popover-head">
-                <span class="profile-avatar-popover-title">选择折纸象头像</span>
+                <span class="profile-avatar-popover-title"><?php echo htmlspecialchars(t('avatar.picker_title')); ?></span>
                 <span id="profileAvatarPreviewLabel" class="profile-avatar-popover-tag"></span>
             </div>
-            <div id="profileAvatarGrid" class="profile-avatar-grid" role="radiogroup" aria-label="头像造型"></div>
+            <div id="profileAvatarGrid" class="profile-avatar-grid" role="radiogroup" aria-label="<?php echo htmlspecialchars(t('avatar.pose_aria')); ?>"></div>
             <div id="profileAvatarColors" class="profile-avatar-colors" hidden>
-                <span class="profile-avatar-colors-label">配色</span>
-                <div id="profileAvatarColorGrid" class="profile-avatar-color-grid" role="radiogroup" aria-label="头像配色"></div>
+                <span class="profile-avatar-colors-label"><?php echo htmlspecialchars(t('avatar.colors_label')); ?></span>
+                <div id="profileAvatarColorGrid" class="profile-avatar-color-grid" role="radiogroup" aria-label="<?php echo htmlspecialchars(t('avatar.colors_aria')); ?>"></div>
             </div>
         </div>
 
-        <div class="profile-tabs" role="tablist" aria-label="个人设置" onkeydown="handleProfileTabKey(event)">
-            <button type="button" id="profileTabData" class="log-subtab-btn active" role="tab" aria-controls="profilePageData" aria-selected="true" tabindex="0" onclick="showProfilePage('data')">基本资料</button>
-            <button type="button" id="profileTabPassword" class="log-subtab-btn" role="tab" aria-controls="profilePagePassword" aria-selected="false" tabindex="-1" onclick="showProfilePage('password')">安全设置</button>
-            <button type="button" id="profileTabMcp" class="log-subtab-btn" role="tab" aria-controls="profilePageMcp" aria-selected="false" tabindex="-1" onclick="showProfilePage('mcp')">MCP 接入</button>
+        <div class="profile-tabs" role="tablist" aria-label="<?php echo htmlspecialchars(t('profile.tabs_aria')); ?>" onkeydown="handleProfileTabKey(event)">
+            <button type="button" id="profileTabData" class="log-subtab-btn active" role="tab" aria-controls="profilePageData" aria-selected="true" tabindex="0" onclick="showProfilePage('data')"><?php echo htmlspecialchars(t('profile.tab.data')); ?></button>
+            <button type="button" id="profileTabPassword" class="log-subtab-btn" role="tab" aria-controls="profilePagePassword" aria-selected="false" tabindex="-1" onclick="showProfilePage('password')"><?php echo htmlspecialchars(t('profile.tab.password')); ?></button>
+            <button type="button" id="profileTabMcp" class="log-subtab-btn" role="tab" aria-controls="profilePageMcp" aria-selected="false" tabindex="-1" onclick="showProfilePage('mcp')"><?php echo htmlspecialchars(t('profile.tab.mcp')); ?></button>
         </div>
         <div id="profilePageData" data-profile-page="data" role="tabpanel" aria-labelledby="profileTabData">
         <form id="profileForm" onsubmit="handleSaveProfile(event)">
             <div class="m-form-group">
-                <label class="m-label" for="myDisplayName">真实姓名 <span class="req-star">*</span></label>
+                <label class="m-label" for="myDisplayName"><?php echo htmlspecialchars(t('auth.real_name')); ?> <span class="req-star">*</span></label>
                 <div class="m-form-row">
-                <input type="text" id="myDisplayName" class="m-input" required value="<?php echo htmlspecialchars($currentUser['display_name'] ?? ''); ?>" placeholder="例如：李明" maxlength="20">
-                <button type="submit" class="btn-primary btn-standard" id="btnSaveProfile" disabled>保存</button>
+                <input type="text" id="myDisplayName" class="m-input" required value="<?php echo htmlspecialchars($currentUser['display_name'] ?? ''); ?>" placeholder="<?php echo htmlspecialchars(t('auth.real_name_example')); ?>" maxlength="20">
+                <button type="submit" class="btn-primary btn-standard" id="btnSaveProfile" disabled><?php echo htmlspecialchars(t('common.save')); ?></button>
                 </div>
             </div>
         </form>
 
         <div class="profile-notification">
-            <label class="m-label" for="myWebhookUrl">个人通知 <span class="opt-tag">选填</span></label>
+            <label class="m-label" for="myWebhookUrl"><?php echo htmlspecialchars(t('profile.my_webhook')); ?> <span class="opt-tag"><?php echo htmlspecialchars(t('common.optional')); ?></span></label>
             <form id="profileWebhookForm" onsubmit="handleSaveProfileWebhook(event)">
                 <div class="m-form-row profile-notification-row">
-                <input type="text" id="myWebhookUrl" class="m-input" value="<?php echo htmlspecialchars($currentUser['webhook_url'] ?? ''); ?>" placeholder="企微 / 飞书 / 钉钉群机器人 Webhook 地址" maxlength="1000">
+                <input type="text" id="myWebhookUrl" class="m-input" value="<?php echo htmlspecialchars($currentUser['webhook_url'] ?? ''); ?>" placeholder="<?php echo htmlspecialchars(t('profile.webhook_placeholder')); ?>" maxlength="1000">
                 <div class="profile-inline-actions">
-                    <button type="button" class="btn-cancel btn-standard" onclick="testAnyWebhook('myWebhookUrl', this)"><span class="duo-icon-slot" data-duo-icon="send"><i class="ri-send-plane-line duo-rest-icon"></i></span> 测试</button>
-                    <button type="submit" class="btn-primary btn-standard" id="btnSaveProfileWebhook" disabled>保存</button>
+                    <button type="button" class="btn-cancel btn-standard" onclick="testAnyWebhook('myWebhookUrl', this)"><span class="duo-icon-slot" data-duo-icon="send"><i class="ri-send-plane-line duo-rest-icon"></i></span> <?php echo htmlspecialchars(t('common.test')); ?></button>
+                    <button type="submit" class="btn-primary btn-standard" id="btnSaveProfileWebhook" disabled><?php echo htmlspecialchars(t('common.save')); ?></button>
                 </div>
                 </div>
-                <div style="font-size:11.5px;color:var(--text-3);margin-top:6px;line-height:1.4;">接收与本人相关的批注回复与解决通知；钉钉/飞书安全设置勾选「自定义关键词」，填入：<strong>立象原型</strong></div>
+                <div style="font-size:11.5px;color:var(--text-3);margin-top:6px;line-height:1.4;"><?php echo t('profile.webhook_hint'); ?></div>
             </form>
         </div>
         </div>
         <div id="profilePagePassword" data-profile-page="password" role="tabpanel" aria-labelledby="profileTabPassword" hidden>
             <form id="changePasswordForm" onsubmit="handleChangeMyPassword(event)" novalidate>
                 <div class="m-form-group" style="margin-bottom:10px;">
-                    <label class="m-label" for="myOldPassword">当前密码 <span class="req-star">*</span></label>
-                    <input type="password" id="myOldPassword" class="m-input" placeholder="输入当前密码" autocomplete="current-password" required maxlength="64" data-error-target="myOldPasswordError" aria-describedby="myOldPasswordError">
+                    <label class="m-label" for="myOldPassword"><?php echo htmlspecialchars(t('profile.old_password')); ?> <span class="req-star">*</span></label>
+                    <input type="password" id="myOldPassword" class="m-input" placeholder="<?php echo htmlspecialchars(t('profile.old_password_placeholder')); ?>" autocomplete="current-password" required maxlength="64" data-error-target="myOldPasswordError" aria-describedby="myOldPasswordError">
                     <div class="field-error-tip" id="myOldPasswordError" role="alert"></div>
                 </div>
                 <div class="m-form-group" style="margin-bottom:10px;">
                     <div class="field-label-row">
-                        <label class="m-label" for="myNewPassword">新密码 <span class="req-star">*</span></label>
+                        <label class="m-label" for="myNewPassword"><?php echo htmlspecialchars(t('auth.new_password')); ?> <span class="req-star">*</span></label>
                         <span class="password-strength" id="myPasswordStrength" role="status"></span>
                     </div>
-                    <input type="password" id="myNewPassword" class="m-input" placeholder="至少 6 个字符" autocomplete="new-password" required data-password-strength="myPasswordStrength" data-error-target="myNewPasswordError" aria-describedby="myPasswordStrength" aria-errormessage="myNewPasswordError">
+                    <input type="password" id="myNewPassword" class="m-input" placeholder="<?php echo htmlspecialchars(t('auth.password_min_placeholder')); ?>" autocomplete="new-password" required data-password-strength="myPasswordStrength" data-error-target="myNewPasswordError" aria-describedby="myPasswordStrength" aria-errormessage="myNewPasswordError">
                     <div class="field-error-tip" id="myNewPasswordError" role="alert"></div>
                 </div>
                 <div class="m-form-group" style="margin-bottom:12px;">
-                    <label class="m-label" for="myConfirmPassword">确认新密码 <span class="req-star">*</span></label>
-                    <input type="password" id="myConfirmPassword" class="m-input" placeholder="再次确认新密码" autocomplete="new-password" required data-error-target="myConfirmPasswordError" aria-describedby="myConfirmPasswordError">
+                    <label class="m-label" for="myConfirmPassword"><?php echo htmlspecialchars(t('auth.confirm_new_password')); ?> <span class="req-star">*</span></label>
+                    <input type="password" id="myConfirmPassword" class="m-input" placeholder="<?php echo htmlspecialchars(t('auth.confirm_new_password_again')); ?>" autocomplete="new-password" required data-error-target="myConfirmPasswordError" aria-describedby="myConfirmPasswordError">
                     <div class="field-error-tip" id="myConfirmPasswordError" role="alert"></div>
                 </div>
                 <div class="profile-form-actions">
-                    <button type="submit" class="btn-primary btn-standard">更新密码</button>
+                    <button type="submit" class="btn-primary btn-standard"><?php echo htmlspecialchars(t('profile.update_password')); ?></button>
                 </div>
             </form>
         </div>
         <div id="profilePageMcp" data-profile-page="mcp" role="tabpanel" aria-labelledby="profileTabMcp" class="mcp-panel" hidden>
             <div class="mcp-status-bar">
                 <div class="mcp-status-info">
-                    <span id="mcpCredentialStatus" class="mcp-auth-status" role="status">正在读取…</span>
-                    <button type="button" id="mcpLoadRetry" class="btn-cancel btn-sm" onclick="loadMcpSettings()" hidden>重新加载</button>
+                    <span id="mcpCredentialStatus" class="mcp-auth-status" role="status"><?php echo htmlspecialchars(t('mcp.reading')); ?></span>
+                    <button type="button" id="mcpLoadRetry" class="btn-cancel btn-sm" onclick="loadMcpSettings()" hidden><?php echo htmlspecialchars(t('common.reload')); ?></button>
                 </div>
                 <div class="mcp-status-actions">
-                    <button type="button" id="mcpCreateButton" class="btn-cancel btn-sm" onclick="createMcpCredential(event)">生成凭据</button>
-                    <button type="button" id="mcpRevokeButton" class="btn-cancel btn-sm" onclick="revokeMcpCredential()" hidden>撤销凭据</button>
+                    <button type="button" id="mcpCreateButton" class="btn-cancel btn-sm" onclick="createMcpCredential(event)"><?php echo htmlspecialchars(t('mcp.create_token')); ?></button>
+                    <button type="button" id="mcpRevokeButton" class="btn-cancel btn-sm" onclick="revokeMcpCredential()" hidden><?php echo htmlspecialchars(t('mcp.revoke_token')); ?></button>
                 </div>
             </div>
             <fieldset id="mcpControls" class="profile-fieldset" disabled>
                 <form id="mcpPermissionForm" onsubmit="handleMcpPermissionChange(event)">
                     <div class="m-form-group">
-                        <label class="m-label" id="mcpProjectScopeLabel">项目范围</label>
+                        <label class="m-label" id="mcpProjectScopeLabel"><?php echo htmlspecialchars(t('mcp.project_scope')); ?></label>
                         <div class="mcp-scope-switch" role="radiogroup" aria-labelledby="mcpProjectScopeLabel">
-                            <button type="button" id="mcpScopeModeAll" class="mcp-scope-btn active" role="radio" aria-checked="true" onclick="setMcpScopeMode('all')">全部项目</button>
-                            <button type="button" id="mcpScopeModeCustom" class="mcp-scope-btn" role="radio" aria-checked="false" onclick="setMcpScopeMode('custom')">指定项目</button>
+                            <button type="button" id="mcpScopeModeAll" class="mcp-scope-btn active" role="radio" aria-checked="true" onclick="setMcpScopeMode('all')"><?php echo htmlspecialchars(t('mcp.scope_all')); ?></button>
+                            <button type="button" id="mcpScopeModeCustom" class="mcp-scope-btn" role="radio" aria-checked="false" onclick="setMcpScopeMode('custom')"><?php echo htmlspecialchars(t('mcp.scope_custom')); ?></button>
                         </div>
                     </div>
                     <div id="mcpCustomProjectsWrap" class="m-form-group" style="position:relative;margin-top:-6px;" hidden>
                         <button type="button" id="mcpProjectSelectTrigger" class="m-input m-input-trigger" aria-haspopup="listbox" aria-expanded="false" aria-controls="mcpProjectSelectMenu" onclick="toggleMcpProjectDropdown(event)">
                             <span id="mcpProjectSelectTags" style="display:flex;flex-wrap:wrap;gap:4px;align-items:center;min-width:0;">
-                                <span style="font-size:12.5px;color:var(--text-3);">请选择项目…</span>
+                                <span style="font-size:12.5px;color:var(--text-3);"><?php echo htmlspecialchars(t('mcp.select_projects_placeholder')); ?></span>
                             </span>
                             <i class="ri-arrow-down-s-line" style="color:var(--text-3);font-size:16px;margin-left:auto;flex-shrink:0;" aria-hidden="true"></i>
                         </button>
                         <div id="mcpProjectSelectMenu" class="mcp-dropdown-menu" role="group" aria-labelledby="mcpProjectScopeLabel" style="display:none;">
                             <div class="mcp-dropdown-header">
-                                <span>授权项目</span>
+                                <span><?php echo htmlspecialchars(t('mcp.authorized_projects')); ?></span>
                                 <div class="mcp-dropdown-tools">
-                                    <button type="button" class="inline-action-btn is-primary" onclick="selectAllMcpProjects(true)">全选</button>
-                                    <button type="button" class="inline-action-btn" onclick="selectAllMcpProjects(false)">清空</button>
+                                    <button type="button" class="inline-action-btn is-primary" onclick="selectAllMcpProjects(true)"><?php echo htmlspecialchars(t('common.select_all')); ?></button>
+                                    <button type="button" class="inline-action-btn" onclick="selectAllMcpProjects(false)"><?php echo htmlspecialchars(t('common.clear')); ?></button>
                                 </div>
                             </div>
                             <div id="mcpProjectOptions" class="mcp-dropdown-options">
@@ -2463,49 +2482,49 @@ $renderItemOwnersCell = function($item, $usersMap) use ($editorShareAllowed) {
                             </div>
                         </div>
                     </div>
-                    <select id="mcpProjectScope" hidden><option value="0">全部项目</option></select>
+                    <select id="mcpProjectScope" hidden><option value="0"><?php echo htmlspecialchars(t('mcp.scope_all')); ?></option></select>
                     <button type="submit" id="mcpSavePermissions" hidden></button>
                     <div id="mcpPublishSwitchRow" class="mcp-switch-row"<?php echo empty($canManage) ? ' hidden' : ''; ?>>
-                        <label class="mcp-switch-label" for="mcpPublishPermission">允许发布和替换版本</label>
+                        <label class="mcp-switch-label" for="mcpPublishPermission"><?php echo htmlspecialchars(t('mcp.allow_publish')); ?></label>
                         <label class="linear-switch">
                             <input type="checkbox" id="mcpPublishPermission" onchange="autoSaveMcpPermissions()">
                             <span class="linear-switch-slider"></span>
                         </label>
                     </div>
-                    <p id="mcpReadOnlyHint" class="mcp-tip-text mcp-readonly-hint"<?php echo !empty($canManage) ? ' hidden' : ''; ?>>审阅人仅可读取项目与批注。</p>
+                    <p id="mcpReadOnlyHint" class="mcp-tip-text mcp-readonly-hint"<?php echo !empty($canManage) ? ' hidden' : ''; ?>><?php echo htmlspecialchars(t('mcp.readonly_hint')); ?></p>
                 </form>
                 <div id="mcpNewCredential" class="m-form-group" hidden>
-                    <label class="m-label" for="mcpSecret">个人凭据</label>
+                    <label class="m-label" for="mcpSecret"><?php echo htmlspecialchars(t('mcp.personal_token')); ?></label>
                     <div class="m-form-row">
                         <input type="password" id="mcpSecret" class="m-input" readonly autocomplete="off">
-                        <button type="button" class="btn-cancel btn-standard" onclick="copyMcpValue('mcpSecret')">复制凭据</button>
+                        <button type="button" class="btn-cancel btn-standard" onclick="copyMcpValue('mcpSecret')"><?php echo htmlspecialchars(t('mcp.copy_token')); ?></button>
                     </div>
-                    <p class="mcp-tip-text">完整凭据仅本次提供，请妥善保存。</p>
+                    <p class="mcp-tip-text"><?php echo htmlspecialchars(t('mcp.token_once_tip')); ?></p>
                 </div>
-                <button type="button" id="mcpCopyAiButton" class="btn-primary btn-standard mcp-btn-main" onclick="copyMcpAiPrompt()">复制 AI 接入指令</button>
+                <button type="button" id="mcpCopyAiButton" class="btn-primary btn-standard mcp-btn-main" onclick="copyMcpAiPrompt()"><?php echo htmlspecialchars(t('mcp.copy_ai_prompt')); ?></button>
                 <div class="mcp-config-header">
                     <button type="button" id="mcpManualToggleBtn" class="mcp-manual-toggle" onclick="toggleMcpManualConfig()" aria-expanded="false" aria-controls="mcpManualBody">
-                        <span class="mcp-manual-title">手动配置</span>
-                        <span id="mcpManualToggleText" class="mcp-manual-toggle-text">展开</span>
+                        <span class="mcp-manual-title"><?php echo htmlspecialchars(t('mcp.manual_config')); ?></span>
+                        <span id="mcpManualToggleText" class="mcp-manual-toggle-text"><?php echo htmlspecialchars(t('common.expand')); ?></span>
                         <i id="mcpManualToggleIcon" class="ri-arrow-down-s-line" aria-hidden="true"></i>
                     </button>
-                    <a class="mcp-guide-link" href="mcp.php?guide=1" target="_blank" rel="noopener">接入说明 <i class="ri-external-link-line" aria-hidden="true"></i></a>
+                    <a class="mcp-guide-link" href="mcp.php?guide=1" target="_blank" rel="noopener"><?php echo htmlspecialchars(t('mcp.guide_link')); ?> <span class="duo-icon-slot" data-duo-icon="external-link"><i class="ri-external-link-line duo-rest-icon" aria-hidden="true"></i></span></a>
                 </div>
                 <div id="mcpManualBody" class="mcp-manual-body" style="display:none;">
                     <div class="m-form-group">
-                        <label class="m-label" for="mcpEndpoint">服务地址</label>
-                        <div class="m-form-row"><input id="mcpEndpoint" class="m-input" readonly><button type="button" class="btn-cancel btn-standard" onclick="copyMcpValue('mcpEndpoint')">复制地址</button></div>
+                        <label class="m-label" for="mcpEndpoint"><?php echo htmlspecialchars(t('mcp.endpoint')); ?></label>
+                        <div class="m-form-row"><input id="mcpEndpoint" class="m-input" readonly><button type="button" class="btn-cancel btn-standard" onclick="copyMcpValue('mcpEndpoint')"><?php echo htmlspecialchars(t('mcp.copy_endpoint')); ?></button></div>
                     </div>
                     <div class="m-form-group">
-                        <label class="m-label" for="mcpClientFormat">配置格式</label>
-                        <select id="mcpClientFormat" class="m-input" onchange="renderMcpConfig()"><option value="json">JSON（Cursor 等）</option><option value="codex">TOML（Codex）</option></select>
+                        <label class="m-label" for="mcpClientFormat"><?php echo htmlspecialchars(t('mcp.config_format')); ?></label>
+                        <select id="mcpClientFormat" class="m-input" onchange="renderMcpConfig()"><option value="json"><?php echo htmlspecialchars(t('mcp.format_json')); ?></option><option value="codex"><?php echo htmlspecialchars(t('mcp.format_codex')); ?></option></select>
                     </div>
                     <div class="mcp-code-wrapper">
-                        <button type="button" class="btn-cancel btn-sm mcp-code-copy-btn" onclick="copyMcpConfig()" title="复制配置"><span class="duo-icon-slot" data-duo-icon="copy"><i class="ri-file-copy-line duo-rest-icon" aria-hidden="true"></i></span> 复制配置</button>
-                        <pre id="mcpConfig" class="mcp-code" tabindex="0" aria-label="MCP 配置"></pre>
+                        <button type="button" class="btn-cancel btn-sm mcp-code-copy-btn" onclick="copyMcpConfig()" title="<?php echo htmlspecialchars(t('mcp.copy_config')); ?>"><span class="duo-icon-slot" data-duo-icon="copy"><i class="ri-file-copy-line duo-rest-icon" aria-hidden="true"></i></span> <?php echo htmlspecialchars(t('mcp.copy_config')); ?></button>
+                        <pre id="mcpConfig" class="mcp-code" tabindex="0" aria-label="<?php echo htmlspecialchars(t('mcp.config_aria')); ?>"></pre>
                     </div>
                     <p id="mcpConfigFilePath" class="mcp-tip-text"></p>
-                    <p id="mcpConfigSecretHint" class="mcp-tip-text">配置中的 YOUR_PERSONAL_TOKEN 需替换为已保存的凭据；重新生成后可复制完整配置。</p>
+                    <p id="mcpConfigSecretHint" class="mcp-tip-text"><?php echo htmlspecialchars(t('mcp.secret_hint')); ?></p>
                 </div>
             </fieldset>
         </div>
@@ -2521,14 +2540,14 @@ $renderItemOwnersCell = function($item, $usersMap) use ($editorShareAllowed) {
             <i class="ri-shield-keyhole-line"></i>
         </div>
         <div style="flex:1;">
-            <div style="font-weight:600;font-size:13.5px;color:var(--text-1);">首次登录安全提醒</div>
-            <div style="font-size:12px;color:var(--text-2);margin-top:2px;line-height:1.5;">当前账号使用的是初始密码，建议修改为您熟悉的私密密码。</div>
+            <div style="font-weight:600;font-size:13.5px;color:var(--text-1);"><?php echo htmlspecialchars(t('auth.first_login_title')); ?></div>
+            <div style="font-size:12px;color:var(--text-2);margin-top:2px;line-height:1.5;"><?php echo htmlspecialchars(t('auth.first_login_desc')); ?></div>
         </div>
-        <button type="button" onclick="dismissFirstLoginTip()" style="border:none;background:transparent;color:var(--text-3);cursor:pointer;font-size:16px;padding:0;line-height:1;" title="稍后再说"><i class="ri-close-line"></i></button>
+        <button type="button" class="close-x" onclick="dismissFirstLoginTip()" title="<?php echo htmlspecialchars(t('auth.later')); ?>"><i class="ri-close-line"></i></button>
     </div>
     <div style="display:flex;justify-content:flex-end;gap:8px;padding-top:2px;">
-        <button type="button" class="btn-cancel btn-sm" onclick="dismissFirstLoginTip()">稍后再说</button>
-        <button type="button" class="btn-primary btn-sm" onclick="openProfilePasswordModal()">立即修改</button>
+        <button type="button" class="btn-cancel btn-sm" onclick="dismissFirstLoginTip()"><?php echo htmlspecialchars(t('auth.later')); ?></button>
+        <button type="button" class="btn-primary btn-sm" onclick="openProfilePasswordModal()"><?php echo htmlspecialchars(t('auth.change_now')); ?></button>
     </div>
 </div>
 <?php endif; ?>

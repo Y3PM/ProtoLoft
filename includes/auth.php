@@ -61,11 +61,11 @@ class Auth {
 
     /** 仅供已验证个人 MCP 凭据的请求使用，不写入浏览器登录会话。 */
     public static function setRequestUser($userId) {
-        if (!defined('MCP_REQUEST')) throw new LogicException('无效请求上下文');
+        if (!defined('MCP_REQUEST')) throw new LogicException(t('api.invalid_request_ctx'));
         $stmt = DB::getInstance()->prepare('SELECT id,email,name,role,is_owner,status,auth_version,department,webhook_url,created_at FROM users WHERE id = ? AND status = 1');
         $stmt->execute([(int)$userId]);
         $user = $stmt->fetch();
-        if (!$user) throw new DomainException('账号不可用');
+        if (!$user) throw new DomainException(t('api.account_unavailable'));
         $user['id'] = (int)$user['id'];
         $user['is_owner'] = (int)$user['is_owner'];
         $user['is_first_login'] = 0;
@@ -145,12 +145,12 @@ class Auth {
         // R2：在单次写锁事务中一次性完成“检查 + 占位”，防止并发请求同时跳过阈值
         $blockedScope = self::reserveThrottleRules($throttleRules);
         if ($blockedScope === 'login') {
-            self::recordLoginLog($email, 0, '触发 IP 防爆破限速拦截');
-            return ['success' => false, 'message' => '失败次数过多，请 15 分钟后再试'];
+            self::recordLoginLog($email, 0, t('api.auth.throttle_ip_log'));
+            return ['success' => false, 'message' => t('api.auth.throttle_ip_msg')];
         }
         if ($blockedScope !== null) {
-            self::recordLoginLog($email, 0, '触发账号防爆破限速拦截');
-            return ['success' => false, 'message' => '该账号失败次数过多，请 15 分钟后再试'];
+            self::recordLoginLog($email, 0, t('api.auth.throttle_acct_log'));
+            return ['success' => false, 'message' => t('api.auth.throttle_acct_msg')];
         }
 
         $db = DB::getInstance();
@@ -165,18 +165,18 @@ class Auth {
             // 待审批与停用拦截
             if ((int)$user['status'] === 0) {
                 if (!$isTrustedNet) self::releaseThrottleAttempt($accountThrottleScope, false);
-                self::recordLoginLog($email, 0, '账号审核中');
-                return ['success' => false, 'message' => '账号审核中，通过后即可登录'];
+                self::recordLoginLog($email, 0, t('api.auth.pending_log'));
+                return ['success' => false, 'message' => t('api.auth.pending_msg')];
             }
             if ((int)$user['status'] === 2) {
                 if (!$isTrustedNet) self::releaseThrottleAttempt($accountThrottleScope, false);
-                self::recordLoginLog($email, 0, '账号申请已被驳回');
-                return ['success' => false, 'message' => '账号申请已被驳回'];
+                self::recordLoginLog($email, 0, t('api.auth.rejected_log'));
+                return ['success' => false, 'message' => t('api.auth.rejected_log')];
             }
             if ((int)$user['status'] !== 1) {
                 if (!$isTrustedNet) self::releaseThrottleAttempt($accountThrottleScope, false);
-                self::recordLoginLog($email, 0, '账号已被停用');
-                return ['success' => false, 'message' => '账号已被停用'];
+                self::recordLoginLog($email, 0, t('api.auth.disabled_log'));
+                return ['success' => false, 'message' => t('api.auth.disabled_log')];
             }
 
             app_regenerate_session($rememberMe);
@@ -214,7 +214,7 @@ class Auth {
 
             self::clearThrottle($accountThrottleScope, false);
             self::recordTrustedLoginNetwork($email);
-            self::recordLoginLog($user['email'], 1, '登录成功' . ($rememberMe ? ' (记住30天)' : ' (单次会话)'));
+            self::recordLoginLog($user['email'], 1, t('api.auth.login_ok_log', ['mode' => $rememberMe ? t('api.auth.login_mode_rem') : t('api.auth.login_mode_sess')]));
             if (session_status() === PHP_SESSION_ACTIVE) {
                 @session_write_close();
             }
@@ -227,8 +227,8 @@ class Auth {
                 'avatar' => self::resolveUserAvatar($user['avatar'] ?? '', (int)$user['id'])
             ]];
         }
-        self::recordLoginLog($email, 0, '邮箱或密码错误');
-        return ['success' => false, 'message' => '邮箱或密码错误'];
+        self::recordLoginLog($email, 0, t('api.auth.bad_creds'));
+        return ['success' => false, 'message' => t('api.auth.bad_creds')];
     }
 
     /**
@@ -240,7 +240,7 @@ class Auth {
     public static function logout() {
         $curUser = self::$cachedUser;
         if ($curUser) {
-            self::recordLoginLog($curUser['email'] ?? ($curUser['name'] ?? '用户'), 1, '主动退出登录');
+            self::recordLoginLog($curUser['email'] ?? ($curUser['name'] ?? t('common.user_default')), 1, t('api.auth.logout_log'));
         }
         self::$cachedUser = null;
         $userId = !empty($_SESSION['user_id']) ? (int)$_SESSION['user_id'] : 0;
@@ -770,7 +770,7 @@ class Auth {
                     'item_id' => (int)$itemRow['id'],
                     'ver_id' => 0,
                     'is_custom' => false,
-                    'label' => '默认主链',
+                    'label' => t('api.shares.default_main_label'),
                     'access_password' => $itemRow['access_password'] ?? '',
                     'expires_at' => $itemRow['share_expires_at'] ?? null,
                     'status' => 1,
@@ -851,14 +851,14 @@ class Auth {
                     'code' => $r['code'],
                     'item_id' => (int)$r['item_id'],
                     'ver_id' => (int)$r['ver_id'],
-                    'version_name' => $r['version_name'] ?: '默认版本',
-                    'label' => $r['label'] ?: '专属分享',
+                    'version_name' => $r['version_name'] ?: t('api.shares.default_ver_label'),
+                    'label' => $r['label'] ?: t('api.shares.custom_label'),
                     'has_password' => !empty($r['access_password']),
                     'access_password' => $r['access_password'] ?: '',
                     'expires_at' => $r['expires_at'] ?: '',
                     'is_expired' => $isExpired,
                     'view_count' => (int)($r['view_count'] ?? 0),
-                    'creator_name' => $r['creator_name'] ?: '管理员',
+                    'creator_name' => $r['creator_name'] ?: t('common.role.admin'),
                     'created_at' => $r['created_at']
                 ];
             }
@@ -1352,30 +1352,30 @@ class Auth {
         $email = trim(strtolower($email));
         $name = trim($name);
         if (empty($email) || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
-            return ['success' => false, 'message' => '请输入有效的工作邮箱地址'];
+            return ['success' => false, 'message' => t('api.auth.invalid_email')];
         }
         if (strlen($email) > 100) {
-            return ['success' => false, 'message' => '邮箱不能超过 100 个字符'];
+            return ['success' => false, 'message' => t('api.auth.email_len_100')];
         }
         if (empty($name)) {
-            return ['success' => false, 'message' => '请输入真实姓名'];
+            return ['success' => false, 'message' => t('api.auth.name_empty')];
         }
         if (mb_strlen($name, 'UTF-8') > 20) {
-            return ['success' => false, 'message' => '姓名不能超过 20 个字符'];
+            return ['success' => false, 'message' => t('api.auth.name_len_20')];
         }
         $passwordError = app_password_length_error($password);
         if ($passwordError !== '') {
             return ['success' => false, 'message' => $passwordError];
         }
         if (mb_strlen($department, 'UTF-8') > 30) {
-            return ['success' => false, 'message' => '部门/备注不能超过 30 个字符'];
+            return ['success' => false, 'message' => t('api.auth.dept_len_30')];
         }
         if (mb_strlen($webhookUrl, 'UTF-8') > 1000) {
-            return ['success' => false, 'message' => 'Webhook 地址不能超过 1000 个字符'];
+            return ['success' => false, 'message' => t('api.auth.webhook_len_1000')];
         }
         $trimmedWb = trim($webhookUrl);
         if ($trimmedWb !== '' && !Webhook::isAllowedUrl($trimmedWb)) {
-            return ['success' => false, 'message' => '请使用企微、飞书或钉钉的 HTTPS 机器人地址'];
+            return ['success' => false, 'message' => t('webhook.err_url')];
         }
 
         // 检查邮箱冲突
@@ -1384,7 +1384,7 @@ class Auth {
         $hasUser = (bool)$check->fetch();
         $check->closeCursor();
         if ($hasUser) {
-            return ['success' => false, 'message' => '该邮箱已被注册或使用'];
+            return ['success' => false, 'message' => t('api.auth.email_taken')];
         }
 
         $hash = password_hash($password, PASSWORD_DEFAULT);
@@ -1409,7 +1409,7 @@ class Auth {
         $targetUser = $stmtCurr->fetch();
         $stmtCurr->closeCursor();
         if (!$targetUser) {
-            return ['success' => false, 'message' => '用户不存在'];
+            return ['success' => false, 'message' => t('api.auth.user_not_found')];
         }
 
         $isCurrOwner = !empty($currUser['is_owner']);
@@ -1417,21 +1417,21 @@ class Auth {
 
         // 护城河 1: 任何非 Owner 用户，严禁篡改、降级、停用或修改主管理员 (Owner)
         if ($isTargetOwner && (int)$currUser['id'] !== (int)$id) {
-            return ['success' => false, 'message' => '只有主管理员本人可修改此账号'];
+            return ['success' => false, 'message' => t('api.auth.owner_only_self')];
         }
 
         // 护城河 2: 管理员（非 Owner）禁止修改其他管理员
         if (!$isCurrOwner && $targetUser['role'] === 'admin' && (int)$currUser['id'] !== (int)$id) {
-            return ['success' => false, 'message' => '管理员无权修改或管理其他管理员账号'];
+            return ['success' => false, 'message' => t('api.auth.admin_no_manage_other_admin')];
         }
 
         // 防锁死保护 1: 不能降级或停用当前登录的管理员自己
         if ($currUser && (int)$currUser['id'] === (int)$id) {
             if ($role !== null && $role !== 'admin' && $targetUser['role'] === 'admin') {
-                return ['success' => false, 'message' => '不能将当前登录的管理员自己降级为协作者或审阅人'];
+                return ['success' => false, 'message' => t('api.auth.cannot_demote_self')];
             }
             if ($status !== null && (int)$status !== 1) {
-                return ['success' => false, 'message' => '不能停用当前登录的管理员自己'];
+                return ['success' => false, 'message' => t('api.auth.cannot_disable_self')];
             }
         }
 
@@ -1439,7 +1439,7 @@ class Auth {
         if ($targetUser['role'] === 'admin' && (($role !== null && $role !== 'admin') || ($status !== null && (int)$status !== 1))) {
             $adminCount = (int)$db->query("SELECT COUNT(*) FROM users WHERE role = 'admin' AND status = 1")->fetchColumn();
             if ($adminCount <= 1) {
-                return ['success' => false, 'message' => '系统必须保留至少一位启用的管理员，无法降级或停用'];
+                return ['success' => false, 'message' => t('api.auth.must_keep_one_admin')];
             }
         }
 
@@ -1448,14 +1448,14 @@ class Auth {
 
         if ($role !== null && in_array($role, ['admin', 'editor', 'viewer'])) {
             if ($isTargetOwner && $role !== 'admin') {
-                return ['success' => false, 'message' => '主管理员不可降级'];
+                return ['success' => false, 'message' => t('api.auth.owner_no_demote')];
             }
             $fields[] = "role = ?";
             $params[] = $role;
         }
         if ($status !== null) {
             if ($isTargetOwner && (int)$status !== 1) {
-                return ['success' => false, 'message' => '主管理员不可停用'];
+                return ['success' => false, 'message' => t('api.auth.owner_no_disable')];
             }
             // 启用为 1，停用设为 3 (彻底避免与待审批申请 status=0 混淆)
             $stFinal = ((int)$status === 1) ? 1 : 3;
@@ -1465,10 +1465,10 @@ class Auth {
         if ($name !== null) {
             $trimmedName = trim($name);
             if ($trimmedName === '') {
-                return ['success' => false, 'message' => '请输入真实姓名'];
+                return ['success' => false, 'message' => t('api.auth.name_empty')];
             }
             if (mb_strlen($trimmedName, 'UTF-8') > 20) {
-                return ['success' => false, 'message' => '姓名不能超过 20 个字符'];
+                return ['success' => false, 'message' => t('api.auth.name_len_20')];
             }
             $fields[] = "name = ?";
             $params[] = $trimmedName;
@@ -1476,17 +1476,17 @@ class Auth {
         if ($email !== null) {
             $cleanEmail = trim(strtolower($email));
             if (strlen($cleanEmail) > 100) {
-                return ['success' => false, 'message' => '邮箱不能超过 100 个字符'];
+                return ['success' => false, 'message' => t('api.auth.email_len_100')];
             }
             if ($cleanEmail === '' || !filter_var($cleanEmail, FILTER_VALIDATE_EMAIL)) {
-                return ['success' => false, 'message' => '请输入有效的工作邮箱地址'];
+                return ['success' => false, 'message' => t('api.auth.invalid_email')];
             }
             $chkEmail = $db->prepare("SELECT id FROM users WHERE email = ? AND id != ?");
             $chkEmail->execute([$cleanEmail, (int)$id]);
             $hasDupEmail = (bool)$chkEmail->fetch();
             $chkEmail->closeCursor();
             if ($hasDupEmail) {
-                return ['success' => false, 'message' => '该邮箱已被其他账号使用'];
+                return ['success' => false, 'message' => t('api.auth.email_taken_other')];
             }
             $fields[] = "email = ?";
             $params[] = $cleanEmail;
@@ -1494,7 +1494,7 @@ class Auth {
         if ($department !== null) {
             $trimmedDept = trim($department);
             if (mb_strlen($trimmedDept, 'UTF-8') > 30) {
-                return ['success' => false, 'message' => '部门/备注不能超过 30 个字符'];
+                return ['success' => false, 'message' => t('api.auth.dept_len_30')];
             }
             $fields[] = "department = ?";
             $params[] = $trimmedDept;
@@ -1502,10 +1502,10 @@ class Auth {
         if ($webhookUrl !== null) {
             $trimmedWb = trim($webhookUrl);
             if (mb_strlen($trimmedWb, 'UTF-8') > 1000) {
-                return ['success' => false, 'message' => 'Webhook 地址不能超过 1000 个字符'];
+                return ['success' => false, 'message' => t('api.auth.webhook_len_1000')];
             }
             if ($trimmedWb !== '' && !Webhook::isAllowedUrl($trimmedWb)) {
-                return ['success' => false, 'message' => '请使用企微、飞书或钉钉的 HTTPS 机器人地址'];
+                return ['success' => false, 'message' => t('webhook.err_url')];
             }
             $fields[] = "webhook_url = ?";
             $params[] = $trimmedWb;
@@ -1522,7 +1522,7 @@ class Auth {
         }
 
         if (empty($fields)) {
-            return ['success' => false, 'message' => '无可更新内容'];
+            return ['success' => false, 'message' => t('api.auth.no_updates')];
         }
 
         $params[] = (int)$id;
@@ -1585,7 +1585,7 @@ class Auth {
         $id = (int)$id;
 
         if ($currUser && (int)$currUser['id'] === $id) {
-            return ['success' => false, 'message' => '不能删除当前登录的管理员自己'];
+            return ['success' => false, 'message' => t('api.auth.cannot_delete_self')];
         }
 
         $stmt = $db->prepare("SELECT id, email, role, is_owner FROM users WHERE id = ?");
@@ -1593,25 +1593,25 @@ class Auth {
         $targetUser = $stmt->fetch();
         $stmt->closeCursor();
         if (!$targetUser) {
-            return ['success' => false, 'message' => '该用户不存在或已被删除'];
+            return ['success' => false, 'message' => t('api.auth.user_deleted_missing')];
         }
 
         // 护城河 1: 任何人都绝对不可删除主管理员 (Owner)
         if (!empty($targetUser['is_owner'])) {
-            return ['success' => false, 'message' => '主管理员账号不可删除，请先移交主管理员权限'];
+            return ['success' => false, 'message' => t('api.auth.owner_no_delete')];
         }
 
         // 护城河 2: 管理员禁止删除其他管理员
         $isCurrOwner = !empty($currUser['is_owner']);
         if (!$isCurrOwner && $targetUser['role'] === 'admin') {
-            return ['success' => false, 'message' => '管理员无权删除其他管理员账号'];
+            return ['success' => false, 'message' => t('api.auth.admin_no_delete_other_admin')];
         }
 
         // 防孤儿死锁: 确保全站至少有一位管理员
         if ($targetUser['role'] === 'admin') {
             $adminCount = (int)$db->query("SELECT COUNT(*) FROM users WHERE role = 'admin' AND status = 1")->fetchColumn();
             if ($adminCount <= 1) {
-                return ['success' => false, 'message' => '系统必须保留至少一位管理员，无法删除'];
+                return ['success' => false, 'message' => t('api.auth.must_keep_one_admin_del')];
             }
         }
 
@@ -1625,7 +1625,7 @@ class Auth {
             $stmtItems->closeCursor();
             if ($itemCount > 0) {
                 $db->rollBack();
-                return ['success' => false, 'message' => "该成员仍有 {$itemCount} 个项目或链接需要交接，请先完成工作交接再删除"];
+                return ['success' => false, 'message' => t('api.auth.delete_needs_handover', ['count' => $itemCount])];
             }
 
             $db->prepare("DELETE FROM settings WHERE key = ?")->execute(['admin_token_' . $id]);
@@ -1647,17 +1647,17 @@ class Auth {
     public static function handoverUserProjects($fromUserId, $toUserId, $deactivateFrom = false) {
         $db = DB::getInstance();
         if (!self::isAdmin()) {
-            return ['success' => false, 'message' => '仅管理员有权执行工作交接'];
+            return ['success' => false, 'message' => t('api.auth.handover_admin_only')];
         }
 
         $fromUserId = (int)$fromUserId;
         $toUserId = (int)$toUserId;
 
         if ($fromUserId <= 0 || $toUserId <= 0) {
-            return ['success' => false, 'message' => '请选择有效的交接双方'];
+            return ['success' => false, 'message' => t('api.auth.handover_select_both')];
         }
         if ($fromUserId === $toUserId) {
-            return ['success' => false, 'message' => '接管人不能与原负责人相同'];
+            return ['success' => false, 'message' => t('api.auth.handover_same_user')];
         }
 
         // 验证原用户
@@ -1666,15 +1666,15 @@ class Auth {
         $fromUser = $stmtFrom->fetch();
         $stmtFrom->closeCursor();
         if (!$fromUser) {
-            return ['success' => false, 'message' => '原成员不存在'];
+            return ['success' => false, 'message' => t('api.auth.handover_from_missing')];
         }
 
         $actor = self::getCurrentUser();
         if (empty($actor['is_owner']) && ($fromUser['role'] === 'admin' || !empty($fromUser['is_owner']))) {
-            return ['success' => false, 'message' => '管理员无权交接其他管理员的项目'];
+            return ['success' => false, 'message' => t('api.auth.handover_no_other_admin')];
         }
         if ($deactivateFrom && ($fromUserId === (int)$actor['id'] || !empty($fromUser['is_owner']))) {
-            return ['success' => false, 'message' => '不能停用当前账号或主管理员'];
+            return ['success' => false, 'message' => t('api.auth.handover_cannot_disable')];
         }
 
         // 验证接管人 (必须是正常状态的管理员或协作者)
@@ -1683,7 +1683,7 @@ class Auth {
         $toUser = $stmtTo->fetch();
         $stmtTo->closeCursor();
         if (!$toUser || !in_array($toUser['role'], ['admin', 'editor']) || (int)$toUser['status'] !== 1) {
-            return ['success' => false, 'message' => '接管人必须是正常状态的管理员或协作者'];
+            return ['success' => false, 'message' => t('api.auth.handover_target_role')];
         }
 
         try {
@@ -1693,7 +1693,7 @@ class Auth {
             $stmtTo->execute([$toUserId]);
             $toUser = $stmtTo->fetch();
             $stmtTo->closeCursor();
-            if (!$toUser || !in_array($toUser['role'], ['admin', 'editor'], true) || (int)$toUser['status'] !== 1) throw new DomainException('接管人成员状态已变化');
+            if (!$toUser || !in_array($toUser['role'], ['admin', 'editor'], true) || (int)$toUser['status'] !== 1) throw new DomainException(t('api.auth.handover_target_changed'));
             $stmtHandoverItems = $db->prepare("SELECT id, created_by, collaborators FROM items WHERE created_by = ? OR (type = 'project' AND instr(',' || collaborators || ',', ?) > 0)");
             $stmtHandoverItems->execute([$fromUserId, ',' . $fromUserId . ',']);
             $handoverItems = $stmtHandoverItems->fetchAll();
@@ -1731,20 +1731,25 @@ class Auth {
             self::recordLoginLog(
                 $currUser['email'] ?? 'admin',
                 1,
-                "工作交接：将 {$fromUser['name']} 名下 {$projectCount} 个项目交接给 {$toUser['name']}" . ($deactivateFrom ? ' (已停用原账号)' : '')
+                t('api.auth.handover_log', [
+                    'from' => $fromUser['name'],
+                    'count' => $projectCount,
+                    'to' => $toUser['name'],
+                    'deactivated' => $deactivateFrom ? t('api.auth.handover_log_deactivated') : ''
+                ])
             );
 
             return [
                 'success' => true,
                 'project_count' => $projectCount,
-                'message' => "已成功将 {$projectCount} 个项目交接给 {$toUser['name']}"
+                'message' => t('api.auth.handover_ok', ['count' => $projectCount, 'to' => $toUser['name']])
             ];
         } catch (Exception $e) {
             if ($db->inTransaction()) {
                 $db->rollBack();
             }
             error_log('handoverUserProjects: ' . $e->getMessage());
-            return ['success' => false, 'message' => '交接失败，请稍后重试'];
+            return ['success' => false, 'message' => t('api.auth.handover_fail')];
         }
     }
 
@@ -1756,12 +1761,12 @@ class Auth {
         $db = DB::getInstance();
         $currUser = self::getCurrentUser();
         if (!$currUser || empty($currUser['is_owner'])) {
-            return ['success' => false, 'message' => '仅主管理员有权发起所有权移交'];
+            return ['success' => false, 'message' => t('api.auth.transfer_owner_only')];
         }
 
         $targetUserId = (int)$targetUserId;
         if ($targetUserId <= 0 || (int)$currUser['id'] === $targetUserId) {
-            return ['success' => false, 'message' => '请选择有效的接收管理员'];
+            return ['success' => false, 'message' => t('api.auth.transfer_select_target')];
         }
 
         // 在写锁内重新核验身份，不能使用请求早期缓存的 Owner 状态授权。
@@ -1773,10 +1778,10 @@ class Auth {
             $ownerRow = $stmtOwner->fetch();
             $stmtOwner->closeCursor();
             if (!$ownerRow || !(int)$ownerRow['is_owner'] || $ownerRow['role'] !== 'admin' || (int)$ownerRow['status'] !== 1) {
-                throw new DomainException('主管理员权限已变更，请刷新后重试');
+                throw new DomainException(t('api.auth.transfer_owner_changed'));
             }
             if (!password_verify($confirmPassword, $ownerRow['password_hash'])) {
-                throw new DomainException('当前管理员密码验证错误，移交终止');
+                throw new DomainException(t('api.auth.transfer_bad_pwd'));
             }
 
             // 验证目标用户必须是有效管理员
@@ -1785,14 +1790,14 @@ class Auth {
             $targetUser = $stmtTarget->fetch();
             $stmtTarget->closeCursor();
             if (!$targetUser || $targetUser['role'] !== 'admin' || (int)$targetUser['status'] !== 1) {
-                throw new DomainException('移交目标必须是状态正常的管理员');
+                throw new DomainException(t('api.auth.transfer_target_invalid'));
             }
 
             $clear = $db->prepare('UPDATE users SET is_owner = 0 WHERE id = ? AND is_owner = 1 AND role = ? AND status = 1');
             $clear->execute([(int)$currUser['id'], 'admin']);
             $assign = $db->prepare('UPDATE users SET is_owner = 1 WHERE id = ? AND role = ? AND status = 1');
             $assign->execute([$targetUserId, 'admin']);
-            if ($clear->rowCount() !== 1 || $assign->rowCount() !== 1) throw new DomainException('管理员状态已变更，请刷新后重试');
+            if ($clear->rowCount() !== 1 || $assign->rowCount() !== 1) throw new DomainException(t('api.auth.transfer_admin_changed'));
             $db->commit();
 
             $_SESSION['is_owner'] = 0;
@@ -1800,15 +1805,15 @@ class Auth {
                 self::$cachedUser['is_owner'] = 0;
             }
 
-            self::recordLoginLog($currUser['email'], 1, "主管理员所有权已安全移交给：{$targetUser['name']} ({$targetUser['email']})");
+            self::recordLoginLog($currUser['email'], 1, t('api.auth.transfer_log', ['name' => $targetUser['name'], 'email' => $targetUser['email']]));
 
-            return ['success' => true, 'message' => "主管理员权限已成功移交给 {$targetUser['name']}"];
+            return ['success' => true, 'message' => t('api.auth.transfer_ok', ['name' => $targetUser['name']])];
         } catch (Throwable $e) {
             if ($db->inTransaction()) {
                 $db->rollBack();
             }
             error_log('[protoloft] 所有权移交未完成: ' . $e->getMessage());
-            return ['success' => false, 'message' => $e instanceof DomainException ? $e->getMessage() : '移交失败，请稍后重试'];
+            return ['success' => false, 'message' => $e instanceof DomainException ? $e->getMessage() : t('api.auth.transfer_fail')];
         }
     }
 
@@ -1818,15 +1823,15 @@ class Auth {
     public static function updateMyProfile($name) {
         $currUser = self::getCurrentUser();
         if (!$currUser) {
-            return ['success' => false, 'message' => '未登录或登录已失效'];
+            return ['success' => false, 'message' => t('api.not_logged_in_or_expired')];
         }
         $db = DB::getInstance();
         $name = trim($name);
         if (empty($name)) {
-            return ['success' => false, 'message' => '姓名不能为空'];
+            return ['success' => false, 'message' => t('api.auth.name_cannot_empty')];
         }
         if (mb_strlen($name, 'UTF-8') > 20) {
-            return ['success' => false, 'message' => '姓名不能超过 20 个字符'];
+            return ['success' => false, 'message' => t('api.auth.name_len_20')];
         }
         $stmt = $db->prepare("UPDATE users SET name = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?");
         $stmt->execute([$name, (int)$currUser['id']]);
@@ -1852,12 +1857,12 @@ class Auth {
     public static function updateMyWebhook($webhookUrl) {
         $currUser = self::getCurrentUser();
         if (!$currUser) {
-            return ['success' => false, 'message' => '未登录或登录已失效'];
+            return ['success' => false, 'message' => t('api.not_logged_in_or_expired')];
         }
         $db = DB::getInstance();
         $webhookUrl = trim($webhookUrl);
-        if (mb_strlen($webhookUrl, 'UTF-8') > 1000) return ['success' => false, 'message' => 'Webhook 地址不能超过 1000 个字符'];
-        if ($webhookUrl !== '' && !Webhook::isAllowedUrl($webhookUrl)) return ['success' => false, 'message' => '请使用企微、飞书或钉钉的 HTTPS 机器人地址'];
+        if (mb_strlen($webhookUrl, 'UTF-8') > 1000) return ['success' => false, 'message' => t('api.auth.webhook_len_1000')];
+        if ($webhookUrl !== '' && !Webhook::isAllowedUrl($webhookUrl)) return ['success' => false, 'message' => t('webhook.err_url')];
         $stmt = $db->prepare("UPDATE users SET webhook_url = ? WHERE id = ?");
         $stmt->execute([$webhookUrl, (int)$currUser['id']]);
 
@@ -1874,11 +1879,11 @@ class Auth {
     public static function updateMyAvatar($avatar) {
         $currUser = self::getCurrentUser();
         if (!$currUser) {
-            return ['success' => false, 'message' => '未登录或登录已失效'];
+            return ['success' => false, 'message' => t('api.not_logged_in_or_expired')];
         }
         $avatar = trim((string)$avatar);
         if (!self::isValidAvatar($avatar)) {
-            return ['success' => false, 'message' => '请选择有效的品牌头像样式'];
+            return ['success' => false, 'message' => t('api.auth.avatar_invalid')];
         }
         $db = DB::getInstance();
         $stmt = $db->prepare("UPDATE users SET avatar = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?");
@@ -1897,7 +1902,7 @@ class Auth {
     public static function changeMyPassword($oldPassword, $newPassword) {
         $currUser = self::getCurrentUser();
         if (!$currUser) {
-            return ['success' => false, 'message' => '未登录或登录已失效'];
+            return ['success' => false, 'message' => t('api.not_logged_in_or_expired')];
         }
         $db = DB::getInstance();
         $stmt = $db->prepare("SELECT id, email, password_hash FROM users WHERE id = ?");
@@ -1905,12 +1910,12 @@ class Auth {
         $userRow = $stmt->fetch();
         $stmt->closeCursor();
         if (!$userRow) {
-            return ['success' => false, 'message' => '用户账号不存在'];
+            return ['success' => false, 'message' => t('api.auth.account_not_found')];
         }
 
         // 验证原密码
         if (!password_verify($oldPassword, $userRow['password_hash'])) {
-            return ['success' => false, 'message' => '当前密码输入错误，请重新输入'];
+            return ['success' => false, 'message' => t('api.auth.old_pwd_wrong')];
         }
 
         // 校验新密码长度
@@ -1927,7 +1932,7 @@ class Auth {
             $updateStmt->execute([$newHash, (int)$currUser['id'], $userRow['password_hash']]);
             if ($updateStmt->rowCount() !== 1) {
                 $db->rollBack();
-                return ['success' => false, 'message' => '密码已变更，请重新登录'];
+                return ['success' => false, 'message' => t('api.auth.pwd_changed_relogin')];
             }
             self::deletePasswordReset($db, $currUser['id']);
             self::saveUserAuthTokens((int)$currUser['id'], []);
@@ -1947,9 +1952,9 @@ class Auth {
             self::$cachedUser['is_first_login'] = 0;
         }
 
-        self::recordLoginLog($userRow['email'], 1, '个人自主修改登录密码成功');
+        self::recordLoginLog($userRow['email'], 1, t('api.auth.pwd_change_log'));
 
-        return ['success' => true, 'message' => '密码修改成功'];
+        return ['success' => true, 'message' => t('api.auth.pwd_change_ok')];
     }
 
     /**
@@ -1986,7 +1991,7 @@ class Auth {
     public static function preparePasswordReset($emailInput) {
         $base = Mailer::passwordResetBaseUrl();
         if ($base === '' || !Mailer::isConfiguredAndEnabled()) {
-            return ['success' => false, 'message' => '暂未启用邮件找回，请联系管理员重置密码'];
+            return ['success' => false, 'message' => t('auth.mail_reset_disabled')];
         }
 
         $email = trim(strtolower($emailInput));
@@ -1997,7 +2002,7 @@ class Auth {
             }
         }
         if (strlen($email) > 100 || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
-            return ['success' => false, 'message' => '请输入有效的工作邮箱地址'];
+            return ['success' => false, 'message' => t('api.auth.invalid_email')];
         }
 
         $db = DB::getInstance();
@@ -2010,7 +2015,7 @@ class Auth {
                 || !self::checkThrottle($emailScope, 1, 60, false)
                 || !self::checkThrottle($emailScope . '_win', 5, 900, false)) {
                 $db->rollBack();
-                return ['success' => false, 'message' => '发送过于频繁，请稍后再试'];
+                return ['success' => false, 'message' => t('api.auth.reset_throttle')];
             }
             self::hitThrottle('forgot_pwd_ip', 900);
             self::hitThrottle($emailScope, 60, false);
@@ -2023,7 +2028,7 @@ class Auth {
 
         return [
             'success' => true,
-            'message' => '如果该邮箱已注册且状态正常，你将收到密码重置邮件',
+            'message' => t('auth.reset_sent_tip'),
             'send' => function () use ($email, $base) {
                 self::deliverPasswordReset($email, $base);
             },
@@ -2085,7 +2090,7 @@ class Auth {
         if (empty($result['success'])) {
             error_log('[protoloft] 找回密码邮件发送失败: ' . ($result['message'] ?? 'unknown'));
         } else {
-            self::recordLoginLog($user['email'], 1, '发起邮箱找回密码请求');
+            self::recordLoginLog($user['email'], 1, t('api.auth.reset_req_log'));
         }
     }
 
@@ -2113,7 +2118,7 @@ class Auth {
     public static function verifyPasswordResetToken($rawToken) {
         $user = self::findPasswordReset($rawToken);
         if (!$user) {
-            return ['valid' => false, 'message' => '重置链接无效或已过期，请重新申请'];
+            return ['valid' => false, 'message' => t('auth.reset_link_invalid')];
         }
         return ['valid' => true, 'masked_email' => self::maskEmail($user['email'])];
     }
@@ -2121,9 +2126,9 @@ class Auth {
     /** 通过一次性重置令牌重设登录密码。 */
     public static function resetPasswordByToken($rawToken, $newPassword) {
         if (!self::reserveThrottleAttempt('reset_pwd_confirm', 10, 900)) {
-            return ['success' => false, 'message' => '操作过于频繁，请稍后再试'];
+            return ['success' => false, 'message' => t('api.auth.reset_op_throttle')];
         }
-        $invalid = ['success' => false, 'message' => '重置链接无效或已过期，请重新申请'];
+        $invalid = ['success' => false, 'message' => t('auth.reset_link_invalid')];
         if (!self::findPasswordReset($rawToken)) {
             return $invalid;
         }
@@ -2152,12 +2157,12 @@ class Auth {
         } catch (Throwable $e) {
             if ($db->inTransaction()) $db->rollBack();
             error_log('[protoloft] 邮箱重置密码失败: ' . $e->getMessage());
-            return ['success' => false, 'message' => '密码重置失败，请稍后重试'];
+            return ['success' => false, 'message' => t('api.auth.reset_fail')];
         }
 
         self::clearThrottle('reset_pwd_confirm');
-        self::recordLoginLog($user['email'], 1, '通过邮箱重置登录密码');
-        return ['success' => true, 'email' => $user['email'], 'message' => '密码已重置，请使用新密码登录'];
+        self::recordLoginLog($user['email'], 1, t('api.auth.reset_done_log'));
+        return ['success' => true, 'email' => $user['email'], 'message' => t('auth.reset_success')];
     }
 
     /**
@@ -2166,7 +2171,7 @@ class Auth {
     public static function dismissFirstLoginTip() {
         $currUser = self::getCurrentUser();
         if (!$currUser) {
-            return ['success' => false, 'message' => '未登录'];
+            return ['success' => false, 'message' => t('api.not_logged_in')];
         }
         $db = DB::getInstance();
         $stmt = $db->prepare("UPDATE users SET is_first_login = 0 WHERE id = ?");
@@ -2190,9 +2195,9 @@ class Auth {
      */
     public static function parseUserAgentSimple($ua) {
         $ua = (string)$ua;
-        if (empty($ua)) return '未知设备';
+        if (empty($ua)) return t('common.unknown_device');
 
-        $os = '未知系统';
+        $os = t('common.unknown_os');
         if (preg_match('/iPhone|iPad|iPod/i', $ua)) {
             $os = 'iOS';
         } elseif (preg_match('/Android/i', $ua)) {
@@ -2205,9 +2210,9 @@ class Auth {
             $os = 'Linux';
         }
 
-        $browser = '未知浏览器';
+        $browser = t('common.unknown_browser');
         if (stripos($ua, 'MicroMessenger') !== false) {
-            $browser = '微信内置';
+            $browser = t('common.wechat_browser');
         } elseif (stripos($ua, 'Edg') !== false) {
             $browser = 'Edge';
         } elseif (stripos($ua, 'Chrome') !== false) {

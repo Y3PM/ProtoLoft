@@ -6,11 +6,11 @@ if (!defined('APP_VERSION')) exit;
 
 switch ($action) {
     case 'category_save':
-        if (!Auth::canManage()) jsonResponse(false, null, '无权操作');
+        if (!Auth::canManage()) jsonResponse(false, null, t('api.no_perm'));
         $catId = (int)($_POST['id'] ?? 0);
         $name = trim($_POST['name'] ?? '');
-        if (empty($name)) jsonResponse(false, null, '文件夹名称不能为空');
-        if (mb_strlen($name, 'UTF-8') > 20) jsonResponse(false, null, '文件夹名称不能超过 20 个字符');
+        if (empty($name)) jsonResponse(false, null, t('api.items.cat_name_empty'));
+        if (mb_strlen($name, 'UTF-8') > 20) jsonResponse(false, null, t('api.items.cat_name_len'));
 
         if ($catId > 0) {
             $stmt = $db->prepare("UPDATE categories SET name = ? WHERE id = ?");
@@ -26,7 +26,7 @@ switch ($action) {
         break;
 
     case 'category_delete':
-        if (!Auth::canManage()) jsonResponse(false, null, '无权操作');
+        if (!Auth::canManage()) jsonResponse(false, null, t('api.no_perm'));
         $catId = (int)($_POST['id'] ?? 0);
         $db->beginTransaction();
         try {
@@ -35,12 +35,12 @@ switch ($action) {
             $stmt->execute([$catId]);
             $hasCat = (bool)$stmt->fetch();
             $stmt->closeCursor();
-            if (!$hasCat) throw new DomainException('文件夹不存在');
+            if (!$hasCat) throw new DomainException(t('api.items.cat_missing'));
             $stmt = $db->prepare('SELECT * FROM items WHERE category_id = ?');
             $stmt->execute([$catId]);
             $rows = $stmt->fetchAll();
             foreach ($rows as $row) {
-                if (!Auth::canDeleteItem($row)) throw new DomainException('文件夹中有其他成员的项目，无法删除');
+                if (!Auth::canDeleteItem($row)) throw new DomainException(t('api.items.cat_has_others'));
             }
             foreach ($rows as $row) Storage::deleteItemRecords($db, $row['id']);
             $db->prepare('DELETE FROM categories WHERE id = ?')->execute([$catId]);
@@ -50,14 +50,14 @@ switch ($action) {
             throw $e;
         }
         $pending = Storage::collectGarbage($db);
-        jsonResponse(true, null, $pending ? '文件夹已删除，文件清理待重试' : '文件夹已删除');
+        jsonResponse(true, null, $pending ? t('api.items.cat_deleted_retry') : t('api.items.cat_deleted'));
         break;
 
     case 'category_sort':
-        if (!Auth::canManage()) jsonResponse(false, null, '无权操作');
+        if (!Auth::canManage()) jsonResponse(false, null, t('api.no_perm'));
         $ids = json_decode($_POST['ids'] ?? '[]', true);
         if (!is_array($ids)) {
-            jsonResponse(false, null, '排序数据格式不正确');
+            jsonResponse(false, null, t('api.items.sort_fmt'));
         }
         $sort = 10;
         $stmt = $db->prepare("UPDATE categories SET sort_order = ? WHERE id = ?");
@@ -65,11 +65,11 @@ switch ($action) {
             $stmt->execute([$sort, (int)$cid]);
             $sort += 10;
         }
-        jsonResponse(true, null, '文件夹排序已更新');
+        jsonResponse(true, null, t('api.items.cat_sorted'));
         break;
 
     case 'item_save':
-        if (!Auth::canManage()) jsonResponse(false, null, '无权操作');
+        if (!Auth::canManage()) jsonResponse(false, null, t('api.no_perm'));
         $itemId = (int)($_POST['id'] ?? 0);
         $catId = (int)($_POST['category_id'] ?? 0);
         $type = in_array($_POST['type'] ?? '', ['project', 'link']) ? $_POST['type'] : 'project';
@@ -83,14 +83,14 @@ switch ($action) {
         }
         $hasScopeParam = array_key_exists('collaboration_scope', $_POST);
         $scope = $hasScopeParam ? $_POST['collaboration_scope'] : null;
-        if ($hasScopeParam && !in_array($scope, ['all', 'selected'], true)) jsonResponse(false, null, '请选择有效的协作权限');
+        if ($hasScopeParam && !in_array($scope, ['all', 'selected'], true)) jsonResponse(false, null, t('api.items.scope_invalid'));
         $hasCollaboratorsParam = array_key_exists('collaborators', $_POST) || $hasScopeParam;
-        if (array_key_exists('collaborators', $_POST) && !is_string($_POST['collaborators'])) jsonResponse(false, null, '协作成员格式不正确');
+        if (array_key_exists('collaborators', $_POST) && !is_string($_POST['collaborators'])) jsonResponse(false, null, t('api.items.owners_fmt'));
         $collaborators = trim($_POST['collaborators'] ?? '');
         if ($scope === 'all') $collaborators = '';
-        if ($scope === 'selected' && $collaborators === '') jsonResponse(false, null, '请至少选择一位协作成员');
+        if ($scope === 'selected' && $collaborators === '') jsonResponse(false, null, t('api.items.owners_required'));
         if ($collaborators !== '') {
-            if (!preg_match('/^[1-9][0-9]*(\s*,\s*[1-9][0-9]*)*$/D', $collaborators)) jsonResponse(false, null, '协作成员格式不正确');
+            if (!preg_match('/^[1-9][0-9]*(\s*,\s*[1-9][0-9]*)*$/D', $collaborators)) jsonResponse(false, null, t('api.items.owners_fmt'));
             $cArr = array_values(array_unique(array_filter(array_map('intval', explode(',', $collaborators)), function($v) { return $v > 0; })));
             $collaborators = implode(',', $cArr);
         } else {
@@ -98,26 +98,26 @@ switch ($action) {
         }
         $watermarkEnabled = !empty($_POST['watermark_enabled']) ? 1 : 0;
 
-        if (empty($name)) jsonResponse(false, null, '项目/外链名称不能为空');
-        if (!mb_check_encoding($name, 'UTF-8')) jsonResponse(false, null, '项目/外链名称编码无效');
-        if (mb_strlen($name, 'UTF-8') > 40) jsonResponse(false, null, '项目/外链名称不能超过 40 个字符');
-        if (mb_strlen($linkUrl, 'UTF-8') > 2000) jsonResponse(false, null, '外链地址不能超过 2000 个字符');
-        if (mb_strlen($webhookUrl, 'UTF-8') > 1000) jsonResponse(false, null, 'Webhook 地址不能超过 1000 个字符');
+        if (empty($name)) jsonResponse(false, null, t('api.items.name_empty'));
+        if (!mb_check_encoding($name, 'UTF-8')) jsonResponse(false, null, t('api.items.name_encoding'));
+        if (mb_strlen($name, 'UTF-8') > 40) jsonResponse(false, null, t('api.items.name_len'));
+        if (mb_strlen($linkUrl, 'UTF-8') > 2000) jsonResponse(false, null, t('api.items.link_len'));
+        if (mb_strlen($webhookUrl, 'UTF-8') > 1000) jsonResponse(false, null, t('api.auth.webhook_len'));
         if ($webhookUrl !== '' && !Webhook::isAllowedUrl($webhookUrl)) {
-            jsonResponse(false, null, '仅支持企业微信、飞书或钉钉的 HTTPS Webhook 地址');
+            jsonResponse(false, null, t('api.sys.webhook_https_only'));
         }
-        if ($catId <= 0) jsonResponse(false, null, '必须选择所属文件夹');
+        if ($catId <= 0) jsonResponse(false, null, t('api.items.folder_required'));
 
-        if ($type === 'link' && $linkUrl === '') jsonResponse(false, null, '请输入链接地址');
+        if ($type === 'link' && $linkUrl === '') jsonResponse(false, null, t('api.items.link_url_required'));
         if ($type === 'link' && !preg_match('#^(https?://|/)#i', $linkUrl)) {
-            jsonResponse(false, null, '外链地址必须以 http(s):// 开头，或为站内路径 (以 / 开头)');
+            jsonResponse(false, null, t('api.items.link_url_scheme'));
         }
 
         $category = $db->prepare('SELECT id FROM categories WHERE id = ?');
         $category->execute([$catId]);
         $hasCat = (bool)$category->fetchColumn();
         $category->closeCursor();
-        if (!$hasCat) jsonResponse(false, null, '所属文件夹不存在');
+        if (!$hasCat) jsonResponse(false, null, t('api.items.folder_missing'));
         $currentUser = Auth::getCurrentUser();
         $db->beginTransaction();
         try {
@@ -129,7 +129,7 @@ switch ($action) {
                 $oldItem = $oldItemStmt->fetch();
                 $oldItemStmt->closeCursor();
                 if (!$oldItem) {
-                    jsonResponse(false, null, '未找到指定项目');
+                    jsonResponse(false, null, t('api.items.not_found'));
                 }
                 $oldCollabArr = Auth::parseItemCollaborators($oldItem);
                 $oldCollabNormalized = implode(',', $oldCollabArr);
@@ -140,11 +140,11 @@ switch ($action) {
                 }
                 if (!array_key_exists('watermark_enabled', $_POST)) $watermarkEnabled = (int)$oldItem['watermark_enabled'];
                 if (!Auth::canManageItemConfig($oldItem, $currentUser)) {
-                    jsonResponse(false, null, '您不是该项目的创建者或指定协作成员，无权修改其配置');
+                    jsonResponse(false, null, t('api.items.no_edit_config'));
                 }
 
                 if ($hasCollaboratorsParam && $collaborators !== $oldCollabNormalized && !Auth::canEditItemOwners($oldItem, $currentUser)) {
-                    jsonResponse(false, null, '仅管理员或项目创建者可调整协作权限');
+                    jsonResponse(false, null, t('api.items.owner_change_scope_only'));
                 }
                 if ($hasCollaboratorsParam && !empty($cArr)) {
                     $placeholders = implode(',', array_fill(0, count($cArr), '?'));
@@ -159,19 +159,19 @@ switch ($action) {
                         $isValidActive = $uRow && in_array($uRow['role'], ['admin', 'editor'], true) && (int)$uRow['status'] === 1;
                         $wasExistingOwner = in_array($cid, $oldCollabArr, true);
                         if (!$isValidActive && !$wasExistingOwner) {
-                            jsonResponse(false, null, '协作成员必须是正常状态的管理员或协作者');
+                            jsonResponse(false, null, t('api.items.owners_active_only'));
                         }
                     }
                 }
 
-                if ($type !== $oldItem['type']) jsonResponse(false, null, '项目类型不可变更');
+                if ($type !== $oldItem['type']) jsonResponse(false, null, t('api.items.type_immutable'));
                 $finalAuthorId = (Auth::isAdmin() && isset($_POST['created_by'])) ? (int)$_POST['created_by'] : (int)($oldItem['created_by'] ?? 0);
                 if (Auth::isAdmin() && isset($_POST['created_by'])) {
                     $owner = $db->prepare("SELECT id FROM users WHERE id = ? AND status = 1 AND role IN ('admin', 'editor')");
                     $owner->execute([$finalAuthorId]);
                     $hasOwner = (bool)$owner->fetchColumn();
                     $owner->closeCursor();
-                    if (!$hasOwner) jsonResponse(false, null, '负责人必须是正常成员');
+                    if (!$hasOwner) jsonResponse(false, null, t('api.items.creator_active_only'));
                 }
 
                 $nextSort = (int)($oldItem['sort_order'] ?? 0);
@@ -204,7 +204,7 @@ switch ($action) {
                     $uCheck->execute($cArr);
                     $validIds = array_map('intval', $uCheck->fetchAll(PDO::FETCH_COLUMN));
                     if (count($validIds) !== count($cArr)) {
-                        jsonResponse(false, null, '协作成员必须是正常状态的管理员或协作者');
+                        jsonResponse(false, null, t('api.items.owners_active_only'));
                     }
                 }
 
@@ -227,36 +227,36 @@ switch ($action) {
         break;
 
     case 'item_set_webhook':
-        if (!Auth::canManage()) jsonResponse(false, null, '无权操作');
+        if (!Auth::canManage()) jsonResponse(false, null, t('api.no_perm'));
         $itemId = (int)($_POST['item_id'] ?? 0);
         $webhookUrl = trim($_POST['webhook_url'] ?? '');
-        if ($itemId <= 0) jsonResponse(false, null, '请指定项目');
+        if ($itemId <= 0) jsonResponse(false, null, t('api.items.select_item'));
 
         $stmtItem = $db->prepare("SELECT * FROM items WHERE id = ?");
         $stmtItem->execute([$itemId]);
         $item = $stmtItem->fetch();
         $stmtItem->closeCursor();
-        if (!$item) jsonResponse(false, null, '未找到指定项目');
-        if (($item['type'] ?? '') === 'link') jsonResponse(false, null, '链接类型不支持配置群通知');
-        if (!Auth::canManageItemConfig($item)) jsonResponse(false, null, '您无权配置该项目的 Webhook');
-        if (mb_strlen($webhookUrl, 'UTF-8') > 1000) jsonResponse(false, null, 'Webhook 地址不能超过 1000 个字符');
+        if (!$item) jsonResponse(false, null, t('api.items.not_found'));
+        if (($item['type'] ?? '') === 'link') jsonResponse(false, null, t('api.items.link_no_webhook'));
+        if (!Auth::canManageItemConfig($item)) jsonResponse(false, null, t('api.items.no_webhook_perm'));
+        if (mb_strlen($webhookUrl, 'UTF-8') > 1000) jsonResponse(false, null, t('api.auth.webhook_len'));
         if ($webhookUrl !== '' && !Webhook::isAllowedUrl($webhookUrl)) {
-            jsonResponse(false, null, '仅支持企业微信、飞书或钉钉的 HTTPS Webhook 地址');
+            jsonResponse(false, null, t('api.sys.webhook_https_only'));
         }
 
         $upd = $db->prepare("UPDATE items SET webhook_url = ? WHERE id = ?");
         $upd->execute([$webhookUrl, $itemId]);
-        jsonResponse(true, ['item_id' => $itemId, 'webhook_url' => $webhookUrl], '项目群机器人已保存');
+        jsonResponse(true, ['item_id' => $itemId, 'webhook_url' => $webhookUrl], t('api.items.webhook_saved'));
         break;
 
     case 'item_delete':
-        if (!Auth::canManage()) jsonResponse(false, null, '无权操作');
+        if (!Auth::canManage()) jsonResponse(false, null, t('api.no_perm'));
         $itemId = (int)($_POST['id'] ?? 0);
         $db->beginTransaction();
         try {
             $db->exec('UPDATE items SET id = id WHERE 0');
             $item = Auth::getItem($itemId);
-            if (!$item || !Auth::canDeleteItem($item)) throw new DomainException('无权删除此项目');
+            if (!$item || !Auth::canDeleteItem($item)) throw new DomainException(t('api.items.no_delete_perm'));
             Storage::deleteItemRecords($db, $itemId);
             $db->commit();
         } catch (Throwable $e) {
@@ -264,11 +264,11 @@ switch ($action) {
             throw $e;
         }
         $pending = Storage::collectGarbage($db);
-        jsonResponse(true, null, $pending ? '项目已删除，文件清理待重试' : '项目已删除');
+        jsonResponse(true, null, $pending ? t('api.items.deleted_retry') : t('api.items.deleted'));
         break;
 
     case 'item_toggle_visibility':
-        if (!Auth::canManage()) jsonResponse(false, null, '无权操作');
+        if (!Auth::canManage()) jsonResponse(false, null, t('api.no_perm'));
         $itemId = (int)($_POST['id'] ?? 0);
         $curr = $db->prepare("SELECT * FROM items WHERE id = ?");
         $curr->execute([$itemId]);
@@ -276,21 +276,21 @@ switch ($action) {
         $curr->closeCursor();
         if ($row) {
             if (!Auth::canManageItemConfig($row)) {
-                jsonResponse(false, null, '您不是该项目的创建者或指定协作成员，无权修改其可见性');
+                jsonResponse(false, null, t('api.items.no_vis_perm'));
             }
             $newVis = $row['is_visible'] ? 0 : 1;
             $stmt = $db->prepare("UPDATE items SET is_visible = ? WHERE id = ?");
             $stmt->execute([$newVis, $itemId]);
             jsonResponse(true, ['is_visible' => $newVis]);
         }
-        jsonResponse(false, null, '未找到指定项目');
+        jsonResponse(false, null, t('api.items.not_found'));
         break;
 
     case 'item_sort':
-        if (!Auth::canManage()) jsonResponse(false, null, '无权操作');
+        if (!Auth::canManage()) jsonResponse(false, null, t('api.no_perm'));
         $ids = json_decode($_POST['ids'] ?? '[]', true);
         $catId = (int)($_POST['category_id'] ?? 0);
-        if (!is_array($ids) || count($ids) > 1000) jsonResponse(false, null, '排序参数错误');
+        if (!is_array($ids) || count($ids) > 1000) jsonResponse(false, null, t('api.items.sort_param_err'));
         $ids = array_values(array_unique(array_map('intval', $ids)));
         $db->beginTransaction();
         try {
@@ -300,11 +300,11 @@ switch ($action) {
                 $cat->execute([$catId]);
                 $hasCat = (bool)$cat->fetchColumn();
                 $cat->closeCursor();
-                if (!$hasCat) throw new DomainException('目标文件夹不存在');
+                if (!$hasCat) throw new DomainException(t('api.items.target_folder_missing'));
             }
             foreach ($ids as $id) {
                 $row = Auth::getItem($id);
-                if (!$row || !Auth::canManageItemConfig($row)) throw new DomainException('无权调整所选项目');
+                if (!$row || !Auth::canManageItemConfig($row)) throw new DomainException(t('api.items.no_sort_perm'));
             }
             $sort = 10;
             foreach ($ids as $id) {
@@ -317,7 +317,7 @@ switch ($action) {
             if ($db->inTransaction()) $db->rollBack();
             throw $e;
         }
-        jsonResponse(true, null, '项目排序已更新');
+        jsonResponse(true, null, t('api.items.sorted'));
         break;
 
     case 'download_rp':
@@ -342,7 +342,7 @@ switch ($action) {
         } else {
             $isAllowed = Auth::canGuestDownloadRp() && Auth::hasShareAccess($item, $version);
         }
-        if (!$isAllowed) { http_response_code(403); exit('无权下载'); }
+        if (!$isAllowed) { http_response_code(403); exit(t('api.cannot_download')); }
 
         $file = Storage::filePath($version, $version['rp_file']);
         if (!$file) { http_response_code(404); exit; }

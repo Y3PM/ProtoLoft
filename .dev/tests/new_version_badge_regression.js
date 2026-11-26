@@ -16,8 +16,8 @@ const configPhp = fs.readFileSync(path.join(ROOT, 'includes/config.php'), 'utf-8
 console.log('[*] 开始执行新版本标识自动化回归测试 (增强版)...');
 
 // 1. 版本号升级回归
-assert(configPhp.includes("define('APP_VERSION', '3.1.11');"), "config.php 版本号应升为 3.1.11");
-console.log('  ✓ PASS: 系统常量 APP_VERSION 正确升至 3.1.11');
+assert(configPhp.includes("define('APP_VERSION', '3.2.0');"), "config.php 版本号应升为 3.2.0");
+console.log('  ✓ PASS: 系统常量 APP_VERSION 正确升至 3.2.0');
 
 // 2. CSS 样式契约与设计系统令牌映射 (严守铁律 3)
 assert(appCss.includes('--new-ver: #f43f5e;'), ":root 必须声明 --new-ver 状态色令牌");
@@ -47,7 +47,7 @@ console.log('  ✓ PASS: admin.js 覆盖会话内发版与版本操作红点自�
 assert(verPickerJs.includes("opts[oi].getAttribute('data-is-new') === '1'"), "ver-picker.js 缺少 data-is-new 选项检测");
 assert(verPickerJs.includes("trigger.classList.toggle('has-new-ver'"), "ver-picker.js 缺少顶栏触发器 has-new-ver 联动");
 assert(verPickerJs.includes('ver-popover-item-new-tag'), "ver-picker.js 缺少 ver-popover-item-new-tag 标签渲染");
-assert(verPickerJs.includes("newBadge.textContent = '新';"), "ver-picker.js 新标签文案应为'新'");
+assert(verPickerJs.includes("newBadge.textContent = (typeof t === 'function' ? t('ver.new_badge', null, '新') : '新');"), "ver-picker.js 新标签应通过 i18n 且兜底文案为'新'");
 assert(verPickerJs.includes('changed || isNewOpt'), "ver-picker.js 必须支持对带有新标的已选项点击派发消点");
 console.log('  ✓ PASS: ver-picker.js 自定义选择器完整联动新标且支持点击已选新版本立即消除');
 

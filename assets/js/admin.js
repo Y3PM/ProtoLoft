@@ -95,14 +95,14 @@ function toggleVisibility(itemId) {
     fd.append('id', itemId);
     adminFetch('item_toggle_visibility', fd).then(function(res) {
         if (res.success) {
-            showToast('项目显隐状态已更新', 'success');
+            showToast((typeof t === 'function' ? t('admin.item.vis_updated', null, '项目显隐状态已更新') : '项目显隐状态已更新'), 'success');
             if (isAdminConsoleOpen()) {
                 markAdminConsoleChanged();
             } else {
                 window.location.reload();
             }
         } else {
-            showToast(res.message || '操作失败', 'error');
+            showToast(res.message || (typeof t === 'function' ? t('common.op_failed', null, '操作失败') : '操作失败'), 'error');
         }
     });
 }
@@ -113,14 +113,14 @@ function toggleShareStatus(itemId) {
     fd.append('id', itemId);
     adminFetch('item_toggle_share', fd).then(function(res) {
         if (res.success) {
-            showToast('外链分享状态已更新', 'success');
+            showToast((typeof t === 'function' ? t('admin.item.share_updated', null, '外链分享状态已更新') : '外链分享状态已更新'), 'success');
             if (isAdminConsoleOpen()) {
                 markAdminConsoleChanged();
             } else {
                 window.location.reload();
             }
         } else {
-            showToast(res.message || '操作失败', 'error');
+            showToast(res.message || (typeof t === 'function' ? t('common.op_failed', null, '操作失败') : '操作失败'), 'error');
         }
     });
 }
@@ -128,23 +128,23 @@ function toggleShareStatus(itemId) {
 // 一键重置分享直链
 function rotateShareToken(itemId) {
     showConfirm({
-        title: '重置链接',
-        message: '确定重置分享链接？旧链接将失效。',
-        confirmText: '重置',
+        title: (typeof t === 'function' ? t('admin.item.reset_link_title', null, '重置链接') : '重置链接'),
+        message: (typeof t === 'function' ? t('admin.item.reset_link_confirm', null, '确定重置分享链接？旧链接将失效。') : '确定重置分享链接？旧链接将失效。'),
+        confirmText: (typeof t === 'function' ? t('admin.item.reset_btn', null, '重置') : '重置'),
         isDanger: true,
         onConfirm: function() {
             var fd = new FormData();
             fd.append('id', itemId);
             adminFetch('item_rotate_share', fd).then(function(res) {
                 if (res.success) {
-                    showToast('链接已重置', 'success');
+                    showToast((typeof t === 'function' ? t('admin.item.link_reset_ok', null, '链接已重置') : '链接已重置'), 'success');
                     if (isAdminConsoleOpen()) {
                         markAdminConsoleChanged();
                     } else {
                         window.location.reload();
                     }
                 } else {
-                    showToast(res.message || '重置失败', 'error');
+                    showToast(res.message || (typeof t === 'function' ? t('admin.item.reset_failed', null, '重置失败') : '重置失败'), 'error');
                 }
             });
         }
@@ -165,7 +165,7 @@ function handleNotifyTargetChange() {
     if (opt) opt.style.display = anyActive ? 'none' : 'inline';
     if (logInput) {
         logInput.required = anyActive;
-        logInput.placeholder = '本次版本的改动说明，支持换行与 Markdown（如 - 列表、**加粗**、# 标题）';
+        logInput.placeholder = (typeof t === 'function' ? t('admin.upload.changelog_placeholder', null, '本次版本的改动说明，支持换行与 Markdown（如 - 列表、**加粗**、# 标题）') : '本次版本的改动说明，支持换行与 Markdown（如 - 列表、**加粗**、# 标题）');
         if (!anyActive && logInput.classList && typeof logInput.classList.remove === 'function') {
             logInput.classList.remove('m-input-error');
         }
@@ -184,7 +184,7 @@ function toggleUploadNotify(checked) {
     if (opt) opt.style.display = checked ? 'none' : 'inline';
     if (logInput) {
         logInput.required = checked;
-        logInput.placeholder = '本次版本的改动说明，支持换行与 Markdown（如 - 列表、**加粗**、# 标题）';
+        logInput.placeholder = (typeof t === 'function' ? t('admin.upload.changelog_placeholder', null, '本次版本的改动说明，支持换行与 Markdown（如 - 列表、**加粗**、# 标题）') : '本次版本的改动说明，支持换行与 Markdown（如 - 列表、**加粗**、# 标题）');
         if (!checked && logInput.classList && typeof logInput.classList.remove === 'function') {
             logInput.classList.remove('m-input-error');
         }
@@ -217,7 +217,7 @@ function updateUploadNotifyState(itemId, isInitial) {
 
     if (hasItem) {
         itemCard.classList.remove('is-disabled');
-        itemCard.title = '通知当前项目配置的群机器人';
+        itemCard.title = (typeof t === 'function' ? t('admin.upload.notify_item_on_tip', null, '通知当前项目配置的群机器人') : '通知当前项目配置的群机器人');
         if (itemCb) {
             var wasDisabled = itemCb.disabled;
             itemCb.disabled = false;
@@ -228,18 +228,18 @@ function updateUploadNotifyState(itemId, isInitial) {
         }
         if (itemLabel) itemLabel.classList.remove('disabled');
         if (itemStatus) {
-            itemStatus.textContent = '已配置';
+            itemStatus.textContent = (typeof t === 'function' ? t('common.configured', null, '已配置') : '已配置');
         }
     } else {
         itemCard.classList.add('is-disabled');
-        itemCard.title = '当前项目未配置 Webhook 机器人，可在编辑项目属性中配置';
+        itemCard.title = (typeof t === 'function' ? t('admin.upload.notify_item_off_tip', null, '当前项目未配置 Webhook 机器人，可在编辑项目属性中配置') : '当前项目未配置 Webhook 机器人，可在编辑项目属性中配置');
         if (itemCb) {
             itemCb.disabled = true;
             itemCb.checked = false;
         }
         if (itemLabel) itemLabel.classList.add('disabled');
         if (itemStatus) {
-            itemStatus.textContent = '未配置';
+            itemStatus.textContent = (typeof t === 'function' ? t('common.unconfigured', null, '未配置') : '未配置');
         }
     }
 
@@ -247,7 +247,7 @@ function updateUploadNotifyState(itemId, isInitial) {
     var hasGlobal = typeof SYS_HAS_GLOBAL_WEBHOOK !== 'undefined' && SYS_HAS_GLOBAL_WEBHOOK;
     if (hasGlobal) {
         globalCard.classList.remove('is-disabled');
-        globalCard.title = '通知全站大盘配置的集中评审群';
+        globalCard.title = (typeof t === 'function' ? t('admin.upload.notify_global_on_tip', null, '通知全站大盘配置的集中评审群') : '通知全站大盘配置的集中评审群');
         if (globalCb) {
             var wasGlobalDisabled = globalCb.disabled;
             globalCb.disabled = false;
@@ -258,18 +258,18 @@ function updateUploadNotifyState(itemId, isInitial) {
         }
         if (globalLabel) globalLabel.classList.remove('disabled');
         if (globalStatus) {
-            globalStatus.textContent = '已配置';
+            globalStatus.textContent = (typeof t === 'function' ? t('common.configured', null, '已配置') : '已配置');
         }
     } else {
         globalCard.classList.add('is-disabled');
-        globalCard.title = '系统控制中心未配置评审群 Webhook';
+        globalCard.title = (typeof t === 'function' ? t('admin.upload.notify_global_off_tip', null, '系统控制中心未配置评审群 Webhook') : '系统控制中心未配置评审群 Webhook');
         if (globalCb) {
             globalCb.disabled = true;
             globalCb.checked = false;
         }
         if (globalLabel) globalLabel.classList.add('disabled');
         if (globalStatus) {
-            globalStatus.textContent = '未配置';
+            globalStatus.textContent = (typeof t === 'function' ? t('common.unconfigured', null, '未配置') : '未配置');
         }
     }
 
@@ -282,10 +282,10 @@ var UPLOAD_CHUNK_SIZE = 512 * 1024; // 512KB 原生微切片 (安全适配 Nginx
 var versionUploadBusy = false;
 
 function validateVersionName(raw) {
-    if (/[\x00-\x1f\x7f-\x9f\u2028\u2029]/.test(raw)) return {error:'版本名称不能包含换行或控制字符'};
+    if (/[\x00-\x1f\x7f-\x9f\u2028\u2029]/.test(raw)) return {error:(typeof t === 'function' ? t('admin.upload.err_ver_ctrl', null, '版本名称不能包含换行或控制字符') : '版本名称不能包含换行或控制字符')};
     var name = raw.replace(/^[ \u00a0\u1680\u2000-\u200a\u202f\u205f\u3000\ufeff]+|[ \u00a0\u1680\u2000-\u200a\u202f\u205f\u3000\ufeff]+$/g, '');
-    if (!name) return {error:'请输入版本名称'};
-    if (Array.from(name).length > 30) return {error:'版本名称最多 30 字'};
+    if (!name) return {error:(typeof t === 'function' ? t('admin.upload.err_ver_empty', null, '请输入版本名称') : '请输入版本名称')};
+    if (Array.from(name).length > 30) return {error:(typeof t === 'function' ? t('admin.upload.err_ver_len', null, '版本名称最多 30 字') : '版本名称最多 30 字')};
     return {name:name};
 }
 
@@ -315,16 +315,16 @@ function checkUploadVersionName() {
     var hint = document.getElementById('uploadVersionHint');
     var validation = validateVersionName(input.value);
     if (typeof input.setCustomValidity === 'function') input.setCustomValidity(validation.error || '');
-    if (validation.error || !itemId) return Promise.resolve({success:false,message:validation.error || '请选择项目'});
+    if (validation.error || !itemId) return Promise.resolve({success:false,message:validation.error || (typeof t === 'function' ? t('admin.upload.err_select_project', null, '请选择项目') : '请选择项目')});
     input.value = validation.name;
     var fd = new FormData();
     fd.append('item_id', itemId);
     fd.append('version_name', validation.name);
     return adminFetch('version_check_name', fd, false).catch(function() {
-        return {success:false,message:'版本名称检查失败，请重试'};
+        return {success:false,message:(typeof t === 'function' ? t('admin.upload.err_check_name', null, '版本名称检查失败，请重试') : '版本名称检查失败，请重试')};
     }).then(function(res) {
         if (sequence === versionNameCheckSequence && hint && document.getElementById('uploadItemId').value === itemId && input.value === validation.name) {
-            hint.textContent = res.success ? (res.data.exists ? '同名版本已存在，发布时将确认替换' : '') : res.message;
+            hint.textContent = res.success ? (res.data.exists ? (typeof t === 'function' ? t('admin.upload.ver_exists_hint', null, '同名版本已存在，发布时将确认替换') : '同名版本已存在，发布时将确认替换') : '') : res.message;
             hint.hidden = !hint.textContent;
         }
         return res;
@@ -409,7 +409,7 @@ function appendUploadLastChangelog() {
     var addition = (cur === '' || cur.slice(-1) === '\n') ? lastLog : ('\n' + lastLog);
     var maxLen = parseInt((typeof logEl.getAttribute === 'function' ? logEl.getAttribute('maxlength') : '') || '3000', 10) || 3000;
     if (cur.length >= maxLen) {
-        if (typeof showToast === 'function') showToast('更新日志已达 ' + maxLen + ' 字上限', 'warning');
+        if (typeof showToast === 'function') showToast((typeof t === 'function' ? t('admin.upload.log_max_warn', {max: maxLen}, '更新日志已达 ' + maxLen + ' 字上限') : ('更新日志已达 ' + maxLen + ' 字上限')), 'warning');
         if (typeof logEl.focus === 'function') logEl.focus();
         return;
     }
@@ -434,7 +434,7 @@ function appendUploadLastChangelog() {
         logEl.scrollTop = logEl.scrollHeight;
     }
     if (truncated && typeof showToast === 'function') {
-        showToast('已添加上版日志（超出 ' + maxLen + ' 字部分已截断）', 'info');
+        showToast((typeof t === 'function' ? t('admin.upload.log_appended_trunc', {max: maxLen}, '已添加上版日志（超出 ' + maxLen + ' 字部分已截断）') : ('已添加上版日志（超出 ' + maxLen + ' 字部分已截断）')), 'info');
     }
 }
 
@@ -463,7 +463,7 @@ function openUploadModal(itemId, projectName) {
         if (itemId) {
             $sel.val(itemId);
             if (!$sel.val()) {
-                showToast('项目列表已变化，请关闭控制中心后重试', 'warning');
+                showToast((typeof t === 'function' ? t('admin.upload.projects_changed', null, '项目列表已变化，请关闭控制中心后重试') : '项目列表已变化，请关闭控制中心后重试'), 'warning');
                 return;
             }
         } else if (typeof currentSelectedItemId !== 'undefined' && currentSelectedItemId) {
@@ -505,7 +505,7 @@ function clearSelectedRpFile(e) {
     var actions = document.getElementById('rpDropActions');
     if (actions) actions.style.display = 'flex';
     var rn = document.getElementById('uploadRpName');
-    if (rn) { rn.textContent = '未选择文件'; rn.classList.remove('has-file'); }
+    if (rn) { rn.textContent = (typeof t === 'function' ? t('admin.upload.no_file', null, '未选择文件') : '未选择文件'); rn.classList.remove('has-file'); }
 }
 
 function handleRpSelected(input) {
@@ -515,7 +515,7 @@ function handleRpSelected(input) {
         return;
     }
     if (!file.name.toLowerCase().endsWith('.rp')) {
-        showToast('请选择 .rp 格式的源文件底稿', 'warning');
+        showToast((typeof t === 'function' ? t('ver.select_rp_file', null, '请选择 .rp 格式的源文件底稿') : '请选择 .rp 格式的源文件底稿'), 'warning');
         clearSelectedRpFile();
         return;
     }
@@ -576,7 +576,7 @@ function initRpDropZone() {
         if (!file) return;
 
         if (!file.name.toLowerCase().endsWith('.rp')) {
-            showToast('请拖入 .rp 格式的源文件底稿', 'warning');
+            showToast((typeof t === 'function' ? t('ver.drop_rp_file', null, '请拖入 .rp 格式的源文件底稿') : '请拖入 .rp 格式的源文件底稿'), 'warning');
             return;
         }
 
@@ -602,7 +602,7 @@ function clearSelectedProtoSource(e) {
     var actions = document.getElementById('protoDropActions');
     if (actions) actions.style.display = 'flex';
     var zn = document.getElementById('uploadZipName');
-    if (zn) { zn.textContent = '未选择文件'; zn.classList.remove('has-file'); }
+    if (zn) { zn.textContent = (typeof t === 'function' ? t('admin.upload.no_file', null, '未选择文件') : '未选择文件'); zn.classList.remove('has-file'); }
     var filterModal = document.getElementById('folderFilesModal');
     if (filterModal && filterModal.style.display !== 'none' && typeof closeModal === 'function') {
         closeModal('folderFilesModal');
@@ -625,7 +625,7 @@ function handleFolderSelected(input) {
         return;
     }
     var firstRel = files[0].webkitRelativePath || '';
-    var folderName = firstRel.split('/')[0] || '原型文件夹';
+    var folderName = firstRel.split('/')[0] || (typeof t === 'function' ? t('admin.upload.folder_default_name', null, '原型文件夹') : '原型文件夹');
     setProtoSourceFolder(folderName, Array.prototype.slice.call(files));
 }
 
@@ -652,13 +652,13 @@ function setProtoSourceZip(file) {
 function setProtoSourceFolder(folderName, filesList) {
     var validFiles = filterPrototypeFiles(filesList);
     if (validFiles.length === 0) {
-        showToast('选中的文件夹内没有有效文件', 'warning');
+        showToast((typeof t === 'function' ? t('admin.upload.folder_no_valid_files', null, '选中的文件夹内没有有效文件') : '选中的文件夹内没有有效文件'), 'warning');
         clearSelectedProtoSource();
         return;
     }
     var blockedPath = findBlockedPrototypeFile(validFiles);
     if (blockedPath) {
-        showToast('文件夹内包含不允许的服务端脚本文件「' + blockedPath + '」', 'warning');
+        showToast((typeof t === 'function' ? t('admin.upload.folder_blocked_script', {path: blockedPath}, '文件夹内包含不允许的服务端脚本文件「' + blockedPath + '」') : ('文件夹内包含不允许的服务端脚本文件「' + blockedPath + '」')), 'warning');
         clearSelectedProtoSource();
         return;
     }
@@ -727,8 +727,8 @@ function updateProtoFolderManageBtn(visible, excludedCount) {
     btn.hidden = !visible;
     if (visible) {
         btn.innerHTML = excludedCount > 0
-            ? '<i class="ri-list-check-2"></i> 筛选文件 (已排除 ' + excludedCount + ')'
-            : '<i class="ri-list-check-2"></i> 筛选文件';
+            ? '<i class="ri-list-check-2"></i> ' + esc(typeof t === 'function' ? t('admin.upload.filter_files_excl', {n: excludedCount}, '筛选文件 (已排除 ' + excludedCount + ')') : ('筛选文件 (已排除 ' + excludedCount + ')'))
+            : '<i class="ri-list-check-2"></i> ' + esc(typeof t === 'function' ? t('admin.upload.filter_files', null, '筛选文件') : '筛选文件');
     }
 }
 
@@ -751,9 +751,10 @@ function refreshProtoFolderBadge() {
     var totalCount = allFiles.length;
     var selectedCount = selected.length;
     var excludedCount = totalCount - selectedCount;
+    var formattedSize = formatProtoBytes(selectedBytes);
     var badgeText = excludedCount > 0
-        ? ('文件夹: ' + currentProtoSource.name + ' (已选 ' + selectedCount + ' / ' + totalCount + ' 个文件，' + formatProtoBytes(selectedBytes) + ')')
-        : ('文件夹: ' + currentProtoSource.name + ' (' + totalCount + ' 个文件，' + formatProtoBytes(selectedBytes) + ')');
+        ? (typeof t === 'function' ? t('admin.upload.folder_summary_selected', {name: currentProtoSource.name, selected: selectedCount, total: totalCount, size: formattedSize}, '文件夹: ' + currentProtoSource.name + ' (已选 ' + selectedCount + ' / ' + totalCount + ' 个文件，' + formattedSize + ')') : ('文件夹: ' + currentProtoSource.name + ' (已选 ' + selectedCount + ' / ' + totalCount + ' 个文件，' + formattedSize + ')'))
+        : (typeof t === 'function' ? t('admin.upload.folder_summary_all', {name: currentProtoSource.name, total: totalCount, size: formattedSize}, '文件夹: ' + currentProtoSource.name + ' (' + totalCount + ' 个文件，' + formattedSize + ')') : ('文件夹: ' + currentProtoSource.name + ' (' + totalCount + ' 个文件，' + formattedSize + ')'));
     updateProtoFolderManageBtn(true, excludedCount);
     renderProtoSourceBadge('ri-folder-upload-line', badgeText);
 }
@@ -871,12 +872,13 @@ function initProtoDropZone() {
             if (entry && entry.isDirectory) {
                 readFileSystemEntry(entry).then(function(files) {
                     if (!files || files.length === 0) {
-                        showToast('文件夹为空或无法读取', 'warning');
+                        showToast((typeof t === 'function' ? t('admin.upload.folder_empty_unreadable', null, '文件夹为空或无法读取') : '文件夹为空或无法读取'), 'warning');
                         return;
                     }
                     setProtoSourceFolder(entry.name, files);
                 }).catch(function(err) {
-                    showToast('文件夹读取失败: ' + (err.message || '未知错误'), 'error');
+                    var unk = (typeof t === 'function' ? t('admin.upload.unknown_error', null, '未知错误') : '未知错误');
+                    showToast((typeof t === 'function' ? t('admin.upload.folder_read_failed', { msg: err.message || unk }, '文件夹读取失败: ' + (err.message || unk)) : '文件夹读取失败: ' + (err.message || unk)), 'error');
                 });
                 return;
             } else if (item.kind === 'file') {
@@ -885,7 +887,7 @@ function initProtoDropZone() {
                     if (file.name.toLowerCase().endsWith('.zip')) {
                         setProtoSourceZip(file);
                     } else {
-                        showToast('请拖入 .zip 压缩包或原型文件夹', 'warning');
+                        showToast((typeof t === 'function' ? t('admin.upload.drop_zip_or_folder', null, '请拖入 .zip 压缩包或原型文件夹') : '请拖入 .zip 压缩包或原型文件夹'), 'warning');
                     }
                     return;
                 }
@@ -897,7 +899,7 @@ function initProtoDropZone() {
             if (f.name.toLowerCase().endsWith('.zip')) {
                 setProtoSourceZip(f);
             } else {
-                showToast('请拖入 .zip 压缩包或原型文件夹', 'warning');
+                showToast((typeof t === 'function' ? t('admin.upload.drop_zip_or_folder', null, '请拖入 .zip 压缩包或原型文件夹') : '请拖入 .zip 压缩包或原型文件夹'), 'warning');
             }
         }
     });
@@ -943,7 +945,7 @@ function readFileSystemEntry(entry) {
 
 function openFolderFilesModal() {
     if (typeof versionUploadBusy !== 'undefined' && versionUploadBusy) {
-        showToast('发布任务进行中，暂不可调整文件', 'warning');
+        showToast((typeof t === 'function' ? t('admin.upload.busy_no_adjust', null, '发布任务进行中，暂不可调整文件') : '发布任务进行中，暂不可调整文件'), 'warning');
         return;
     }
     if (!currentProtoSource || currentProtoSource.type !== 'folder') return;
@@ -969,7 +971,7 @@ function openFolderFilesModal() {
         viewMode: 'all'
     };
     var rootBadge = document.getElementById('folderFilesRootBadge');
-    if (rootBadge) rootBadge.textContent = currentProtoSource.name || '原型文件夹';
+    if (rootBadge) rootBadge.textContent = currentProtoSource.name || (typeof t === 'function' ? t('admin.upload.folder_default_name', null, '原型文件夹') : '原型文件夹');
     var searchInput = document.getElementById('folderFilesSearchInput');
     if (searchInput) searchInput.value = '';
     var searchClear = document.getElementById('folderFilesSearchClear');
@@ -1165,17 +1167,17 @@ function renderFolderFilesTree() {
     var isScoped = !!queryLower || viewMode === 'excluded';
     var checkAllBtn = document.getElementById('folderFilesCheckAllBtn');
     var uncheckAllBtn = document.getElementById('folderFilesUncheckAllBtn');
-    if (checkAllBtn) checkAllBtn.textContent = isScoped ? '全选当前' : '全选';
-    if (uncheckAllBtn) uncheckAllBtn.textContent = isScoped ? '取消当前' : '全不选';
+    if (checkAllBtn) checkAllBtn.textContent = isScoped ? (typeof t === 'function' ? t('admin.ff.check_current', null, '全选当前') : '全选当前') : (typeof t === 'function' ? t('admin.ff.check_all', null, '全选') : '全选');
+    if (uncheckAllBtn) uncheckAllBtn.textContent = isScoped ? (typeof t === 'function' ? t('admin.ff.uncheck_current', null, '取消当前') : '取消当前') : (typeof t === 'function' ? t('admin.ff.uncheck_all', null, '全不选') : '全不选');
 
     body.innerHTML = '';
     if (visibleTree.files.length === 0) {
         body.hidden = true;
         emptyEl.hidden = false;
         if (viewMode === 'excluded' && !queryLower) {
-            emptyEl.innerHTML = '<i class="ri-checkbox-circle-line"></i><span>当前没有已排除的文件，所有文件均会随版本上传</span>';
+            emptyEl.innerHTML = '<i class="ri-checkbox-circle-line"></i><span>' + esc(typeof t === 'function' ? t('admin.ff.empty_excluded', null, '当前没有已排除的文件，所有文件均会随版本上传') : '当前没有已排除的文件，所有文件均会随版本上传') + '</span>';
         } else {
-            emptyEl.innerHTML = '<i class="ri-search-eye-line"></i><span>没有找到匹配的文件</span>';
+            emptyEl.innerHTML = '<i class="ri-search-eye-line"></i><span>' + esc(typeof t === 'function' ? t('admin.ff.empty_search', null, '没有找到匹配的文件') : '没有找到匹配的文件') + '</span>';
         }
         updateFolderFilesSummary();
         return;
@@ -1198,7 +1200,7 @@ function renderFolderFilesTree() {
             var toggleBtn = document.createElement('button');
             toggleBtn.type = 'button';
             toggleBtn.className = 'folder-tree-toggle';
-            toggleBtn.setAttribute('aria-label', isExpanded ? '折叠文件夹' : '展开文件夹');
+            toggleBtn.setAttribute('aria-label', isExpanded ? (typeof t === 'function' ? t('admin.ff.fold_folder', null, '折叠文件夹') : '折叠文件夹') : (typeof t === 'function' ? t('admin.ff.expand_folder', null, '展开文件夹') : '展开文件夹'));
             toggleBtn.innerHTML = '<i class="' + (isExpanded ? 'ri-arrow-down-s-fill' : 'ri-arrow-right-s-fill') + '"></i>';
             if (forceExpand) {
                 toggleBtn.disabled = true;
@@ -1349,9 +1351,10 @@ function updateFolderTreeCheckStates() {
             }
             dRow.classList.toggle('is-excluded', stats.selectedCount === 0);
             if (dMeta) {
+                var dirSizeStr = formatProtoBytes(stats.selectedSize);
                 dMeta.textContent = stats.selectedCount === stats.totalCount
-                    ? (stats.totalCount + ' 项 · ' + formatProtoBytes(stats.selectedSize))
-                    : (stats.selectedCount + '/' + stats.totalCount + ' 项 · ' + formatProtoBytes(stats.selectedSize));
+                    ? (typeof t === 'function' ? t('admin.ff.dir_stats_all', { total: stats.totalCount, size: dirSizeStr }, stats.totalCount + ' 项 · ' + dirSizeStr) : stats.totalCount + ' 项 · ' + dirSizeStr)
+                    : (typeof t === 'function' ? t('admin.ff.dir_stats_part', { selected: stats.selectedCount, total: stats.totalCount, size: dirSizeStr }, stats.selectedCount + '/' + stats.totalCount + ' 项 · ' + dirSizeStr) : stats.selectedCount + '/' + stats.totalCount + ' 项 · ' + dirSizeStr);
             }
         }
     }
@@ -1395,16 +1398,18 @@ function updateFolderFilesSummary() {
     if (!summaryEl) return;
     if (info.selectedCount === 0) {
         summaryEl.classList.add('is-error');
-        summaryEl.textContent = '请至少保留 1 个文件';
+        summaryEl.textContent = (typeof t === 'function' ? t('admin.ff.keep_one', null, '请至少保留 1 个文件') : '请至少保留 1 个文件');
         if (applyBtn) applyBtn.disabled = true;
     } else if (!info.hasHtml) {
         summaryEl.classList.add('is-error');
-        summaryEl.textContent = '已选 ' + info.selectedCount + ' 个文件，但未包含 HTML 原型页面';
+        summaryEl.textContent = (typeof t === 'function' ? t('admin.ff.summary_no_html', { selected: info.selectedCount }, '已选 ' + info.selectedCount + ' 个文件，但未包含 HTML 原型页面') : '已选 ' + info.selectedCount + ' 个文件，但未包含 HTML 原型页面');
         if (applyBtn) applyBtn.disabled = true;
     } else {
         summaryEl.classList.remove('is-error');
-        summaryEl.textContent = '已选 ' + info.selectedCount + ' / ' + info.totalCount + ' 个文件 · ' + formatProtoBytes(info.selectedSize)
-            + (info.excludedCount > 0 ? ('（已排除 ' + info.excludedCount + ' 个）') : '');
+        var sumSizeStr = formatProtoBytes(info.selectedSize);
+        var baseSum = (typeof t === 'function' ? t('admin.ff.summary_selected', { selected: info.selectedCount, total: info.totalCount, size: sumSizeStr }, '已选 ' + info.selectedCount + ' / ' + info.totalCount + ' 个文件 · ' + sumSizeStr) : '已选 ' + info.selectedCount + ' / ' + info.totalCount + ' 个文件 · ' + sumSizeStr);
+        var exclSuffix = info.excludedCount > 0 ? (typeof t === 'function' ? t('admin.ff.summary_excluded_suffix', { n: info.excludedCount }, '（已排除 ' + info.excludedCount + ' 个）') : '（已排除 ' + info.excludedCount + ' 个）') : '';
+        summaryEl.textContent = baseSum + exclSuffix;
         if (applyBtn) applyBtn.disabled = false;
     }
 }
@@ -1413,11 +1418,11 @@ function applyFolderFilesFilter() {
     if (!currentProtoSource || currentProtoSource.type !== 'folder' || !folderFilterSession) return;
     var info = getFolderDraftSummary();
     if (info.selectedCount === 0) {
-        showToast('请至少保留 1 个文件', 'warning');
+        showToast((typeof t === 'function' ? t('admin.ff.keep_one', null, '请至少保留 1 个文件') : '请至少保留 1 个文件'), 'warning');
         return;
     }
     if (!info.hasHtml) {
-        showToast('已选文件中未包含 HTML 原型页面，无法作为原型预览', 'warning');
+        showToast((typeof t === 'function' ? t('admin.ff.warn_no_html', null, '已选文件中未包含 HTML 原型页面，无法作为原型预览') : '已选文件中未包含 HTML 原型页面，无法作为原型预览'), 'warning');
         return;
     }
     var nextExcluded = {};
@@ -1436,7 +1441,7 @@ function applyFolderFilesFilter() {
 function createZipBlobFromFolder(files, defaultName, onProgress, fixedCommonPrefix) {
     return new Promise(function(resolve, reject) {
         if (!files || files.length === 0) {
-            return reject(new Error('文件夹中没有有效文件'));
+            return reject(new Error((typeof t === 'function' ? t('admin.ff.err_folder_empty', null, '文件夹中没有有效文件') : '文件夹中没有有效文件')));
         }
 
         var fileList = [];
@@ -1446,7 +1451,7 @@ function createZipBlobFromFolder(files, defaultName, onProgress, fixedCommonPref
             if (p) fileList.push({ file: f, path: p });
         }
         if (fileList.length === 0) {
-            return reject(new Error('文件夹中没有有效文件'));
+            return reject(new Error((typeof t === 'function' ? t('admin.ff.err_folder_empty', null, '文件夹中没有有效文件') : '文件夹中没有有效文件')));
         }
 
         // 优先沿用原文件夹公共父目录前缀，防止取消部分文件后误剥离剩余子目录层级
@@ -1494,10 +1499,10 @@ function createZipBlobFromFolder(files, defaultName, onProgress, fixedCommonPref
         }
 
         if (strippedFiles.length === 0) {
-            return reject(new Error('未发现可打包的文件'));
+            return reject(new Error((typeof t === 'function' ? t('admin.ff.err_no_packable', null, '未发现可打包的文件') : '未发现可打包的文件')));
         }
         if (!hasHtml) {
-            return reject(new Error('选中的文件夹内未包含 HTML 原型页面，请确认是否为导出的原型文件夹'));
+            return reject(new Error((typeof t === 'function' ? t('admin.ff.err_missing_html', null, '选中的文件夹内未包含 HTML 原型页面，请确认是否为导出的原型文件夹') : '选中的文件夹内未包含 HTML 原型页面，请确认是否为导出的原型文件夹')));
         }
 
         buildPkZipBlob(strippedFiles, onProgress).then(function(blob) {
@@ -1593,7 +1598,7 @@ function buildPkZipBlob(fileItems, onProgress) {
                 }
             };
             reader.onerror = function() {
-                reject(new Error('读取文件「' + item.path + '」失败'));
+                reject(new Error((typeof t === 'function' ? t('admin.ff.err_read_file', { path: item.path }, '读取文件「' + item.path + '」失败') : '读取文件「' + item.path + '」失败')));
             };
             reader.readAsArrayBuffer(file);
         }
@@ -1662,7 +1667,7 @@ function onUploadItemSelectChange(val) {
 function handleVersionUpload(e) {
     e.preventDefault();
     if (versionUploadBusy) {
-        showToast('发布任务进行中，请稍候', 'warning');
+        showToast((typeof t === 'function' ? t('admin.upload.busy_wait', null, '发布任务进行中，请稍候') : '发布任务进行中，请稍候'), 'warning');
         return;
     }
 
@@ -1675,7 +1680,7 @@ function handleVersionUpload(e) {
     }
 
     if (!currentProtoSource) {
-        showToast('请选择 ZIP 压缩包或原型文件夹', 'warning');
+        showToast((typeof t === 'function' ? t('admin.upload.pick_zip_or_folder_warn', null, '请选择 ZIP 压缩包或原型文件夹') : '请选择 ZIP 压缩包或原型文件夹'), 'warning');
         return;
     }
 
@@ -1716,7 +1721,7 @@ function handleVersionUpload(e) {
     nameInput.value = verName;
 
     if (notifyWebhook === '1' && !changelog) {
-        showToast('开启群通知需填写更新日志', 'warning');
+        showToast((typeof t === 'function' ? t('admin.upload.notify_needs_log', null, '开启群通知需填写更新日志') : '开启群通知需填写更新日志'), 'warning');
         if (logEl) {
             if (typeof logEl.focus === 'function') logEl.focus();
             if (logEl.classList && typeof logEl.classList.add === 'function') {
@@ -1748,14 +1753,14 @@ function handleVersionUpload(e) {
     var uploadedBytes = 0;
 
     return checkUploadVersionName().then(function(res) {
-        if (!res.success) throw new Error(res.message || '版本名称检查失败');
+        if (!res.success) throw new Error(res.message || (typeof t === 'function' ? t('admin.upload.err_check_name', null, '版本名称检查失败，请重试') : '版本名称检查失败，请重试'));
         overwriteToken = res.data.overwrite_token || '';
         if (!res.data.exists) return true;
         return showConfirm({
-            title:'替换已有版本',
-            message:'版本「' + verName + '」已存在，继续将替换其原型文件和更新日志。',
-            confirmText:'确认替换',
-            isDanger:true
+            title: (typeof t === 'function' ? t('admin.upload.replace_title', null, '替换已有版本') : '替换已有版本'),
+            message: (typeof t === 'function' ? t('admin.upload.replace_confirm', { name: verName }, '版本「' + verName + '」已存在，继续将替换其原型文件和更新日志。') : '版本「' + verName + '」已存在，继续将替换其原型文件和更新日志。'),
+            confirmText: (typeof t === 'function' ? t('admin.upload.replace_btn', null, '确认替换') : '确认替换'),
+            isDanger: true
         });
     }).then(function(confirmed) {
         if (!confirmed) return null;
@@ -1770,7 +1775,7 @@ function handleVersionUpload(e) {
             || currentProtoSource !== protoSourceSnapshot
             || ((currentRpFile || (rpInput && rpInput.files ? rpInput.files[0] : null)) !== rpFile)
             || (logEl ? logEl.value.trim() : '') !== changelog || curNotifyItem !== notifyItem || curNotifyGlobal !== notifyGlobal || legacyChanged) {
-            throw new Error('发布内容已变更，请重新提交');
+            throw new Error((typeof t === 'function' ? t('admin.upload.content_changed', null, '发布内容已变更，请重新提交') : '发布内容已变更，请重新提交'));
         }
 
         pWrap.style.display = 'block';
@@ -1780,12 +1785,12 @@ function handleVersionUpload(e) {
         var prepareZipPromise;
         if (currentProtoSource.type === 'folder') {
             if (!currentProtoSource.files || currentProtoSource.files.length === 0) {
-                throw new Error('请至少保留 1 个文件再发布');
+                throw new Error((typeof t === 'function' ? t('admin.upload.keep_one_file', null, '请至少保留 1 个文件再发布') : '请至少保留 1 个文件再发布'));
             }
-            pText.innerText = '正在整理打包文件夹...';
+            pText.innerText = (typeof t === 'function' ? t('admin.upload.packing_folder', null, '正在整理打包文件夹...') : '正在整理打包文件夹...');
             prepareZipPromise = createZipBlobFromFolder(currentProtoSource.files, currentProtoSource.name, function(curr, tot) {
                 var p = Math.round((curr / tot) * 100);
-                pText.innerText = '正在整理文件夹 (' + curr + '/' + tot + ')...';
+                pText.innerText = (typeof t === 'function' ? t('admin.upload.packing_progress', { curr: curr, tot: tot }, '正在整理文件夹 (' + curr + '/' + tot + ')...') : '正在整理文件夹 (' + curr + '/' + tot + ')...');
                 pBar.style.width = Math.min(95, Math.round(p * 0.2)) + '%';
             }, currentProtoSource.packagePrefix);
         } else {
@@ -1797,7 +1802,7 @@ function handleVersionUpload(e) {
             var rpUploadId = rpFile ? ('up_r_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7)) : '';
             var totalBytes = (zipFile ? zipFile.size : 0) + (rpFile ? rpFile.size : 0);
 
-            pText.innerText = '正在上传...';
+            pText.innerText = (typeof t === 'function' ? t('admin.upload.progress_uploading', null, '正在上传...') : '正在上传...');
             return uploadFileChunks(zipFile, 'zip', zipUploadId, CHUNK_SIZE, function(bytes) {
                 uploadedBytes += bytes;
                 var pct = Math.min(99, Math.round((uploadedBytes / totalBytes) * 100));
@@ -1813,7 +1818,7 @@ function handleVersionUpload(e) {
             }).then(function() {
                 pBar.style.width = '100%';
                 pPercent.innerText = '100%';
-                pText.innerText = '正在解压发布...';
+                pText.innerText = (typeof t === 'function' ? t('admin.upload.progress_extracting', null, '正在解压发布...') : '正在解压发布...');
 
                 var pubFd = new FormData();
                 pubFd.append('action', 'version_publish');
@@ -1848,24 +1853,24 @@ function handleVersionUpload(e) {
             if (isAdminConsoleOpen()) {
                 closeModal('uploadModal');
                 markAdminConsoleChanged();
-                showToast(res.message || '版本发布成功', 'success');
+                showToast(res.message || (typeof t === 'function' ? t('admin.upload.success', null, '版本发布成功') : '版本发布成功'), 'success');
                 syncPublishedVersion(itemId, res.data.version);
             } else {
-                pText.innerText = '发布成功！正在加载预览...';
-                showToast(res.message || '版本发布成功', 'success', 2800, true);
+                pText.innerText = (typeof t === 'function' ? t('admin.upload.progress_done_loading', null, '发布成功！正在加载预览...') : '发布成功！正在加载预览...');
+                showToast(res.message || (typeof t === 'function' ? t('admin.upload.success', null, '版本发布成功') : '版本发布成功'), 'success', 2800, true);
                 window.location.hash = '#item=' + itemId + '&v=' + encodeURIComponent(verName);
                 setTimeout(function() {
                     window.location.reload();
                 }, 300);
             }
         } else {
-            showToast(res.message || '发布失败', 'error');
+            showToast(res.message || (typeof t === 'function' ? t('admin.upload.failed', null, '发布失败') : '发布失败'), 'error');
         }
     }).catch(function(err) {
         versionUploadBusy = false;
         btn.disabled = false;
-        pText.innerText = '上传中断';
-        showToast((err && err.message) ? err.message : '网络异常，请重试', 'error');
+        pText.innerText = (typeof t === 'function' ? t('admin.upload.interrupted', null, '上传中断') : '上传中断');
+        showToast((err && err.message) ? err.message : (typeof t === 'function' ? t('common.network_error', null, '网络异常，请重试') : '网络异常，请重试'), 'error');
     });
 }
 
@@ -1888,7 +1893,7 @@ function syncPublishedVersion(itemId, version) {
         });
         $node.data('versions', latest).attr('data-versions', JSON.stringify(latest));
         $node.find('.badge-ver').text(version.version_name);
-        $node.find('.btn-table-ver').html('<span class="duo-icon-slot" data-duo-icon="history"><i class="ri-history-line duo-rest-icon"></i></span> ' + latest.length + ' 个版本');
+        $node.find('.btn-table-ver').html('<span class="duo-icon-slot" data-duo-icon="history"><i class="ri-history-line duo-rest-icon"></i></span> ' + esc(typeof t === 'function' ? t('ver.count_btn', { n: latest.length }, latest.length + ' 个版本') : latest.length + ' 个版本'));
     });
     if (parseInt(currentVerManageItemId, 10) === parseInt(itemId, 10)) {
         currentVerManageAllVersions = latest;
@@ -1921,7 +1926,7 @@ function uploadFileChunks(file, fileType, uploadId, CHUNK_SIZE, onChunkUploaded)
         fd.append('chunk_data', chunk, 'part');
 
         return adminFetch('upload_chunk', fd).then(function(res) {
-            if (!res.success) throw new Error(res.message || '分片上传失败');
+            if (!res.success) throw new Error(res.message || (typeof t === 'function' ? t('admin.upload.chunk_failed', null, '分片上传失败') : '分片上传失败'));
             if (onChunkUploaded) onChunkUploaded(end - start);
             chunkIndex++;
             return nextChunk();
@@ -1969,8 +1974,9 @@ function setQuickCreateSubmitLabel(modalId, text) {
 
 function resetQuickCreateFlow() {
     setQuickCreateFlow(null);
-    setQuickCreateSubmitLabel('categoryModal', '保存');
-    setQuickCreateSubmitLabel('itemModal', '保存');
+    var lblSave = (typeof t === 'function' ? t('common.save', null, '保存') : '保存');
+    setQuickCreateSubmitLabel('categoryModal', lblSave);
+    setQuickCreateSubmitLabel('itemModal', lblSave);
 }
 
 var categoryModalSession = 0;
@@ -2160,13 +2166,15 @@ function openCategoryModal(id, name) {
     var curFlow = getQuickCreateFlow();
     if (!id && curFlow && curFlow.advancing) {
         curFlow.advancing = false;
-        setQuickCreateSubmitLabel('categoryModal', '保存并继续');
+        setQuickCreateSubmitLabel('categoryModal', (typeof t === 'function' ? t('common.save_and_continue', null, '保存并继续') : '保存并继续'));
     } else {
         resetQuickCreateFlow();
     }
     document.getElementById('catId').value = id || '0';
     document.getElementById('catName').value = name || '';
-    document.getElementById('catModalTitle').innerText = id ? '编辑文件夹' : '新建文件夹';
+    document.getElementById('catModalTitle').innerText = id
+        ? (typeof t === 'function' ? t('admin.cat.edit_title', null, '编辑文件夹') : '编辑文件夹')
+        : (typeof t === 'function' ? t('admin.cat.new_title', null, '新建文件夹') : '新建文件夹');
     if (typeof clearPasswordStrength === 'function') clearPasswordStrength(document.getElementById('categoryModal'));
     openModal('categoryModal', 'catName');
 }
@@ -2183,8 +2191,9 @@ function handleCategorySave(e) {
     var catId = parseInt(idInput ? idInput.value : '0', 10) || 0;
     var catName = nameInput ? nameInput.value.trim() : '';
     if (!catName) {
-        if (typeof setFieldError === 'function' && nameInput) setFieldError(nameInput, null, '请输入文件夹名称');
-        else if (typeof showToast === 'function') showToast('请输入文件夹名称', 'warning');
+        var msgCatName = (typeof t === 'function' ? t('admin.cat.enter_name', null, '请输入文件夹名称') : '请输入文件夹名称');
+        if (typeof setFieldError === 'function' && nameInput) setFieldError(nameInput, null, msgCatName);
+        else if (typeof showToast === 'function') showToast(msgCatName, 'warning');
         return;
     }
     var capturedFlowId = (typeof getQuickCreateFlowId === 'function') ? getQuickCreateFlowId() : 0;
@@ -2233,16 +2242,21 @@ function handleCategorySave(e) {
                     if ($fBody.length) {
                         $fBody.find('tr:not([data-cat-id])').remove();
                         var safeName = esc(newName);
+                        var unitItems = esc(typeof t === 'function' ? t('admin.proj.item_count_unit', null, '个项目') : '个项目');
+                        var tipUp = esc(typeof t === 'function' ? t('common.move_up', null, '上移') : '上移');
+                        var tipDown = esc(typeof t === 'function' ? t('common.move_down', null, '下移') : '下移');
+                        var tipEditName = esc(typeof t === 'function' ? t('admin.proj.edit_name_tip', null, '编辑名称') : '编辑名称');
+                        var tipDelFolder = esc(typeof t === 'function' ? t('admin.proj.delete_folder_tip', null, '删除文件夹') : '删除文件夹');
                         var rowHtml = '<tr data-cat-id="' + newId + '" style="border-bottom:1px solid var(--border);">' +
                             '<td style="padding:10px 12px;font-weight:600;color:var(--text-1);"><i class="ri-folder-line" style="color:var(--primary);margin-right:6px;font-size:15px;vertical-align:-1px;"></i><span>' + safeName + '</span></td>' +
-                            '<td style="padding:10px 12px;color:var(--text-2);font-size:12.5px;"><span style="font-weight:500;color:var(--text-1);">0</span> <span style="color:var(--text-3);font-size:11.5px;">个项目</span></td>' +
+                            '<td style="padding:10px 12px;color:var(--text-2);font-size:12.5px;"><span style="font-weight:500;color:var(--text-1);">0</span> <span style="color:var(--text-3);font-size:11.5px;">' + unitItems + '</span></td>' +
                             '<td style="padding:10px 12px;white-space:nowrap;">' +
-                                '<button type="button" class="btn-act btn-cat-move-up" onclick="moveCategoryOrder(this, -1)" title="上移"><i class="ri-arrow-up-s-line"></i></button> ' +
-                                '<button type="button" class="btn-act btn-cat-move-down" onclick="moveCategoryOrder(this, 1)" title="下移"><i class="ri-arrow-down-s-line"></i></button>' +
+                                '<button type="button" class="btn-act btn-cat-move-up" onclick="moveCategoryOrder(this, -1)" title="' + tipUp + '"><i class="ri-arrow-up-s-line"></i></button> ' +
+                                '<button type="button" class="btn-act btn-cat-move-down" onclick="moveCategoryOrder(this, 1)" title="' + tipDown + '"><i class="ri-arrow-down-s-line"></i></button>' +
                             '</td>' +
                             '<td style="padding:10px 12px;text-align:right;white-space:nowrap;">' +
-                                '<button type="button" class="btn-act btn-edit-cat-trigger" data-cat-id="' + newId + '" data-cat-name="' + safeName + '" title="编辑名称"><span class="duo-icon-slot" data-duo-icon="pencil"><i class="ri-edit-line duo-rest-icon"></i></span></button> ' +
-                                '<button type="button" class="btn-act btn-delete-cat-trigger" data-cat-id="' + newId + '" data-cat-name="' + safeName + '" data-count="0" title="删除文件夹"><span class="duo-icon-slot" data-duo-icon="trash"><i class="ri-delete-bin-line duo-rest-icon"></i></span></button>' +
+                                '<button type="button" class="btn-act btn-edit-cat-trigger" data-cat-id="' + newId + '" data-cat-name="' + safeName + '" title="' + tipEditName + '"><span class="duo-icon-slot" data-duo-icon="pencil"><i class="ri-edit-line duo-rest-icon"></i></span></button> ' +
+                                '<button type="button" class="btn-act btn-delete-cat-trigger" data-cat-id="' + newId + '" data-cat-name="' + safeName + '" data-count="0" title="' + tipDelFolder + '"><span class="duo-icon-slot" data-duo-icon="trash"><i class="ri-delete-bin-line duo-rest-icon"></i></span></button>' +
                             '</td>' +
                         '</tr>';
                         $fBody.prepend(rowHtml);
@@ -2260,9 +2274,9 @@ function handleCategorySave(e) {
                 if (typeof closeModal === 'function') {
                     closeModal('categoryModal');
                 }
-                setQuickCreateSubmitLabel('categoryModal', '保存');
+                setQuickCreateSubmitLabel('categoryModal', (typeof t === 'function' ? t('common.save', null, '保存') : '保存'));
                 if (typeof showToast === 'function') {
-                    showToast('文件夹已创建，继续下一步', 'success');
+                    showToast((typeof t === 'function' ? t('admin.cat.created_next', null, '文件夹已创建，继续下一步') : '文件夹已创建，继续下一步'), 'success');
                 }
                 openItemModal(newId, flow.target === 'link' ? 'link' : 'project');
                 return;
@@ -2279,7 +2293,9 @@ function handleCategorySave(e) {
                 closeModal('categoryModal');
             }
             if (typeof showToast === 'function') {
-                showToast(isEdit ? '文件夹已更新' : '文件夹创建成功', 'success');
+                showToast(isEdit
+                    ? (typeof t === 'function' ? t('admin.cat.updated', null, '文件夹已更新') : '文件夹已更新')
+                    : (typeof t === 'function' ? t('admin.cat.created', null, '文件夹创建成功') : '文件夹创建成功'), 'success');
             }
             if (typeof isAdminConsoleOpen === 'function' && !isAdminConsoleOpen()) {
                 if (typeof window !== 'undefined' && window.location) {
@@ -2287,11 +2303,11 @@ function handleCategorySave(e) {
                 }
             }
         } else {
-            showToast(res.message || '保存文件夹失败', 'error');
+            showToast(res.message || (typeof t === 'function' ? t('admin.cat.save_failed', null, '保存文件夹失败') : '保存文件夹失败'), 'error');
         }
     }).catch(function(err) {
         if (btn) btn.disabled = false;
-        showToast((err && err.message) ? err.message : '网络异常，请重试', 'error');
+        showToast((err && err.message) ? err.message : (typeof t === 'function' ? t('common.network_error', null, '网络异常，请重试') : '网络异常，请重试'), 'error');
     });
 }
 
@@ -2382,26 +2398,26 @@ function getConsoleVersionDraftSvg() {
 }
 
 function deleteCategory(catId) {
-    confirmDeleteCategory(catId, '此文件夹', 0);
+    confirmDeleteCategory(catId, (typeof t === 'function' ? t('admin.proj.this_folder', null, '此文件夹') : '此文件夹'), 0);
 }
 
 function confirmDeleteCategory(catId, catName, itemCount) {
     var count = parseInt(itemCount || 0, 10);
-    var nameStr = catName || '此文件夹';
+    var nameStr = catName || (typeof t === 'function' ? t('admin.proj.this_folder', null, '此文件夹') : '此文件夹');
     var msg = (count > 0)
-        ? '文件夹「' + nameStr + '」下包含 ' + count + ' 个项目。删除将同时清空该文件夹下的所有项目与历史版本，确定继续？'
-        : '确定删除空文件夹「' + nameStr + '」？';
+        ? (typeof t === 'function' ? t('admin.cat.delete_nonempty', { name: nameStr, count: count }, '文件夹「' + nameStr + '」下包含 ' + count + ' 个项目。删除将同时清空该文件夹下的所有项目与历史版本，确定继续？') : '文件夹「' + nameStr + '」下包含 ' + count + ' 个项目。删除将同时清空该文件夹下的所有项目与历史版本，确定继续？')
+        : (typeof t === 'function' ? t('admin.cat.delete_empty', { name: nameStr }, '确定删除空文件夹「' + nameStr + '」？') : '确定删除空文件夹「' + nameStr + '」？');
     showConfirm({
-        title: '删除文件夹',
+        title: (typeof t === 'function' ? t('admin.cat.delete_title', null, '删除文件夹') : '删除文件夹'),
         message: msg,
-        confirmText: '删除文件夹',
+        confirmText: (typeof t === 'function' ? t('admin.cat.delete_title', null, '删除文件夹') : '删除文件夹'),
         isDanger: true,
         onConfirm: function() {
             var fd = new FormData();
             fd.append('id', catId);
             adminFetch('category_delete', fd).then(function(res) {
                 if (res.success) {
-                    showToast('文件夹已删除', 'success');
+                    showToast((typeof t === 'function' ? t('admin.cat.deleted', null, '文件夹已删除') : '文件夹已删除'), 'success');
                     if (isAdminConsoleOpen()) {
                         markAdminConsoleChanged();
                         $('#itemCatSelect option[value="' + catId + '"]').remove();
@@ -2445,9 +2461,9 @@ function confirmDeleteCategory(catId, catName, itemCount) {
                             $('#overviewTableFolders tbody').html(
                                 '<tr class="empty-folders-row"><td colspan="4" style="padding:44px 20px;text-align:center;">' +
                                     getConsoleFolderEmptySvg() +
-                                    '<div style="font-weight:600;font-size:13.5px;color:var(--text-1);margin-top:10px;">暂无文件夹分类</div>' +
-                                    '<div style="font-size:12px;color:var(--text-3);margin-top:3px;margin-bottom:14px;">创建文件夹以井井有条地组织您的原型项目</div>' +
-                                    '<button type="button" class="btn-primary btn-sm" onclick="openCategoryModal(0)"><span class="duo-icon-slot" data-duo-icon="folder-plus"><i class="ri-folder-add-line duo-rest-icon"></i></span> 新建文件夹</button>' +
+                                    '<div style="font-weight:600;font-size:13.5px;color:var(--text-1);margin-top:10px;">' + esc(typeof t === 'function' ? t('admin.proj.empty_folders_title', null, '暂无文件夹分类') : '暂无文件夹分类') + '</div>' +
+                                    '<div style="font-size:12px;color:var(--text-3);margin-top:3px;margin-bottom:14px;">' + esc(typeof t === 'function' ? t('admin.proj.empty_folders_desc', null, '创建文件夹以井井有条地组织您的原型项目') : '创建文件夹以井井有条地组织您的原型项目') + '</div>' +
+                                    '<button type="button" class="btn-primary btn-sm" onclick="openCategoryModal(0)"><span class="duo-icon-slot" data-duo-icon="folder-plus"><i class="ri-folder-add-line duo-rest-icon"></i></span> ' + esc(typeof t === 'function' ? t('workspace.new_folder', null, '新建文件夹') : '新建文件夹') + '</button>' +
                                 '</td></tr>'
                             );
                         }
@@ -2455,7 +2471,7 @@ function confirmDeleteCategory(catId, catName, itemCount) {
                         window.location.reload();
                     }
                 } else {
-                    showToast(res.message || '删除文件夹失败', 'error');
+                    showToast(res.message || (typeof t === 'function' ? t('admin.cat.delete_failed', null, '删除文件夹失败') : '删除文件夹失败'), 'error');
                 }
             });
         }
@@ -2534,9 +2550,9 @@ function moveCategoryOrder(btn, direction) {
         if (res.success) {
             markAdminConsoleChanged();
             updateCategoryOrderButtons();
-            showToast('文件夹排序已更新', 'success');
+            showToast((typeof t === 'function' ? t('admin.cat.order_updated', null, '文件夹排序已更新') : '文件夹排序已更新'), 'success');
         } else {
-            showToast(res.message || '更新排序失败', 'error');
+            showToast(res.message || (typeof t === 'function' ? t('admin.cat.order_failed', null, '更新排序失败') : '更新排序失败'), 'error');
         }
     });
 }
@@ -2566,12 +2582,12 @@ function filterProjectsByCategory(catId) {
         updateProjectOrderButtons(catId);
 
         if (matchCount === 0 && $rows.length > 0) {
-            var catName = $('#filterProjectCategory option:selected').text() || '此文件夹';
+            var catName = $('#filterProjectCategory option:selected').text() || (typeof t === 'function' ? t('admin.proj.this_folder', null, '此文件夹') : '此文件夹');
             var emptyFilterHtml = '<tr class="filtered-empty-row"><td colspan="6" style="padding:40px 20px;text-align:center;">' +
                 getConsoleProjectEmptySvg() +
-                '<div style="font-weight:600;font-size:13.5px;color:var(--text-1);margin-top:10px;">「' + esc(catName) + '」下暂无原型项目</div>' +
-                '<div style="font-size:12px;color:var(--text-3);margin-top:3px;margin-bottom:14px;">当前分类空空如也，可将已有项目归类至此或新建项目</div>' +
-                '<button type="button" class="btn-primary btn-sm" onclick="openItemModal(0, ' + catId + ', \'project\')"><span class="duo-icon-slot" data-duo-icon="circle-plus"><i class="ri-add-line duo-rest-icon"></i></span> 添加项目至此文件夹</button>' +
+                '<div style="font-weight:600;font-size:13.5px;color:var(--text-1);margin-top:10px;">' + esc(typeof t === 'function' ? t('admin.proj.folder_empty_title', { name: catName }, '「' + catName + '」下暂无原型项目') : '「' + catName + '」下暂无原型项目') + '</div>' +
+                '<div style="font-size:12px;color:var(--text-3);margin-top:3px;margin-bottom:14px;">' + esc(typeof t === 'function' ? t('admin.proj.folder_empty_desc', null, '当前分类空空如也，可将已有项目归类至此或新建项目') : '当前分类空空如也，可将已有项目归类至此或新建项目') + '</div>' +
+                '<button type="button" class="btn-primary btn-sm" onclick="openItemModal(0, ' + catId + ', \'project\')"><span class="duo-icon-slot" data-duo-icon="circle-plus"><i class="ri-add-line duo-rest-icon"></i></span> ' + esc(typeof t === 'function' ? t('workspace.new_project', null, '新建项目') : '新建项目') + '</button>' +
             '</td></tr>';
             $('#overviewTableProjects tbody').append(emptyFilterHtml);
         }
@@ -2603,12 +2619,12 @@ function filterLinksByCategory(catId) {
         updateLinkOrderButtons(catId);
 
         if (matchCount === 0 && $rows.length > 0) {
-            var catName = $('#filterLinkCategory option:selected').text() || '此文件夹';
+            var catName = $('#filterLinkCategory option:selected').text() || (typeof t === 'function' ? t('admin.proj.this_folder', null, '此文件夹') : '此文件夹');
             var emptyFilterHtml = '<tr class="filtered-empty-row"><td colspan="6" style="padding:40px 20px;text-align:center;">' +
                 getConsoleLinkEmptySvg() +
-                '<div style="font-weight:600;font-size:13.5px;color:var(--text-1);margin-top:10px;">「' + esc(catName) + '」下暂无外部链接</div>' +
-                '<div style="font-size:12px;color:var(--text-3);margin-top:3px;margin-bottom:14px;">当前分类空空如也，可将外部设计稿或演示地址收纳至此</div>' +
-                '<button type="button" class="btn-primary btn-sm" onclick="openItemModal(0, ' + catId + ', \'link\')"><span class="duo-icon-slot" data-duo-icon="circle-plus"><i class="ri-add-line duo-rest-icon"></i></span> 添加外链至此文件夹</button>' +
+                '<div style="font-weight:600;font-size:13.5px;color:var(--text-1);margin-top:10px;">' + esc(typeof t === 'function' ? t('admin.proj.folder_links_empty_title', { name: catName }, '「' + catName + '」下暂无外部链接') : '「' + catName + '」下暂无外部链接') + '</div>' +
+                '<div style="font-size:12px;color:var(--text-3);margin-top:3px;margin-bottom:14px;">' + esc(typeof t === 'function' ? t('admin.proj.folder_links_empty_desc', null, '当前分类空空如也，可将外部设计稿或演示地址收纳至此') : '当前分类空空如也，可将外部设计稿或演示地址收纳至此') + '</div>' +
+                '<button type="button" class="btn-primary btn-sm" onclick="openItemModal(0, ' + catId + ', \'link\')"><span class="duo-icon-slot" data-duo-icon="circle-plus"><i class="ri-add-line duo-rest-icon"></i></span> ' + esc(typeof t === 'function' ? t('workspace.new_link', null, '新建链接') : '新建链接') + '</button>' +
             '</td></tr>';
             $('#overviewTableLinks tbody').append(emptyFilterHtml);
         }
@@ -2680,13 +2696,13 @@ function moveItemOrder(btn, direction) {
             markAdminConsoleChanged();
             if (isLink) {
                 updateLinkOrderButtons(catId);
-                showToast('外链排序已更新', 'success');
+                showToast((typeof t === 'function' ? t('admin.item.link_order_updated', null, '外链排序已更新') : '外链排序已更新'), 'success');
             } else {
                 updateProjectOrderButtons(catId);
-                showToast('项目排序已更新', 'success');
+                showToast((typeof t === 'function' ? t('admin.item.proj_order_updated', null, '项目排序已更新') : '项目排序已更新'), 'success');
             }
         } else {
-            showToast(res.message || '更新排序失败', 'error');
+            showToast(res.message || (typeof t === 'function' ? t('admin.cat.order_failed', null, '更新排序失败') : '更新排序失败'), 'error');
         }
     });
 }
@@ -2722,7 +2738,7 @@ function openItemModal(arg1, arg2, arg3) {
             setQuickCreateFlow(flow);
         }
         flow.advancing = true;
-        showToast('请先创建文件夹，保存后继续', 'info');
+        showToast((typeof t === 'function' ? t('admin.item.create_folder_first', null, '请先创建文件夹，保存后继续') : '请先创建文件夹，保存后继续'), 'info');
         openCategoryModal(0);
         return;
     }
@@ -2737,13 +2753,13 @@ function openItemModal(arg1, arg2, arg3) {
     var nameInput = document.getElementById('itemName');
 
     if (type === 'link') {
-        if (titleEl) titleEl.textContent = '新建链接';
-        if (nameLabel) nameLabel.innerHTML = '链接名称 <span class="req-star">*</span>';
-        if (nameInput) nameInput.placeholder = '输入链接名称';
+        if (titleEl) titleEl.textContent = (typeof t === 'function' ? t('admin.item.new_link', null, '新建链接') : '新建链接');
+        if (nameLabel) nameLabel.innerHTML = esc(typeof t === 'function' ? t('admin.item.link_name', null, '链接名称') : '链接名称') + ' <span class="req-star">*</span>';
+        if (nameInput) nameInput.placeholder = (typeof t === 'function' ? t('admin.item.link_name_placeholder', null, '输入链接名称') : '输入链接名称');
     } else {
-        if (titleEl) titleEl.textContent = '新建项目';
-        if (nameLabel) nameLabel.innerHTML = '项目名称 <span class="req-star">*</span>';
-        if (nameInput) nameInput.placeholder = '输入项目名称';
+        if (titleEl) titleEl.textContent = (typeof t === 'function' ? t('admin.item.new_project', null, '新建项目') : '新建项目');
+        if (nameLabel) nameLabel.innerHTML = esc(typeof t === 'function' ? t('admin.item.project_name', null, '项目名称') : '项目名称') + ' <span class="req-star">*</span>';
+        if (nameInput) nameInput.placeholder = (typeof t === 'function' ? t('admin.item.project_name_placeholder', null, '输入项目名称') : '输入项目名称');
     }
 
     // 新建模式：默认全部协作者可发版，创建者也可主动指定一位或多位负责人
@@ -2755,9 +2771,9 @@ function openItemModal(arg1, arg2, arg3) {
     if (document.getElementById('itemLinkTarget')) document.getElementById('itemLinkTarget').value = '_blank';
     if (document.getElementById('itemWebhookUrl')) document.getElementById('itemWebhookUrl').value = '';
     var isAdvancingToUpload = (flow && flow.target === 'upload' && type !== 'link');
-    setQuickCreateSubmitLabel('itemModal', isAdvancingToUpload ? '保存并继续' : '保存');
+    setQuickCreateSubmitLabel('itemModal', isAdvancingToUpload ? (typeof t === 'function' ? t('common.save_and_continue', null, '保存并继续') : '保存并继续') : (typeof t === 'function' ? t('common.save', null, '保存') : '保存'));
     if (isAdvancingToUpload) {
-        showToast('请先创建项目，保存后继续发布', 'info');
+        showToast((typeof t === 'function' ? t('admin.item.create_project_first', null, '请先创建项目，保存后继续发布') : '请先创建项目，保存后继续发布'), 'info');
     }
 
     toggleItemType(type);
@@ -2783,13 +2799,13 @@ function getOwnerDisplayName(uid) {
     var idNum = parseInt(uid, 10);
     if (!idNum) return '';
     if (typeof cachedUsersMap !== 'undefined' && cachedUsersMap[idNum]) {
-        return cachedUsersMap[idNum].name || cachedUsersMap[idNum].email || ('成员 #' + idNum);
+        return cachedUsersMap[idNum].name || cachedUsersMap[idNum].email || (typeof t === 'function' ? t('admin.item.member_id', { id: idNum }, '成员 #' + idNum) : '成员 #' + idNum);
     }
     var cb = document.querySelector('#itemOwnersOptions input.item-owner-cb[value="' + idNum + '"]');
     if (cb && cb.getAttribute('data-name')) {
         return cb.getAttribute('data-name');
     }
-    return '成员 #' + idNum;
+    return (typeof t === 'function' ? t('admin.item.member_id', { id: idNum }, '成员 #' + idNum) : '成员 #' + idNum);
 }
 
 function canEditorsShare() {
@@ -2805,8 +2821,12 @@ function syncItemCollaborationSharePermission(allowed) {
     if (scope) {
         var all = scope.querySelector('option[value="all"]');
         var selected = scope.querySelector('option[value="selected"]');
-        if (all) all.textContent = '所有协作者可管理版本' + (allowed ? '和分享' : '');
-        if (selected) selected.textContent = '仅指定成员可管理版本' + (allowed ? '和分享' : '');
+        if (all) all.textContent = allowed
+            ? (typeof t === 'function' ? t('admin.item.scope_all_ver_share', null, '所有协作者可管理版本和分享') : '所有协作者可管理版本和分享')
+            : (typeof t === 'function' ? t('admin.item.scope_all_ver', null, '所有协作者可管理版本') : '所有协作者可管理版本');
+        if (selected) selected.textContent = allowed
+            ? (typeof t === 'function' ? t('admin.item.scope_sel_ver_share', null, '仅指定成员可管理版本和分享') : '仅指定成员可管理版本和分享')
+            : (typeof t === 'function' ? t('admin.item.scope_sel_ver', null, '仅指定成员可管理版本') : '仅指定成员可管理版本');
     }
     $('#overviewTableProjects tbody tr[data-item-id]').each(function() {
         var $row = $(this);
@@ -2815,14 +2835,18 @@ function syncItemCollaborationSharePermission(allowed) {
 }
 
 function renderItemOwnersCellHtml(collaboratorsStr, creatorName) {
-    var actions = canEditorsShare() ? '版本与分享' : '版本';
+    var actions = canEditorsShare()
+        ? (typeof t === 'function' ? t('admin.item.perm_ver_share', null, '版本与分享') : '版本与分享')
+        : (typeof t === 'function' ? t('admin.item.perm_ver', null, '版本') : '版本');
     var ids = parseOwnerIds(collaboratorsStr);
     if (ids.length > 0) {
         var names = ids.map(getOwnerDisplayName);
         var fullText = names.join('、');
-        return '<span title="' + actions + '：仅' + esc(fullText) + '">仅' + esc(fullText) + '</span>';
+        var onlyNames = (typeof t === 'function' ? t('admin.item.only_owners', { names: fullText }, '仅' + fullText) : '仅' + fullText);
+        return '<span title="' + esc(actions) + '：' + esc(onlyNames) + '">' + esc(onlyNames) + '</span>';
     }
-    return '<span title="' + actions + '：所有协作者">所有协作者</span>';
+    var allEd = (typeof t === 'function' ? t('admin.item.all_editors', null, '所有协作者') : '所有协作者');
+    return '<span title="' + esc(actions) + '：' + esc(allEd) + '">' + esc(allEd) + '</span>';
 }
 window.renderItemOwnersCellHtml = renderItemOwnersCellHtml;
 
@@ -2845,16 +2869,18 @@ function syncItemOwnerPermissions(itemId, collaboratorsStr, createdBy) {
     $tree.add($row).attr('data-collaborators', collaboratorsStr).data('collaborators', collaboratorsStr)
         .attr('data-can-edit', canPublish ? '1' : '0').data('can-edit', canPublish ? 1 : 0);
     var $treeControls = $tree.find('.admin-controls');
-    var $rowUpload = $row.find('button[title="发布新版本"]');
+    var $rowUpload = $row.find('button[onclick*="openUploadModal"]');
     if (!canPublish) {
         $treeControls.remove();
         $rowUpload.remove();
     } else {
         if ($tree.length && !$treeControls.length) {
-            $tree.append('<div class="admin-controls" onclick="event.stopPropagation()"><button type="button" class="btn-act duo-hover-btn" data-duo-icon="cloud-upload" onclick="openUploadModal(' + parseInt(itemId, 10) + ')" title="发布版本"><i class="ri-upload-cloud-line duo-rest-icon"></i></button></div>');
+            var tipPubVer = esc(typeof t === 'function' ? t('workspace.publish_version', null, '发布版本') : '发布版本');
+            $tree.append('<div class="admin-controls" onclick="event.stopPropagation()"><button type="button" class="btn-act duo-hover-btn" data-duo-icon="cloud-upload" onclick="openUploadModal(' + parseInt(itemId, 10) + ')" title="' + tipPubVer + '"><i class="ri-upload-cloud-line duo-rest-icon"></i></button></div>');
         }
         if ($row.length && !$rowUpload.length) {
-            $row.find('td').last().prepend('<button type="button" class="btn-act" onclick="openUploadModal(' + parseInt(itemId, 10) + ')" title="发布新版本"><span class="duo-icon-slot" data-duo-icon="cloud-upload"><i class="ri-upload-cloud-line duo-rest-icon"></i></span></button> ');
+            var tipPubNew = esc(typeof t === 'function' ? t('workspace.publish_new_ver', null, '发布新版本') : '发布新版本');
+            $row.find('td').last().prepend('<button type="button" class="btn-act" onclick="openUploadModal(' + parseInt(itemId, 10) + ')" title="' + tipPubNew + '"><span class="duo-icon-slot" data-duo-icon="cloud-upload"><i class="ri-upload-cloud-line duo-rest-icon"></i></span></button> ');
         }
     }
 }
@@ -2926,7 +2952,7 @@ function onItemOwnersChange() {
     }
 
     if (selectedNames.length === 0) {
-        tagsWrap.innerHTML = '<span class="item-owner-placeholder">选择协作成员</span>';
+        tagsWrap.innerHTML = '<span class="item-owner-placeholder">' + esc(typeof t === 'function' ? t('admin.item.select_owners', null, '选择协作成员') : '选择协作成员') + '</span>';
     } else if (selectedNames.length <= 3) {
         var html = '';
         selectedNames.forEach(function(name) {
@@ -2934,7 +2960,7 @@ function onItemOwnersChange() {
         });
         tagsWrap.innerHTML = html;
     } else {
-        tagsWrap.innerHTML = '<span class="badge-tag badge-primary">' + esc(selectedNames[0]) + ' 等 ' + selectedNames.length + ' 人</span>';
+        tagsWrap.innerHTML = '<span class="badge-tag badge-primary">' + esc(typeof t === 'function' ? t('admin.item.selected_owners_n', { first: selectedNames[0], n: selectedNames.length }, selectedNames[0] + ' 等 ' + selectedNames.length + ' 人') : selectedNames[0] + ' 等 ' + selectedNames.length + ' 人') + '</span>';
     }
     if (selectedNames.length > 0 && typeof clearFieldError === 'function') clearFieldError(document.getElementById('itemOwnersTrigger'));
 }
@@ -2983,8 +3009,8 @@ function setItemOwnersSelection(collaboratorsStr, canEditOwners) {
     selectedIds.forEach(function(sid) {
         if (!existingMap[sid]) {
             var u = (typeof cachedUsersMap !== 'undefined' && cachedUsersMap[sid]) ? cachedUsersMap[sid] : null;
-            var uName = u ? (u.name || u.email) : ('成员 #' + sid);
-            var suffix = (u && parseInt(u.status, 10) === 3) ? ' (已停用)' : '';
+            var uName = u ? (u.name || u.email) : (typeof t === 'function' ? t('admin.item.member_id', { id: sid }, '成员 #' + sid) : '成员 #' + sid);
+            var suffix = (u && parseInt(u.status, 10) === 3) ? (typeof t === 'function' ? t('admin.item.status_off_tag', null, ' (已停用)') : ' (已停用)') : '';
             var lbl = document.createElement('label');
             lbl.className = 'mcp-project-option temp-fallback-owner-option';
             lbl.innerHTML = '<input type="checkbox" class="item-owner-cb" value="' + esc(sid) + '" data-name="' + esc(uName) + '" checked onchange="onItemOwnersChange()">' +
@@ -3018,8 +3044,8 @@ function syncAuthorSelectOptions() {
 
     var html = '';
     activeUsers.forEach(function(u) {
-        var uDisplay = u.name || u.email || ('成员 #' + u.id);
-        var roleTag = u.role === 'admin' ? ' (管理员)' : '';
+        var uDisplay = u.name || u.email || (typeof t === 'function' ? t('admin.item.member_id', { id: u.id }, '成员 #' + u.id) : '成员 #' + u.id);
+        var roleTag = u.role === 'admin' ? (typeof t === 'function' ? t('admin.item.role_admin_tag', null, ' (管理员)') : ' (管理员)') : '';
         var checkedAttr = curSelected.indexOf(String(u.id)) !== -1 ? ' checked' : '';
         html += '<label class="mcp-project-option">' +
             '<input type="checkbox" class="item-owner-cb" value="' + parseInt(u.id, 10) + '" data-name="' + esc(uDisplay) + '"' + checkedAttr + ' onchange="onItemOwnersChange()">' +
@@ -3056,6 +3082,8 @@ function syncAdminApprovalSelectOptions() {
     var savedIds = Array.isArray(window.SAVED_NOTIFY_ADMIN_IDS) ? window.SAVED_NOTIFY_ADMIN_IDS : null;
 
     var html = '';
+    var tipBotConfigured = esc(typeof t === 'function' ? t('admin.users.bot_configured_tip', null, '已配置个人机器人 Webhook') : '已配置个人机器人 Webhook');
+    var labelNoBot = esc(typeof t === 'function' ? t('admin.settings.no_bot', null, '未配置机器人') : '未配置机器人');
     activeAdmins.forEach(function(au) {
         var auId = parseInt(au.id, 10);
         var isChecked = defaultAll ? true : (savedIds ? savedIds.indexOf(auId) !== -1 : false);
@@ -3065,7 +3093,7 @@ function syncAdminApprovalSelectOptions() {
             '<input type="checkbox" name="visitor_notify_admin_ids[]" value="' + au.id + '" ' + (isChecked ? 'checked' : '') + ' onchange="onAdminSelectChange()" style="cursor:pointer;">' +
             '<span style="font-weight:600;color:var(--text-1);">' + uName + '</span>' +
             '<span class="admin-select-webhook-status" data-admin-webhook-status>' +
-                (hasHook ? '<i class="ri-robot-line" title="已配置个人机器人 Webhook" role="img" aria-label="已配置个人机器人 Webhook"></i>' : '未配置机器人') +
+                (hasHook ? '<i class="ri-robot-line" title="' + tipBotConfigured + '" role="img" aria-label="' + tipBotConfigured + '"></i>' : labelNoBot) +
             '</span>' +
         '</label>';
     });
@@ -3311,16 +3339,16 @@ function editItem(data) {
         document.getElementById('itemWebhookUrl').value = (type === 'link') ? '' : (data.webhook_url || '');
     }
 
-    if (document.getElementById('btnItemSubmit')) document.getElementById('btnItemSubmit').innerText = '保存';
+    if (document.getElementById('btnItemSubmit')) document.getElementById('btnItemSubmit').innerText = (typeof t === 'function' ? t('common.save', null, '保存') : '保存');
 
     var titleEl = document.getElementById('itemModalTitle');
     var nameLabel = document.getElementById('itemNameLabel');
     if (type === 'link') {
-        if (titleEl) titleEl.textContent = '编辑链接';
-        if (nameLabel) nameLabel.innerHTML = '链接名称 <span class="req-star">*</span>';
+        if (titleEl) titleEl.textContent = (typeof t === 'function' ? t('admin.item.edit_link', null, '编辑链接') : '编辑链接');
+        if (nameLabel) nameLabel.innerHTML = esc(typeof t === 'function' ? t('admin.item.link_name', null, '链接名称') : '链接名称') + ' <span class="req-star">*</span>';
     } else {
-        if (titleEl) titleEl.textContent = '编辑项目属性';
-        if (nameLabel) nameLabel.innerHTML = '项目名称 <span class="req-star">*</span>';
+        if (titleEl) titleEl.textContent = (typeof t === 'function' ? t('admin.item.edit_project', null, '编辑项目属性') : '编辑项目属性');
+        if (nameLabel) nameLabel.innerHTML = esc(typeof t === 'function' ? t('admin.item.project_name', null, '项目名称') : '项目名称') + ' <span class="req-star">*</span>';
     }
     openModal('itemModal', 'itemName');
 }
@@ -3377,9 +3405,10 @@ function handleItemSave(e) {
         submittedCollaborators = scopeValue === 'selected' ? (ownersInput.value || '') : '';
         if (scopeValue === 'selected' && !submittedCollaborators) {
             if (btn) btn.disabled = false;
+            var selOwnerErr = (typeof t === 'function' ? t('admin.item.select_one_owner', null, '请至少选择一位协作成员') : '请至少选择一位协作成员');
             if (typeof setFieldError === 'function') {
-                setFieldError(document.getElementById('itemOwnersTrigger'), document.getElementById('itemCollaboratorsError'), '请至少选择一位协作成员');
-            } else showToast('请至少选择一位协作成员', 'warning');
+                setFieldError(document.getElementById('itemOwnersTrigger'), document.getElementById('itemCollaboratorsError'), selOwnerErr);
+            } else showToast(selOwnerErr, 'warning');
             return;
         }
         fd.append('collaboration_scope', scopeValue);
@@ -3427,10 +3456,10 @@ function handleItemSave(e) {
                     syncProjectOptionByOwners(itemId, fd.get('name') || '', fd.get('webhook_url') || '', advCatId, savedCollaborators || '', advUid);
                 }
                 if (typeof setQuickCreateSubmitLabel === 'function') {
-                    setQuickCreateSubmitLabel('itemModal', '保存');
+                    setQuickCreateSubmitLabel('itemModal', (typeof t === 'function' ? t('common.save', null, '保存') : '保存'));
                 }
                 if (typeof showToast === 'function') {
-                    showToast('项目已创建，继续发布版本', 'success');
+                    showToast((typeof t === 'function' ? t('admin.item.created_next_upload', null, '项目已创建，继续发布版本') : '项目已创建，继续发布版本'), 'success');
                 }
                 if (typeof openUploadModal === 'function') {
                     openUploadModal(itemId, fd.get('name') || '');
@@ -3470,13 +3499,15 @@ function handleItemSave(e) {
                 syncProjectOptionByOwners(itemId, fd.get('name') || '', fd.get('webhook_url') || '', normCatId, effectiveCollabForSelect || '', effectiveCreatorId);
             }
             if (typeof showToast === 'function') {
-                showToast(editId ? '修改保存成功' : '项目创建成功', 'success');
+                showToast(editId
+                    ? (typeof t === 'function' ? t('admin.item.updated', null, '修改保存成功') : '修改保存成功')
+                    : (typeof t === 'function' ? t('admin.item.created', null, '项目创建成功') : '项目创建成功'), 'success');
             }
             if (isAdminConsoleOpen()) {
                 markAdminConsoleChanged();
                 var itemName = fd.get('name') || '';
                 var itemCatId = fd.get('category_id') || '0';
-                var catText = $('#itemCatSelect option[value="' + itemCatId + '"]').text() || '未归类';
+                var catText = $('#itemCatSelect option[value="' + itemCatId + '"]').text() || (typeof t === 'function' ? t('admin.proj.uncategorized', null, '未归类') : '未归类');
                 var $row = $('#admin-item-row-' + itemId);
                 if ($row.length) {
                     var prevCatId = String($row.attr('data-cat-id') || '0');
@@ -3500,7 +3531,10 @@ function handleItemSave(e) {
                     if (isLinkRow) {
                         var linkUrl = fd.get('link_url') || '';
                         var linkTarget = fd.get('link_target') || '_blank';
-                        var targetText = (linkTarget === '_blank') ? '新标签页' : '内嵌预览';
+                        var targetText = (linkTarget === '_blank')
+                            ? (typeof t === 'function' ? t('admin.proj.open_new_tab', null, '新标签页') : '新标签页')
+                            : (typeof t === 'function' ? t('admin.proj.open_embed', null, '内嵌预览') : '内嵌预览');
+                        var tipCopyLink = esc(typeof t === 'function' ? t('admin.item.copy_link_tip', null, '复制链接') : '复制链接');
                         var targetBadgeStyle = (linkTarget === '_blank') ? 'background:var(--primary-subtle);color:var(--primary);border:1px solid var(--primary-border);' : 'background:var(--canvas);color:var(--text-3);border:1px solid var(--border);';
                         if ($tds.length >= 5) {
                             $tds.eq(0).html('<i class="ri-external-link-line" style="color:var(--primary);margin-right:4px;font-size:14px;vertical-align:-1px;"></i>' + esc(itemName));
@@ -3508,7 +3542,7 @@ function handleItemSave(e) {
                             $tds.eq(2).html('<span class="badge-tag" style="' + targetBadgeStyle + 'font-size:11px;">' + esc(targetText) + '</span>');
                             var urlHtml = '<div style="display:flex;align-items:center;gap:6px;">' +
                                 '<a href="' + esc(linkUrl) + '" target="_blank" rel="noopener noreferrer" style="color:var(--primary);text-decoration:none;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:inline-block;max-width:200px;" title="' + esc(linkUrl) + '">' + esc(linkUrl || '-') + '</a>' +
-                                (linkUrl ? '<button type="button" class="btn-act btn-copy-url" data-url="' + esc(linkUrl) + '" title="复制链接"><span class="duo-icon-slot" data-duo-icon="copy"><i class="ri-file-copy-line duo-rest-icon"></i></span></button>' : '') +
+                                (linkUrl ? '<button type="button" class="btn-act btn-copy-url" data-url="' + esc(linkUrl) + '" title="' + tipCopyLink + '"><span class="duo-icon-slot" data-duo-icon="copy"><i class="ri-file-copy-line duo-rest-icon"></i></span></button>' : '') +
                             '</div>';
                             $tds.eq(3).html(urlHtml);
                             $tds.eq(4).text(rowCreatorName || '-');
@@ -3564,7 +3598,14 @@ function handleItemSave(e) {
                             $lTableBody.find('tr:not([data-item-id])').remove();
                             var linkUrl = fd.get('link_url') || '';
                             var linkTarget = fd.get('link_target') || '_blank';
-                            var targetText = (linkTarget === '_blank') ? '新标签页' : '内嵌预览';
+                            var targetText = (linkTarget === '_blank')
+                                ? (typeof t === 'function' ? t('admin.proj.open_new_tab', null, '新标签页') : '新标签页')
+                                : (typeof t === 'function' ? t('admin.proj.open_embed', null, '内嵌预览') : '内嵌预览');
+                            var tipCopyLink2 = esc(typeof t === 'function' ? t('admin.item.copy_link_tip', null, '复制链接') : '复制链接');
+                            var tipMoveUp2 = esc(typeof t === 'function' ? t('common.move_up', null, '上移') : '上移');
+                            var tipMoveDown2 = esc(typeof t === 'function' ? t('common.move_down', null, '下移') : '下移');
+                            var tipEditProps2 = esc(typeof t === 'function' ? t('admin.proj.edit_props_tip', null, '编辑属性') : '编辑属性');
+                            var tipDel2 = esc(typeof t === 'function' ? t('common.delete', null, '删除') : '删除');
                             var targetBadgeStyle = (linkTarget === '_blank') ? 'background:var(--primary-subtle);color:var(--primary);border:1px solid var(--primary-border);' : 'background:var(--canvas);color:var(--text-3);border:1px solid var(--border);';
                             var newLinkData = {
                                 id: itemId,
@@ -3584,15 +3625,15 @@ function handleItemSave(e) {
                                 '<td style="padding:9px 12px;max-width:260px;">' +
                                     '<div style="display:flex;align-items:center;gap:6px;">' +
                                         '<a href="' + esc(linkUrl) + '" target="_blank" rel="noopener noreferrer" style="color:var(--primary);text-decoration:none;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:inline-block;max-width:200px;" title="' + esc(linkUrl) + '">' + esc(linkUrl || '-') + '</a>' +
-                                        (linkUrl ? '<button type="button" class="btn-act btn-copy-url" data-url="' + esc(linkUrl) + '" title="复制链接"><span class="duo-icon-slot" data-duo-icon="copy"><i class="ri-file-copy-line duo-rest-icon"></i></span></button>' : '') +
+                                        (linkUrl ? '<button type="button" class="btn-act btn-copy-url" data-url="' + esc(linkUrl) + '" title="' + tipCopyLink2 + '"><span class="duo-icon-slot" data-duo-icon="copy"><i class="ri-file-copy-line duo-rest-icon"></i></span></button>' : '') +
                                     '</div>' +
                                 '</td>' +
                                 '<td style="padding:9px 12px;color:var(--text-2);">' + esc(curUserName) + '</td>' +
                                 '<td style="padding:9px 12px;text-align:right;white-space:nowrap;">' +
-                                    '<button type="button" class="btn-act link-order-btn btn-link-move-up" style="display:none;margin-right:2px;" onclick="moveItemOrder(this, -1)" title="上移"><i class="ri-arrow-up-s-line"></i></button>' +
-                                    '<button type="button" class="btn-act link-order-btn btn-link-move-down" style="display:none;margin-right:6px;" onclick="moveItemOrder(this, 1)" title="下移"><i class="ri-arrow-down-s-line"></i></button>' +
-                                    '<button type="button" class="btn-act btn-edit-item-trigger" data-item-json="' + esc(JSON.stringify(newLinkData)) + '" title="编辑属性"><span class="duo-icon-slot" data-duo-icon="pencil"><i class="ri-edit-line duo-rest-icon"></i></span></button> ' +
-                                    '<button type="button" class="btn-act" onclick="deleteItem(' + itemId + ')" title="删除"><span class="duo-icon-slot" data-duo-icon="trash"><i class="ri-delete-bin-line duo-rest-icon"></i></span></button>' +
+                                    '<button type="button" class="btn-act link-order-btn btn-link-move-up" style="display:none;margin-right:2px;" onclick="moveItemOrder(this, -1)" title="' + tipMoveUp2 + '"><i class="ri-arrow-up-s-line"></i></button>' +
+                                    '<button type="button" class="btn-act link-order-btn btn-link-move-down" style="display:none;margin-right:6px;" onclick="moveItemOrder(this, 1)" title="' + tipMoveDown2 + '"><i class="ri-arrow-down-s-line"></i></button>' +
+                                    '<button type="button" class="btn-act btn-edit-item-trigger" data-item-json="' + esc(JSON.stringify(newLinkData)) + '" title="' + tipEditProps2 + '"><span class="duo-icon-slot" data-duo-icon="pencil"><i class="ri-edit-line duo-rest-icon"></i></span></button> ' +
+                                    '<button type="button" class="btn-act" onclick="deleteItem(' + itemId + ')" title="' + tipDel2 + '"><span class="duo-icon-slot" data-duo-icon="trash"><i class="ri-delete-bin-line duo-rest-icon"></i></span></button>' +
                                 '</td>' +
                             '</tr>';
                             insertItemRowInOrder($lTableBody, newLinkRowHtml, itemCatId);
@@ -3604,6 +3645,12 @@ function handleItemSave(e) {
                         var $pTableBody = $('#overviewTableProjects tbody');
                         if ($pTableBody.length) {
                             $pTableBody.find('tr:not([data-item-id])').remove();
+                            var verZeroLabel = esc(typeof t === 'function' ? t('ver.count_btn', { n: 0 }, '0 个版本') : '0 个版本');
+                            var tipMoveUp3 = esc(typeof t === 'function' ? t('common.move_up', null, '上移') : '上移');
+                            var tipMoveDown3 = esc(typeof t === 'function' ? t('common.move_down', null, '下移') : '下移');
+                            var tipPubNew3 = esc(typeof t === 'function' ? t('workspace.publish_new_ver', null, '发布新版本') : '发布新版本');
+                            var tipEditProps3 = esc(typeof t === 'function' ? t('admin.proj.edit_props_tip', null, '编辑属性') : '编辑属性');
+                            var tipDel3 = esc(typeof t === 'function' ? t('common.delete', null, '删除') : '删除');
                             var newProjData = {
                                 id: itemId,
                                 type: 'project',
@@ -3620,13 +3667,13 @@ function handleItemSave(e) {
                                 '<td style="padding:9px 12px;color:var(--text-2);">' + esc(catText) + '</td>' +
                                 '<td style="padding:9px 12px;color:var(--text-2);">' + renderItemOwnersCellHtml(newCollabStr, curUserName) + '</td>' +
                                 '<td style="padding:9px 12px;"><span class="badge-ver">-</span></td>' +
-                                '<td style="padding:9px 12px;"><button type="button" class="btn-cancel btn-sm btn-table-ver" onclick="openVersionManageModal(' + itemId + ')"><span class="duo-icon-slot" data-duo-icon="history"><i class="ri-history-line duo-rest-icon"></i></span> 0 个版本</button></td>' +
+                                '<td style="padding:9px 12px;"><button type="button" class="btn-cancel btn-sm btn-table-ver" onclick="openVersionManageModal(' + itemId + ')"><span class="duo-icon-slot" data-duo-icon="history"><i class="ri-history-line duo-rest-icon"></i></span> ' + verZeroLabel + '</button></td>' +
                                 '<td style="padding:9px 12px;text-align:right;white-space:nowrap;">' +
-                                    '<button type="button" class="btn-act project-order-btn btn-proj-move-up" style="display:none;margin-right:2px;" onclick="moveItemOrder(this, -1)" title="上移"><i class="ri-arrow-up-s-line"></i></button>' +
-                                    '<button type="button" class="btn-act project-order-btn btn-proj-move-down" style="display:none;margin-right:6px;" onclick="moveItemOrder(this, 1)" title="下移"><i class="ri-arrow-down-s-line"></i></button>' +
-                                    (canUploadNewItem ? '<button type="button" class="btn-act" onclick="openUploadModal(' + itemId + ')" title="发布新版本"><span class="duo-icon-slot" data-duo-icon="cloud-upload"><i class="ri-upload-cloud-line duo-rest-icon"></i></span></button> ' : '') +
-                                    '<button type="button" class="btn-act btn-edit-item-trigger" data-item-json="' + esc(JSON.stringify(newProjData)) + '" title="编辑属性"><span class="duo-icon-slot" data-duo-icon="pencil"><i class="ri-edit-line duo-rest-icon"></i></span></button> ' +
-                                    '<button type="button" class="btn-act" onclick="deleteItem(' + itemId + ')" title="删除"><span class="duo-icon-slot" data-duo-icon="trash"><i class="ri-delete-bin-line duo-rest-icon"></i></span></button>' +
+                                    '<button type="button" class="btn-act project-order-btn btn-proj-move-up" style="display:none;margin-right:2px;" onclick="moveItemOrder(this, -1)" title="' + tipMoveUp3 + '"><i class="ri-arrow-up-s-line"></i></button>' +
+                                    '<button type="button" class="btn-act project-order-btn btn-proj-move-down" style="display:none;margin-right:6px;" onclick="moveItemOrder(this, 1)" title="' + tipMoveDown3 + '"><i class="ri-arrow-down-s-line"></i></button>' +
+                                    (canUploadNewItem ? '<button type="button" class="btn-act" onclick="openUploadModal(' + itemId + ')" title="' + tipPubNew3 + '"><span class="duo-icon-slot" data-duo-icon="cloud-upload"><i class="ri-upload-cloud-line duo-rest-icon"></i></span></button> ' : '') +
+                                    '<button type="button" class="btn-act btn-edit-item-trigger" data-item-json="' + esc(JSON.stringify(newProjData)) + '" title="' + tipEditProps3 + '"><span class="duo-icon-slot" data-duo-icon="pencil"><i class="ri-edit-line duo-rest-icon"></i></span></button> ' +
+                                    '<button type="button" class="btn-act" onclick="deleteItem(' + itemId + ')" title="' + tipDel3 + '"><span class="duo-icon-slot" data-duo-icon="trash"><i class="ri-delete-bin-line duo-rest-icon"></i></span></button>' +
                                 '</td>' +
                             '</tr>';
                             insertItemRowInOrder($pTableBody, newRowHtml, itemCatId);
@@ -3643,26 +3690,26 @@ function handleItemSave(e) {
                 }
             }
         } else {
-            showToast(res.message || '保存失败', 'error');
+            showToast(res.message || (typeof t === 'function' ? t('common.save_failed', null, '保存失败') : '保存失败'), 'error');
         }
     }).catch(function(err) {
         if (btn) btn.disabled = false;
-        showToast((err && err.message) ? err.message : '网络异常，请重试', 'error');
+        showToast((err && err.message) ? err.message : (typeof t === 'function' ? t('common.network_error', null, '网络异常，请重试') : '网络异常，请重试'), 'error');
     });
 }
 
 function deleteItem(itemId) {
     showConfirm({
-        title: '删除项目',
-        message: '确定删除该项目及所有版本？',
-        confirmText: '删除项目',
+        title: (typeof t === 'function' ? t('admin.item.delete_title', null, '删除项目') : '删除项目'),
+        message: (typeof t === 'function' ? t('admin.item.delete_confirm', null, '确定删除该项目及所有版本？') : '确定删除该项目及所有版本？'),
+        confirmText: (typeof t === 'function' ? t('admin.item.delete_btn', null, '删除项目') : '删除项目'),
         isDanger: true,
         onConfirm: function() {
             var fd = new FormData();
             fd.append('id', itemId);
             adminFetch('item_delete', fd).then(function(res) {
                 if (res.success) {
-                    showToast('已删除', 'success');
+                    showToast((typeof t === 'function' ? t('admin.item.deleted', null, '已删除') : '已删除'), 'success');
                     if (isAdminConsoleOpen()) {
                         markAdminConsoleChanged();
                         var $targetRow = $('#admin-item-row-' + itemId);
@@ -3673,25 +3720,25 @@ function deleteItem(itemId) {
                         if (!$pRows.length) {
                             $('#overviewTableProjects tbody').html('<tr class="empty-projects-row"><td colspan="6" style="padding:44px 20px;text-align:center;">' +
                                 getConsoleProjectEmptySvg() +
-                                '<div style="font-weight:600;font-size:13.5px;color:var(--text-1);margin-top:10px;">暂无原型项目</div>' +
-                                '<div style="font-size:12px;color:var(--text-3);margin-top:3px;margin-bottom:14px;">万事俱备，点击下方创建团队的第一份图纸</div>' +
-                                '<button type="button" class="btn-primary btn-sm" onclick="openItemModal(0, 0, \'project\')"><span class="duo-icon-slot" data-duo-icon="circle-plus"><i class="ri-add-line duo-rest-icon"></i></span> 新建项目</button>' +
+                                '<div style="font-weight:600;font-size:13.5px;color:var(--text-1);margin-top:10px;">' + esc(typeof t === 'function' ? t('admin.proj.empty_title', null, '暂无原型项目') : '暂无原型项目') + '</div>' +
+                                '<div style="font-size:12px;color:var(--text-3);margin-top:3px;margin-bottom:14px;">' + esc(typeof t === 'function' ? t('admin.proj.empty_desc', null, '万事俱备，点击下方创建团队的第一份图纸') : '万事俱备，点击下方创建团队的第一份图纸') + '</div>' +
+                                '<button type="button" class="btn-primary btn-sm" onclick="openItemModal(0, 0, \'project\')"><span class="duo-icon-slot" data-duo-icon="circle-plus"><i class="ri-add-line duo-rest-icon"></i></span> ' + esc(typeof t === 'function' ? t('workspace.new_project', null, '新建项目') : '新建项目') + '</button>' +
                             '</td></tr>');
                         }
                         var $lRows = $('#overviewTableLinks tbody tr[data-item-id]');
                         if (!$lRows.length) {
                             $('#overviewTableLinks tbody').html('<tr class="empty-links-row"><td colspan="6" style="padding:44px 20px;text-align:center;">' +
                                 getConsoleLinkEmptySvg() +
-                                '<div style="font-weight:600;font-size:13.5px;color:var(--text-1);margin-top:10px;">暂无外部链接</div>' +
-                                '<div style="font-size:12px;color:var(--text-3);margin-top:3px;margin-bottom:14px;">将 Figma、蓝湖、飞书文档或外部演示地址收纳至此，统一看板索引</div>' +
-                                '<button type="button" class="btn-primary btn-sm" onclick="openItemModal(0, 0, \'link\')"><span class="duo-icon-slot" data-duo-icon="circle-plus"><i class="ri-add-line duo-rest-icon"></i></span> 新建外链</button>' +
+                                '<div style="font-weight:600;font-size:13.5px;color:var(--text-1);margin-top:10px;">' + esc(typeof t === 'function' ? t('admin.proj.empty_links_title', null, '暂无外部链接') : '暂无外部链接') + '</div>' +
+                                '<div style="font-size:12px;color:var(--text-3);margin-top:3px;margin-bottom:14px;">' + esc(typeof t === 'function' ? t('admin.proj.empty_links_desc', null, '将 Figma、蓝湖、飞书文档或外部演示地址收纳至此，统一看板索引') : '将 Figma、蓝湖、飞书文档或外部演示地址收纳至此，统一看板索引') + '</div>' +
+                                '<button type="button" class="btn-primary btn-sm" onclick="openItemModal(0, 0, \'link\')"><span class="duo-icon-slot" data-duo-icon="circle-plus"><i class="ri-add-line duo-rest-icon"></i></span> ' + esc(typeof t === 'function' ? t('workspace.new_link', null, '新建外链') : '新建外链') + '</button>' +
                             '</td></tr>');
                         }
                     } else {
                         window.location.reload();
                     }
                 } else {
-                    showToast(res.message || '删除失败', 'error');
+                    showToast(res.message || (typeof t === 'function' ? t('admin.item.delete_failed', null, '删除失败') : '删除失败'), 'error');
                 }
             });
         }
@@ -3707,15 +3754,15 @@ function loadUserList() {
     .then(function(r) { return r.json(); })
     .then(function(res) {
         if (!res.success) {
-            showToast(res.message || '获取成员列表失败，请重试', 'warning');
+            showToast(res.message || (typeof t === 'function' ? t('admin.users.load_failed_retry', null, '获取成员列表失败，请重试') : '获取成员列表失败，请重试'), 'warning');
             if (tbody && tbody.children.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="5" style="padding:24px;text-align:center;color:var(--danger);"><i class="ri-error-warning-line"></i> ' + esc(res.message || '获取成员列表失败') + ' <a href="javascript:void(0)" onclick="loadUserList()" style="color:var(--primary);margin-left:8px;">点击重试</a></td></tr>';
+                tbody.innerHTML = '<tr><td colspan="5" style="padding:24px;text-align:center;color:var(--danger);"><i class="ri-error-warning-line"></i> ' + esc(res.message || (typeof t === 'function' ? t('admin.users.load_failed', null, '获取成员列表失败') : '获取成员列表失败')) + ' <a href="javascript:void(0)" onclick="loadUserList()" style="color:var(--primary);margin-left:8px;">' + esc(typeof t === 'function' ? t('common.retry', null, '重试') : '重试') + '</a></td></tr>';
             }
             return;
         }
         cachedUsersMap = {};
         if (!res.data || res.data.length === 0) {
-            if (tbody) tbody.innerHTML = '<tr><td colspan="6" style="padding:24px;text-align:center;color:var(--text-3);">暂无团队成员数据</td></tr>';
+            if (tbody) tbody.innerHTML = '<tr><td colspan="6" style="padding:24px;text-align:center;color:var(--text-3);">' + esc(typeof t === 'function' ? t('admin.users.empty', null, '暂无团队成员数据') : '暂无团队成员数据') + '</td></tr>';
             return;
         }
         var html = '';
@@ -3724,30 +3771,43 @@ function loadUserList() {
         if (isCurAdmin) {
             loadPendingUsers();
         }
+        var roleOwner = esc(typeof t === 'function' ? t('common.role.owner', null, '主管理员') : '主管理员');
+        var roleAdmin = esc(typeof t === 'function' ? t('common.role.admin', null, '管理员') : '管理员');
+        var roleViewer = esc(typeof t === 'function' ? t('common.role.viewer', null, '审阅人') : '审阅人');
+        var roleEditor = esc(typeof t === 'function' ? t('common.role.editor', null, '协作者') : '协作者');
+        var lblDisabled = esc(typeof t === 'function' ? t('common.disabled', null, '已停用') : '已停用');
+        var lblEnabled = esc(typeof t === 'function' ? t('common.enabled', null, '已启用') : '已启用');
+        var lblUnnamed = (typeof t === 'function' ? t('common.unnamed', null, '未命名') : '未命名');
+        var tipBot = esc(typeof t === 'function' ? t('admin.users.bot_configured_tip', null, '已配置个人机器人 Webhook') : '已配置个人机器人 Webhook');
+        var tipTransfer = esc(typeof t === 'function' ? t('admin.users.transfer_owner_tip', null, '移交主管理员所有权') : '移交主管理员所有权');
+        var tipHandover = esc(typeof t === 'function' ? t('admin.users.handover_tip', null, '工作交接') : '工作交接');
+        var tipEditUser = esc(typeof t === 'function' ? t('admin.users.edit_user_tip', null, '编辑成员信息') : '编辑成员信息');
+        var tipDelUser = esc(typeof t === 'function' ? t('admin.users.delete_user_tip', null, '删除用户') : '删除用户');
         res.data.forEach(function(u) {
             cachedUsersMap[u.id] = u;
             var isTargetOwner = (u.is_owner === 1 || u.is_owner === '1');
             var roleBadge = isTargetOwner 
-                ? '<span class="badge-tag badge-role-owner"><i class="ri-vip-crown-2-line"></i> 主管理员</span>'
-                : ((u.role === 'admin') ? '<span class="badge-tag badge-role-admin">管理员</span>' : ((u.role === 'viewer') ? '<span class="badge-tag badge-role-viewer">审阅人</span>' : '<span class="badge-tag badge-role-editor">协作者</span>'));
+                ? '<span class="badge-tag badge-role-owner"><i class="ri-vip-crown-2-line"></i> ' + roleOwner + '</span>'
+                : ((u.role === 'admin') ? '<span class="badge-tag badge-role-admin">' + roleAdmin + '</span>' : ((u.role === 'viewer') ? '<span class="badge-tag badge-role-viewer">' + roleViewer + '</span>' : '<span class="badge-tag badge-role-editor">' + roleEditor + '</span>'));
             
-            var statusBadge = (parseInt(u.status, 10) === 3 || parseInt(u.status, 10) === 0) ? '<span class="badge-tag badge-status-off">已停用</span>' : '';
-            var nameText = esc(u.name || u.display_name || '未命名');
+            var statusBadge = (parseInt(u.status, 10) === 3 || parseInt(u.status, 10) === 0) ? '<span class="badge-tag badge-status-off">' + lblDisabled + '</span>' : '';
+            var nameText = esc(u.name || u.display_name || lblUnnamed);
             var emailText = esc(u.email || u.username || '-');
             var deptText = esc(u.department || u.apply_remark || '-');
             var versionCount = parseInt(u.published_version_count || 0, 10);
             var projectCount = parseInt(u.published_project_count || 0, 10);
-            var webhookBadge = u.webhook_url ? '<i class="ri-robot-line" title="已配置个人机器人 Webhook" style="font-size:12px;color:var(--primary);margin-left:5px;cursor:help;"></i>' : '';
+            var contribTip = esc(typeof t === 'function' ? t('admin.users.contrib_tip', { vers: versionCount, projs: projectCount }, versionCount + ' 个版本 · ' + projectCount + ' 个项目') : versionCount + ' 个版本 · ' + projectCount + ' 个项目');
+            var webhookBadge = u.webhook_url ? '<i class="ri-robot-line" title="' + tipBot + '" style="font-size:12px;color:var(--primary);margin-left:5px;cursor:help;"></i>' : '';
 
             var actionButtons = '';
             if (isCurAdmin) {
                 // 如果当前登录者是 Owner，且目标也是管理员（非自己），显示移交钥匙按钮
                 var transferBtn = (isCurOwner && u.role === 'admin' && parseInt(CURRENT_USER.id, 10) !== parseInt(u.id, 10))
-                    ? `<button class="btn-act" onclick="openTransferOwnerModal(${parseInt(u.id, 10)})" title="移交主管理员所有权"><span class="duo-icon-slot" data-duo-icon="key"><i class="ri-key-2-line duo-rest-icon" style="color:var(--primary);"></i></span></button>`
+                    ? `<button class="btn-act" onclick="openTransferOwnerModal(${parseInt(u.id, 10)})" title="${tipTransfer}"><span class="duo-icon-slot" data-duo-icon="key"><i class="ri-key-2-line duo-rest-icon" style="color:var(--primary);"></i></span></button>`
                     : '';
 
                 // 工作交接按钮 (只要是管理员，可交接成员名下负责的项目)
-                var handoverBtn = `<button class="btn-act" onclick="openHandoverModal(${parseInt(u.id, 10)})" title="工作交接"><span class="duo-icon-slot" data-duo-icon="arrow-left-right"><i class="ri-arrow-left-right-line duo-rest-icon" style="color:var(--primary);"></i></span></button>`;
+                var handoverBtn = `<button class="btn-act" onclick="openHandoverModal(${parseInt(u.id, 10)})" title="${tipHandover}"><span class="duo-icon-slot" data-duo-icon="arrow-left-right"><i class="ri-arrow-left-right-line duo-rest-icon" style="color:var(--primary);"></i></span></button>`;
 
                 // 若目标是 Owner，且当前用户非 Owner，隐藏删除与编辑按钮以防篡权
                 if (isTargetOwner && !isCurOwner) {
@@ -3756,12 +3816,12 @@ function loadUserList() {
                     actionButtons = `
                         ${transferBtn}
                         ${handoverBtn}
-                        <button class="btn-act" onclick="openEditUserModal(${parseInt(u.id, 10)})" title="编辑成员信息"><span class="duo-icon-slot" data-duo-icon="pencil"><i class="ri-edit-line duo-rest-icon"></i></span></button>
-                        ${isTargetOwner ? '' : `<button class="btn-act" onclick="handleDeleteUser(${parseInt(u.id, 10)})" title="删除用户"><span class="duo-icon-slot" data-duo-icon="trash"><i class="ri-delete-bin-line duo-rest-icon"></i></span></button>`}
+                        <button class="btn-act" onclick="openEditUserModal(${parseInt(u.id, 10)})" title="${tipEditUser}"><span class="duo-icon-slot" data-duo-icon="pencil"><i class="ri-edit-line duo-rest-icon"></i></span></button>
+                        ${isTargetOwner ? '' : `<button class="btn-act" onclick="handleDeleteUser(${parseInt(u.id, 10)})" title="${tipDelUser}"><span class="duo-icon-slot" data-duo-icon="trash"><i class="ri-delete-bin-line duo-rest-icon"></i></span></button>`}
                     `;
                 }
             } else {
-                actionButtons = `<span style="font-size:12px;color:var(--text-3);">${(parseInt(u.status, 10) === 3 || parseInt(u.status, 10) === 0 ? '已停用' : '已启用')}</span>`;
+                actionButtons = `<span style="font-size:12px;color:var(--text-3);">${(parseInt(u.status, 10) === 3 || parseInt(u.status, 10) === 0 ? lblDisabled : lblEnabled)}</span>`;
             }
 
             html += `
@@ -3774,7 +3834,7 @@ function loadUserList() {
                     </td>
                     <td style="padding:10px 12px;">${roleBadge} ${statusBadge}</td>
                     <td style="padding:10px 12px;font-size:12.5px;">
-                        <span title="${versionCount} 个版本 · ${projectCount} 个项目"${versionCount > 0 ? ' style="font-weight:600;color:var(--text-1);"' : ' style="color:var(--text-3);"'}>${versionCount}/${projectCount}</span>
+                        <span title="${contribTip}"${versionCount > 0 ? ' style="font-weight:600;color:var(--text-1);"' : ' style="color:var(--text-3);"'}>${versionCount}/${projectCount}</span>
                     </td>
                     <td style="padding:10px 12px;color:var(--text-2);font-size:12.5px;">${deptText}</td>
                     <td style="padding:10px 12px;color:var(--text-3);font-size:12px;">${esc(u.created_at)}</td>
@@ -3788,9 +3848,9 @@ function loadUserList() {
         syncAuthorSelectOptions();
         syncAdminApprovalSelectOptions();
     }).catch(function(err) {
-        showToast('网络异常，获取成员列表失败', 'error');
+        showToast((typeof t === 'function' ? t('admin.users.net_load_failed', null, '网络异常，获取成员列表失败') : '网络异常，获取成员列表失败'), 'error');
         if (tbody && tbody.children.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="6" style="padding:24px;text-align:center;color:var(--text-3);"><i class="ri-wifi-off-line"></i> 网络异常，<a href="javascript:void(0)" onclick="loadUserList()" style="color:var(--primary);">点击重试</a></td></tr>';
+            tbody.innerHTML = '<tr><td colspan="6" style="padding:24px;text-align:center;color:var(--text-3);"><i class="ri-wifi-off-line"></i> ' + esc(typeof t === 'function' ? t('admin.users.net_load_failed', null, '网络异常，获取成员列表失败') : '网络异常，获取成员列表失败') + ' <a href="javascript:void(0)" onclick="loadUserList()" style="color:var(--primary);">' + esc(typeof t === 'function' ? t('common.retry', null, '重试') : '重试') + '</a></td></tr>';
         }
     });
 }
@@ -3821,7 +3881,7 @@ window.showAddUserBox = showAddUserBox;
 function openEditUserModal(userId) {
     var u = cachedUsersMap[userId];
     if (!u) {
-        showToast('未找到该用户信息', 'warning');
+        showToast((typeof t === 'function' ? t('admin.users.not_found', null, '未找到该用户信息') : '未找到该用户信息'), 'warning');
         return;
     }
     document.getElementById('editUserId').value = u.id;
@@ -3867,14 +3927,16 @@ function handleUpdateUser(e) {
     var wb = wbEl ? wbEl.value.trim() : '';
 
     if (!name || name.length > 20) {
-        if (typeof setFieldError === 'function' && nameInput) setFieldError(nameInput, null, '请输入真实姓名（1~20 个字符）');
-        else { showToast('请输入真实姓名（1~20 个字符）', 'warning'); if (nameInput) nameInput.focus(); }
+        var msgBadName = (typeof t === 'function' ? t('admin.users.invalid_name_len', null, '请输入真实姓名（1~20 个字符）') : '请输入真实姓名（1~20 个字符）');
+        if (typeof setFieldError === 'function' && nameInput) setFieldError(nameInput, null, msgBadName);
+        else { showToast(msgBadName, 'warning'); if (nameInput) nameInput.focus(); }
         return;
     }
     var emailRegex = /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@(?:[a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}$/;
     if (!email || !emailRegex.test(email)) {
-        if (typeof setFieldError === 'function' && emailInput) setFieldError(emailInput, null, '工作邮箱格式不正确，请输入有效的邮箱地址');
-        else { showToast('工作邮箱格式不正确，请输入有效的邮箱地址', 'warning'); if (emailInput) emailInput.focus(); }
+        var msgBadEmail = (typeof t === 'function' ? t('admin.users.invalid_email', null, '工作邮箱格式不正确，请输入有效的邮箱地址') : '工作邮箱格式不正确，请输入有效的邮箱地址');
+        if (typeof setFieldError === 'function' && emailInput) setFieldError(emailInput, null, msgBadEmail);
+        else { showToast(msgBadEmail, 'warning'); if (emailInput) emailInput.focus(); }
         return;
     }
 
@@ -3907,7 +3969,7 @@ function handleUpdateUser(e) {
         if (res.success) {
             if (wbEl) syncAdminNotificationWebhookState(uid, wb);
             closeModal('editUserModal');
-            showToast('成员信息已更新', 'success');
+            showToast((typeof t === 'function' ? t('admin.users.updated_toast', null, '成员信息已更新') : '成员信息已更新'), 'success');
             if (isAdminConsoleOpen()) {
                 markAdminConsoleChanged();
             }
@@ -3933,17 +3995,17 @@ function handleUpdateUser(e) {
                 if (sidebarName) sidebarName.textContent = name;
             }
         } else {
-            var errMsg = res.message || '更新用户信息失败';
+            var errMsg = res.message || (typeof t === 'function' ? t('admin.users.update_failed', null, '更新用户信息失败') : '更新用户信息失败');
             if (typeof setFieldError === 'function') {
-                if (errMsg.indexOf('邮箱') !== -1 && emailInput) {
+                if (/邮箱|信箱|email/i.test(errMsg) && emailInput) {
                     setFieldError(emailInput, null, errMsg);
                     return;
                 }
-                if (errMsg.indexOf('姓名') !== -1 && nameInput) {
+                if (/姓名|name/i.test(errMsg) && nameInput) {
                     setFieldError(nameInput, null, errMsg);
                     return;
                 }
-                if (newPwd && passwordInput && (errMsg.indexOf('密码') !== -1 || errMsg.indexOf('字符') !== -1 || errMsg.indexOf('字节') !== -1)) {
+                if (newPwd && passwordInput && /密码|密碼|字符|字元|字节|位元組|password|character|byte/i.test(errMsg)) {
                     setFieldError(passwordInput, null, errMsg);
                     return;
                 }
@@ -3969,18 +4031,21 @@ function handleCreateUser(e) {
     var fixedDomain = emailInput ? (emailInput.getAttribute('data-fixed-domain') || '') : '';
     var emailRegex = /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@(?:[a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}$/;
     if (!name || name.length > 20) {
-        if (typeof setFieldError === 'function' && nameInput) setFieldError(nameInput, null, '请输入真实姓名（1~20 个字符）');
-        else { showToast('请输入真实姓名（1~20 个字符）', 'warning'); if (nameInput) nameInput.focus(); }
+        var msgNameLen = (typeof t === 'function' ? t('admin.users.invalid_name_len', null, '请输入真实姓名（1~20 个字符）') : '请输入真实姓名（1~20 个字符）');
+        if (typeof setFieldError === 'function' && nameInput) setFieldError(nameInput, null, msgNameLen);
+        else { showToast(msgNameLen, 'warning'); if (nameInput) nameInput.focus(); }
         return;
     }
     if (!fixedDomain && email.indexOf('@') === -1) {
-        if (typeof setFieldError === 'function' && emailInput) setFieldError(emailInput, null, '请输入完整工作邮箱，如 name@company.com');
-        else { showToast('请输入完整工作邮箱，如 name@company.com', 'warning'); if (emailInput) emailInput.focus(); }
+        var msgFullEmail = (typeof t === 'function' ? t('auth.enter_full_email', null, '请输入完整工作邮箱，如 name@company.com') : '请输入完整工作邮箱，如 name@company.com');
+        if (typeof setFieldError === 'function' && emailInput) setFieldError(emailInput, null, msgFullEmail);
+        else { showToast(msgFullEmail, 'warning'); if (emailInput) emailInput.focus(); }
         return;
     }
     if (!emailRegex.test(email)) {
-        if (typeof setFieldError === 'function' && emailInput) setFieldError(emailInput, null, '工作邮箱格式不正确，请输入有效的邮箱地址');
-        else { showToast('工作邮箱格式不正确，请输入有效的邮箱地址', 'warning'); if (emailInput) emailInput.focus(); }
+        var msgInvEmail = (typeof t === 'function' ? t('admin.users.invalid_email', null, '工作邮箱格式不正确，请输入有效的邮箱地址') : '工作邮箱格式不正确，请输入有效的邮箱地址');
+        if (typeof setFieldError === 'function' && emailInput) setFieldError(emailInput, null, msgInvEmail);
+        else { showToast(msgInvEmail, 'warning'); if (emailInput) emailInput.focus(); }
         return;
     }
     if (typeof showPasswordLengthError === 'function'
@@ -4011,13 +4076,13 @@ function handleCreateUser(e) {
             document.getElementById('newDepartment').value = '';
             if (wbEl) wbEl.value = '';
             closeModal('addUserModal');
-            showToast('成员已添加', 'success');
+            showToast((typeof t === 'function' ? t('admin.users.added_toast', null, '成员已添加') : '成员已添加'), 'success');
             if (isAdminConsoleOpen()) {
                 markAdminConsoleChanged();
             }
             loadUserList();
         } else {
-            showToast(res.message || '添加成员失败', 'error');
+            showToast(res.message || (typeof t === 'function' ? t('admin.users.add_failed', null, '添加成员失败') : '添加成员失败'), 'error');
         }
     });
 }
@@ -4038,12 +4103,13 @@ function handleDoTransferOwner(e) {
     var pwd = pwdInput ? pwdInput.value : '';
     var btn = document.getElementById('btnTransferSubmit');
     if (!pwd) {
-        if (typeof setFieldError === 'function' && pwdInput) setFieldError(pwdInput, null, '请输入当前密码以确认移交');
-        else { showToast('请输入当前密码以确认移交', 'warning'); if (pwdInput) pwdInput.focus(); }
+        var msgEnterPwd = (typeof t === 'function' ? t('admin.transfer.enter_pwd', null, '请输入当前密码以确认移交') : '请输入当前密码以确认移交');
+        if (typeof setFieldError === 'function' && pwdInput) setFieldError(pwdInput, null, msgEnterPwd);
+        else { showToast(msgEnterPwd, 'warning'); if (pwdInput) pwdInput.focus(); }
         return;
     }
     btn.disabled = true;
-    btn.innerText = '正在移交...';
+    btn.innerText = (typeof t === 'function' ? t('admin.transfer.submitting', null, '正在移交...') : '正在移交...');
 
     var fd = new FormData();
     fd.append('target_user_id', targetId);
@@ -4051,16 +4117,16 @@ function handleDoTransferOwner(e) {
 
     adminFetch('transfer_ownership', fd).then(function(res) {
         btn.disabled = false;
-        btn.innerText = '确认移交';
+        btn.innerText = (typeof t === 'function' ? t('admin.transfer.submit', null, '确认移交') : '确认移交');
         if (res.success) {
             closeModal('transferOwnerModal');
-            showToast(res.message || '所有权已成功移交', 'success', 3000, true);
+            showToast(res.message || (typeof t === 'function' ? t('admin.transfer.success', null, '所有权已成功移交') : '所有权已成功移交'), 'success', 3000, true);
             setTimeout(function() {
                 window.location.reload();
             }, 1200);
         } else {
-            var errMsg = res.message || '移交失败';
-            if (typeof setFieldError === 'function' && pwdInput && errMsg.indexOf('密码') !== -1) {
+            var errMsg = res.message || (typeof t === 'function' ? t('admin.transfer.failed', null, '移交失败') : '移交失败');
+            if (typeof setFieldError === 'function' && pwdInput && /密码|密碼|password/i.test(errMsg)) {
                 setFieldError(pwdInput, null, errMsg);
             } else {
                 showToast(errMsg, 'error');
@@ -4068,8 +4134,8 @@ function handleDoTransferOwner(e) {
         }
     }).catch(function() {
         btn.disabled = false;
-        btn.innerText = '确认移交';
-        showToast('网络请求异常', 'error');
+        btn.innerText = (typeof t === 'function' ? t('admin.transfer.submit', null, '确认移交') : '确认移交');
+        showToast((typeof t === 'function' ? t('common.network_req_error', null, '网络请求异常') : '网络请求异常'), 'error');
     });
 }
 
@@ -4079,22 +4145,23 @@ function openHandoverModal(fromId) {
     var fromName = fromUser.name || '';
     var count = parseInt(fromUser.item_count || 0, 10);
     if (!count || parseInt(count, 10) <= 0) {
-        showToast('该成员暂无需要交接的项目或链接', 'info', 2500);
+        showToast((typeof t === 'function' ? t('admin.handover.no_items', null, '该成员暂无需要交接的项目或链接') : '该成员暂无需要交接的项目或链接'), 'info', 2500);
         return;
     }
     document.getElementById('handoverFromUserId').value = fromId;
     var descEl = document.getElementById('handoverDescText');
     if (descEl) {
-        descEl.innerHTML = '交接 <strong>' + esc(fromName) + '</strong> 关联的 <strong>' + count + '</strong> 个项目或链接的归属及指定协作权限。';
+        descEl.innerHTML = (typeof t === 'function' ? t('admin.handover.desc', { name: esc(fromName), count: count }, '交接 <strong>' + esc(fromName) + '</strong> 关联的 <strong>' + count + '</strong> 个项目或链接的归属及指定协作权限。') : '交接 <strong>' + esc(fromName) + '</strong> 关联的 <strong>' + count + '</strong> 个项目或链接的归属及指定协作权限。');
     }
     var $select = $('#handoverToUserId');
-    $select.empty().append('<option value="">-- 选择接管成员 --</option>');
+    $select.empty().append('<option value="">' + esc(typeof t === 'function' ? t('admin.handover.select_target', null, '-- 选择接管成员 --') : '-- 选择接管成员 --') + '</option>');
 
     // 过滤出除当前用户外的管理员或协作者 (且状态正常)
     for (var uid in cachedUsersMap) {
         var u = cachedUsersMap[uid];
         if (parseInt(u.id, 10) !== parseInt(fromId, 10) && (u.role === 'admin' || u.role === 'editor') && parseInt(u.status, 10) === 1) {
-            var uLabel = (u.name || u.email) + ' (' + (u.role === 'admin' ? '管理员' : '协作者') + ')';
+            var rLabel = u.role === 'admin' ? (typeof t === 'function' ? t('common.role.admin', null, '管理员') : '管理员') : (typeof t === 'function' ? t('common.role.editor', null, '协作者') : '协作者');
+            var uLabel = (u.name || u.email) + ' (' + rLabel + ')';
             $select.append($('<option>').val(u.id).text(uLabel));
         }
     }
@@ -4113,7 +4180,7 @@ function handleUserHandover(e) {
     var btn = document.getElementById('btnHandoverSubmit');
 
     if (!toId) {
-        showToast('请选择接管成员', 'warning');
+        showToast((typeof t === 'function' ? t('admin.handover.select_warn', null, '请选择接管成员') : '请选择接管成员'), 'warning');
         return;
     }
     if (btn) btn.disabled = true;
@@ -4126,13 +4193,13 @@ function handleUserHandover(e) {
     adminFetch('user_handover', fd).then(function(res) {
         if (btn) btn.disabled = false;
         if (res.success) {
-            showToast(res.message || '工作交接成功', 'success');
+            showToast(res.message || (typeof t === 'function' ? t('admin.handover.success', null, '工作交接成功') : '工作交接成功'), 'success');
             closeModal('userHandoverModal');
             loadUserList();
 
             // 深度热同步：遍历更新项目管理表格行与前台树节点
             var toUser = (typeof cachedUsersMap !== 'undefined' && cachedUsersMap[toId]) ? cachedUsersMap[toId] : null;
-            var toName = toUser ? (toUser.name || toUser.email || '接管成员') : '接管成员';
+            var toName = toUser ? (toUser.name || toUser.email || (typeof t === 'function' ? t('admin.handover.target_label', null, '接管成员') : '接管成员')) : (typeof t === 'function' ? t('admin.handover.target_label', null, '接管成员') : '接管成员');
 
             // 1. 同步控制中心项目列表与外链列表 (无需刷新页面，即时全景热更新)
             $('#overviewTableProjects tbody tr[data-item-id], #overviewTableLinks tbody tr[data-item-id]').each(function() {
@@ -4246,32 +4313,32 @@ function handleUserHandover(e) {
                 setTimeout(function() { window.location.reload(); }, 1200);
             }
         } else {
-            showToast(res.message || '工作交接失败', 'error');
+            showToast(res.message || (typeof t === 'function' ? t('admin.handover.failed', null, '工作交接失败') : '工作交接失败'), 'error');
         }
     }).catch(function() {
         if (btn) btn.disabled = false;
-        showToast('网络异常，交接失败', 'error');
+        showToast((typeof t === 'function' ? t('admin.handover.net_failed', null, '网络异常，交接失败') : '网络异常，交接失败'), 'error');
     });
 }
 
 function handleDeleteUser(id) {
     showConfirm({
-        title: '删除成员',
-        message: '确定删除该成员账号？',
-        confirmText: '删除成员',
+        title: (typeof t === 'function' ? t('admin.users.delete_title', null, '删除成员') : '删除成员'),
+        message: (typeof t === 'function' ? t('admin.users.delete_confirm', null, '确定删除该成员账号？') : '确定删除该成员账号？'),
+        confirmText: (typeof t === 'function' ? t('admin.users.delete_btn', null, '删除成员') : '删除成员'),
         isDanger: true,
         onConfirm: function() {
             var fd = new FormData();
             fd.append('id', id);
             adminFetch('user_delete', fd).then(function(res) {
                 if (res.success) {
-                    showToast('成员已删除', 'success');
+                    showToast((typeof t === 'function' ? t('admin.users.deleted_toast', null, '成员已删除') : '成员已删除'), 'success');
                     if (isAdminConsoleOpen()) {
                         markAdminConsoleChanged();
                     }
                     loadUserList();
                 } else {
-                    showToast(res.message || '删除成员失败', 'error');
+                    showToast(res.message || (typeof t === 'function' ? t('admin.users.delete_failed', null, '删除成员失败') : '删除成员失败'), 'error');
                 }
             });
         }
@@ -4331,7 +4398,7 @@ function renderPendingUsers(users) {
     if (!tbody) return;
     if (users.length === 0) {
         if (!pendingUsersLoaded || tbody.querySelector('[data-pending-id]')) {
-            tbody.innerHTML = '<tr><td colspan="5" style="padding:32px;text-align:center;color:var(--text-3);"><i class="ri-checkbox-circle-line" style="font-size:18px;vertical-align:middle;margin-right:4px;color:var(--success);"></i> 无待审批的加入申请</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="5" style="padding:32px;text-align:center;color:var(--text-3);"><i class="ri-checkbox-circle-line" style="font-size:18px;vertical-align:middle;margin-right:4px;color:var(--success);"></i> ' + esc(typeof t === 'function' ? t('admin.users.pending_empty', null, '当前没有待审批的成员申请') : '当前没有待审批的成员申请') + '</td></tr>';
         }
         return;
     }
@@ -4344,6 +4411,11 @@ function renderPendingUsers(users) {
         if (ids.has(id)) existing.set(id, row);
         else tbody.removeChild(row);
     });
+    var lblUnnamedPending = (typeof t === 'function' ? t('common.unnamed', null, '未命名') : '未命名');
+    var lblRoleEditor = esc(typeof t === 'function' ? t('common.role.editor', null, '协作者') : '协作者');
+    var lblRoleViewer = esc(typeof t === 'function' ? t('common.role.viewer', null, '审阅人') : '审阅人');
+    var lblApprove = esc(typeof t === 'function' ? t('admin.users.approve_btn', null, '批准') : '批准');
+    var lblReject = esc(typeof t === 'function' ? t('admin.users.reject_btn', null, '驳回') : '驳回');
     users.forEach(function(u, i) {
         var id = parseInt(u.id, 10);
         var row = existing.get(String(id));
@@ -4354,13 +4426,13 @@ function renderPendingUsers(users) {
         row = tbody.insertRow(i);
         row.setAttribute('data-pending-id', id);
         row.style.borderBottom = '1px solid var(--border)';
-        var nameText = esc(u.name || u.display_name || '未命名');
+        var nameText = esc(u.name || u.display_name || lblUnnamedPending);
         var emailText = esc(u.email || u.username || '-');
         var deptText = esc(u.department || u.apply_remark || '-');
         var requestedRole = (u.role === 'editor') ? 'editor' : 'viewer';
         var roleBadge = (requestedRole === 'editor')
-            ? '<span class="badge-tag badge-role-editor">协作者</span>'
-            : '<span class="badge-tag badge-role-viewer">审阅人</span>';
+            ? '<span class="badge-tag badge-role-editor">' + lblRoleEditor + '</span>'
+            : '<span class="badge-tag badge-role-viewer">' + lblRoleViewer + '</span>';
         row.innerHTML = `
                     <td style="padding:10px 12px;">
                         <div style="font-weight:600;font-size:13.5px;color:var(--text-1);">${nameText}</div>
@@ -4371,11 +4443,11 @@ function renderPendingUsers(users) {
                     <td style="padding:10px 12px;color:var(--text-3);font-size:12px;">${esc(u.created_at || '-')}</td>
                     <td style="padding:10px 12px;text-align:right;white-space:nowrap;">
                         <select id="pendingRole_${id}" class="m-select-sm" style="margin-right:6px;">
-                            <option value="viewer"${requestedRole === 'viewer' ? ' selected' : ''}>审阅人</option>
-                            <option value="editor"${requestedRole === 'editor' ? ' selected' : ''}>协作者</option>
+                            <option value="viewer"${requestedRole === 'viewer' ? ' selected' : ''}>${lblRoleViewer}</option>
+                            <option value="editor"${requestedRole === 'editor' ? ' selected' : ''}>${lblRoleEditor}</option>
                         </select>
-                        <button type="button" class="btn-primary btn-sm" style="margin-right:6px;" onclick="handleApproveUser(${id})"><span class="duo-icon-slot" data-duo-icon="circle-check"><i class="ri-check-line duo-rest-icon"></i></span> 批准</button>
-                        <button type="button" class="btn-cancel btn-sm btn-danger-sm" onclick="handleRejectUser(${id})"><i class="ri-close-line"></i> 驳回</button>
+                        <button type="button" class="btn-primary btn-sm" style="margin-right:6px;" onclick="handleApproveUser(${id})"><span class="duo-icon-slot" data-duo-icon="circle-check"><i class="ri-check-line duo-rest-icon"></i></span> ${lblApprove}</button>
+                        <button type="button" class="btn-cancel btn-sm btn-danger-sm" onclick="handleRejectUser(${id})"><span class="duo-icon-slot" data-duo-icon="circle-x"><i class="ri-close-line duo-rest-icon"></i></span> ${lblReject}</button>
                     </td>
         `;
     });
@@ -4397,7 +4469,7 @@ function refreshPendingUsers(includeList) {
     pendingUsersRequest = request;
     request.promise = adminFetch('pending_user_list', fd, false).then(function(res) {
         if (revision !== pendingUsersRevision) return;
-        if (!res.success) throw new Error(res.message || '加载待审批列表失败');
+        if (!res.success) throw new Error(res.message || (typeof t === 'function' ? t('admin.users.pending_load_failed', null, '加载待审批列表失败') : '加载待审批列表失败'));
         var count = includeList ? res.data.length : res.data.count;
         setPendingUserCount(count);
         if (includeList) {
@@ -4407,7 +4479,7 @@ function refreshPendingUsers(includeList) {
     }).catch(function(error) {
         if (!includeList || pendingUsersLoaded || revision !== pendingUsersRevision) return;
         var tbody = document.getElementById('pendingUsersTbody');
-        if (tbody) tbody.innerHTML = '<tr><td colspan="5" style="padding:24px;text-align:center;color:var(--danger);">' + esc(error.message || '加载待审批列表失败') + '</td></tr>';
+        if (tbody) tbody.innerHTML = '<tr><td colspan="5" style="padding:24px;text-align:center;color:var(--danger);">' + esc(error.message || (typeof t === 'function' ? t('admin.users.pending_load_failed', null, '加载待审批列表失败') : '加载待审批列表失败')) + '</td></tr>';
     }).then(function() {
         pendingUsersRequest = null;
     });
@@ -4432,7 +4504,7 @@ function handleApproveUser(id) {
     fd.append('role', role);
     adminFetch('approve_user', fd).then(function(res) {
         if (res.success) {
-            showToast(res.message || '已批准入驻', 'success');
+            showToast(res.message || (typeof t === 'function' ? t('admin.users.approved_toast', null, '已批准入驻') : '已批准入驻'), 'success');
             if (isAdminConsoleOpen()) {
                 markAdminConsoleChanged();
             }
@@ -4440,30 +4512,30 @@ function handleApproveUser(id) {
             loadPendingUsers();
             loadUserList();
         } else {
-            showToast(res.message || '批准操作失败', 'error');
+            showToast(res.message || (typeof t === 'function' ? t('admin.users.approve_failed', null, '批准操作失败') : '批准操作失败'), 'error');
         }
     });
 }
 
 function handleRejectUser(id) {
     showConfirm({
-        title: '驳回申请',
-        message: '确定驳回这条入驻申请？',
-        confirmText: '确认驳回',
+        title: (typeof t === 'function' ? t('admin.users.reject_title', null, '驳回申请') : '驳回申请'),
+        message: (typeof t === 'function' ? t('admin.users.reject_confirm', null, '确定驳回这条入驻申请？') : '确定驳回这条入驻申请？'),
+        confirmText: (typeof t === 'function' ? t('admin.users.reject_confirm_btn', null, '确认驳回') : '确认驳回'),
         isDanger: true,
         onConfirm: function() {
             var fd = new FormData();
             fd.append('id', id);
             adminFetch('reject_user', fd).then(function(res) {
                 if (res.success) {
-                    showToast('已驳回申请', 'success');
+                    showToast((typeof t === 'function' ? t('admin.users.rejected_toast', null, '已驳回申请') : '已驳回申请'), 'success');
                     if (isAdminConsoleOpen()) {
                         markAdminConsoleChanged();
                     }
                     pendingUsersRevision++;
                     loadPendingUsers();
                 } else {
-                    showToast(res.message || '操作失败', 'error');
+                    showToast(res.message || (typeof t === 'function' ? t('common.op_failed', null, '操作失败') : '操作失败'), 'error');
                 }
             });
         }
@@ -4534,10 +4606,11 @@ function resetToDefaultBg() {
     document.getElementById('resetBgInput').value = '1';
     document.getElementById('settingCustomBg').value = '';
     var el = document.getElementById('bgFileNameDisplay');
-    if (el) el.innerHTML = '<span style="color:var(--text-3);">默认 Axure 原型网点底纹</span>';
+    var defBgLabel = (typeof t === 'function' ? t('admin.item.axure_grid_default', null, '默认 Axure 原型网点底纹') : '默认 Axure 原型网点底纹');
+    if (el) el.innerHTML = '<span style="color:var(--text-3);">' + esc(defBgLabel) + '</span>';
     var box = document.getElementById('previewBgImgWrap');
     if (box) {
-        box.innerHTML = '<div style="width:100%;height:100%;background-color:var(--canvas);background-image:url(\"data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'8\' height=\'8\'%3E%3Crect width=\'1\' height=\'1\' fill=\'%2394a3b8\' opacity=\'0.5\'/%3E%3C/svg%3E\");background-size:8px 8px;display:flex;align-items:center;justify-content:center;color:var(--primary);font-size:13px;" title="默认 Axure 原型网点底纹"><i class="ri-grid-line"></i></div>';
+        box.innerHTML = '<div style="width:100%;height:100%;background-color:var(--canvas);background-image:url(\"data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'8\' height=\'8\'%3E%3Crect width=\'1\' height=\'1\' fill=\'%2394a3b8\' opacity=\'0.5\'/%3E%3C/svg%3E\");background-size:8px 8px;display:flex;align-items:center;justify-content:center;color:var(--primary);font-size:13px;" title="' + esc(defBgLabel) + '"><i class="ri-grid-line"></i></div>';
     }
 }
 
@@ -4546,7 +4619,7 @@ function handleBgFileSelected(input) {
         var file = input.files[0];
         var el = document.getElementById('bgFileNameDisplay');
         if (el) {
-            el.innerHTML = '<span style="color:var(--primary);font-weight:550;">待保存：' + esc(file.name) + '</span>';
+            el.innerHTML = '<span style="color:var(--primary);font-weight:550;">' + esc(typeof t === 'function' ? t('admin.item.pending_save_file', { name: file.name }, '待保存：' + file.name) : '待保存：' + file.name) + '</span>';
         }
         var box = document.getElementById('previewBgImgWrap');
         if (box && typeof FileReader !== 'undefined') {
@@ -4636,26 +4709,30 @@ function queueAutoSave(action, fd, onSaved) {
     state.blocked = false;
     var key = autoSaveKey(fd);
     var job = {fd:fd, key:key, onSaved:onSaved};
+    var txtSaving = (typeof t === 'function' ? t('common.saving_ellipsis', null, '保存中…') : '保存中…');
+    var txtSaved = (typeof t === 'function' ? t('common.saved', null, '已保存') : '已保存');
+    var txtSaveFailed = (typeof t === 'function' ? t('admin.settings.save_failed', null, '保存失败，请重试') : '保存失败，请重试');
+    var txtSaveNetFailed = (typeof t === 'function' ? t('admin.settings.save_net_failed', null, '保存失败，请检查网络后重试') : '保存失败，请检查网络后重试');
     if (state.running) {
         // Even a change back to the in-flight value supersedes an older pending edit.
         state.pending = job;
-        setAutoSaveStatus(action, '保存中…', false);
+        setAutoSaveStatus(action, txtSaving, false);
         return state.promise;
     }
     if (state.savedKey === key) {
-        setAutoSaveStatus(action, '已保存', false);
+        setAutoSaveStatus(action, txtSaved, false);
         return Promise.resolve(true);
     }
     state.pending = job;
     state.running = true;
-    setAutoSaveStatus(action, '保存中…', false);
+    setAutoSaveStatus(action, txtSaving, false);
     function drain() {
         var current = state.pending;
         state.pending = null;
         return adminFetch(action, current.fd, false).then(function(res) {
             if (!res.success) {
-                var failure = new Error(res.message || '保存失败，请重试');
-                failure.userMessage = res.message || '保存失败，请重试';
+                var failure = new Error(res.message || txtSaveFailed);
+                failure.userMessage = res.message || txtSaveFailed;
                 throw failure;
             }
             state.savedKey = current.key;
@@ -4663,8 +4740,10 @@ function queueAutoSave(action, fd, onSaved) {
             if (state.blocked) return false;
             if (state.pending && state.pending.key === state.savedKey) state.pending = null;
             if (state.pending) return drain();
-            setAutoSaveStatus(action, '已保存', false);
-            var actionLabel = action === 'save_role_permissions' ? '角色权限已保存' : '系统设置已保存';
+            setAutoSaveStatus(action, txtSaved, false);
+            var actionLabel = action === 'save_role_permissions'
+                ? (typeof t === 'function' ? t('admin.roles.saved', null, '角色权限已保存') : '角色权限已保存')
+                : (typeof t === 'function' ? t('admin.settings.saved', null, '系统设置已保存') : '系统设置已保存');
             showToast(actionLabel, 'success');
             if (isAdminConsoleOpen()) {
                 markAdminConsoleChanged();
@@ -4674,8 +4753,8 @@ function queueAutoSave(action, fd, onSaved) {
             if (state.blocked) return false;
             // A newer complete snapshot may still succeed after an older failure.
             if (state.pending) return drain();
-            setAutoSaveStatus(action, error.userMessage || '保存失败，请检查网络后重试', true);
-            showToast(error.userMessage || '保存失败，请检查网络后重试', 'error');
+            setAutoSaveStatus(action, error.userMessage || txtSaveNetFailed, true);
+            showToast(error.userMessage || txtSaveNetFailed, 'error');
             return false;
         });
     }
@@ -4750,8 +4829,8 @@ function executeAutoSaveSettings() {
             domainsInput.setAttribute('aria-invalid', 'true');
             domainsInput.setAttribute('aria-describedby', 'settingsSaveStatus');
             if (domainsInput.classList) domainsInput.classList.add('m-input-error');
-            blockAutoSave('save_settings', '邮箱域名格式有误');
-            showToast('邮箱域名请填写 company.com 格式，不含 @', 'warning');
+            blockAutoSave('save_settings', (typeof t === 'function' ? t('admin.settings.err_domain', null, '邮箱域名格式有误') : '邮箱域名格式有误'));
+            showToast((typeof t === 'function' ? t('admin.settings.err_domain_toast', null, '邮箱域名请填写 company.com 格式，不含 @') : '邮箱域名请填写 company.com 格式，不含 @'), 'warning');
             return Promise.resolve(false);
         }
         domainsInput.value = check.clean;
@@ -4772,8 +4851,8 @@ function executeAutoSaveSettings() {
                 baseUrlInput.setAttribute('aria-invalid', 'true');
                 baseUrlInput.setAttribute('aria-describedby', 'settingsSaveStatus');
                 if (baseUrlInput.classList) baseUrlInput.classList.add('m-input-error');
-                blockAutoSave('save_settings', '站点地址格式有误');
-                showToast('站点访问地址格式不正确，例如 https://proto.company.com', 'warning');
+                blockAutoSave('save_settings', (typeof t === 'function' ? t('admin.settings.err_base_url', null, '站点地址格式有误') : '站点地址格式有误'));
+                showToast((typeof t === 'function' ? t('admin.settings.err_base_url_toast', null, '站点访问地址格式不正确，例如 https://proto.company.com') : '站点访问地址格式不正确，例如 https://proto.company.com'), 'warning');
                 return Promise.resolve(false);
             }
             if (typeof window !== 'undefined' && window.location && window.location.hostname) {
@@ -4783,8 +4862,8 @@ function executeAutoSaveSettings() {
                         baseUrlInput.setAttribute('aria-invalid', 'true');
                         baseUrlInput.setAttribute('aria-describedby', 'settingsSaveStatus');
                         if (baseUrlInput.classList) baseUrlInput.classList.add('m-input-error');
-                        blockAutoSave('save_settings', '站点域名与当前访问不符');
-                        showToast('站点访问地址的域名需与当前访问域名一致', 'warning');
+                        blockAutoSave('save_settings', (typeof t === 'function' ? t('admin.settings.err_base_host', null, '站点域名与当前访问不符') : '站点域名与当前访问不符'));
+                        showToast((typeof t === 'function' ? t('admin.settings.err_base_host_toast', null, '站点访问地址的域名需与当前访问域名一致') : '站点访问地址的域名需与当前访问域名一致'), 'warning');
                         return Promise.resolve(false);
                     }
                     var reqPort = window.location.port || '';
@@ -4797,16 +4876,16 @@ function executeAutoSaveSettings() {
                         baseUrlInput.setAttribute('aria-invalid', 'true');
                         baseUrlInput.setAttribute('aria-describedby', 'settingsSaveStatus');
                         if (baseUrlInput.classList) baseUrlInput.classList.add('m-input-error');
-                        blockAutoSave('save_settings', '站点端口与当前访问不符');
-                        showToast('站点访问地址的端口需与当前访问端口一致', 'warning');
+                        blockAutoSave('save_settings', (typeof t === 'function' ? t('admin.settings.err_base_port', null, '站点端口与当前访问不符') : '站点端口与当前访问不符'));
+                        showToast((typeof t === 'function' ? t('admin.settings.err_base_port_toast', null, '站点访问地址的端口需与当前访问端口一致') : '站点访问地址的端口需与当前访问端口一致'), 'warning');
                         return Promise.resolve(false);
                     }
                 } catch (err) {
                     baseUrlInput.setAttribute('aria-invalid', 'true');
                     baseUrlInput.setAttribute('aria-describedby', 'settingsSaveStatus');
                     if (baseUrlInput.classList) baseUrlInput.classList.add('m-input-error');
-                    blockAutoSave('save_settings', '站点地址格式有误');
-                    showToast('站点访问地址格式不正确，例如 https://proto.company.com', 'warning');
+                    blockAutoSave('save_settings', (typeof t === 'function' ? t('admin.settings.err_base_url', null, '站点地址格式有误') : '站点地址格式有误'));
+                    showToast((typeof t === 'function' ? t('admin.settings.err_base_url_toast', null, '站点访问地址格式不正确，例如 https://proto.company.com') : '站点访问地址格式不正确，例如 https://proto.company.com'), 'warning');
                     return Promise.resolve(false);
                 }
             }
@@ -4838,12 +4917,12 @@ function executeAutoSaveSettings() {
             var userVal = smtpUserEl ? smtpUserEl.value.trim() : '';
             if (!hostVal || isNaN(portVal) || portVal < 1 || portVal > 65535 || !userVal) {
                 smtpSwitch.checked = false;
-                blockAutoSave('save_settings', '请先填写 SMTP 服务器、端口与发信邮箱');
+                blockAutoSave('save_settings', (typeof t === 'function' ? t('admin.settings.err_smtp_required', null, '请先填写 SMTP 服务器、端口与发信邮箱') : '请先填写 SMTP 服务器、端口与发信邮箱'));
                 return Promise.resolve(false);
             }
             if (!hasPassAttr && !hasPassVal) {
                 smtpSwitch.checked = false;
-                blockAutoSave('save_settings', '请先填写邮箱客户端授权码');
+                blockAutoSave('save_settings', (typeof t === 'function' ? t('admin.settings.err_smtp_pass', null, '请先填写邮箱客户端授权码') : '请先填写邮箱客户端授权码'));
                 if (smtpPassEl) smtpPassEl.focus();
                 return Promise.resolve(false);
             }
@@ -4861,7 +4940,7 @@ function executeAutoSaveSettings() {
         var newTitle = (saved.get('site_title') || '').trim();
         var brandText = document.querySelector('.site-brand .brand-company-name') || document.querySelector('.site-brand span');
         if (brandText) {
-            brandText.textContent = newTitle || '立象原型';
+            brandText.textContent = newTitle || (typeof t === 'function' ? t('brand.name', null, '立象原型') : '立象原型');
             brandText.className = newTitle ? 'brand-company-name' : '';
             if (newTitle) brandText.title = newTitle;
             else brandText.removeAttribute('title');
@@ -4889,11 +4968,17 @@ function executeAutoSaveSettings() {
             syncSmtpPassUi(respData.smtp_has_pass, saved.get('smtp_pass'));
             if (smtpSwitch && !respData.smtp_has_pass && saved.get('smtp_enabled') === '1') {
                 smtpSwitch.checked = false;
-                showToast('发信服务器或邮箱已更换，请重新填写授权码', 'info');
+                showToast((typeof t === 'function' ? t('admin.settings.smtp_identity_changed', null, '发信服务器或邮箱已更换，请重新填写授权码') : '发信服务器或邮箱已更换，请重新填写授权码'), 'info');
             }
         }
         if (respData && typeof respData.mail_reset_enabled === 'boolean') {
             window.SYS_MAIL_RESET_ENABLED = respData.mail_reset_enabled;
+        }
+        if (respData && respData.system_language && typeof window !== 'undefined' && window.__LOCALE__ && respData.system_language !== window.__LOCALE__) {
+            window.__LOCALE__ = respData.system_language;
+            if (window.location && typeof window.location.reload === 'function') {
+                window.location.reload();
+            }
         }
     });
 }
@@ -4958,10 +5043,14 @@ function syncSmtpPassUi(hasPass, savedPassword) {
             passEl._initVal = '';
         }
         passEl.setAttribute('data-has-pass', hasPass ? '1' : '0');
-        passEl.placeholder = hasPass ? '已配置，留空保持不变' : '输入客户端授权码';
+        passEl.placeholder = hasPass
+            ? (typeof t === 'function' ? t('admin.settings.smtp_pass_set_placeholder', null, '已配置，留空保持不变') : '已配置，留空保持不变')
+            : (typeof t === 'function' ? t('admin.settings.smtp_pass_unset_placeholder', null, '输入客户端授权码') : '输入客户端授权码');
     }
     if (badge) {
-        badge.textContent = hasPass ? '已配置' : '请使用客户端授权码';
+        badge.textContent = hasPass
+            ? (typeof t === 'function' ? t('common.configured', null, '已配置') : '已配置')
+            : (typeof t === 'function' ? t('admin.settings.smtp_pass_unset_badge', null, '请使用客户端授权码') : '请使用客户端授权码');
     }
     if (clearBtn) {
         clearBtn.style.display = hasPass ? '' : 'none';
@@ -5027,13 +5116,13 @@ function clearSavedSmtpPass() {
             if (smtpSwitch) smtpSwitch.checked = false;
             syncSmtpPassUi(false, draft);
             window.SYS_MAIL_RESET_ENABLED = false;
-            setAutoSaveStatus('save_settings', '已保存', false);
-            showToast('已清除邮箱授权码', 'success');
+            setAutoSaveStatus('save_settings', (typeof t === 'function' ? t('common.saved', null, '已保存') : '已保存'), false);
+            showToast((typeof t === 'function' ? t('admin.settings.smtp_pass_cleared', null, '已清除邮箱授权码') : '已清除邮箱授权码'), 'success');
         } else {
-            showToast(res.message || '操作失败', 'error');
+            showToast(res.message || (typeof t === 'function' ? t('common.op_failed', null, '操作失败') : '操作失败'), 'error');
         }
     }).catch(function() {
-        showToast('网络请求异常', 'error');
+        showToast((typeof t === 'function' ? t('common.network_req_error', null, '网络请求异常') : '网络请求异常'), 'error');
     });
 }
 window.clearSavedSmtpPass = clearSavedSmtpPass;
@@ -5042,8 +5131,9 @@ function handleTestSmtp(btnEl) {
     var toEl = document.getElementById('smtpTestEmail');
     var toEmail = toEl ? toEl.value.trim() : '';
     if (!toEmail) {
-        if (typeof setFieldError === 'function' && toEl) setFieldError(toEl, null, '请输入测试收件邮箱');
-        else { showToast('请输入测试收件邮箱', 'warning'); if (toEl) toEl.focus(); }
+        var msgEnter = (typeof t === 'function' ? t('admin.settings.smtp_test_enter_email', null, '请输入测试收件邮箱') : '请输入测试收件邮箱');
+        if (typeof setFieldError === 'function' && toEl) setFieldError(toEl, null, msgEnter);
+        else { showToast(msgEnter, 'warning'); if (toEl) toEl.focus(); }
         return;
     }
     var hostEl = document.getElementById('settingSmtpHost');
@@ -5064,7 +5154,7 @@ function handleTestSmtp(btnEl) {
     var origHtml = btnEl ? btnEl.innerHTML : '';
     if (btnEl) {
         btnEl.disabled = true;
-        btnEl.innerHTML = '<i class="ri-loader-4-line ri-spin"></i> 发送中...';
+        btnEl.innerHTML = '<i class="ri-loader-4-line ri-spin"></i> ' + esc(typeof t === 'function' ? t('common.sending', null, '发送中...') : '发送中...');
     }
     var restore = function() {
         if (btnEl) {
@@ -5075,13 +5165,13 @@ function handleTestSmtp(btnEl) {
     adminFetch('test_smtp', fd).then(function(res) {
         restore();
         if (res.success) {
-            showToast(res.message || '测试邮件已发送', 'success');
+            showToast(res.message || (typeof t === 'function' ? t('admin.settings.smtp_test_sent', null, '测试邮件已发送') : '测试邮件已发送'), 'success');
         } else {
-            showToast(res.message || '发送失败', 'error');
+            showToast(res.message || (typeof t === 'function' ? t('admin.settings.smtp_test_failed', null, '发送失败') : '发送失败'), 'error');
         }
     }).catch(function() {
         restore();
-        showToast('网络请求异常', 'error');
+        showToast((typeof t === 'function' ? t('common.network_req_error', null, '网络请求异常') : '网络请求异常'), 'error');
     });
 }
 window.handleTestSmtp = handleTestSmtp;
@@ -5190,16 +5280,16 @@ function switchAdminTab(tabKey, subTab) {
     }
 
     var titles = {
-        'dashboard': '数据概览',
-        'overview': '项目管理',
-        'users': '团队成员',
-        'roles': '角色权限',
-        'brand': '系统设置',
-        'logs': '系统日志'
+        'dashboard': (typeof t === 'function' ? t('admin.nav.dashboard', null, '数据概览') : '数据概览'),
+        'overview': (typeof t === 'function' ? t('admin.nav.overview', null, '项目管理') : '项目管理'),
+        'users': (typeof t === 'function' ? t('admin.nav.users', null, '团队成员') : '团队成员'),
+        'roles': (typeof t === 'function' ? t('admin.nav.roles', null, '角色权限') : '角色权限'),
+        'brand': (typeof t === 'function' ? t('admin.nav.brand', null, '系统设置') : '系统设置'),
+        'logs': (typeof t === 'function' ? t('admin.nav.logs', null, '系统日志') : '系统日志')
     };
 
     var titleEl = document.getElementById('adminPanelTitle');
-    if (titleEl) titleEl.textContent = titles[tabKey] || '数据概览';
+    if (titleEl) titleEl.textContent = titles[tabKey] || titles.dashboard;
 
     // 自动按需刷新数据与同步浮动保存条
     if (tabKey === 'dashboard') {
@@ -5338,18 +5428,22 @@ function renderAnnotationDashboard() {
     var rate = (total > 0) ? Math.round((resolved / total) * 100) : 100;
 
     // 1. 绘制批注待办与闭环占比环形图
+    var lblNoAnno = (typeof t === 'function' ? t('admin.dash.no_anno', null, '暂无批注') : '暂无批注');
+    var lblPending = (typeof t === 'function' ? t('admin.dash.pending', null, '待处理') : '待处理');
+    var lblClosed = (typeof t === 'function' ? t('admin.dash.closed', null, '已闭环') : '已闭环');
+    var lblUnitItem = (typeof t === 'function' ? t('admin.dash.unit_item', null, '条') : '条');
     var chartData = [];
     var chartColors = [];
     if (total === 0) {
-        chartData = [{ value: 1, name: '暂无批注' }];
+        chartData = [{ value: 1, name: lblNoAnno }];
         chartColors = [CHART_PALETTE.border];
     } else {
         if (pending > 0) {
-            chartData.push({ value: pending, name: '待处理' });
+            chartData.push({ value: pending, name: lblPending });
             chartColors.push(CHART_PALETTE.warning);
         }
         if (resolved > 0) {
-            chartData.push({ value: resolved, name: '已闭环' });
+            chartData.push({ value: resolved, name: lblClosed });
             chartColors.push(CHART_PALETTE.success);
         }
     }
@@ -5363,8 +5457,9 @@ function renderAnnotationDashboard() {
             textStyle: { color: CHART_PALETTE.surface, fontSize: 12 },
             formatter: function(params) {
                 var pct = total > 0 ? Math.round((params.value / total) * 100) : 0;
+                var cntStr = (typeof t === 'function' ? t('admin.dash.unit_item_count', { n: params.value }, params.value + ' 条') : params.value + ' 条');
                 return '<div style="font-weight:600;">' + esc(params.name) + '</div>' +
-                       '<div style="font-size:12px;color:rgba(255,255,255,0.75);">' + params.value + ' 条 (' + pct + '%)</div>';
+                       '<div style="font-size:12px;color:rgba(255,255,255,0.75);">' + esc(cntStr) + ' (' + pct + '%)</div>';
             }
         },
         title: {
@@ -5391,7 +5486,7 @@ function renderAnnotationDashboard() {
     var rateEl = document.getElementById('donutCenterRate');
     var labelEl = document.getElementById('donutCenterLabel');
     if (rateEl) rateEl.textContent = (total === 0) ? '0' : rate + '%';
-    if (labelEl) labelEl.textContent = (total === 0) ? '无待办' : '闭环率';
+    if (labelEl) labelEl.textContent = (total === 0) ? (typeof t === 'function' ? t('admin.dash.no_todo', null, '无待办') : '无待办') : (typeof t === 'function' ? t('admin.dash.close_rate', null, '闭环率') : '闭环率');
 
     // 2. 渲染右侧指标详情面板
     if (detailDom) {
@@ -5399,30 +5494,32 @@ function renderAnnotationDashboard() {
             detailDom.innerHTML = `
                 <div style="text-align:center;padding:12px 0;color:var(--text-3);font-size:11.5px;">
                     <i class="ri-checkbox-circle-line" style="font-size:22px;color:var(--success);display:block;margin-bottom:4px;opacity:0.85;"></i>
-                    当前范围内暂无批注待办
+                    ${esc(typeof t === 'function' ? t('admin.dash.no_anno_range', null, '当前范围内暂无批注待办') : '当前范围内暂无批注待办')}
                 </div>
             `;
         } else {
             var pendingColor = pending > 0 ? 'var(--warning)' : 'var(--text-1)';
+            var lblTotalAnno = (typeof t === 'function' ? t('admin.dash.total_anno', null, '累计批注') : '累计批注');
+            var totalCntStr = (typeof t === 'function' ? t('admin.dash.unit_item_count', { n: total }, total + ' 条') : total + ' 条');
             detailDom.innerHTML = `
                 <div style="display:flex;flex-direction:column;gap:7px;padding-right:4px;">
                     <div style="display:flex;justify-content:space-between;align-items:center;">
                         <span style="font-size:11.5px;color:var(--text-2);display:inline-flex;align-items:center;gap:4px;">
                             <span class="m-status-dot dot-warning"></span>
-                            <span>待处理</span>
+                            <span>${esc(lblPending)}</span>
                         </span>
-                        <span style="font-size:14px;font-weight:700;color:${pendingColor};">${pending} <span style="font-size:10.5px;font-weight:400;color:var(--text-3);">条</span></span>
+                        <span style="font-size:14px;font-weight:700;color:${pendingColor};">${pending} <span style="font-size:10.5px;font-weight:400;color:var(--text-3);">${esc(lblUnitItem)}</span></span>
                     </div>
                     <div style="display:flex;justify-content:space-between;align-items:center;">
                         <span style="font-size:11.5px;color:var(--text-2);display:inline-flex;align-items:center;gap:4px;">
                             <span class="m-status-dot dot-success"></span>
-                            <span>已闭环</span>
+                            <span>${esc(lblClosed)}</span>
                         </span>
-                        <span style="font-size:14px;font-weight:700;color:var(--success);">${resolved} <span style="font-size:10.5px;font-weight:400;color:var(--text-3);">条</span></span>
+                        <span style="font-size:14px;font-weight:700;color:var(--success);">${resolved} <span style="font-size:10.5px;font-weight:400;color:var(--text-3);">${esc(lblUnitItem)}</span></span>
                     </div>
                     <div style="display:flex;justify-content:space-between;align-items:center;padding-top:6px;border-top:1px dashed var(--border);">
-                        <span style="font-size:11px;color:var(--text-3);">累计批注</span>
-                        <span style="font-size:11.5px;font-weight:600;color:var(--text-1);">${total} 条</span>
+                        <span style="font-size:11px;color:var(--text-3);">${esc(lblTotalAnno)}</span>
+                        <span style="font-size:11.5px;font-weight:600;color:var(--text-1);">${esc(totalCntStr)}</span>
                     </div>
                 </div>
             `;
@@ -5437,7 +5534,7 @@ function onAnnoProjectFilterChange(val) {
 
     var verSelect = document.getElementById('filterAnnoVersion');
     if (verSelect) {
-        verSelect.innerHTML = '<option value="0">全部版本</option>';
+        verSelect.innerHTML = '<option value="0">' + esc(typeof t === 'function' ? t('admin.dash.all_versions', null, '全部版本') : '全部版本') + '</option>';
         if (currentAnnoProjFilter > 0) {
             var data = window.DASHBOARD_DATA || {};
             var projs = data.projects || [];
@@ -5513,23 +5610,27 @@ function renderDashboardCharts(range) {
             return false;
         };
 
+        var nameGuest = (typeof t === 'function' ? t('admin.dash.legend_guest', null, '外发访客') : '外发访客');
+        var nameViewer = (typeof t === 'function' ? t('admin.dash.legend_viewer', null, '内部审阅人') : '内部审阅人');
+        var nameEditor = (typeof t === 'function' ? t('admin.dash.legend_editor', null, '管理与协作者') : '管理与协作者');
+
         var trendRoleDefs = [
             {
-                name: '外发访客',
+                name: nameGuest,
                 data: valsShare,
                 color: CHART_PALETTE.warning,
                 areaTop: 'rgba(217, 119, 6, 0.46)',
                 areaBottom: 'rgba(217, 119, 6, 0.20)'
             },
             {
-                name: '内部审阅人',
+                name: nameViewer,
                 data: valsViewer,
                 color: CHART_PALETTE.success,
                 areaTop: 'rgba(22, 163, 74, 0.46)',
                 areaBottom: 'rgba(22, 163, 74, 0.20)'
             },
             {
-                name: '管理与协作者',
+                name: nameEditor,
                 data: valsEditor,
                 color: CHART_PALETTE.primary,
                 areaTop: 'rgba(0, 118, 222, 0.46)',
@@ -5562,7 +5663,10 @@ function renderDashboardCharts(range) {
             });
         }
 
-        var tooltipOrder = { '内部审阅人': 0, '管理与协作者': 1, '外发访客': 2 };
+        var tooltipOrder = {};
+        tooltipOrder[nameViewer] = 0;
+        tooltipOrder[nameEditor] = 1;
+        tooltipOrder[nameGuest] = 2;
 
         chartTrend.setOption({
             tooltip: {
@@ -5581,13 +5685,15 @@ function renderDashboardCharts(range) {
                         var ob = typeof tooltipOrder[b.seriesName] === 'number' ? tooltipOrder[b.seriesName] : 99;
                         return oa - ob;
                     });
+                    var viewsLabel = (typeof t === 'function' ? t('admin.dash.tooltip_views', { n: total }, '累计查阅 ' + total + ' 次') : '累计查阅 ' + total + ' 次');
                     var html = '<div style="font-size:11.5px;color:rgba(255,255,255,0.65);margin-bottom:4px;">' + esc(dateStr) + '</div>';
-                    html += '<div style="font-size:12.5px;font-weight:700;color:' + CHART_PALETTE.surface + ';margin-bottom:4px;padding-bottom:4px;border-bottom:1px solid rgba(255,255,255,0.12);">累计查阅: ' + total + ' 次</div>';
+                    html += '<div style="font-size:12.5px;font-weight:700;color:' + CHART_PALETTE.surface + ';margin-bottom:4px;padding-bottom:4px;border-bottom:1px solid rgba(255,255,255,0.12);">' + esc(viewsLabel) + '</div>';
                     for (var p = 0; p < ordered.length; p++) {
                         var item = ordered[p];
+                        var itemCntLabel = (typeof t === 'function' ? t('admin.dash.tooltip_cnt', { n: item.value }, item.value + ' 次') : item.value + ' 次');
                         html += '<div style="display:flex;align-items:center;justify-content:space-between;gap:12px;font-size:11.5px;color:rgba(255,255,255,0.85);margin-top:2px;">' +
                                '<span>' + item.marker + ' ' + esc(item.seriesName) + '</span>' +
-                               '<span style="font-weight:600;color:' + CHART_PALETTE.surface + ';">' + item.value + ' 次</span>' +
+                               '<span style="font-weight:600;color:' + CHART_PALETTE.surface + ';">' + esc(itemCntLabel) + '</span>' +
                                '</div>';
                     }
                     return html;
@@ -5657,23 +5763,26 @@ function loadLogsData() {
     .then(function(r) { return r.json(); })
     .then(function(res) {
         if (!res.success) {
-            showToast(res.message || '获取日志失败', 'warning');
+            showToast(res.message || (typeof t === 'function' ? t('admin.logs.fetch_failed', null, '获取日志失败') : '获取日志失败'), 'warning');
             return;
         }
         var data = res.data || {};
+        var lblUnknownDev = (typeof t === 'function' ? t('common.unknown_device', null, '未知设备') : '未知设备');
         
         // 渲染登录日志
         var loginLogs = data.login_logs || [];
         var loginTbody = document.getElementById('loginLogsTableBody');
         if (loginTbody) {
             if (loginLogs.length === 0) {
-                loginTbody.innerHTML = '<tr><td colspan="6" style="padding:32px;text-align:center;color:var(--text-3);font-size:13px;"><i class="ri-shield-check-line" style="font-size:24px;color:var(--success);display:block;margin-bottom:6px;opacity:0.8;"></i>近期风平浪静，暂无异常登录记录</td></tr>';
+                loginTbody.innerHTML = '<tr><td colspan="6" style="padding:32px;text-align:center;color:var(--text-3);font-size:13px;"><i class="ri-shield-check-line" style="font-size:24px;color:var(--success);display:block;margin-bottom:6px;opacity:0.8;"></i>' + esc(typeof t === 'function' ? t('admin.logs.login_empty_detail', null, '近期风平浪静，暂无异常登录记录') : '近期风平浪静，暂无异常登录记录') + '</td></tr>';
             } else {
                 var lHtml = '';
+                var lblLoginOk = esc(typeof t === 'function' ? t('admin.logs.login_ok', null, '成功') : '成功');
+                var lblLoginFail = esc(typeof t === 'function' ? t('admin.logs.login_fail', null, '失败') : '失败');
                 loginLogs.forEach(function(l) {
                     var statusBadge = (parseInt(l.status, 10) === 1)
-                        ? '<span class="badge-tag badge-success">成功</span>'
-                        : '<span class="badge-tag badge-danger">失败</span>';
+                        ? '<span class="badge-tag badge-success">' + lblLoginOk + '</span>'
+                        : '<span class="badge-tag badge-danger">' + lblLoginFail + '</span>';
                     var userDisplay = esc(l.username || '');
                     if (userDisplay && userDisplay.indexOf('@') === -1) {
                         userDisplay = '@' + userDisplay;
@@ -5684,7 +5793,7 @@ function loadLogsData() {
                             <td style="padding:9px 12px;font-weight:600;color:var(--text-1);">${userDisplay}</td>
                             <td style="padding:9px 12px;">${statusBadge}</td>
                             <td style="padding:9px 12px;font-family:ui-monospace,monospace;font-size:12px;color:var(--text-2);">${esc(l.ip)}</td>
-                            <td style="padding:9px 12px;color:var(--text-2);font-size:12.5px;" title="${esc(l.user_agent || '')}">${esc(l.device || '未知设备')}</td>
+                            <td style="padding:9px 12px;color:var(--text-2);font-size:12.5px;" title="${esc(l.user_agent || '')}">${esc(l.device || lblUnknownDev)}</td>
                             <td style="padding:9px 12px;color:var(--text-3);font-size:12.5px;">${esc(l.message || '')}</td>
                         </tr>
                     `;
@@ -5698,13 +5807,15 @@ function loadLogsData() {
         var accessTbody = document.getElementById('accessLogsTableBody');
         if (accessTbody) {
             if (accessLogs.length === 0) {
-                accessTbody.innerHTML = '<tr><td colspan="6" style="padding:32px;text-align:center;color:var(--text-3);font-size:13px;"><i class="ri-radar-line" style="font-size:24px;color:var(--primary);display:block;margin-bottom:6px;opacity:0.8;"></i>暂无外部访问，生成外发链接后在此洞察浏览动态</td></tr>';
+                accessTbody.innerHTML = '<tr><td colspan="6" style="padding:32px;text-align:center;color:var(--text-3);font-size:13px;"><i class="ri-radar-line" style="font-size:24px;color:var(--primary);display:block;margin-bottom:6px;opacity:0.8;"></i>' + esc(typeof t === 'function' ? t('admin.logs.access_empty_detail', null, '暂无外部访问，生成外发链接后在此洞察浏览动态') : '暂无外部访问，生成外发链接后在此洞察浏览动态') + '</td></tr>';
             } else {
                 var aHtml = '';
+                var lblShare = esc(typeof t === 'function' ? t('admin.logs.channel_share', null, '独立短链') : '独立短链');
+                var lblWs = esc(typeof t === 'function' ? t('admin.logs.channel_workspace', null, '工作台') : '工作台');
                 accessLogs.forEach(function(al) {
                     var typeBadge = (al.access_type === 'share')
-                        ? '<span class="badge-tag badge-primary">独立短链</span>'
-                        : '<span class="badge-tag badge-neutral">工作台</span>';
+                        ? '<span class="badge-tag badge-primary">' + lblShare + '</span>'
+                        : '<span class="badge-tag badge-neutral">' + lblWs + '</span>';
                     aHtml += `
                         <tr style="border-bottom:1px solid var(--border);">
                             <td style="padding:9px 12px;color:var(--text-3);font-size:12px;">${esc(al.created_at)}</td>
@@ -5712,7 +5823,7 @@ function loadLogsData() {
                             <td style="padding:9px 12px;color:var(--primary);font-weight:500;">${esc(al.version_name || '-')}</td>
                             <td style="padding:9px 12px;">${typeBadge}</td>
                             <td style="padding:9px 12px;font-family:ui-monospace,monospace;font-size:12px;color:var(--text-2);">${esc(al.ip)}</td>
-                            <td style="padding:9px 12px;color:var(--text-2);font-size:12.5px;" title="${esc(al.user_agent || '')}">${esc(al.device || '未知设备')}</td>
+                            <td style="padding:9px 12px;color:var(--text-2);font-size:12.5px;" title="${esc(al.user_agent || '')}">${esc(al.device || lblUnknownDev)}</td>
                         </tr>
                     `;
                 });
@@ -5720,28 +5831,28 @@ function loadLogsData() {
             }
         }
     }).catch(function(err) {
-        showToast('获取日志失败，请稍后重试', 'error');
+        showToast((typeof t === 'function' ? t('admin.logs.fetch_retry', null, '获取日志失败，请稍后重试') : '获取日志失败，请稍后重试'), 'error');
     });
 }
 
 function handleClearLogs() {
     showConfirm({
-        title: '清空日志',
-        message: '清空所有登录和访问日志？此操作无法撤销。',
-        confirmText: '清空日志',
+        title: (typeof t === 'function' ? t('admin.logs.clear_title', null, '清空日志') : '清空日志'),
+        message: (typeof t === 'function' ? t('admin.logs.clear_confirm', null, '清空所有登录和访问日志？此操作无法撤销。') : '清空所有登录和访问日志？此操作无法撤销。'),
+        confirmText: (typeof t === 'function' ? t('admin.logs.clear_btn', null, '清空日志') : '清空日志'),
         isDanger: true,
         onConfirm: function() {
             var fd = new FormData();
             fd.append('type', 'all');
             adminFetch('log_clear', fd).then(function(res) {
                 if (res.success) {
-                    showToast('日志已清空', 'success');
+                    showToast((typeof t === 'function' ? t('admin.logs.cleared', null, '日志已清空') : '日志已清空'), 'success');
                     loadLogsData();
                 } else {
-                    showToast(res.message || '清空失败', 'error');
+                    showToast(res.message || (typeof t === 'function' ? t('admin.logs.clear_failed', null, '清空失败') : '清空失败'), 'error');
                 }
             }).catch(function() {
-                showToast('网络异常，清空失败', 'error');
+                showToast((typeof t === 'function' ? t('admin.logs.clear_net_failed', null, '网络异常，清空失败') : '网络异常，清空失败'), 'error');
             });
         }
     });
@@ -5819,7 +5930,7 @@ function openVersionManageModal(itemId, keepPageState) {
     var $treeNode = $('#item-node-' + itemId);
     var $node = $adminRow.length ? $adminRow : $treeNode;
 
-    var projectName = $node.data('name') || ($treeNode.length ? $treeNode.data('name') : '项目');
+    var projectName = $node.data('name') || ($treeNode.length ? $treeNode.data('name') : (typeof t === 'function' ? t('admin.proj.col_project', null, '项目') : '项目'));
     currentVerManageProjectName = projectName;
     var isCurrentUserAdmin = (typeof CURRENT_USER !== 'undefined' && CURRENT_USER && CURRENT_USER.role === 'admin');
     var nodeCanEdit = ($node.data('can-edit') === 1 || $node.data('can-edit') === '1');
@@ -5835,7 +5946,7 @@ function openVersionManageModal(itemId, keepPageState) {
         }
     }
 
-    $('#verManageTitle').text('版本管理 · ' + projectName);
+    $('#verManageTitle').text((typeof t === 'function' ? t('ver.manage_project_title', { name: projectName }, '版本管理 · ' + projectName) : '版本管理 · ' + projectName));
 
     var versions = $node.data('versions') || [];
     if (typeof versions === 'string') {
@@ -5896,7 +6007,7 @@ function renderVersionManageView() {
     // 头部数量徽标
     var $countBadge = $('#verManageCountBadge');
     if (totalVersions > 0) {
-        $countBadge.text('共 ' + totalVersions + ' 个版本').show();
+        $countBadge.text((typeof t === 'function' ? t('ver.total_badge', { n: totalVersions }, '共 ' + totalVersions + ' 个版本') : '共 ' + totalVersions + ' 个版本')).show();
     } else {
         $countBadge.hide();
     }
@@ -5937,12 +6048,12 @@ function renderVersionManageView() {
     if (totalVersions === 0) {
         $table.hide();
         var emptyBtnHtml = currentVerManageCanEdit
-            ? '<button type="button" class="btn-primary btn-md" onclick="quickOpenUploadFromVersionManage()"><span class="duo-icon-slot" data-duo-icon="cloud-upload"><i class="ri-upload-cloud-line duo-rest-icon"></i></span> 发布首个版本</button>'
-            : '<span style="font-size:12px;color:var(--text-3);">此项目暂未发布任何公开版本</span>';
+            ? '<button type="button" class="btn-primary btn-md" onclick="quickOpenUploadFromVersionManage()"><span class="duo-icon-slot" data-duo-icon="cloud-upload"><i class="ri-upload-cloud-line duo-rest-icon"></i></span> ' + esc(typeof t === 'function' ? t('ver.publish_first', null, '发布首个版本') : '发布首个版本') + '</button>'
+            : '<span style="font-size:12px;color:var(--text-3);">' + esc(typeof t === 'function' ? t('ver.no_public_versions', null, '此项目暂未发布任何公开版本') : '此项目暂未发布任何公开版本') + '</span>';
         $empty.html(
             '<div class="m-empty-icon"><i class="ri-draft-line"></i></div>' +
-            '<div style="font-size:13px;font-weight:550;color:var(--text-2);margin-bottom:3px;">坑位已建好，静待第一份图纸</div>' +
-            '<div style="font-size:11.5px;color:var(--text-3);margin-bottom:12px;">研发已准备就绪，丢个原型 ZIP 上来即刻开跑</div>' +
+            '<div style="font-size:13px;font-weight:550;color:var(--text-2);margin-bottom:3px;">' + esc(typeof t === 'function' ? t('ver.empty_title', null, '坑位已建好，静待第一份图纸') : '坑位已建好，静待第一份图纸') + '</div>' +
+            '<div style="font-size:11.5px;color:var(--text-3);margin-bottom:12px;">' + esc(typeof t === 'function' ? t('ver.empty_desc', null, '研发已准备就绪，丢个原型 ZIP 上来即刻开跑') : '研发已准备就绪，丢个原型 ZIP 上来即刻开跑') + '</div>' +
             emptyBtnHtml
         ).show();
         $('#verManagePagination').hide();
@@ -5953,9 +6064,9 @@ function renderVersionManageView() {
         $table.hide();
         $empty.html(
             '<div style="font-size:24px;color:var(--text-3);margin-bottom:8px;"><i class="ri-search-line"></i></div>' +
-            '<div style="font-size:13px;font-weight:550;color:var(--text-2);margin-bottom:4px;">未找到匹配的版本</div>' +
-            '<div style="font-size:11.5px;color:var(--text-3);margin-bottom:12px;">尝试更换关键词或清空搜索条件</div>' +
-            '<button type="button" class="btn-cancel btn-sm" onclick="clearVerManageSearch()">清空筛选</button>'
+            '<div style="font-size:13px;font-weight:550;color:var(--text-2);margin-bottom:4px;">' + esc(typeof t === 'function' ? t('ver.search_empty_title', null, '未找到匹配的版本') : '未找到匹配的版本') + '</div>' +
+            '<div style="font-size:11.5px;color:var(--text-3);margin-bottom:12px;">' + esc(typeof t === 'function' ? t('ver.search_empty_desc', null, '尝试更换关键词或清空搜索条件') : '尝试更换关键词或清空搜索条件') + '</div>' +
+            '<button type="button" class="btn-cancel btn-sm" onclick="clearVerManageSearch()">' + esc(typeof t === 'function' ? t('ver.clear_filter', null, '清空筛选') : '清空筛选') + '</button>'
         ).show();
         $('#verManagePagination').hide();
         return;
@@ -5963,6 +6074,28 @@ function renderVersionManageView() {
 
     $empty.hide();
     $table.show();
+
+    var lblDefProtectedTip = esc(typeof t === 'function' ? t('ver.default_protected_tip', null, '默认版本受保护，请先将其他版本设为默认') : '默认版本受保护，请先将其他版本设为默认');
+    var lblDelVerTip = esc(typeof t === 'function' ? t('ver.delete_btn', null, '删除此版本') : '删除此版本');
+    var lblProtected = esc(typeof t === 'function' ? t('common.protected', null, '受保护') : '受保护');
+    var lblHtmlPkgTip = esc(typeof t === 'function' ? t('ver.html_pkg_tip', null, 'HTML 原型包大小') : 'HTML 原型包大小');
+    var lblRpUploaded = (typeof t === 'function' ? t('ver.rp_uploaded', null, '已上传') : '已上传');
+    var lblRpSourceTip = esc(typeof t === 'function' ? t('ver.rp_source_tip', null, 'Axure RP 底稿源文件') : 'Axure RP 底稿源文件');
+    var lblRpEmptyTip = esc(typeof t === 'function' ? t('ver.rp_empty_tip', null, '未上传底稿') : '未上传底稿');
+    var lblRpEmpty = esc(typeof t === 'function' ? t('ver.rp_empty_label', null, '无 RP 底稿') : '无 RP 底稿');
+    var lblVerEditTip = esc(typeof t === 'function' ? t('ver.edit_btn_tip', null, '编辑版本名称与更新日志') : '编辑版本名称与更新日志');
+    var lblVerEditShort = esc(typeof t === 'function' ? t('common.edit', null, '编辑') : '编辑');
+    var lblRpReplaceTip = esc(typeof t === 'function' ? t('ver.rp_replace_tip', null, '重新上传并替换 RP 底稿') : '重新上传并替换 RP 底稿');
+    var lblRpReplaceShort = esc(typeof t === 'function' ? t('ver.rp_replace_short', null, '更换RP') : '更换RP');
+    var lblRpRemoveTip = esc(typeof t === 'function' ? t('ver.rp_remove_tip', null, '移除此版本的 RP 底稿') : '移除此版本的 RP 底稿');
+    var lblRpRemoveShort = esc(typeof t === 'function' ? t('ver.rp_remove_short', null, '移除RP') : '移除RP');
+    var lblRpAddTip = esc(typeof t === 'function' ? t('ver.rp_add_tip', null, '为此版本补传 Axure RP 底稿') : '为此版本补传 Axure RP 底稿');
+    var lblRpAddShort = esc(typeof t === 'function' ? t('ver.rp_add_short', null, '补传RP') : '补传RP');
+    var lblSetDefTip = esc(typeof t === 'function' ? t('ver.set_default_tip', null, '设为访客默认访问版本') : '设为访客默认访问版本');
+    var lblSetDefShort = esc(typeof t === 'function' ? t('ver.set_default_short', null, '设为默认') : '设为默认');
+    var lblNoChangelog = esc(typeof t === 'function' ? t('ver.no_changelog', null, '此版本未填写更新说明') : '此版本未填写更新说明');
+    var lblDefaultBadgeTip = esc(typeof t === 'function' ? t('ver.default_badge_tip', null, '访客默认访问版本') : '访客默认访问版本');
+    var lblDefaultBadge = esc(typeof t === 'function' ? t('ver.default_badge', null, '默认') : '默认');
 
     // 渲染结构化版本流卡片 (Linear 极简风 · 优雅无截断)
     pageVersions.forEach(function(ver) {
@@ -5980,24 +6113,24 @@ function renderVersionManageView() {
         // 默认版本锁定保护：默认版本不允许直接删除
         var delBtnHtml = '';
         if (isDef) {
-            delBtnHtml = '<button type="button" class="btn-cancel btn-sm btn-icon-only btn-ver-del" disabled title="默认版本受保护，请先将其他版本设为默认"><span class="duo-icon-slot" data-duo-icon="trash"><i class="ri-delete-bin-line duo-rest-icon"></i></span></button>';
+            delBtnHtml = '<button type="button" class="btn-cancel btn-sm btn-icon-only btn-ver-del" disabled title="' + lblDefProtectedTip + '"><span class="duo-icon-slot" data-duo-icon="trash"><i class="ri-delete-bin-line duo-rest-icon"></i></span></button>';
         } else if (canDelThisVer) {
-            delBtnHtml = '<button type="button" class="btn-cancel btn-sm btn-icon-only btn-ver-del is-danger" onclick="handleDeleteVersion(' + ver.id + ', null, ' + currentVerManageItemId + ')" title="删除此版本"><span class="duo-icon-slot" data-duo-icon="trash"><i class="ri-delete-bin-line duo-rest-icon"></i></span></button>';
+            delBtnHtml = '<button type="button" class="btn-cancel btn-sm btn-icon-only btn-ver-del is-danger" onclick="handleDeleteVersion(' + ver.id + ', null, ' + currentVerManageItemId + ')" title="' + lblDelVerTip + '"><span class="duo-icon-slot" data-duo-icon="trash"><i class="ri-delete-bin-line duo-rest-icon"></i></span></button>';
         } else {
-            delBtnHtml = '<span class="ver-protected-label" title="受保护">—</span>';
+            delBtnHtml = '<span class="ver-protected-label" title="' + lblProtected + '">—</span>';
         }
 
         // HTML 原型包大小标签 (纯只读微徽标，高 24px)
         var htmlSizeLabel = (ver.file_size && parseInt(ver.file_size, 10) > 0) ? formatBytes(ver.file_size) : '—';
-        var htmlAssetHtml = '<span class="m-badge m-badge-neutral ver-asset-pill" title="HTML 原型包大小"><i class="ri-file-zip-line"></i> 原型包 ' + htmlSizeLabel + '</span>';
+        var htmlAssetHtml = '<span class="m-badge m-badge-neutral ver-asset-pill" title="' + lblHtmlPkgTip + '"><i class="ri-file-zip-line"></i> ' + esc(typeof t === 'function' ? t('ver.html_pkg_label', { size: htmlSizeLabel }, '原型包 ' + htmlSizeLabel) : '原型包 ' + htmlSizeLabel) + '</span>';
 
         // Axure RP 底稿资产展示 (方案 1: 资产状态与维护操作彻底解耦，左侧为纯只读微徽标)
         var rpAssetHtml = '';
         if (hasRp) {
-            var rpSizeLabel = (ver.rp_size && parseInt(ver.rp_size, 10) > 0) ? formatBytes(ver.rp_size) : '已上传';
-            rpAssetHtml = '<span class="m-badge m-badge-primary ver-asset-pill ver-asset-rp" title="Axure RP 底稿源文件"><i class="ri-draft-line"></i> RP 底稿 ' + rpSizeLabel + '</span>';
+            var rpSizeLabel = (ver.rp_size && parseInt(ver.rp_size, 10) > 0) ? formatBytes(ver.rp_size) : lblRpUploaded;
+            rpAssetHtml = '<span class="m-badge m-badge-primary ver-asset-pill ver-asset-rp" title="' + lblRpSourceTip + '"><i class="ri-draft-line"></i> ' + esc(typeof t === 'function' ? t('ver.rp_label', { size: rpSizeLabel }, 'RP 底稿 ' + rpSizeLabel) : 'RP 底稿 ' + rpSizeLabel) + '</span>';
         } else {
-            rpAssetHtml = '<span class="m-badge m-badge-neutral ver-asset-pill ver-asset-empty" title="未上传底稿"><i class="ri-draft-line"></i> 无 RP 底稿</span>';
+            rpAssetHtml = '<span class="m-badge m-badge-neutral ver-asset-pill ver-asset-empty" title="' + lblRpEmptyTip + '"><i class="ri-draft-line"></i> ' + lblRpEmpty + '</span>';
         }
 
         // 发版人与更新时间
@@ -6008,19 +6141,19 @@ function renderVersionManageView() {
         // 统一右侧操作工具栏 (所有交互按钮规范排布，高度统一 28px)
         var actionsHtml = '';
         if (currentVerManageCanEdit) {
-            actionsHtml += '<button type="button" class="btn-cancel btn-sm btn-ver-edit" onclick="openEditVersionModal(' + ver.id + ')" title="编辑版本名称与更新日志"><span class="duo-icon-slot" data-duo-icon="pencil"><i class="ri-edit-line duo-rest-icon"></i></span> 编辑</button>';
+            actionsHtml += '<button type="button" class="btn-cancel btn-sm btn-ver-edit" onclick="openEditVersionModal(' + ver.id + ')" title="' + lblVerEditTip + '"><span class="duo-icon-slot" data-duo-icon="pencil"><i class="ri-edit-line duo-rest-icon"></i></span> ' + lblVerEditShort + '</button>';
             if (hasRp && canDelThisVer) {
-                actionsHtml += '<button type="button" class="btn-cancel btn-sm" onclick="triggerRpUploadForVersion(' + ver.id + ', ' + currentVerManageItemId + ', true)" title="重新上传并替换 RP 底稿"><span class="duo-icon-slot" data-duo-icon="repeat"><i class="ri-repeat-line duo-rest-icon"></i></span> 更换RP</button>';
-                actionsHtml += '<button type="button" class="btn-cancel btn-sm is-danger" onclick="handleRemoveRp(' + ver.id + ', ' + currentVerManageItemId + ')" title="移除此版本的 RP 底稿"><span class="duo-icon-slot" data-duo-icon="trash"><i class="ri-delete-bin-line duo-rest-icon"></i></span> 移除RP</button>';
+                actionsHtml += '<button type="button" class="btn-cancel btn-sm" onclick="triggerRpUploadForVersion(' + ver.id + ', ' + currentVerManageItemId + ', true)" title="' + lblRpReplaceTip + '"><span class="duo-icon-slot" data-duo-icon="repeat"><i class="ri-repeat-line duo-rest-icon"></i></span> ' + lblRpReplaceShort + '</button>';
+                actionsHtml += '<button type="button" class="btn-cancel btn-sm is-danger" onclick="handleRemoveRp(' + ver.id + ', ' + currentVerManageItemId + ')" title="' + lblRpRemoveTip + '"><span class="duo-icon-slot" data-duo-icon="trash"><i class="ri-delete-bin-line duo-rest-icon"></i></span> ' + lblRpRemoveShort + '</button>';
             } else if (canDelThisVer) {
-                actionsHtml += '<button type="button" class="btn-cancel btn-sm btn-table-rp-add" onclick="triggerRpUploadForVersion(' + ver.id + ', ' + currentVerManageItemId + ', false)" title="为此版本补传 Axure RP 底稿"><span class="duo-icon-slot" data-duo-icon="upload"><i class="ri-upload-2-line duo-rest-icon"></i></span> 补传RP</button>';
+                actionsHtml += '<button type="button" class="btn-cancel btn-sm btn-table-rp-add" onclick="triggerRpUploadForVersion(' + ver.id + ', ' + currentVerManageItemId + ', false)" title="' + lblRpAddTip + '"><span class="duo-icon-slot" data-duo-icon="upload"><i class="ri-upload-2-line duo-rest-icon"></i></span> ' + lblRpAddShort + '</button>';
             }
             if (!isDef) {
-                actionsHtml += '<button type="button" class="btn-cancel btn-sm btn-ver-default" onclick="handleSetDefaultVersion(' + ver.id + ', ' + currentVerManageItemId + ')" title="设为访客默认访问版本"><span class="duo-icon-slot" data-duo-icon="circle-check"><i class="ri-checkbox-circle-line duo-rest-icon"></i></span> 设为默认</button>';
+                actionsHtml += '<button type="button" class="btn-cancel btn-sm btn-ver-default" onclick="handleSetDefaultVersion(' + ver.id + ', ' + currentVerManageItemId + ')" title="' + lblSetDefTip + '"><span class="duo-icon-slot" data-duo-icon="circle-check"><i class="ri-checkbox-circle-line duo-rest-icon"></i></span> ' + lblSetDefShort + '</button>';
             }
             actionsHtml += delBtnHtml;
         } else {
-            actionsHtml += '<span class="ver-protected-label" title="受保护">—</span>';
+            actionsHtml += '<span class="ver-protected-label" title="' + lblProtected + '">—</span>';
         }
 
         // 更新日志卡片
@@ -6036,7 +6169,7 @@ function renderVersionManageView() {
             logBodyHtml = '<div class="ver-card-body ver-card-body-empty">' +
                 '<div class="ver-card-log">' +
                     '<i class="ri-information-line ver-card-log-icon"></i>' +
-                    '<span class="ver-card-log-empty">此版本未填写更新说明</span>' +
+                    '<span class="ver-card-log-empty">' + lblNoChangelog + '</span>' +
                 '</div>' +
             '</div>';
         }
@@ -6045,7 +6178,7 @@ function renderVersionManageView() {
             '<div class="ver-card-header">' +
                 '<div class="ver-card-title-wrap">' +
                     '<span class="ver-manage-name ver-card-name">' + safeVerName + '</span>' +
-                    (isDef ? '<span class="m-badge m-badge-success ver-badge-default" title="访客默认访问版本"><i class="ri-check-line"></i> 默认</span>' : '') +
+                    (isDef ? '<span class="m-badge m-badge-success ver-badge-default" title="' + lblDefaultBadgeTip + '"><i class="ri-check-line"></i> ' + lblDefaultBadge + '</span>' : '') +
                 '</div>' +
                 '<div class="ver-card-meta">' +
                     authorHtml +
@@ -6072,11 +6205,14 @@ function renderVersionManageView() {
     var $pagination = $('#verManagePagination');
     if (filteredCount > VER_MANAGE_PAGE_SIZE) {
         $pagination.show();
-        var infoText = '共 ' + filteredCount + ' 个版本' + (kw ? ' (筛选)' : '') + ' · 第 ' + currentVerManagePage + '/' + totalPages + ' 页';
+        var filteredTag = kw ? (typeof t === 'function' ? t('ver.filtered_tag', null, ' (筛选)') : ' (筛选)') : '';
+        var infoText = (typeof t === 'function' ? t('ver.page_info', { n: filteredCount, filtered: filteredTag, page: currentVerManagePage, total: totalPages }, '共 ' + filteredCount + ' 个版本' + filteredTag + ' · 第 ' + currentVerManagePage + '/' + totalPages + ' 页') : '共 ' + filteredCount + ' 个版本' + filteredTag + ' · 第 ' + currentVerManagePage + '/' + totalPages + ' 页');
         $('#verPaginationInfo').text(infoText);
 
+        var tipPrevPage = esc(typeof t === 'function' ? t('share.prev_page', null, '上一页') : '上一页');
+        var tipNextPage = esc(typeof t === 'function' ? t('share.next_page', null, '下一页') : '下一页');
         var navHtml = '';
-        navHtml += '<button type="button" class="btn-cancel btn-sm btn-ver-page" ' + (currentVerManagePage <= 1 ? 'disabled' : '') + ' onclick="gotoVerManagePage(' + (currentVerManagePage - 1) + ')" title="上一页"><i class="ri-arrow-left-s-line"></i></button>';
+        navHtml += '<button type="button" class="btn-cancel btn-sm btn-ver-page" ' + (currentVerManagePage <= 1 ? 'disabled' : '') + ' onclick="gotoVerManagePage(' + (currentVerManagePage - 1) + ')" title="' + tipPrevPage + '"><i class="ri-arrow-left-s-line"></i></button>';
 
         var maxButtons = 5;
         var startPage = Math.max(1, currentVerManagePage - 2);
@@ -6103,7 +6239,7 @@ function renderVersionManageView() {
             navHtml += '<button type="button" class="btn-cancel btn-sm btn-ver-page" onclick="gotoVerManagePage(' + totalPages + ')">' + totalPages + '</button>';
         }
 
-        navHtml += '<button type="button" class="btn-cancel btn-sm btn-ver-page" ' + (currentVerManagePage >= totalPages ? 'disabled' : '') + ' onclick="gotoVerManagePage(' + (currentVerManagePage + 1) + ')" title="下一页"><i class="ri-arrow-right-s-line"></i></button>';
+        navHtml += '<button type="button" class="btn-cancel btn-sm btn-ver-page" ' + (currentVerManagePage >= totalPages ? 'disabled' : '') + ' onclick="gotoVerManagePage(' + (currentVerManagePage + 1) + ')" title="' + tipNextPage + '"><i class="ri-arrow-right-s-line"></i></button>';
 
         $('#verPaginationBtns').html(navHtml);
     } else {
@@ -6128,7 +6264,7 @@ function openEditVersionModal(verId) {
         }
     }
     if (!targetVer) {
-        showToast('未找到该版本信息', 'warning');
+        showToast((typeof t === 'function' ? t('ver.not_found', null, '未找到该版本信息') : '未找到该版本信息'), 'warning');
         return;
     }
 
@@ -6148,7 +6284,7 @@ function openEditVersionModal(verId) {
     var saveBtn = document.getElementById('btnSaveVerEdit');
     if (saveBtn) {
         saveBtn.disabled = false;
-        saveBtn.innerHTML = '保存';
+        saveBtn.innerHTML = esc(typeof t === 'function' ? t('common.save', null, '保存') : '保存');
     }
 
     openModal('versionEditModal', 'editVerName');
@@ -6181,7 +6317,7 @@ function handleVersionEditSubmit(e) {
 
     if (saveBtn) {
         saveBtn.disabled = true;
-        saveBtn.innerHTML = '<i class="ri-loader-4-line ri-spin"></i> 保存中...';
+        saveBtn.innerHTML = '<i class="ri-loader-4-line ri-spin"></i> ' + esc(typeof t === 'function' ? t('common.saving', null, '保存中...') : '保存中...');
     }
 
     var fd = new FormData();
@@ -6192,15 +6328,15 @@ function handleVersionEditSubmit(e) {
     adminFetch('version_update', fd).then(function(res) {
         if (saveBtn) {
             saveBtn.disabled = false;
-            saveBtn.innerHTML = '保存';
+            saveBtn.innerHTML = esc(typeof t === 'function' ? t('common.save', null, '保存') : '保存');
         }
         if (!res.success) {
-            showToast(res.message || '更新失败', 'danger');
+            showToast(res.message || (typeof t === 'function' ? t('ver.update_failed', null, '更新失败') : '更新失败'), 'danger');
             return;
         }
 
         closeModal('versionEditModal');
-        showToast(res.message || '版本信息已更新', 'success');
+        showToast(res.message || (typeof t === 'function' ? t('ver.updated', null, '版本信息已更新') : '版本信息已更新'), 'success');
 
         var itemId = currentVerManageItemId;
         // 1. 同步当前版本管理弹窗内存数组
@@ -6277,7 +6413,7 @@ function handleVersionEditSubmit(e) {
                 }
                 if ($topLogBody.length) {
                     var safeRender = typeof renderMarkdownSafe === 'function' ? renderMarkdownSafe : renderMarkdown;
-                    $topLogBody.html(changelog ? safeRender(changelog) : '<span style="color:var(--text-3);font-size:12px;">此版本未填写更新说明</span>');
+                    $topLogBody.html(changelog ? safeRender(changelog) : '<span style="color:var(--text-3);font-size:12px;">' + esc(typeof t === 'function' ? t('ver.no_changelog', null, '此版本未填写更新说明') : '此版本未填写更新说明') + '</span>');
                 }
                 if (changelog) {
                     $('#barChangelogBtn, #barChangelogWrap').show();
@@ -6293,9 +6429,9 @@ function handleVersionEditSubmit(e) {
     }).catch(function(err) {
         if (saveBtn) {
             saveBtn.disabled = false;
-            saveBtn.innerHTML = '保存';
+            saveBtn.innerHTML = esc(typeof t === 'function' ? t('common.save', null, '保存') : '保存');
         }
-        showToast((err && err.message) || '网络异常，请重试', 'danger');
+        showToast((err && err.message) || (typeof t === 'function' ? t('common.network_error', null, '网络异常，请重试') : '网络异常，请重试'), 'danger');
     });
 }
 
@@ -6304,7 +6440,7 @@ function handleSetDefaultVersion(verId, itemId) {
     fd.append('id', verId);
     adminFetch('version_set_default', fd).then(function(res) {
         if (res.success) {
-            showToast('已设为默认版本', 'success');
+            showToast((typeof t === 'function' ? t('ver.set_default_ok', null, '已设为默认版本') : '已设为默认版本'), 'success');
             if (isAdminConsoleOpen()) {
                 markAdminConsoleChanged();
                 if (typeof hydrateAdminRowVersions === 'function') hydrateAdminRowVersions(itemId);
@@ -6341,7 +6477,7 @@ function handleSetDefaultVersion(verId, itemId) {
                 window.location.reload();
             }
         } else {
-            showToast(res.message || '操作失败', 'error');
+            showToast(res.message || (typeof t === 'function' ? t('common.op_failed', null, '操作失败') : '操作失败'), 'error');
         }
     });
 }
@@ -6350,20 +6486,20 @@ function handleDeleteVersion(verId, verName, itemId) {
     var label = document.querySelector('#ver-row-' + parseInt(verId, 10) + ' .ver-manage-name');
     verName = label ? label.textContent : (verName || '');
     if (!verName.trim()) {
-        showToast('无法获取版本名称，请刷新后重试', 'error');
+        showToast((typeof t === 'function' ? t('ver.missing_name_err', null, '无法获取版本名称，请刷新后重试') : '无法获取版本名称，请刷新后重试'), 'error');
         return;
     }
     showConfirm({
-        title: '删除版本',
-        message: '删除版本「' + verName + '」及其原型文件和批注？此操作无法撤销。',
-        confirmText: '删除版本',
+        title: (typeof t === 'function' ? t('ver.delete_title', null, '删除版本') : '删除版本'),
+        message: (typeof t === 'function' ? t('ver.delete_confirm', { name: verName }, '删除版本「' + verName + '」及其原型文件和批注？此操作无法撤销。') : '删除版本「' + verName + '」及其原型文件和批注？此操作无法撤销。'),
+        confirmText: (typeof t === 'function' ? t('ver.delete_btn', null, '删除版本') : '删除版本'),
         isDanger: true,
         onConfirm: function() {
             var fd = new FormData();
             fd.append('id', verId);
             adminFetch('version_delete', fd).then(function(res) {
                 if (res.success) {
-                    showToast('版本已删除', 'success');
+                    showToast((typeof t === 'function' ? t('ver.deleted', null, '版本已删除') : '版本已删除'), 'success');
                     if (isAdminConsoleOpen()) {
                         markAdminConsoleChanged();
                         if (typeof hydrateAdminRowVersions === 'function') hydrateAdminRowVersions(itemId);
@@ -6385,7 +6521,7 @@ function handleDeleteVersion(verId, verName, itemId) {
                             newDefaultName = defVer ? defVer.version_name : '-';
                             $node.data('versions', latest).attr('data-versions', JSON.stringify(latest));
                             $node.find('.badge-ver').text(newDefaultName);
-                            $node.find('.btn-table-ver').html('<span class="duo-icon-slot" data-duo-icon="history"><i class="ri-history-line duo-rest-icon"></i></span> ' + latest.length + ' 个版本');
+                            $node.find('.btn-table-ver').html('<span class="duo-icon-slot" data-duo-icon="history"><i class="ri-history-line duo-rest-icon"></i></span> ' + esc(typeof t === 'function' ? t('ver.count_btn', { n: latest.length }, latest.length + ' 个版本') : latest.length + ' 个版本'));
                         });
                         if (parseInt(currentVerManageItemId, 10) === parseInt(itemId, 10)) {
                             currentVerManageAllVersions = (currentVerManageAllVersions || []).filter(function(v) {
@@ -6402,7 +6538,7 @@ function handleDeleteVersion(verId, verName, itemId) {
                         window.location.reload();
                     }
                 } else {
-                    showToast(res.message || '删除版本失败', 'error');
+                    showToast(res.message || (typeof t === 'function' ? t('ver.delete_failed', null, '删除版本失败') : '删除版本失败'), 'error');
                 }
             });
         }
@@ -6429,7 +6565,7 @@ function openQuickUploadModal() {
     var $sel = $('#uploadItemSelect');
     if (!$sel.length || !$sel.find('option').length) {
         if ($('.item-row[data-type="project"]').length > 0) {
-            showToast('暂无可发布版本的项目，请新建项目或联系创建者授权协作', 'warning');
+            showToast((typeof t === 'function' ? t('workspace.no_publishable_projects', null, '暂无可发布版本的项目，请新建项目或联系创建者授权协作') : '暂无可发布版本的项目，请新建项目或联系创建者授权协作'), 'warning');
             return;
         }
         setQuickCreateFlow(createQuickCreateFlow('upload', true));
@@ -6494,9 +6630,11 @@ function syncAdminNotificationWebhookState(userId, webhookUrl) {
     var option = input ? input.closest('label') : null;
     var status = option ? option.querySelector('[data-admin-webhook-status]') : null;
     if (!status) return;
+    var tipBot2 = esc(typeof t === 'function' ? t('admin.users.bot_configured_tip', null, '已配置个人机器人 Webhook') : '已配置个人机器人 Webhook');
+    var labelNoBot2 = esc(typeof t === 'function' ? t('admin.settings.no_bot', null, '未配置机器人') : '未配置机器人');
     status.innerHTML = String(webhookUrl || '').trim()
-        ? '<i class="ri-robot-line" title="已配置个人机器人 Webhook" role="img" aria-label="已配置个人机器人 Webhook"></i>'
-        : '未配置机器人';
+        ? '<i class="ri-robot-line" title="' + tipBot2 + '" role="img" aria-label="' + tipBot2 + '"></i>'
+        : labelNoBot2;
 }
 
 function toggleAdminDropdown(e) {
@@ -6537,7 +6675,7 @@ function onAdminSelectChange(isReset) {
             selectedIds.push(parseInt(cb.value, 10));
             var label = cb.closest('label');
             var nameEl = label ? label.querySelector('span') : null;
-            selectedNames.push(nameEl ? nameEl.textContent.trim() : '管理员');
+            selectedNames.push(nameEl ? nameEl.textContent.trim() : (typeof t === 'function' ? t('common.role.admin', null, '管理员') : '管理员'));
         }
     });
 
@@ -6546,7 +6684,7 @@ function onAdminSelectChange(isReset) {
     }
 
     if (selectedNames.length === 0) {
-        tagsWrap.innerHTML = '<span style="font-size:12.5px;color:var(--text-3);">请选择接收通知的管理员...</span>';
+        tagsWrap.innerHTML = '<span style="font-size:12.5px;color:var(--text-3);">' + esc(typeof t === 'function' ? t('admin.settings.select_notify_admins_placeholder', null, '请选择接收通知的管理员...') : '请选择接收通知的管理员...') + '</span>';
     } else if (selectedNames.length <= 2) {
         var html = '';
         selectedNames.forEach(function(name) {
@@ -6554,7 +6692,7 @@ function onAdminSelectChange(isReset) {
         });
         tagsWrap.innerHTML = html;
     } else {
-        tagsWrap.innerHTML = `<span class="badge-tag badge-primary">${esc(selectedNames[0])} 等 ${selectedNames.length} 位管理员</span>`;
+        tagsWrap.innerHTML = `<span class="badge-tag badge-primary">${esc(typeof t === 'function' ? t('admin.settings.selected_admins_n', { first: selectedNames[0], n: selectedNames.length }, selectedNames[0] + ' 等 ' + selectedNames.length + ' 位管理员') : selectedNames[0] + ' 等 ' + selectedNames.length + ' 位管理员')}</span>`;
     }
 
     if (!isReset && typeof triggerAutoSaveSettings === 'function') {
@@ -6680,22 +6818,23 @@ function syncVersionRpState(itemId, verId, rpFile, rpSize, updatedAt) {
 function uploadRpForVersion(verId, itemId, file, callbacks) {
     callbacks = callbacks || {};
     if (!file) {
-        if (callbacks.onError) callbacks.onError(new Error('未选择文件'));
-        return Promise.reject(new Error('未选择文件'));
+        var errNoFile = (typeof t === 'function' ? t('ver.file_not_selected', null, '未选择文件') : '未选择文件');
+        if (callbacks.onError) callbacks.onError(new Error(errNoFile));
+        return Promise.reject(new Error(errNoFile));
     }
     if (!file.name.toLowerCase().endsWith('.rp')) {
-        var err = new Error('请选择 .rp 格式的 Axure 源文件底稿');
+        var err = new Error((typeof t === 'function' ? t('ver.select_axure_rp_file', null, '请选择 .rp 格式的 Axure 源文件底稿') : '请选择 .rp 格式的 Axure 源文件底稿'));
         if (callbacks.onError) callbacks.onError(err);
         return Promise.reject(err);
     }
 
     if (file.size < 1) {
-        var emptyErr = new Error('所选文件为空，请重新选择');
+        var emptyErr = new Error((typeof t === 'function' ? t('ver.file_empty', null, '所选文件为空，请重新选择') : '所选文件为空，请重新选择'));
         if (callbacks.onError) callbacks.onError(emptyErr);
         return Promise.reject(emptyErr);
     }
     if (Math.ceil(file.size / UPLOAD_CHUNK_SIZE) > 1000) {
-        var maxErr = new Error('RP 源文件不能超过 500MB');
+        var maxErr = new Error((typeof t === 'function' ? t('ver.rp_too_large', null, 'RP 源文件不能超过 500MB') : 'RP 源文件不能超过 500MB'));
         if (callbacks.onError) callbacks.onError(maxErr);
         return Promise.reject(maxErr);
     }
@@ -6720,7 +6859,7 @@ function uploadRpForVersion(verId, itemId, file, callbacks) {
         return adminFetch('version_update_rp', fd);
     }).then(function(res) {
         if (!res.success) {
-            throw new Error(res.message || 'RP 底稿保存失败');
+            throw new Error(res.message || (typeof t === 'function' ? t('ver.rp_save_failed', null, 'RP 底稿保存失败') : 'RP 底稿保存失败'));
         }
         var resUpdatedAt = (res && res.data) ? (res.data.updated_at || (res.data.version ? res.data.version.updated_at : '')) : '';
         syncVersionRpState(itemId, verId, 'prototype.rp', res.data ? res.data.rp_size : file.size, resUpdatedAt);
@@ -6738,7 +6877,7 @@ function triggerQuickRpUpload() {
     var verId = $btn.data('ver-id');
     var itemId = $btn.data('item-id');
     if (!verId || !itemId) {
-        showToast('未检测到有效版本信息', 'warning');
+        showToast((typeof t === 'function' ? t('ver.not_detected', null, '未检测到有效版本信息') : '未检测到有效版本信息'), 'warning');
         return;
     }
     var input = document.getElementById('quickRpFileInput');
@@ -6758,22 +6897,22 @@ function handleQuickRpFileSelected(input) {
     if (!verId || !itemId) return;
 
     if (!file.name.toLowerCase().endsWith('.rp')) {
-        showToast('请选择 .rp 格式的源文件底稿', 'warning');
+        showToast((typeof t === 'function' ? t('ver.select_rp_file', null, '请选择 .rp 格式的源文件底稿') : '请选择 .rp 格式的源文件底稿'), 'warning');
         input.value = '';
         return;
     }
 
     var $btn = $('#btnUploadRpQuick');
-    var originalHtml = '<i class="ri-upload-2-line"></i> 补传 RP';
-    $btn.prop('disabled', true).addClass('is-disabled').html('<i class="ri-loader-4-line ri-spin"></i> 上传中 0%');
+    var originalHtml = '<i class="ri-upload-2-line"></i> ' + esc(typeof t === 'function' ? t('workspace.upload_rp_quick', null, '补传 RP') : '补传 RP');
+    $btn.prop('disabled', true).addClass('is-disabled').html('<i class="ri-loader-4-line ri-spin"></i> ' + esc(typeof t === 'function' ? t('workspace.rp_uploading_pct', { pct: 0 }, '上传中 0%') : '上传中 0%'));
 
     uploadRpForVersion(verId, itemId, file, {
         onProgress: function(pct) {
-            $btn.html('<i class="ri-loader-4-line ri-spin"></i> 上传中 ' + pct + '%');
+            $btn.html('<i class="ri-loader-4-line ri-spin"></i> ' + esc(typeof t === 'function' ? t('workspace.rp_uploading_pct', { pct: pct }, '上传中 ' + pct + '%') : '上传中 ' + pct + '%'));
         },
         onSuccess: function(res) {
             $btn.prop('disabled', false).removeClass('is-disabled').html(originalHtml);
-            showToast('RP 底稿补传成功', 'success', 2000);
+            showToast((typeof t === 'function' ? t('workspace.rp_quick_success', null, 'RP 底稿补传成功') : 'RP 底稿补传成功'), 'success', 2000);
             var curVerName = ($('#barVerSelect').is(':visible') && $('#barVerSelect option:selected').length)
                 ? ($('#barVerSelect option:selected').data('ver') || '')
                 : ($('#barVer').text() || '').replace(/^.*?\s/, '');
@@ -6783,7 +6922,7 @@ function handleQuickRpFileSelected(input) {
         },
         onError: function(err) {
             $btn.prop('disabled', false).removeClass('is-disabled').html(originalHtml);
-            showToast((err && err.message) ? err.message : '上传中断，请重试', 'error');
+            showToast((err && err.message) ? err.message : (typeof t === 'function' ? t('workspace.rp_upload_aborted', null, '上传中断，请重试') : '上传中断，请重试'), 'error');
         }
     });
 }
@@ -6810,7 +6949,7 @@ function handleVerManageRpSelected(input) {
     if (!verId || !itemId) return;
 
     if (!file.name.toLowerCase().endsWith('.rp')) {
-        showToast('请选择 .rp 格式的源文件底稿', 'warning');
+        showToast((typeof t === 'function' ? t('ver.select_rp_file', null, '请选择 .rp 格式的源文件底稿') : '请选择 .rp 格式的源文件底稿'), 'warning');
         input.value = '';
         return;
     }
@@ -6818,47 +6957,47 @@ function handleVerManageRpSelected(input) {
     var $row = $('#ver-row-' + verId);
     var $actions = $row.find('.ver-manage-actions');
     var oldActionsHtml = $actions.html();
-    $actions.html('<span class="ver-rp-uploading"><i class="ri-loader-4-line ri-spin"></i> 上传中 <span id="verRpPct-' + verId + '">0%</span></span>');
+    $actions.html('<span class="ver-rp-uploading"><i class="ri-loader-4-line ri-spin"></i> ' + (typeof t === 'function' ? t('ver.rp_uploading', { id: verId }, '上传中 <span id="verRpPct-' + verId + '">0%</span>') : '上传中 <span id="verRpPct-' + verId + '">0%</span>') + '</span>');
 
     uploadRpForVersion(verId, itemId, file, {
         onProgress: function(pct) {
             $('#verRpPct-' + verId).text(pct + '%');
         },
         onSuccess: function(res) {
-            showToast('RP 底稿保存成功', 'success', 2000);
+            showToast((typeof t === 'function' ? t('ver.rp_saved', null, 'RP 底稿保存成功') : 'RP 底稿保存成功'), 'success', 2000);
             if (currentVerManageItemId) {
                 openVersionManageModal(currentVerManageItemId, true);
             }
         },
         onError: function(err) {
             $actions.html(oldActionsHtml);
-            showToast((err && err.message) ? err.message : '上传失败，请重试', 'error');
+            showToast((err && err.message) ? err.message : (typeof t === 'function' ? t('ver.rp_upload_failed', null, '上传失败，请重试') : '上传失败，请重试'), 'error');
         }
     });
 }
 
 function handleRemoveRp(verId, itemId) {
     showConfirm({
-        title: '移除 RP 底稿',
-        message: '确认移除此版本的 RP 源文件底稿？此操作无法撤销。',
-        confirmText: '移除底稿',
+        title: (typeof t === 'function' ? t('ver.rp_remove_title', null, '移除 RP 底稿') : '移除 RP 底稿'),
+        message: (typeof t === 'function' ? t('ver.rp_remove_confirm', null, '确认移除此版本的 RP 源文件底稿？此操作无法撤销。') : '确认移除此版本的 RP 源文件底稿？此操作无法撤销。'),
+        confirmText: (typeof t === 'function' ? t('ver.rp_remove_btn', null, '移除底稿') : '移除底稿'),
         isDanger: true,
         onConfirm: function() {
             var fd = new FormData();
             fd.append('id', verId);
             adminFetch('version_remove_rp', fd).then(function(res) {
                 if (res.success) {
-                    showToast('RP 底稿已移除', 'success', 2000);
+                    showToast((typeof t === 'function' ? t('ver.rp_removed', null, 'RP 底稿已移除') : 'RP 底稿已移除'), 'success', 2000);
                     var resUpdatedAt = (res && res.data) ? (res.data.updated_at || (res.data.version ? res.data.version.updated_at : '')) : '';
                     syncVersionRpState(itemId, verId, '', 0, resUpdatedAt);
                     if (currentVerManageItemId) {
                         openVersionManageModal(currentVerManageItemId, true);
                     }
                 } else {
-                    showToast(res.message || '移除失败', 'error');
+                    showToast(res.message || (typeof t === 'function' ? t('ver.rp_remove_failed', null, '移除失败') : '移除失败'), 'error');
                 }
             }).catch(function(err) {
-                showToast((err && err.message) ? err.message : '网络异常，请重试', 'error');
+                showToast((err && err.message) ? err.message : (typeof t === 'function' ? t('common.network_error', null, '网络异常，请重试') : '网络异常，请重试'), 'error');
             });
         }
     });
@@ -6881,7 +7020,7 @@ $(document).on('click', '.btn-copy-url', function(e) {
     var url = $(this).attr('data-url') || $(this).data('url');
     if (url) {
         copyTextToClipboard(url, function() {
-            showToast('链接已复制', 'success');
+            showToast((typeof t === 'function' ? t('common.link_copied', null, '链接已复制') : '链接已复制'), 'success');
         });
     }
 });

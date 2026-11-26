@@ -57,6 +57,7 @@ APPROVED_CORE_FILES = [
     'assets/js/app.js',
     'assets/js/duo-icons.js',
     'assets/js/echarts.min.js',
+    'assets/js/i18n.js',
     'assets/js/jquery.min.js',
     'assets/js/mcp.js',
     'assets/js/password-strength.js',
@@ -81,6 +82,10 @@ APPROVED_CORE_FILES = [
     'includes/collaboration.php',
     'includes/config.php',
     'includes/db.php',
+    'includes/i18n.php',
+    'includes/lang/en.php',
+    'includes/lang/zh-CN.php',
+    'includes/lang/zh-TW.php',
     'includes/login_modal.php',
     'includes/mailer.php',
     'includes/mcp_access.php',
@@ -131,10 +136,10 @@ FORBIDDEN_PATTERNS = [
 def extract_version() -> str:
     config_file = ROOT / 'includes' / 'config.php'
     if not config_file.exists():
-        return '3.1.11'
+        return '3.2.0'
     content = config_file.read_text(encoding='utf-8')
     match = re.search(r"define\('APP_VERSION',\s*'([^']+)'\)", content)
-    return match.group(1) if match else '3.1.11'
+    return match.group(1) if match else '3.2.0'
 
 
 def sha256_file(filepath: Path) -> str:

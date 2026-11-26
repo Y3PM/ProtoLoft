@@ -11,6 +11,7 @@ const authPhp = fs.readFileSync(path.join(root, 'includes/actions/auth.php'), 'u
 const modalsPhp = fs.readFileSync(path.join(root, 'includes/modals.php'), 'utf8');
 const appJs = fs.readFileSync(path.join(root, 'assets/js/app.js'), 'utf8');
 const annotationJs = fs.readFileSync(path.join(root, 'assets/js/annotation.js'), 'utf8');
+const zhCnPhp = fs.readFileSync(path.join(root, 'includes/lang/zh-CN.php'), 'utf8');
 
 let passed = 0;
 const check = (name, condition) => {
@@ -40,9 +41,9 @@ check('handleDoRegister 移除多余的 DOM value 篡改', !/if\s*\(\s*emailInpu
 // 3. 申请角色双栏单选与后端白名单收口契约
 check('独立登录页包含申请角色单选且默认审阅人，不包含 admin', indexPhp.includes('name="lock_reg_role" value="viewer" checked') && indexPhp.includes('name="lock_reg_role" value="editor"') && !indexPhp.includes('name="lock_reg_role" value="admin"') && indexPhp.includes("fd.append('role', role)"));
 check('工作台登录弹窗包含申请角色单选且默认审阅人，不包含 admin', loginModalPhp.includes('name="reg_role" value="viewer" checked') && loginModalPhp.includes('name="reg_role" value="editor"') && !loginModalPhp.includes('name="reg_role" value="admin"') && loginModalPhp.includes("fd.append('role', role)"));
-check('auth.php register_visitor 成功文案明确自明', authPhp.includes("jsonResponse(true, ['id' => $newId], '申请已提交，等待管理员审核后即可登录');"));
-check('auth.php register_visitor 对申请角色做白名单收口并透传通知', authPhp.includes("in_array($requestedRole, ['viewer', 'editor'], true)") && authPhp.includes("'申请角色' => $requestedRoleLabel"));
-check('modals.php 待审批表头包含申请角色列并同步 colspan=5', modalsPhp.includes('<th style="padding:9px 12px;">申请角色</th>') && modalsPhp.includes('id="pendingUsersTbody"') && modalsPhp.includes('<td colspan="5"'));
+check('auth.php register_visitor 成功文案明确自明', authPhp.includes("jsonResponse(true, ['id' => $newId], t('auth.apply_submitted'));") && zhCnPhp.includes("'auth.apply_submitted' => '申请已提交，等待管理员审核后即可登录'"));
+check('auth.php register_visitor 对申请角色做白名单收口并透传通知', authPhp.includes("in_array($requestedRole, ['viewer', 'editor'], true)") && authPhp.includes("t('api.auth.apply_field_role') => $requestedRoleLabel") && zhCnPhp.includes("'api.auth.apply_field_role' => '申请角色'"));
+check('modals.php 待审批表头包含申请角色列并同步 colspan=5', modalsPhp.includes('<th style="padding:9px 12px;"><?php echo htmlspecialchars(t(\'admin.users.col_apply_role\')); ?></th>') && zhCnPhp.includes("'admin.users.col_apply_role' => '申请角色'") && modalsPhp.includes('id="pendingUsersTbody"') && modalsPhp.includes('<td colspan="5"'));
 check('auth.php register_visitor 通知包含直达待审批路由链接', authPhp.includes("app_url('index.php#admin=users&sub=pending')"));
 check('annotation.js 抽屉定位与 app.js 共用 window.setActiveAnnotationHash 写入活跃批注锚点',
     annotationJs.includes("typeof window.setActiveAnnotationHash === 'function'") && annotationJs.includes('window.setActiveAnnotationHash(id)'));

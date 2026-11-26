@@ -3,7 +3,16 @@
 
     var scriptUrl = document.currentScript.src;
     var fieldSelector = 'input[data-password-strength]';
-    var labels = ['很弱', '较弱', '一般', '较强', '很强'];
+    function _tPwd(key, params, fallback) {
+        return typeof window.t === 'function' ? window.t(key, params, fallback) : fallback;
+    }
+    var labels = [
+        _tPwd('pwd.weakest', null, '很弱'),
+        _tPwd('pwd.weak', null, '较弱'),
+        _tPwd('pwd.fair', null, '一般'),
+        _tPwd('pwd.strong', null, '较强'),
+        _tPwd('pwd.strongest', null, '很强')
+    ];
     var pending = new WeakMap();
     var fieldErrors = new WeakMap();
     var confirmPairs = new WeakMap();
@@ -22,8 +31,8 @@
     }
 
     window.passwordLengthError = function (password) {
-        if (exceedsLimit(password)) return '密码不能超过 64 字节（汉字和表情占多个字节）';
-        if (Array.from(password).length < 6) return '密码至少需要 6 个字符';
+        if (exceedsLimit(password)) return _tPwd('pwd.too_long', null, '密码不能超过 64 字节（汉字和表情占多个字节）');
+        if (Array.from(password).length < 6) return _tPwd('pwd.too_short', null, '密码至少需要 6 个字符');
         return '';
     };
 
@@ -83,7 +92,7 @@
             return window.setFieldError(
                 confirmField,
                 confirmOutput,
-                message || '两次输入的新密码不一致',
+                message || _tPwd('auth.password_mismatch', null, '两次输入的新密码不一致'),
                 true
             );
         }
@@ -97,7 +106,7 @@
             try {
                 vQuery = new URL(scriptUrl).search;
             } catch (e) {}
-            if (!vQuery) vQuery = '?v=3.1.11';
+            if (!vQuery) vQuery = '?v=3.2.0';
 
             estimator = Promise.all(['core', 'language-common', 'language-en'].map(function (part) {
                 return new Promise(function (resolve, reject) {
@@ -167,7 +176,7 @@
                     var message = labels[score];
                     output.dataset.score = score;
                     if (score < 3) {
-                        output.title = '建议 12 位以上或使用随机短语';
+                        output.title = _tPwd('pwd.tip_length', null, '建议 12 位以上或使用随机短语');
                     } else {
                         output.removeAttribute('title');
                     }

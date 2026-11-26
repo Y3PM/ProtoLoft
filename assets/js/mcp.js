@@ -131,14 +131,14 @@ function updateMcpProjectTags() {
         cbs.forEach(function(cb) {
             var label = cb.closest ? cb.closest('label') : null;
             var nameSpan = label && label.querySelector ? label.querySelector('span') : null;
-            names.push(nameSpan ? nameSpan.textContent.trim() : ('项目 #' + cb.value));
+            names.push(nameSpan ? nameSpan.textContent.trim() : ((typeof t === 'function' ? t('admin.item.project_prefix', null, '项目 #') : '项目 #') + cb.value));
         });
     }
 
     if (!tagsWrap) return;
 
     if (names.length === 0) {
-        tagsWrap.innerHTML = '<span style="font-size:12.5px;color:var(--text-3);">请选择项目…</span>';
+        tagsWrap.innerHTML = '<span style="font-size:12.5px;color:var(--text-3);">' + escapeHtml(typeof t === 'function' ? t('mcp.select_projects_placeholder', null, '请选择项目…') : '请选择项目…') + '</span>';
         if (selectScope) selectScope.value = '0';
     } else if (names.length <= 2) {
         var html = '';
@@ -148,7 +148,7 @@ function updateMcpProjectTags() {
         tagsWrap.innerHTML = html;
         if (selectScope && cbs && cbs[0]) selectScope.value = String(cbs[0].value);
     } else {
-        tagsWrap.innerHTML = '<span class="badge-tag badge-primary">' + escapeHtml(names[0]) + ' 等 ' + names.length + ' 个项目</span>';
+        tagsWrap.innerHTML = '<span class="badge-tag badge-primary">' + escapeHtml(typeof t === 'function' ? t('mcp.selected_n_projects', {first: names[0], n: names.length}, names[0] + ' 等 ' + names.length + ' 个项目') : (names[0] + ' 等 ' + names.length + ' 个项目')) + '</span>';
         if (selectScope && cbs && cbs[0]) selectScope.value = String(cbs[0].value);
     }
 }
@@ -190,7 +190,7 @@ function loadMcpSettings() {
     var newCred = document.getElementById('mcpNewCredential');
     if (newCred) newCred.hidden = !mcpSecretValue;
     return fetch('api.php?action=mcp_settings', {cache:'no-store'}).then(function(r) { return r.json(); }).then(function(res) {
-        if (!res.success) throw new Error(res.message || '无法读取 MCP 设置');
+        if (!res.success) throw new Error(res.message || (typeof t === 'function' ? t('mcp.load_failed', null, '无法读取 MCP 设置') : '无法读取 MCP 设置'));
         if (sequence !== mcpLoadSequence) return;
         mcpLoading = false;
         mcpSettings = res.data;
@@ -233,7 +233,7 @@ function loadMcpSettings() {
             select.textContent = '';
             var all = document.createElement('option');
             all.value = '0';
-            all.textContent = '全部项目';
+            all.textContent = (typeof t === 'function' ? t('mcp.scope_all', null, '全部项目') : '全部项目');
             select.appendChild(all);
             res.data.projects.forEach(function(project) {
                 var option = document.createElement('option');
@@ -245,7 +245,7 @@ function loadMcpSettings() {
             if (!select.value && token && token.project_id) {
                 var unavailable = document.createElement('option');
                 unavailable.value = String(token.project_id);
-                unavailable.textContent = '原授权项目（当前不可访问）';
+                unavailable.textContent = (typeof t === 'function' ? t('mcp.unavailable_project', null, '原授权项目（当前不可访问）') : '原授权项目（当前不可访问）');
                 select.appendChild(unavailable);
                 select.value = String(token.project_id);
             }
@@ -265,7 +265,9 @@ function loadMcpSettings() {
         var savePermissions = document.getElementById('mcpSavePermissions');
         if (savePermissions) savePermissions.hidden = true;
         var createBtn = document.getElementById('mcpCreateButton');
-        if (createBtn) createBtn.textContent = token ? '重新生成' : '生成凭据';
+        if (createBtn) createBtn.textContent = token
+            ? (typeof t === 'function' ? t('mcp.regen_token', null, '重新生成') : '重新生成')
+            : (typeof t === 'function' ? t('mcp.create_token', null, '生成凭据') : '生成凭据');
         var revokeBtn = document.getElementById('mcpRevokeButton');
         if (revokeBtn) revokeBtn.hidden = !token;
 
@@ -274,10 +276,10 @@ function loadMcpSettings() {
             if (token) {
                 var dateStr = new Date(token.expires_at * 1000).toLocaleDateString();
                 statusEl.textContent = token.is_valid
-                    ? ('已生效 · ' + token.token_prefix + '… · 到期 ' + dateStr)
-                    : ('已失效 · ' + token.token_prefix + '… · 到期 ' + dateStr);
+                    ? (typeof t === 'function' ? t('mcp.status_active', {prefix: token.token_prefix, date: dateStr}, '已生效 · ' + token.token_prefix + '… · 到期 ' + dateStr) : ('已生效 · ' + token.token_prefix + '… · 到期 ' + dateStr))
+                    : (typeof t === 'function' ? t('mcp.status_expired', {prefix: token.token_prefix, date: dateStr}, '已失效 · ' + token.token_prefix + '… · 到期 ' + dateStr) : ('已失效 · ' + token.token_prefix + '… · 到期 ' + dateStr));
             } else {
-                statusEl.textContent = '尚未生成凭据';
+                statusEl.textContent = (typeof t === 'function' ? t('mcp.status_none', null, '尚未生成凭据') : '尚未生成凭据');
             }
         }
 
@@ -302,12 +304,15 @@ function generateAiPromptText(tokenVal) {
     var tokenDisplay = tokenVal;
     if (!tokenDisplay) {
         if (mcpSettings && mcpSettings.token) {
-            tokenDisplay = 'YOUR_PERSONAL_TOKEN（已生效凭据前缀为 ' + (mcpSettings.token.token_prefix || 'plmcp_') + '…；若客户端已配置可保持不变）';
+            var pfx = mcpSettings.token.token_prefix || 'plmcp_';
+            tokenDisplay = (typeof t === 'function'
+                ? t('mcp.token_prefix_placeholder', {prefix: pfx}, 'YOUR_PERSONAL_TOKEN（已生效凭据前缀为 ' + pfx + '…；若客户端已配置可保持不变）')
+                : ('YOUR_PERSONAL_TOKEN（已生效凭据前缀为 ' + pfx + '…；若客户端已配置可保持不变）'));
         } else {
-            tokenDisplay = '[尚未生成凭据]';
+            tokenDisplay = (typeof t === 'function' ? t('mcp.token_not_generated', null, '[尚未生成凭据]') : '[尚未生成凭据]');
         }
     }
-    return '请帮我把立象原型的 MCP 服务接入到当前 AI 客户端环境：\n\n' +
+    var fallbackBody = '请帮我把立象原型的 MCP 服务接入到当前 AI 客户端环境：\n\n' +
         '【服务信息】\n' +
         '- 名称：protoloft\n' +
         '- 地址：' + url + '\n' +
@@ -315,12 +320,17 @@ function generateAiPromptText(tokenVal) {
         '- 授权：Authorization: Bearer ' + tokenDisplay + '\n\n' +
         '【执行要求】\n' +
         '请根据当前使用的客户端（Cursor、Claude Desktop、Windsurf、Codex、Cline 等），找到对应的 MCP 配置文件并安全写入 protoloft 配置（保留已有其他服务）。配置完成后提示我刷新重载。';
+    return (typeof t === 'function')
+        ? t('mcp.ai_prompt_body', {url: url, token: tokenDisplay}, fallbackBody).replace(/  【/g, '\n\n【').replace(/ - /g, '\n- ').replace(/】 /g, '】\n')
+        : fallbackBody;
 }
 
 function renderMcpViews() {
     var copyButton = document.getElementById('mcpCopyAiButton');
     if (copyButton) {
-        copyButton.textContent = (mcpSettings && mcpSettings.token) ? '复制 AI 接入指令' : '生成凭据并复制 AI 指令';
+        copyButton.textContent = (mcpSettings && mcpSettings.token)
+            ? (typeof t === 'function' ? t('mcp.copy_ai_prompt', null, '复制 AI 接入指令') : '复制 AI 接入指令')
+            : (typeof t === 'function' ? t('mcp.create_and_copy_ai_prompt', null, '生成凭据并复制 AI 指令') : '生成凭据并复制 AI 指令');
     }
     var hint = document.getElementById('mcpConfigSecretHint');
     if (hint) hint.hidden = !!mcpSecretValue;
@@ -340,7 +350,7 @@ function renderMcpConfig() {
         if (codeEl) {
             codeEl.textContent = '[mcp_servers.protoloft]\nurl = ' + JSON.stringify(url) + '\nhttp_headers = { Authorization = ' + JSON.stringify('Bearer ' + token) + ' }';
         }
-        if (hintEl) hintEl.textContent = '配置文件路径：~/.codex/config.toml';
+        if (hintEl) hintEl.textContent = (typeof t === 'function' ? t('mcp.codex_path_hint', null, '配置文件路径：~/.codex/config.toml') : '配置文件路径：~/.codex/config.toml');
     } else if (format === 'claude') {
         if (codeEl) {
             codeEl.textContent = JSON.stringify({
@@ -365,20 +375,20 @@ function renderMcpConfig() {
                 }
             }, null, 2);
         }
-        if (hintEl) hintEl.textContent = 'Cursor 路径：~/.cursor/mcp.json 或项目根目录 .cursor/mcp.json';
+        if (hintEl) hintEl.textContent = (typeof t === 'function' ? t('mcp.cursor_path_hint', null, 'Cursor 路径：~/.cursor/mcp.json 或项目根目录 .cursor/mcp.json') : 'Cursor 路径：~/.cursor/mcp.json 或项目根目录 .cursor/mcp.json');
     }
 }
 
 function doCreateMcpToken(replace) {
-    if (mcpBusy || !mcpSettings) return Promise.reject(new Error('请等待当前操作完成'));
+    if (mcpBusy || !mcpSettings) return Promise.reject(new Error(typeof t === 'function' ? t('mcp.wait_busy', null, '请等待当前操作完成') : '请等待当前操作完成'));
     if (mcpScopeMode === 'custom') {
         var checkedCount = 0;
         var cbs = (typeof document !== 'undefined' && typeof document.querySelectorAll === 'function')
             ? document.querySelectorAll('input[name="mcp_project_ids[]"]:checked') : null;
         if (cbs) checkedCount = cbs.length;
         if (checkedCount === 0) {
-            showToast('请至少选择一个项目，或切换为「全部项目」模式', 'warning');
-            return Promise.reject(new Error('请至少选择一个项目'));
+            showToast(typeof t === 'function' ? t('mcp.select_one_project', null, '请至少选择一个项目，或切换为「全部项目」模式') : '请至少选择一个项目，或切换为「全部项目」模式', 'warning');
+            return Promise.reject(new Error(typeof t === 'function' ? t('mcp.select_one_short', null, '请至少选择一个项目') : '请至少选择一个项目'));
         }
     }
     setMcpBusy(true);
@@ -394,10 +404,10 @@ function doCreateMcpToken(replace) {
     fd.append('can_publish', (mcpSettings && mcpSettings.can_publish && permission && permission.checked) ? '1' : '0');
     fd.append('replace', replace ? '1' : '0');
     return apiFetch('mcp_token_create', fd, button).then(function(res) {
-        if (!res.success) throw new Error(res.message || '生成凭据失败');
+        if (!res.success) throw new Error(res.message || (typeof t === 'function' ? t('mcp.create_failed', null, '生成凭据失败') : '生成凭据失败'));
         mcpSecretValue = res.data.secret;
         return loadMcpSettings().then(function(loaded) {
-            if (!loaded) throw new Error('凭据已生成，读取设置失败；请重新加载后复制');
+            if (!loaded) throw new Error(typeof t === 'function' ? t('mcp.created_reload_failed', null, '凭据已生成，读取设置失败；请重新加载后复制') : '凭据已生成，读取设置失败；请重新加载后复制');
             var secretInput = document.getElementById('mcpSecret');
             if (secretInput) secretInput.value = mcpSecretValue;
             var newCred = document.getElementById('mcpNewCredential');
@@ -415,9 +425,9 @@ function createMcpCredential(event) {
     var hasToken = !!(mcpSettings && mcpSettings.token);
     var proceed = hasToken
         ? showConfirm({
-            title: '重新生成 MCP 凭据',
-            message: '旧凭据将立即失效，已连接的 AI 客户端需更新配置。仅调整项目范围或发布权限时，无需重新生成，修改将自动保存。',
-            confirmText: '确认重新生成',
+            title: typeof t === 'function' ? t('mcp.regen_title', null, '重新生成 MCP 凭据') : '重新生成 MCP 凭据',
+            message: typeof t === 'function' ? t('mcp.regen_confirm', null, '旧凭据将立即失效，已连接的 AI 客户端需更新配置。仅调整项目范围或发布权限时，无需重新生成，修改将自动保存。') : '旧凭据将立即失效，已连接的 AI 客户端需更新配置。仅调整项目范围或发布权限时，无需重新生成，修改将自动保存。',
+            confirmText: typeof t === 'function' ? t('mcp.regen_confirm_btn', null, '确认重新生成') : '确认重新生成',
             isDanger: true
         })
         : Promise.resolve(true);
@@ -425,10 +435,10 @@ function createMcpCredential(event) {
     return proceed.then(function(yes) {
         if (!yes) return;
         return doCreateMcpToken(hasToken).then(function() {
-            showToast('新凭据已生成', 'success');
+            showToast(typeof t === 'function' ? t('mcp.created_toast', null, '新凭据已生成') : '新凭据已生成', 'success');
         });
     }).catch(function(e) {
-        showToast(e.message || '操作失败', 'error');
+        showToast(e.message || (typeof t === 'function' ? t('common.op_failed', null, '操作失败') : '操作失败'), 'error');
     });
 }
 
@@ -441,7 +451,7 @@ function handleMcpPermissionChange(event) {
             ? document.querySelectorAll('input[name="mcp_project_ids[]"]:checked') : null;
         if (cbs) checkedCount = cbs.length;
         if (checkedCount === 0) {
-            showToast('请至少选择一个项目，或切换为「全部项目」模式', 'warning');
+            showToast(typeof t === 'function' ? t('mcp.select_one_project', null, '请至少选择一个项目，或切换为「全部项目」模式') : '请至少选择一个项目，或切换为「全部项目」模式', 'warning');
             return;
         }
     }
@@ -460,14 +470,14 @@ function handleMcpPermissionChange(event) {
     fd.append('can_publish', submittedPublish ? '1' : '0');
     setMcpBusy(true);
     return apiFetch('mcp_permission_update', fd).then(function(res) {
-        if (!res.success) throw new Error(res.message || '更新权限失败');
+        if (!res.success) throw new Error(res.message || (typeof t === 'function' ? t('mcp.update_perm_failed', null, '更新权限失败') : '更新权限失败'));
         mcpSettings.token.project_ids = submittedIds;
         mcpSettings.token.project_id = submittedPrimary;
         mcpSettings.token.can_publish = submittedPublish ? 1 : 0;
-        showToast(res.message || '权限已自动保存', 'success');
+        showToast(res.message || (typeof t === 'function' ? t('mcp.perm_auto_saved', null, '权限已自动保存') : '权限已自动保存'), 'success');
         renderMcpViews();
     }).catch(function(e) {
-        showToast(e.message || '更新失败，请重试', 'error');
+        showToast(e.message || (typeof t === 'function' ? t('mcp.update_retry', null, '更新失败，请重试') : '更新失败，请重试'), 'error');
     }).then(function() { setMcpBusy(false); });
 }
 
@@ -478,7 +488,7 @@ function copyMcpAiPrompt() {
         return doCreateMcpToken(false).then(function() {
             return copyMcpText(generateAiPromptText(mcpSecretValue));
         }).catch(function(e) {
-            showToast(e.message || '生成凭据失败', 'error');
+            showToast(e.message || (typeof t === 'function' ? t('mcp.create_failed', null, '生成凭据失败') : '生成凭据失败'), 'error');
         });
     }
     // 2. 如果已有凭据：直接复用已有凭据生成指令并复制，绝不重新生成冲掉已有配置
@@ -505,16 +515,18 @@ function toggleMcpManualConfig() {
         }
     }
     if (text) {
-        text.textContent = isHidden ? '收起' : '展开';
+        text.textContent = isHidden
+            ? (typeof t === 'function' ? t('common.collapse', null, '收起') : '收起')
+            : (typeof t === 'function' ? t('common.expand', null, '展开') : '展开');
     }
 }
 
 function revokeMcpCredential() {
     if (mcpBusy || !mcpSettings || !mcpSettings.token) return;
     return showConfirm({
-        title: '撤销 MCP 凭据',
-        message: '使用此凭据的 AI 客户端将无法继续访问。',
-        confirmText: '撤销凭据',
+        title: typeof t === 'function' ? t('mcp.revoke_title', null, '撤销 MCP 凭据') : '撤销 MCP 凭据',
+        message: typeof t === 'function' ? t('mcp.revoke_confirm', null, '使用此凭据的 AI 客户端将无法继续访问。') : '使用此凭据的 AI 客户端将无法继续访问。',
+        confirmText: typeof t === 'function' ? t('mcp.revoke_token', null, '撤销凭据') : '撤销凭据',
         isDanger: true
     }).then(function(yes) {
         if (!yes) return;
@@ -524,11 +536,11 @@ function revokeMcpCredential() {
             if (!res.success) throw new Error(res.message);
             mcpSecretValue = '';
             return loadMcpSettings().then(function() {
-                showToast('凭据已撤销', 'success');
+                showToast(typeof t === 'function' ? t('mcp.revoked_toast', null, '凭据已撤销') : '凭据已撤销', 'success');
             });
         });
     }).catch(function(e) {
-        showToast(e.message || '撤销失败', 'error');
+        showToast(e.message || (typeof t === 'function' ? t('mcp.revoke_failed', null, '撤销失败') : '撤销失败'), 'error');
     }).then(function() { setMcpBusy(false); });
 }
 
@@ -546,7 +558,9 @@ function copyMcpText(text) {
         ? navigator.clipboard.writeText(text).then(function() { return true; }, fallback)
         : Promise.resolve(fallback());
     return copying.then(function(copied) {
-        showToast(copied ? '已复制到剪贴板' : '复制失败，请手动选择复制', copied ? 'success' : 'error');
+        var okMsg = typeof t === 'function' ? t('common.clipboard_copied', null, '已复制到剪贴板') : '已复制到剪贴板';
+        var failMsg = typeof t === 'function' ? t('common.copy_failed', null, '复制失败，请手动选择复制') : '复制失败，请手动选择复制';
+        showToast(copied ? okMsg : failMsg, copied ? 'success' : 'error');
         return copied;
     });
 }

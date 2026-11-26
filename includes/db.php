@@ -234,6 +234,8 @@ class DB {
                 value TEXT
             );
         ");
+        $stmtLang = $db->prepare("INSERT OR IGNORE INTO settings (key, value) VALUES ('system_language', ?)");
+        $stmtLang->execute([I18n::getLocale()]);
 
         // 7. 专属安全外发分享短码表
         $db->exec("

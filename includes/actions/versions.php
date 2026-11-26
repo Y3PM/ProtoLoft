@@ -4,11 +4,11 @@ if (!defined('APP_VERSION')) exit;
 
 /** 名称是展示标签，不参与物理路径；不限制版本号格式或改写大小写。 */
 function normalizeVersionName($raw) {
-    if (!is_string($raw) || !mb_check_encoding($raw, 'UTF-8')) throw new DomainException('请输入有效的版本名称');
-    if (preg_match('/[\x00-\x1F\x7F-\x{009F}\x{2028}\x{2029}]/u', $raw)) throw new DomainException('版本名称不能包含换行或控制字符');
+    if (!is_string($raw) || !mb_check_encoding($raw, 'UTF-8')) throw new DomainException(t('api.ver.invalid_name'));
+    if (preg_match('/[\x00-\x1F\x7F-\x{009F}\x{2028}\x{2029}]/u', $raw)) throw new DomainException(t('api.ver.no_ctrl_chars'));
     $name = preg_replace('/^[\x20\x{00A0}\x{1680}\x{2000}-\x{200A}\x{202F}\x{205F}\x{3000}\x{FEFF}]+|[\x20\x{00A0}\x{1680}\x{2000}-\x{200A}\x{202F}\x{205F}\x{3000}\x{FEFF}]+$/u', '', $raw);
-    if ($name === '') throw new DomainException('请输入版本名称');
-    if (mb_strlen($name, 'UTF-8') > 30) throw new DomainException('版本名称最多 30 字');
+    if ($name === '') throw new DomainException(t('api.ver.enter_name'));
+    if (mb_strlen($name, 'UTF-8') > 30) throw new DomainException(t('api.ver.name_len_30'));
     return $name;
 }
 
@@ -18,42 +18,42 @@ function versionOverwriteToken($version) {
 
 switch ($action) {
     case 'version_check_name':
-        if (!Auth::canManage()) jsonResponse(false, null, '无权操作');
+        if (!Auth::canManage()) jsonResponse(false, null, t('api.no_perm'));
         $itemId = (int)($_POST['item_id'] ?? 0);
         $name = normalizeVersionName($_POST['version_name'] ?? '');
         $item = Auth::getItem($itemId);
-        if (!$item || $item['type'] !== 'project' || !Auth::canEditItem($item)) jsonResponse(false, null, '无权为此项目发版');
+        if (!$item || $item['type'] !== 'project' || !Auth::canEditItem($item)) jsonResponse(false, null, t('api.ver.no_publish_perm'));
         $check = $db->prepare('SELECT * FROM versions WHERE item_id = ? AND version_name = ?');
         $check->execute([$itemId, $name]);
         $existing = $check->fetch();
-        if ($existing && !Auth::canDeleteVersion($existing)) jsonResponse(false, null, '该版本由他人发布，您无权替换');
+        if ($existing && !Auth::canDeleteVersion($existing)) jsonResponse(false, null, t('api.ver.no_replace_other'));
         jsonResponse(true, ['version_name' => $name, 'exists' => (bool)$existing,
             'overwrite_token' => $existing ? versionOverwriteToken($existing) : '']);
         break;
 
     case 'upload_chunk':
-        if (!Auth::canManage()) jsonResponse(false, null, '无权操作');
+        if (!Auth::canManage()) jsonResponse(false, null, t('api.no_perm'));
         $uid = (int)Auth::getCurrentUser()['id'];
         $uploadId = trim($_POST['upload_id'] ?? '');
         $fileType = $_POST['file_type'] ?? '';
         $index = (int)($_POST['chunk_index'] ?? -1);
         $total = (int)($_POST['chunk_total'] ?? 0);
         if (!in_array($fileType, ['zip', 'rp'], true) || $total < 1 || $total > 1000 || $index < 0 || $index >= $total) {
-            jsonResponse(false, null, '分片参数错误');
+            jsonResponse(false, null, t('api.ver.chunk_param_err'));
         }
         $tmp = $_FILES['chunk_data']['tmp_name'] ?? '';
-        if (!$tmp || !is_uploaded_file($tmp) || filesize($tmp) < 1 || filesize($tmp) > 1024 * 1024) jsonResponse(false, null, '分片大小无效');
+        if (!$tmp || !is_uploaded_file($tmp) || filesize($tmp) < 1 || filesize($tmp) > 1024 * 1024) jsonResponse(false, null, t('api.ver.chunk_size_invalid'));
         Storage::storeChunk($uploadId, $fileType, $index, $total, $tmp, $uid);
         jsonResponse(true, ['chunk_index' => $index]);
         break;
 
     case 'version_publish':
-        if (!Auth::canManage()) jsonResponse(false, null, '无权操作');
+        if (!Auth::canManage()) jsonResponse(false, null, t('api.no_perm'));
         @set_time_limit(300);
         $itemId = (int)($_POST['item_id'] ?? 0);
         $name = normalizeVersionName($_POST['version_name'] ?? '');
         $changelog = trim($_POST['changelog'] ?? '');
-        if (mb_strlen($changelog, 'UTF-8') > 3000) jsonResponse(false, null, '更新说明不能超过 3000 个字符');
+        if (mb_strlen($changelog, 'UTF-8') > 3000) jsonResponse(false, null, t('api.ver.changelog_len_3000'));
         $hasNotifyItem = isset($_POST['notify_item']);
         $hasNotifyGlobal = isset($_POST['notify_global']);
         $hasNotifyWebhook = isset($_POST['notify_webhook']);
@@ -71,28 +71,28 @@ switch ($action) {
 
         $zipId = trim($_POST['zip_upload_id'] ?? '');
         $rpId = trim($_POST['rp_upload_id'] ?? '');
-        if ($itemId < 1) jsonResponse(false, null, '请选择项目');
-        if ($zipId === '') jsonResponse(false, null, '请选择 ZIP 压缩包');
+        if ($itemId < 1) jsonResponse(false, null, t('api.items.select_item'));
+        if ($zipId === '') jsonResponse(false, null, t('api.ver.select_zip'));
         $item = Auth::getItem($itemId);
-        if (!$item || $item['type'] !== 'project' || !Auth::canEditItem($item)) jsonResponse(false, null, '无权为此项目发版');
+        if (!$item || $item['type'] !== 'project' || !Auth::canEditItem($item)) jsonResponse(false, null, t('api.ver.no_publish_perm'));
 
         $willSendItem = $notifyItem && !empty($item['webhook_url']);
         $willSendGlobal = $notifyGlobal && !empty(trim((string)Auth::getSetting('global_webhook_url', '')));
         if (($willSendItem || $willSendGlobal) && $changelog === '') {
-            jsonResponse(false, null, '开启群通知需填写更新日志');
+            jsonResponse(false, null, t('admin.upload.notify_needs_log'));
         }
         $uid = (int)Auth::getCurrentUser()['id'];
         $check = $db->prepare('SELECT * FROM versions WHERE item_id = ? AND version_name = ?');
         $check->execute([$itemId, $name]);
         $existing = $check->fetch();
         $check->closeCursor();
-        if ($existing && !Auth::canDeleteVersion($existing)) jsonResponse(false, null, '该版本由他人发布，您无权覆盖');
+        if ($existing && !Auth::canDeleteVersion($existing)) jsonResponse(false, null, t('api.ver.no_overwrite_other'));
         $overwriteToken = $_POST['overwrite_token'] ?? '';
-        if (!is_string($overwriteToken)) jsonResponse(false, null, '替换确认无效，请重试');
+        if (!is_string($overwriteToken)) jsonResponse(false, null, t('api.ver.overwrite_token_invalid'));
         if ($existing && !hash_equals(versionOverwriteToken($existing), $overwriteToken)) {
-            jsonResponse(false, ['requires_confirmation' => true], '同名版本已存在或已更新，请重新确认替换');
+            jsonResponse(false, ['requires_confirmation' => true], t('api.ver.overwrite_reconfirm'));
         }
-        if (!$existing && $overwriteToken !== '') jsonResponse(false, null, '版本已变更，请刷新后重试');
+        if (!$existing && $overwriteToken !== '') jsonResponse(false, null, t('api.ver.changed_refresh'));
 
         $storageDir = 'p' . $itemId . '/' . bin2hex(random_bytes(16));
         $stage = PROTOTYPES_PATH . '/' . $storageDir;
@@ -101,21 +101,21 @@ switch ($action) {
         $committed = false;
         $cleanupChunks = false;
         try {
-            if (!mkdir($stage, 0700, true)) throw new DomainException('无法创建版本目录');
+            if (!mkdir($stage, 0700, true)) throw new DomainException(t('api.ver.mkdir_fail'));
             $mergedZip = Storage::mergeChunks($zipId, 'zip', $uid);
             $cleanupChunks = true;
             $zip = ZipHandler::extractZip($mergedZip, $stage, '');
             if (!$zip['success']) throw new DomainException($zip['message']);
             $entry = ltrim($zip['entry_file'], '/');
-            if ($entry === '') throw new DomainException('压缩包中没有可预览的 HTML 页面');
+            if ($entry === '') throw new DomainException(t('api.ver.no_html_in_zip'));
             $rp = '';
             if ($rpId !== '') {
                 $mergedRp = Storage::mergeChunks($rpId, 'rp', $uid);
-                if (!copy($mergedRp, $stage . '/prototype.rp')) throw new DomainException('底稿保存失败');
+                if (!copy($mergedRp, $stage . '/prototype.rp')) throw new DomainException(t('api.ver.rp_save_fail'));
                 $rp = 'prototype.rp';
             } elseif ($existing && !empty($existing['rp_file'])) {
                 $oldRp = Storage::filePath($existing, $existing['rp_file']);
-                if (!$oldRp || !copy($oldRp, $stage . '/prototype.rp')) throw new DomainException('原版本底稿无法保留');
+                if (!$oldRp || !copy($oldRp, $stage . '/prototype.rp')) throw new DomainException(t('api.ver.rp_keep_fail'));
                 $rp = 'prototype.rp';
             }
             $rpSize = $rp !== '' ? filesize($stage . '/' . $rp) : 0;
@@ -129,13 +129,13 @@ switch ($action) {
             $db->exec('UPDATE versions SET id = id WHERE 0');
             if (defined('MCP_REQUEST')) McpAccess::guardWrite($itemId);
             $freshItem = Auth::getItem($itemId);
-            if (!$freshItem || !Auth::canEditItem($freshItem)) throw new DomainException('项目已变更，请刷新后重试');
+            if (!$freshItem || !Auth::canEditItem($freshItem)) throw new DomainException(t('api.ver.item_changed_refresh'));
             $check->execute([$itemId, $name]);
             $freshVersion = $check->fetch();
             $check->closeCursor();
             if (($existing ? (int)$existing['id'] : 0) !== ($freshVersion ? (int)$freshVersion['id'] : 0)
-                || ($freshVersion && $freshVersion['storage_dir'] !== $existing['storage_dir'])) throw new DomainException('版本已更新，请刷新后重试');
-            if ($freshVersion && !Auth::canDeleteVersion($freshVersion)) throw new DomainException('无权覆盖此版本');
+                || ($freshVersion && $freshVersion['storage_dir'] !== $existing['storage_dir'])) throw new DomainException(t('api.ver.updated_refresh'));
+            if ($freshVersion && !Auth::canDeleteVersion($freshVersion)) throw new DomainException(t('api.ver.no_overwrite_perm'));
             $hasDefault = $db->prepare('SELECT 1 FROM versions WHERE item_id = ? AND is_default = 1 LIMIT 1');
             $hasDefault->execute([$itemId]);
             $hasDefaultVal = (bool)$hasDefault->fetchColumn();
@@ -188,25 +188,26 @@ switch ($action) {
             foreach ($uniqueHooks as $hookUrl => $channels) {
                 $res = Webhook::send($hookUrl, 'version_update', $payload);
                 $isOk = !empty($res['success']);
-                $msg = $res['message'] ?? ($isOk ? 'ok' : '发送失败');
+                $msg = $res['message'] ?? ($isOk ? 'ok' : t('api.sys.webhook_push_fail'));
                 foreach ($channels as $chKey) {
                     $notifyResults[$chKey] = [
                         'success' => $isOk,
                         'message' => $msg
                     ];
                     if (!$isOk) {
-                        $failedChannels[] = ($chKey === 'item') ? '项目群' : '评审群';
+                        $failedChannels[] = ($chKey === 'item') ? t('api.ver.ch_item') : t('api.ver.ch_global');
                     }
                 }
             }
         }
         $publishedStmt = $db->prepare('SELECT * FROM versions WHERE id = ?');
         $publishedStmt->execute([$verId]);
-        $msg = '发布成功';
+        $msg = t('api.ver.published_ok');
         if (!empty($failedChannels)) {
-            $msg = '发布成功（' . implode('、', $failedChannels) . '通知发送失败）';
+            $sep = I18n::getLocale() === 'en' ? ', ' : '、';
+            $msg = t('api.ver.published_notify_fail', ['channels' => implode($sep, $failedChannels)]);
         } elseif ($pendingCleanup) {
-            $msg = '发布成功，文件清理待重试';
+            $msg = t('api.ver.published_cleanup_retry');
         }
         jsonResponse(true, [
             'id' => $verId,
@@ -218,12 +219,12 @@ switch ($action) {
         break;
 
     case 'version_update':
-        if (!Auth::canManage()) jsonResponse(false, null, '无权操作');
+        if (!Auth::canManage()) jsonResponse(false, null, t('api.no_perm'));
         $id = (int)($_POST['id'] ?? 0);
-        if ($id < 1) jsonResponse(false, null, '请指定版本');
+        if ($id < 1) jsonResponse(false, null, t('api.ver.specify_ver'));
         $name = normalizeVersionName($_POST['version_name'] ?? '');
         $changelog = trim($_POST['changelog'] ?? '');
-        if (mb_strlen($changelog, 'UTF-8') > 3000) jsonResponse(false, null, '更新说明不能超过 3000 个字符');
+        if (mb_strlen($changelog, 'UTF-8') > 3000) jsonResponse(false, null, t('api.ver.changelog_len_3000'));
         $db->beginTransaction();
         try {
             $db->exec('UPDATE versions SET id = id WHERE 0');
@@ -231,16 +232,16 @@ switch ($action) {
             $stmt->execute([$id]);
             $version = $stmt->fetch();
             $stmt->closeCursor();
-            if (!$version) throw new DomainException('版本不存在');
+            if (!$version) throw new DomainException(t('api.ver.not_found'));
             $item = Auth::getItem($version['item_id']);
-            if (!$item || !Auth::canEditItem($item)) throw new DomainException('无权操作此项目');
+            if (!$item || !Auth::canEditItem($item)) throw new DomainException(t('api.ver.no_item_op_perm'));
             if (defined('MCP_REQUEST')) McpAccess::guardWrite($version['item_id']);
 
             $check = $db->prepare('SELECT id FROM versions WHERE item_id = ? AND version_name = ? AND id != ?');
             $check->execute([$version['item_id'], $name, $id]);
             $hasDup = (bool)$check->fetch();
             $check->closeCursor();
-            if ($hasDup) throw new DomainException('该项目已存在同名版本');
+            if ($hasDup) throw new DomainException(t('api.ver.duplicate_name'));
 
             $db->prepare('UPDATE versions SET version_name = ?, changelog = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?')
                 ->execute([$name, $changelog, $id]);
@@ -255,20 +256,20 @@ switch ($action) {
                 'version_name' => $name,
                 'changelog' => $changelog,
                 'version' => Auth::versionForClient($freshVersion)
-            ], '版本信息已更新');
+            ], t('api.ver.updated'));
         } catch (Throwable $e) {
             if ($db->inTransaction()) $db->rollBack();
             if ($e instanceof DomainException) {
                 throw $e;
             }
             error_log('version_update: ' . $e->getMessage());
-            jsonResponse(false, null, '版本信息更新失败');
+            jsonResponse(false, null, t('api.ver.update_fail'));
         }
         break;
 
     case 'version_delete':
     case 'version_set_default':
-        if (!Auth::canManage()) jsonResponse(false, null, '无权操作');
+        if (!Auth::canManage()) jsonResponse(false, null, t('api.no_perm'));
         $id = (int)($_POST['id'] ?? 0);
         $db->beginTransaction();
         try {
@@ -277,11 +278,11 @@ switch ($action) {
             $stmt->execute([$id]);
             $version = $stmt->fetch();
             $stmt->closeCursor();
-            if (!$version) throw new DomainException('版本不存在');
+            if (!$version) throw new DomainException(t('api.ver.not_found'));
             $item = Auth::getItem($version['item_id']);
-            if (!$item || !Auth::canEditItem($item)) throw new DomainException('无权操作此项目');
+            if (!$item || !Auth::canEditItem($item)) throw new DomainException(t('api.ver.no_item_op_perm'));
             if ($action === 'version_delete') {
-                if (!Auth::canDeleteVersion($version)) throw new DomainException('只有版本发布者或管理员可删除');
+                if (!Auth::canDeleteVersion($version)) throw new DomainException(t('api.ver.delete_perm_only'));
                 Storage::queueRemoval($db, $version);
                 Storage::deleteAnnotations($db, 'ver_id', $id);
                 $db->prepare('DELETE FROM share_codes WHERE ver_id = ?')->execute([$id]);
@@ -299,29 +300,29 @@ switch ($action) {
             throw $e;
         }
         $pending = Storage::collectGarbage($db);
-        jsonResponse(true, null, $action === 'version_delete' ? ($pending ? '版本已删除，文件清理待重试' : '版本已删除') : '已设为默认版本');
+        jsonResponse(true, null, $action === 'version_delete' ? ($pending ? t('api.ver.deleted_retry') : t('api.ver.deleted')) : t('api.ver.set_default'));
         break;
 
     case 'version_update_rp':
-        if (!Auth::canManage()) jsonResponse(false, null, '无权操作');
+        if (!Auth::canManage()) jsonResponse(false, null, t('api.no_perm'));
         @set_time_limit(300);
         $id = (int)($_POST['id'] ?? 0);
         $rpId = trim($_POST['rp_upload_id'] ?? '');
-        if ($id < 1) jsonResponse(false, null, '请指定版本');
-        if ($rpId === '') jsonResponse(false, null, '请选择 RP 底稿文件');
+        if ($id < 1) jsonResponse(false, null, t('api.ver.specify_ver'));
+        if ($rpId === '') jsonResponse(false, null, t('api.ver.select_rp'));
         $stmt = $db->prepare('SELECT * FROM versions WHERE id = ?');
         $stmt->execute([$id]);
         $version = $stmt->fetch();
         $stmt->closeCursor();
-        if (!$version) jsonResponse(false, null, '版本不存在');
-        if (!Auth::canDeleteVersion($version)) jsonResponse(false, null, '只有版本发布者或管理员可修改 RP 底稿');
+        if (!$version) jsonResponse(false, null, t('api.ver.not_found'));
+        if (!Auth::canDeleteVersion($version)) jsonResponse(false, null, t('api.ver.rp_edit_perm_only'));
         $item = Auth::getItem($version['item_id']);
-        if (!$item || !Auth::canEditItem($item)) jsonResponse(false, null, '无权操作此项目');
+        if (!$item || !Auth::canEditItem($item)) jsonResponse(false, null, t('api.ver.no_item_op_perm'));
         if (defined('MCP_REQUEST')) McpAccess::guardWrite($version['item_id']);
 
         $uid = (int)Auth::getCurrentUser()['id'];
         $stage = Storage::versionRoot($version);
-        if (!is_dir($stage)) jsonResponse(false, null, '版本资产目录不存在');
+        if (!is_dir($stage)) jsonResponse(false, null, t('api.ver.asset_dir_missing'));
 
         $mergedRp = null;
         $tempDest = null;
@@ -334,7 +335,7 @@ switch ($action) {
             $cleanupChunks = true;
             $destFile = $stage . '/prototype.rp';
             $tempDest = $stage . '/prototype.rp.tmp.' . bin2hex(random_bytes(6));
-            if (!copy($mergedRp, $tempDest)) throw new DomainException('底稿暂存失败');
+            if (!copy($mergedRp, $tempDest)) throw new DomainException(t('api.ver.rp_stage_fail'));
             $rpSize = filesize($tempDest);
 
             $db->beginTransaction();
@@ -343,16 +344,16 @@ switch ($action) {
             $stmtLock->execute([$id]);
             $lockedVer = $stmtLock->fetch();
             $stmtLock->closeCursor();
-            if (!$lockedVer) throw new DomainException('版本已被移除');
-            if (!Auth::canDeleteVersion($lockedVer) || !Auth::canEditItem(Auth::getItem($lockedVer['item_id']))) throw new DomainException('无权修改此版本底稿');
-            if ($lockedVer['storage_dir'] !== $version['storage_dir']) throw new DomainException('版本已更新，请刷新后重试');
+            if (!$lockedVer) throw new DomainException(t('api.ver.removed'));
+            if (!Auth::canDeleteVersion($lockedVer) || !Auth::canEditItem(Auth::getItem($lockedVer['item_id']))) throw new DomainException(t('api.ver.no_rp_mod_perm'));
+            if ($lockedVer['storage_dir'] !== $version['storage_dir']) throw new DomainException(t('api.ver.updated_refresh'));
 
             if (is_dir($destFile)) {
-                throw new DomainException('底稿目标路径异常');
+                throw new DomainException(t('api.ver.rp_path_err'));
             }
             if (is_file($destFile)) {
                 $backupDest = $destFile . '.bak.' . bin2hex(random_bytes(6));
-                if (!@rename($destFile, $backupDest)) throw new DomainException('旧底稿归档失败');
+                if (!@rename($destFile, $backupDest)) throw new DomainException(t('api.ver.rp_backup_fail'));
             }
 
             if (!@rename($tempDest, $destFile)) {
@@ -363,7 +364,7 @@ switch ($action) {
                         $backupDest = null;
                     }
                 }
-                throw new DomainException('底稿文件写入失败');
+                throw new DomainException(t('api.ver.rp_write_fail'));
             }
             $destReplaced = true;
 
@@ -404,21 +405,21 @@ switch ($action) {
             'rp_size' => $rpSize,
             'updated_at' => $freshVersion['updated_at'] ?? '',
             'version' => $freshVersion
-        ], 'RP 底稿已成功保存');
+        ], t('api.ver.rp_saved'));
         break;
 
     case 'version_remove_rp':
-        if (!Auth::canManage()) jsonResponse(false, null, '无权操作');
+        if (!Auth::canManage()) jsonResponse(false, null, t('api.no_perm'));
         $id = (int)($_POST['id'] ?? 0);
-        if ($id < 1) jsonResponse(false, null, '请指定版本');
+        if ($id < 1) jsonResponse(false, null, t('api.ver.specify_ver'));
         $stmt = $db->prepare('SELECT * FROM versions WHERE id = ?');
         $stmt->execute([$id]);
         $version = $stmt->fetch();
         $stmt->closeCursor();
-        if (!$version) jsonResponse(false, null, '版本不存在');
-        if (!Auth::canDeleteVersion($version)) jsonResponse(false, null, '只有版本发布者或管理员可移除 RP 底稿');
+        if (!$version) jsonResponse(false, null, t('api.ver.not_found'));
+        if (!Auth::canDeleteVersion($version)) jsonResponse(false, null, t('api.ver.rp_remove_perm_only'));
         $item = Auth::getItem($version['item_id']);
-        if (!$item || !Auth::canEditItem($item)) jsonResponse(false, null, '无权操作此项目');
+        if (!$item || !Auth::canEditItem($item)) jsonResponse(false, null, t('api.ver.no_item_op_perm'));
         if (defined('MCP_REQUEST')) McpAccess::guardWrite($version['item_id']);
 
         $db->beginTransaction();
@@ -429,8 +430,8 @@ switch ($action) {
             $stmtLock->execute([$id]);
             $lockedVer = $stmtLock->fetch();
             $stmtLock->closeCursor();
-            if (!$lockedVer) throw new DomainException('版本已被移除');
-            if (!Auth::canDeleteVersion($lockedVer) || !Auth::canEditItem(Auth::getItem($lockedVer['item_id']))) throw new DomainException('无权移除此版本底稿');
+            if (!$lockedVer) throw new DomainException(t('api.ver.removed'));
+            if (!Auth::canDeleteVersion($lockedVer) || !Auth::canEditItem(Auth::getItem($lockedVer['item_id']))) throw new DomainException(t('api.ver.no_rp_remove_perm'));
             $version = $lockedVer;
             $oldRp = $lockedVer['rp_file'] ?? '';
 
@@ -459,6 +460,6 @@ switch ($action) {
             'rp_size' => 0,
             'updated_at' => $freshVersion['updated_at'] ?? '',
             'version' => $freshVersion
-        ], 'RP 底稿已移除');
+        ], t('api.ver.rp_removed'));
         break;
 }

@@ -27,7 +27,7 @@ class McpAccess {
 
     public static function settings() {
         $user = Auth::getCurrentUser();
-        if (!$user) throw new DomainException('请先登录');
+        if (!$user) throw new DomainException(t('api.login_first'));
         $db = DB::getInstance();
         $stmt = $db->prepare('SELECT id,token_prefix,project_id,project_ids,can_publish,expires_at,last_used_at,created_at,auth_version FROM mcp_tokens WHERE user_id = ?');
         $stmt->execute([$user['id']]);
@@ -53,14 +53,14 @@ class McpAccess {
     }
     public static function create($projectId, $publish, $replace) {
         $user = Auth::getCurrentUser();
-        if (!$user) throw new DomainException('请先登录');
+        if (!$user) throw new DomainException(t('api.login_first'));
         $ids = self::parseProjectIds($projectId);
         foreach ($ids as $id) {
             $project = Auth::getItem($id);
-            if (!$project || $project['type'] !== 'project' || !Auth::canViewItem($project)) throw new DomainException('无权授权此项目');
-            if ($publish && (!Auth::canManage() || !Auth::canEditItem($project))) throw new DomainException('无权授权发布');
+            if (!$project || $project['type'] !== 'project' || !Auth::canViewItem($project)) throw new DomainException(t('api.mcp.no_auth_project'));
+            if ($publish && (!Auth::canManage() || !Auth::canEditItem($project))) throw new DomainException(t('api.mcp.no_auth_publish'));
         }
-        if ($publish && empty($ids) && !Auth::canManage()) throw new DomainException('无权授权发布');
+        if ($publish && empty($ids) && !Auth::canManage()) throw new DomainException(t('api.mcp.no_auth_publish'));
         $primaryId = count($ids) === 1 ? $ids[0] : 0;
         $idsJson = !empty($ids) ? json_encode($ids) : '';
 
@@ -69,7 +69,7 @@ class McpAccess {
         try {
             $db->exec('UPDATE mcp_tokens SET id = id WHERE 0');
             $stmt = $db->prepare('SELECT id FROM mcp_tokens WHERE user_id = ?');$stmt->execute([$user['id']]);
-            if ($stmt->fetchColumn() && !$replace) throw new DomainException('已有凭据，请确认重置');
+            if ($stmt->fetchColumn() && !$replace) throw new DomainException(t('api.mcp.token_exists_confirm'));
             $secret = 'plmcp_' . bin2hex(random_bytes(32));
             $expires = time() + 90 * 86400;
             $db->prepare('DELETE FROM mcp_tokens WHERE user_id = ?')->execute([$user['id']]);
@@ -81,14 +81,14 @@ class McpAccess {
     }
     public static function updatePermissions($projectId, $publish) {
         $user = Auth::getCurrentUser();
-        if (!$user) throw new DomainException('请先登录');
+        if (!$user) throw new DomainException(t('api.login_first'));
         $ids = self::parseProjectIds($projectId);
         foreach ($ids as $id) {
             $project = Auth::getItem($id);
-            if (!$project || $project['type'] !== 'project' || !Auth::canViewItem($project)) throw new DomainException('无权授权此项目');
-            if ($publish && (!Auth::canManage() || !Auth::canEditItem($project))) throw new DomainException('无权授权发布');
+            if (!$project || $project['type'] !== 'project' || !Auth::canViewItem($project)) throw new DomainException(t('api.mcp.no_auth_project'));
+            if ($publish && (!Auth::canManage() || !Auth::canEditItem($project))) throw new DomainException(t('api.mcp.no_auth_publish'));
         }
-        if ($publish && empty($ids) && !Auth::canManage()) throw new DomainException('无权授权发布');
+        if ($publish && empty($ids) && !Auth::canManage()) throw new DomainException(t('api.mcp.no_auth_publish'));
         $primaryId = count($ids) === 1 ? $ids[0] : 0;
         $idsJson = !empty($ids) ? json_encode($ids) : '';
 
@@ -99,18 +99,18 @@ class McpAccess {
         $check->execute([$user['id']]);
         $hasToken = (bool)$check->fetchColumn();
         $check->closeCursor();
-        if (!$hasToken) throw new DomainException('尚未生成凭据');
+        if (!$hasToken) throw new DomainException(t('api.mcp.token_not_created'));
         return ['project_id' => $primaryId, 'project_ids' => $ids, 'can_publish' => $publish ? 1 : 0];
     }
     public static function authenticate() {
         $authorization = $_SERVER['HTTP_AUTHORIZATION'] ?? ($_SERVER['REDIRECT_HTTP_AUTHORIZATION'] ?? '');
-        if (!preg_match('/^Bearer (plmcp_[a-f0-9]{64})$/D', $authorization, $m)) throw new DomainException('需要个人 MCP 凭据');
+        if (!preg_match('/^Bearer (plmcp_[a-f0-9]{64})$/D', $authorization, $m)) throw new DomainException(t('api.mcp.need_bearer'));
         $db = DB::getInstance();
         $stmt = $db->prepare('SELECT t.* FROM mcp_tokens t JOIN users u ON u.id = t.user_id WHERE t.token_hash = ? AND t.expires_at > ? AND u.status = 1 AND t.auth_version = u.auth_version');
         $stmt->execute([hash('sha256', $m[1]), time()]);
         $access = $stmt->fetch();
         $stmt->closeCursor();
-        if (!$access) throw new DomainException('MCP 凭据已失效，请在个人设置中重新创建');
+        if (!$access) throw new DomainException(t('api.mcp.token_invalid_recreate'));
         self::$current = $access;
         Auth::setRequestUser($access['user_id']);
         // 不借用浏览器 Cookie；签名绑定此个人凭据，跨 MCP 调用保持稳定。
@@ -120,26 +120,26 @@ class McpAccess {
     }
     /** 在发布事务的写锁内复核，撤销凭据或降权不能被在途解压请求绕过。 */
     public static function guardWrite($itemId) {
-        if (!self::$current) throw new DomainException('MCP 凭据不可用');
+        if (!self::$current) throw new DomainException(t('api.mcp.token_unavailable'));
         $stmt = DB::getInstance()->prepare('SELECT t.* FROM mcp_tokens t JOIN users u ON u.id=t.user_id WHERE t.id=? AND t.token_hash=? AND t.expires_at>? AND u.status=1 AND t.auth_version=u.auth_version');
         $stmt->execute([self::$current['id'], self::$current['token_hash'], time()]);
         $access = $stmt->fetch();
         $stmt->closeCursor();
-        if (!$access) throw new DomainException('MCP 凭据已失效，发布已终止');
+        if (!$access) throw new DomainException(t('api.mcp.token_invalid_abort'));
         Auth::setRequestUser($access['user_id']);
         self::project($access, $itemId, true);
     }
     public static function project($access, $id, $write = false) {
         $item = Auth::getItem($id);
-        if (!$item || $item['type'] !== 'project' || !Auth::canViewItem($item)) throw new DomainException('项目不在授权范围内或无权操作');
+        if (!$item || $item['type'] !== 'project' || !Auth::canViewItem($item)) throw new DomainException(t('api.mcp.project_out_of_scope'));
         $allowed = [];
         if (!empty($access['project_ids'])) {
             $allowed = self::parseProjectIds($access['project_ids']);
         } elseif (!empty($access['project_id'])) {
             $allowed = [(int)$access['project_id']];
         }
-        if (!empty($allowed) && !in_array((int)$id, $allowed, true)) throw new DomainException('项目不在授权范围内或无权操作');
-        if ($write && (!(int)$access['can_publish'] || !Auth::canEditItem($item))) throw new DomainException('项目不在授权范围内或无权操作');
+        if (!empty($allowed) && !in_array((int)$id, $allowed, true)) throw new DomainException(t('api.mcp.project_out_of_scope'));
+        if ($write && (!(int)$access['can_publish'] || !Auth::canEditItem($item))) throw new DomainException(t('api.mcp.project_out_of_scope'));
         return $item;
     }
 }

@@ -178,6 +178,7 @@ console.log('\n[*] 2. 版本管理弹窗设默认与删除状态同步 (无幽�
     };
 
     const sandbox = {
+        esc: (s) => String(s === null || s === undefined ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;'),
         $: (sel) => {
             if (sel === mockRow || (typeof sel === 'string' && sel.includes('#admin-item-row-1'))) return mockRow;
             return {

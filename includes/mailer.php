@@ -14,37 +14,37 @@ class Mailer {
     public static function presets() {
         return [
             '163_qiye' => [
-                'label' => '163 企业邮箱',
+                'label' => t('mail.preset.netease_ent'),
                 'host' => 'smtp.qiye.163.com',
                 'port' => 465,
                 'encryption' => 'ssl',
             ],
             'qq_exmail' => [
-                'label' => '腾讯企业邮箱',
+                'label' => t('mail.preset.qq_ent'),
                 'host' => 'smtp.exmail.qq.com',
                 'port' => 465,
                 'encryption' => 'ssl',
             ],
             'ali_mail' => [
-                'label' => '阿里企业邮箱',
+                'label' => t('mail.preset.ali_ent'),
                 'host' => 'smtp.qiye.aliyun.com',
                 'port' => 465,
                 'encryption' => 'ssl',
             ],
             '163_personal' => [
-                'label' => '163 个人邮箱',
+                'label' => t('mail.preset.163'),
                 'host' => 'smtp.163.com',
                 'port' => 465,
                 'encryption' => 'ssl',
             ],
             'qq_personal' => [
-                'label' => 'QQ 邮箱',
+                'label' => t('mail.preset.qq'),
                 'host' => 'smtp.qq.com',
                 'port' => 465,
                 'encryption' => 'ssl',
             ],
             'custom' => [
-                'label' => '自定义 SMTP',
+                'label' => t('mail.preset.custom'),
                 'host' => '',
                 'port' => 465,
                 'encryption' => 'ssl',
@@ -81,7 +81,7 @@ class Mailer {
             return '';
         }
         if (!function_exists('openssl_encrypt')) {
-            throw new RuntimeException('当前 PHP 环境未启用 OpenSSL 扩展，无法安全保存授权码');
+            throw new RuntimeException(t('mail.err_no_openssl'));
         }
         $key = self::getSecretKey();
         $encKey = hash('sha256', 'enc|' . $key, true);
@@ -89,7 +89,7 @@ class Mailer {
         $iv = random_bytes(16);
         $cipher = openssl_encrypt($plain, 'AES-256-CBC', $encKey, OPENSSL_RAW_DATA, $iv);
         if ($cipher === false) {
-            throw new RuntimeException('授权码加密失败');
+            throw new RuntimeException(t('mail.err_encrypt'));
         }
         $mac = hash_hmac('sha256', $iv . $cipher, $macKey, true);
         return 'v1:' . base64_encode($iv . $mac . $cipher);
@@ -298,7 +298,7 @@ class Mailer {
         if ($cmd !== null) {
             $written = @fwrite($fp, $cmd . "\r\n");
             if ($written === false) {
-                return [false, 0, '连接写入失败'];
+                return [false, 0, t('mail.err_write')];
             }
         }
         $res = self::readResponse($fp);
@@ -316,21 +316,21 @@ class Mailer {
     private static function formatSmtpError($stage, $code, $rawMsg) {
         $lower = strtolower((string)$rawMsg);
         if ($code === 535 || strpos($lower, 'auth') !== false && strpos($lower, 'fail') !== false) {
-            return '邮箱账号或客户端授权码校验失败';
+            return t('mail.err_auth');
         }
         if ($code === 553 || strpos($lower, 'authorized user') !== false || strpos($lower, 'mail from') !== false) {
-            return '发信邮箱与认证账号不一致，被服务器拒绝';
+            return t('mail.err_sender_mismatch');
         }
         if ($stage === 'connect') {
-            return '无法连接邮件服务器，请检查地址、端口或服务器出站网络';
+            return t('mail.err_connect');
         }
         if ($stage === 'tls') {
-            return 'TLS 加密握手失败，请核对端口与加密方式';
+            return t('mail.err_tls');
         }
         if ($code > 0) {
-            return '邮件服务器拒绝请求（' . $code . '）';
+            return t('mail.err_rejected', ['code' => $code]);
         }
-        return '邮件发送失败，请检查邮件服务配置';
+        return t('mail.err_generic');
     }
 
     /**
@@ -346,12 +346,12 @@ class Mailer {
     public static function send($toEmail, $subject, $htmlBody, $overrideConfig = null, $inlineAssets = []) {
         $toEmail = self::cleanHeaderText(strtolower($toEmail));
         if ($toEmail === '' || !filter_var($toEmail, FILTER_VALIDATE_EMAIL)) {
-            return ['success' => false, 'message' => '收件邮箱格式不正确'];
+            return ['success' => false, 'message' => t('mail.err_rcpt')];
         }
 
         $cfg = is_array($overrideConfig) ? $overrideConfig : self::getRuntimeConfig();
         if (!$cfg) {
-            return ['success' => false, 'message' => '邮件服务未配置或已关闭'];
+            return ['success' => false, 'message' => t('mail.err_disabled')];
         }
 
         $host = trim((string)($cfg['host'] ?? ''));
@@ -362,14 +362,14 @@ class Mailer {
         $fromName = self::cleanHeaderText($cfg['from_name'] ?? '');
         if ($fromName === '') {
             $rawTitle = trim(Auth::getSetting('site_title', ''));
-            $fromName = ($rawTitle !== '' && strcasecmp($rawTitle, 'ProtoLoft') !== 0) ? $rawTitle : '立象原型';
+            $fromName = ($rawTitle !== '' && strcasecmp($rawTitle, 'ProtoLoft') !== 0) ? $rawTitle : I18n::brandName();
         }
 
         if (!self::isValidHost($host) || $port < 1 || $port > 65535) {
-            return ['success' => false, 'message' => 'SMTP 服务器或端口格式不正确'];
+            return ['success' => false, 'message' => t('mail.err_host_port')];
         }
         if ($user === '' || !filter_var($user, FILTER_VALIDATE_EMAIL) || $pass === '') {
-            return ['success' => false, 'message' => '请填写发信邮箱与授权码'];
+            return ['success' => false, 'message' => t('mail.err_missing_creds')];
         }
 
         $remote = ($enc === 'ssl' ? 'ssl://' : 'tcp://') . $host . ':' . $port;
@@ -531,7 +531,7 @@ class Mailer {
             }
 
             @fwrite($fp, "QUIT\r\n");
-            return ['success' => true, 'message' => '邮件已发送'];
+            return ['success' => true, 'message' => t('mail.sent')];
         } finally {
             @fclose($fp);
         }
@@ -557,9 +557,9 @@ class Mailer {
      * 生成统一品牌信封 HTML 框架（全内联样式 + 表格布局，兼容 163/QQ/Outlook/Gmail，不依赖易被拦截的外链图片）
      */
     private static function buildBrandEmailHtml($params) {
-        $siteLabel = trim((string)($params['site_label'] ?? '立象原型'));
+        $siteLabel = trim((string)($params['site_label'] ?? I18n::brandName()));
         $companyName = trim((string)($params['company_name'] ?? ''));
-        $badgeText = trim((string)($params['badge'] ?? '账号安全'));
+        $badgeText = trim((string)($params['badge'] ?? t('mail.badge_security')));
         $title = trim((string)($params['title'] ?? ''));
         $greeting = trim((string)($params['greeting'] ?? ''));
         $lead = (string)($params['lead'] ?? '');
@@ -576,10 +576,11 @@ class Mailer {
         $safeUrl = htmlspecialchars($buttonUrl, ENT_QUOTES, 'UTF-8');
         $safeBtnText = htmlspecialchars($buttonText, ENT_QUOTES, 'UTF-8');
         $year = date('Y');
+        $safeBrandAlt = htmlspecialchars(I18n::brandName(), ENT_QUOTES, 'UTF-8');
 
         $brandLogoCell = $hasBrandIcon
-            ? '<td style="width:40px;height:40px;vertical-align:middle;"><img src="cid:protoloft-brand-icon" width="40" height="40" alt="立象原型" style="display:block;width:40px;height:40px;border:0;"></td>'
-            : '<td style="width:36px;height:36px;background:#0076de;border-radius:8px;text-align:center;vertical-align:middle;color:#ffffff;font-size:15px;font-weight:700;letter-spacing:-0.5px;">象</td>';
+            ? '<td style="width:40px;height:40px;vertical-align:middle;"><img src="cid:protoloft-brand-icon" width="40" height="40" alt="' . $safeBrandAlt . '" style="display:block;width:40px;height:40px;border:0;"></td>'
+            : '<td style="width:36px;height:36px;background:#0076de;border-radius:8px;text-align:center;vertical-align:middle;color:#ffffff;font-size:15px;font-weight:700;letter-spacing:-0.5px;">P</td>';
 
         $companyPill = '';
         if ($safeCompany !== '') {
@@ -611,7 +612,7 @@ class Mailer {
                 . '</td></tr></table>';
 
             $fallbackHtml = '<div style="margin-top:22px;padding:12px 14px;background:#f8fafc;border:1px solid #e7eaf0;border-radius:7px;">'
-                . '<div style="font-size:11.5px;color:#64748b;margin-bottom:5px;">如果按钮无法点击，请复制以下链接到浏览器打开：</div>'
+                . '<div style="font-size:11.5px;color:#64748b;margin-bottom:5px;">' . htmlspecialchars(t('mail.btn_fallback'), ENT_QUOTES, 'UTF-8') . '</div>'
                 . '<div style="font-size:11.5px;line-height:1.5;color:#0076de;word-break:break-all;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;">' . $safeUrl . '</div>'
                 . '</div>';
         }
@@ -620,7 +621,12 @@ class Mailer {
             ? '<p style="margin:18px 0 0;font-size:12px;line-height:1.65;color:#64748b;">' . nl2br(htmlspecialchars($footerNote, ENT_QUOTES, 'UTF-8')) . '</p>'
             : '';
 
-        return '<!DOCTYPE html><html lang="zh-CN"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"></head>'
+        $brandHeadingHtml = I18n::getLocale() === 'en'
+            ? 'ProtoLoft'
+            : htmlspecialchars(I18n::brandName(), ENT_QUOTES, 'UTF-8') . ' <span style="font-weight:500;color:#64748b;font-size:12.5px;">ProtoLoft</span>';
+        $footerBrandText = htmlspecialchars(I18n::brandFooter($year), ENT_QUOTES, 'UTF-8');
+
+        return '<!DOCTYPE html><html lang="' . htmlspecialchars(I18n::htmlLang(), ENT_QUOTES, 'UTF-8') . '"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"></head>'
             . '<body style="margin:0;padding:0;background:#f7f8fa;font-family:-apple-system,BlinkMacSystemFont,\'Segoe UI\',Roboto,\'PingFang SC\',\'Hiragino Sans GB\',\'Microsoft YaHei\',sans-serif;color:#111827;-webkit-font-smoothing:antialiased;">'
             . '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f7f8fa;padding:32px 16px;">'
             . '<tr><td align="center">'
@@ -635,8 +641,8 @@ class Mailer {
             . '<table role="presentation" cellpadding="0" cellspacing="0"><tr>'
             . $brandLogoCell
             . '<td style="padding-left:10px;vertical-align:middle;">'
-            . '<div style="font-size:15px;font-weight:700;color:#0f172a;line-height:1.25;">立象原型 <span style="font-weight:500;color:#64748b;font-size:12.5px;">ProtoLoft</span>' . $companyPill . '</div>'
-            . '<div style="font-size:11.5px;color:#64748b;margin-top:2px;">立象以尽意 · 披图而同心</div>'
+            . '<div style="font-size:15px;font-weight:700;color:#0f172a;line-height:1.25;">' . $brandHeadingHtml . $companyPill . '</div>'
+            . '<div style="font-size:11.5px;color:#64748b;margin-top:2px;">' . htmlspecialchars(I18n::brandSlogan(), ENT_QUOTES, 'UTF-8') . '</div>'
             . '</td></tr></table>'
             . '</td>'
             . '<td align="right" style="vertical-align:middle;">'
@@ -657,7 +663,7 @@ class Mailer {
             // 品牌页脚
             . '<tr><td style="padding:16px 28px;background:#fafbfc;border-top:1px solid #f1f5f9;text-align:center;">'
             . '<div style="font-size:11.5px;color:#64748b;line-height:1.6;">'
-            . '© ' . $year . ' 立象原型 · ProtoLoft &nbsp;|&nbsp; Give ideas a shared home.'
+            . $footerBrandText
             . '</div>'
             . '</td></tr>'
             . '</table>'
@@ -669,26 +675,26 @@ class Mailer {
      * 发送密码重置邮件
      */
     public static function sendPasswordReset($toEmail, $userName, $resetUrl, $companyName = '') {
-        $brandPrefix = $companyName !== '' ? ($companyName . ' · 立象原型') : '立象原型';
-        $subject = $brandPrefix . ' · 重置登录密码';
+        $brandPrefix = $companyName !== '' ? t('brand.with_company', ['company' => $companyName]) : I18n::brandName();
+        $subject = t('mail.reset_subject', ['brand' => $brandPrefix]);
         $displayName = $userName !== '' ? $userName : $toEmail;
         $assets = self::brandIconAssets();
 
         $html = self::buildBrandEmailHtml([
             'site_label' => $brandPrefix,
             'company_name' => $companyName,
-            'badge' => '安全验证',
-            'title' => '重置你的登录密码',
-            'greeting' => $displayName . '，你好：',
-            'lead' => '我们收到了重置你工作台账号密码的请求。请点击下方按钮前往设置新密码。',
-            'button_text' => '设置新密码',
+            'badge' => t('mail.reset_badge'),
+            'title' => t('mail.reset_title'),
+            'greeting' => t('mail.greeting', ['name' => $displayName]),
+            'lead' => t('mail.reset_lead'),
+            'button_text' => t('mail.reset_btn'),
             'button_url' => $resetUrl,
             'has_brand_icon' => !empty($assets),
             'meta_items' => [
-                ['账号邮箱', $toEmail],
-                ['有效时长', '15 分钟内有效（单次使用后失效）'],
+                [t('mail.reset_row_email'), $toEmail],
+                [t('mail.reset_row_expire'), t('mail.reset_expire_val')],
             ],
-            'footer_note' => '如果这不是你本人的操作，请直接忽略此邮件，你的原密码不会被更改。',
+            'footer_note' => t('mail.reset_footer'),
         ]);
 
         return self::send($toEmail, $subject, $html, null, $assets);
@@ -698,8 +704,8 @@ class Mailer {
      * 发送系统配置测试邮件
      */
     public static function sendTest($toEmail, $overrideConfig, $companyName = '', $operatorName = '') {
-        $brandPrefix = $companyName !== '' ? ($companyName . ' · 立象原型') : '立象原型';
-        $subject = $brandPrefix . ' · 邮件服务联通测试';
+        $brandPrefix = $companyName !== '' ? t('brand.with_company', ['company' => $companyName]) : I18n::brandName();
+        $subject = t('mail.test_subject', ['brand' => $brandPrefix]);
         $host = trim((string)($overrideConfig['host'] ?? ''));
         $port = (int)($overrideConfig['port'] ?? 465);
         $assets = self::brandIconAssets();
@@ -707,16 +713,16 @@ class Mailer {
         $html = self::buildBrandEmailHtml([
             'site_label' => $brandPrefix,
             'company_name' => $companyName,
-            'badge' => '联通测试',
-            'title' => '邮件服务配置测试正常',
-            'greeting' => $operatorName !== '' ? ($operatorName . '，你好：') : '你好：',
-            'lead' => '当你收到这封邮件，说明当前 SMTP 发信服务已正常联通，可用于成员找回登录密码。',
+            'badge' => t('mail.test_badge'),
+            'title' => t('mail.test_title'),
+            'greeting' => $operatorName !== '' ? t('mail.greeting', ['name' => $operatorName]) : t('mail.greeting_anon'),
+            'lead' => t('mail.test_lead'),
             'has_brand_icon' => !empty($assets),
             'meta_items' => [
-                ['发信服务器', $host . ':' . $port],
-                ['发送时间', date('Y-m-d H:i:s')],
+                [t('mail.test_row_server'), $host . ':' . $port],
+                [t('mail.test_row_time'), date('Y-m-d H:i:s')],
             ],
-            'footer_note' => '这是一封由系统设置触发的测试邮件，无需回复。',
+            'footer_note' => t('mail.test_footer'),
         ]);
 
         return self::send($toEmail, $subject, $html, $overrideConfig, $assets);
