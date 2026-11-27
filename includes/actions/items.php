@@ -380,4 +380,57 @@ switch ($action) {
         header('Content-Length: ' . filesize($file));
         readfile($file);
         exit;
+
+    case 'items_versions_sync':
+        $curUser = Auth::getCurrentUser();
+        if (!$curUser) {
+            jsonResponse(false, null, t('api.login_expired'));
+        }
+        $canManage = Auth::canManage($curUser);
+        $clientSig = trim((string)($_POST['sig'] ?? ($_GET['sig'] ?? '')));
+
+        $itemSql = "SELECT id, is_visible FROM items " . ($canManage ? "" : "WHERE is_visible = 1 ") . "ORDER BY id ASC";
+        $itemRows = $db->query($itemSql)->fetchAll();
+
+        $visibleItemIds = [];
+        $sigParts = [];
+        foreach ($itemRows as $row) {
+            $id = (int)$row['id'];
+            $visibleItemIds[$id] = true;
+            $sigParts[] = $id . ':' . (int)$row['is_visible'];
+        }
+
+        $verSql = "SELECT v.*, v.author_name as creator_name FROM versions v ORDER BY v.item_id ASC, v.is_default DESC, v.id DESC";
+        $versionsRaw = $db->query($verSql)->fetchAll();
+
+        $itemVersions = [];
+        $verSigParts = [];
+        foreach ($versionsRaw as $v) {
+            $iid = (int)$v['item_id'];
+            if (!isset($visibleItemIds[$iid])) {
+                continue;
+            }
+            $verSigParts[] = $iid . ':' . (int)$v['id'] . ':' . (int)$v['is_default'] . ':' . ($v['version_name'] ?? '') . ':' . ($v['updated_at'] ?? '') . ':' . ($v['rp_file'] ?? '');
+            $itemVersions[$iid][] = Auth::versionForClient($v);
+        }
+
+        $sig = md5(implode(',', $sigParts) . '|' . implode(';', $verSigParts));
+        if ($clientSig !== '' && hash_equals($sig, $clientSig)) {
+            jsonResponse(true, ['changed' => false, 'sig' => $sig]);
+        }
+
+        $itemsPayload = [];
+        foreach ($itemRows as $row) {
+            $iid = (int)$row['id'];
+            $itemsPayload[] = [
+                'id' => $iid,
+                'versions' => $itemVersions[$iid] ?? [],
+            ];
+        }
+        jsonResponse(true, [
+            'changed' => true,
+            'sig' => $sig,
+            'items' => $itemsPayload,
+        ]);
+        break;
 }

@@ -322,6 +322,7 @@ $actionRoutes = [
     'item_toggle_visibility' => 'items',
     'item_sort' => 'items',
     'item_set_webhook' => 'items',
+    'items_versions_sync' => 'items',
     'download_rp' => 'items',
 
     // 4. 版本发布与管理

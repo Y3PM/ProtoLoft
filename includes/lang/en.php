@@ -1660,4 +1660,5 @@ return [
     'ver.rp_add_short' => 'Upload RP',
     'ver.set_default_short' => 'Set Default',
     'ver.not_detected' => 'Valid version info not found',
+    'workspace.tree_updated_tip' => 'Workspace directory has updates — refresh the page to view the latest items',
 ];

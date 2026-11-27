@@ -1660,4 +1660,5 @@ return [
     'ver.rp_add_short' => '補傳 RP',
     'ver.set_default_short' => '設為預設',
     'ver.not_detected' => '未偵測到有效版本資訊',
+    'workspace.tree_updated_tip' => '工作台目錄有新增或異動，請重新整理頁面檢視最新列表',
 ];

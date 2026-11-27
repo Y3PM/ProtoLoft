@@ -1660,4 +1660,5 @@ return [
     'ver.rp_add_short' => '补传RP',
     'ver.set_default_short' => '设为默认',
     'ver.not_detected' => '未检测到有效版本信息',
+    'workspace.tree_updated_tip' => '工作台目录有新增或变动，请刷新页面查看最新列表',
 ];

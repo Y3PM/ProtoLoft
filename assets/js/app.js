@@ -481,6 +481,157 @@ function refreshCategoryTreeNewBadges() {
 }
 window.refreshCategoryTreeNewBadges = refreshCategoryTreeNewBadges;
 
+/**
+ * 静默同步顶部栏版本切换器 (仅更新选项与新版本红点，绝不打断或重载当前预览中的 iframe)
+ */
+function syncTopVersionSwitcherQuietly($el, versions) {
+    if (!$el || !$el.length || !Array.isArray(versions)) return;
+    var type = $el.data('type');
+    if (type !== 'project') return;
+
+    var $barVer = $('#barVer');
+    var $barVerSelect = $('#barVerSelect');
+    var activeVerId = parseInt($el.data('ver-id'), 10) || 0;
+
+    if (versions.length > 1) {
+        $barVer.hide().removeClass('has-new-ver');
+        $barVerSelect.empty();
+        for (var i = 0; i < versions.length; i++) {
+            var v = versions[i];
+            var isThisNew = typeof isVersionNew === 'function' ? isVersionNew(v) : false;
+            var $opt = $('<option>')
+                .val(v.entry_file)
+                .text(v.version_name)
+                .attr('data-ver-id', v.id)
+                .attr('data-ver', v.version_name)
+                .attr('data-is-new', isThisNew ? '1' : '0')
+                .data('ver', v.version_name)
+                .data('ver-id', v.id)
+                .data('token', v.token || '')
+                .data('share-code', v.share_code || '')
+                .data('rp', v.rp_file || '')
+                .data('time', v.updated_at || '')
+                .data('changelog', v.changelog || '')
+                .data('creator', v.creator_name || $el.data('creator-name') || '');
+            if (activeVerId && parseInt(v.id, 10) === activeVerId) {
+                $opt.prop('selected', true);
+            }
+            $barVerSelect.append($opt);
+        }
+        $barVerSelect.show();
+        if (typeof syncVersionPicker === 'function') syncVersionPicker('barVerSelect');
+    } else if (versions.length === 1) {
+        $barVerSelect.hide();
+        if (typeof syncVersionPicker === 'function') syncVersionPicker('barVerSelect');
+        var v0IsNew = typeof isVersionNew === 'function' ? isVersionNew(versions[0]) : false;
+        $barVer.html('<i class="ri-git-branch-line"></i> ' + esc(versions[0].version_name))
+            .toggleClass('has-new-ver', v0IsNew)
+            .show();
+    } else {
+        $barVerSelect.hide();
+        if (typeof syncVersionPicker === 'function') syncVersionPicker('barVerSelect');
+        $barVer.hide().removeClass('has-new-ver');
+    }
+}
+
+/**
+ * 工作台版本准实时同步 (切回标签页立即同步 + 可见态 45 秒静默轮询)
+ */
+function initRealtimeVersionSync() {
+    var treeEl = document.getElementById('categoryTree');
+    if (!treeEl) return;
+
+    var POLL_INTERVAL_MS = 45000;
+    var FOCUS_THROTTLE_MS = 5000;
+    var lastSyncAt = 0;
+    var lastSig = '';
+    var treeStructurePrompted = false;
+    var timerId = null;
+
+    function applySyncItems(items) {
+        if (!Array.isArray(items)) return;
+        var serverMap = {};
+        for (var i = 0; i < items.length; i++) {
+            var it = items[i];
+            if (it && it.id) serverMap[String(it.id)] = Array.isArray(it.versions) ? it.versions : [];
+        }
+
+        var domCount = 0;
+        var hasStructuralDiff = false;
+        $('#categoryTree .item-row').each(function() {
+            domCount++;
+            var $el = $(this);
+            var itemId = String($el.data('item-id') || '');
+            if (!itemId) return;
+            if (!Object.prototype.hasOwnProperty.call(serverMap, itemId)) {
+                hasStructuralDiff = true;
+                return;
+            }
+            var newVers = serverMap[itemId];
+            var prevJson = $el.attr('data-versions') || '[]';
+            var nextJson = JSON.stringify(newVers);
+            if (prevJson !== nextJson) {
+                $el.data('versions', newVers);
+                $el.attr('data-versions', nextJson);
+                if (typeof currentSelectedItemId !== 'undefined' && String(currentSelectedItemId) === itemId) {
+                    syncTopVersionSwitcherQuietly($el, newVers);
+                }
+            }
+        });
+
+        if (!hasStructuralDiff && Object.keys(serverMap).length !== domCount) {
+            hasStructuralDiff = true;
+        }
+
+        refreshCategoryTreeNewBadges();
+
+        if (hasStructuralDiff && !treeStructurePrompted) {
+            treeStructurePrompted = true;
+            if (typeof showToast === 'function') {
+                var tip = typeof t === 'function'
+                    ? t('workspace.tree_updated_tip', null, '工作台目录有新增或变动，请刷新页面查看最新列表')
+                    : '工作台目录有新增或变动，请刷新页面查看最新列表';
+                showToast(tip, 'info', 4500);
+            }
+        }
+    }
+
+    function pullSync(force) {
+        if (document.visibilityState && document.visibilityState !== 'visible') return;
+        var now = Date.now();
+        if (!force && now - lastSyncAt < FOCUS_THROTTLE_MS) return;
+        lastSyncAt = now;
+
+        var fd = new FormData();
+        if (lastSig) fd.append('sig', lastSig);
+        apiFetch('items_versions_sync', fd, false).then(function(res) {
+            if (!res || !res.success || !res.data) return;
+            if (res.data.sig) lastSig = String(res.data.sig);
+            if (res.data.changed && Array.isArray(res.data.items)) {
+                applySyncItems(res.data.items);
+            }
+        }).catch(function() {
+            // 静默容错，避免后台轮询因偶发网络波动弹出打扰提示
+        });
+    }
+
+    document.addEventListener('visibilitychange', function() {
+        if (document.visibilityState === 'visible') {
+            pullSync(false);
+        }
+    });
+
+    timerId = window.setInterval(function() {
+        if (document.visibilityState === 'visible') {
+            pullSync(true);
+        }
+    }, POLL_INTERVAL_MS);
+
+    window.addEventListener('beforeunload', function() {
+        if (timerId) window.clearInterval(timerId);
+    });
+}
+
 // 工作台目录树动效规范：折叠与展开由 toggleCategory 原生精确控制，不挂载外部绝对定位重排
 function initWorkbenchFluidAnimations() {
     // No-op: 遵循 Linear 原则，目录树采用原生 CSS/WAAPI 驱动，避免双重过渡抖动
@@ -490,6 +641,7 @@ window.initWorkbenchFluidAnimations = initWorkbenchFluidAnimations;
 $(document).ready(function() {
     initWorkbenchFluidAnimations();
     refreshCategoryTreeNewBadges();
+    initRealtimeVersionSync();
     // 检查是否有跨页面持久化待展示的 Toast
     try {
         var pending = sessionStorage.getItem('pending_toast');
