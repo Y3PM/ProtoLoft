@@ -25,10 +25,10 @@ define('UPLOADS_PATH', ROOT_PATH . '/uploads');
 define('BRANDING_PATH', UPLOADS_PATH . '/branding');
 
 // 原型与上传切片不对 Web 静态目录开放。
-define('PROTOTYPES_PATH', DATA_PATH . '/prototypes');
+define('BLOBS_PATH', DATA_PATH . '/blobs');
 define('CHUNKS_PATH', DATA_PATH . '/chunks');
 
-define('APP_VERSION', '3.2.0');
+define('APP_VERSION', '3.3.0');
 
 require_once __DIR__ . '/i18n.php';
 
@@ -370,3 +370,26 @@ function app_url($relative = '') {
 }
 
 get_csrf_token();
+
+if (PHP_SAPI !== 'cli' && is_installed() && is_file(ROOT_PATH . '/migrate_blobs.php')) {
+    $currentEntry = basename((string)($_SERVER['SCRIPT_FILENAME'] ?? $_SERVER['SCRIPT_NAME'] ?? ''));
+    if ($currentEntry !== 'migrate_blobs.php') {
+        http_response_code(503);
+        header('Retry-After: 60');
+        $isApiCall = in_array($currentEntry, ['api.php', 'mcp.php'], true)
+            || stripos((string)($_SERVER['HTTP_ACCEPT'] ?? ''), 'application/json') !== false;
+        if ($isApiCall) {
+            header('Content-Type: application/json; charset=utf-8');
+            echo json_encode(['success' => false, 'message' => '系统正在升级维护中，请稍候片刻后重试'], JSON_UNESCAPED_UNICODE);
+        } else {
+            header('Content-Type: text/html; charset=utf-8');
+            echo '<!DOCTYPE html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>系统升级维护中 - 立象原型</title>'
+                . '<style>body{margin:0;background:#f7f8fa;color:#111827;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh}'
+                . '.card{background:#fff;border:1px solid #e7eaf0;border-radius:12px;padding:36px 40px;max-width:420px;text-align:center}'
+                . '.badge{display:inline-block;padding:4px 10px;border-radius:999px;background:#e6f4fe;color:#0076de;font-size:12px;font-weight:600;margin-bottom:14px}'
+                . 'h1{margin:0 0 8px;font-size:18px;font-weight:600}p{margin:0;color:#6b7280;font-size:14px;line-height:1.6}</style></head>'
+                . '<body><div class="card"><div class="badge">维护升级</div><h1>系统正在升级存储引擎</h1><p>预计将在 1 分钟内恢复访问，请稍候片刻后刷新页面。</p></div></body></html>';
+        }
+        exit;
+    }
+}

@@ -120,7 +120,7 @@ class DB {
         if (!file_exists(UPLOADS_PATH))  @mkdir(UPLOADS_PATH, 0755, true);
         if (!file_exists(BRANDING_PATH)) @mkdir(BRANDING_PATH, 0755, true);
 
-        foreach ([PROTOTYPES_PATH, CHUNKS_PATH] as $privateDir) {
+        foreach ([BLOBS_PATH, CHUNKS_PATH] as $privateDir) {
             if (!is_dir($privateDir) && !mkdir($privateDir, 0700, true)) {
                 throw new RuntimeException('无法创建私有资产目录');
             }
@@ -334,7 +334,27 @@ class DB {
             );
         ");
 
-        $db->exec("CREATE TABLE IF NOT EXISTS asset_gc (storage_dir TEXT PRIMARY KEY, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)");
+        $db->exec("CREATE TABLE IF NOT EXISTS blobs (
+            raw_hash TEXT PRIMARY KEY,
+            stored_hash TEXT NOT NULL,
+            raw_size INTEGER NOT NULL DEFAULT 0,
+            stored_size INTEGER NOT NULL DEFAULT 0,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )");
+
+        $db->exec("CREATE TABLE IF NOT EXISTS version_files (
+            version_id INTEGER NOT NULL,
+            rel_path TEXT NOT NULL,
+            raw_hash TEXT NOT NULL,
+            stored_hash TEXT NOT NULL,
+            file_size INTEGER NOT NULL DEFAULT 0,
+            PRIMARY KEY (version_id, rel_path)
+        )");
+
+        $db->exec("CREATE TABLE IF NOT EXISTS asset_gc (
+            blob_hash TEXT PRIMARY KEY,
+            queued_at INTEGER NOT NULL DEFAULT 0
+        )");
 
         // 高性能索引集群
         $db->exec("
@@ -348,6 +368,9 @@ class DB {
             CREATE INDEX IF NOT EXISTS idx_anno_target ON annotations(item_id, ver_id, status);
             CREATE INDEX IF NOT EXISTS idx_anno_page ON annotations(item_id, ver_id, page_path);
             CREATE INDEX IF NOT EXISTS idx_reply_anno ON annotation_replies(annotation_id);
+            CREATE INDEX IF NOT EXISTS idx_blobs_stored ON blobs(stored_hash);
+            CREATE INDEX IF NOT EXISTS idx_vf_raw ON version_files(raw_hash);
+            CREATE INDEX IF NOT EXISTS idx_vf_stored ON version_files(stored_hash);
         ");
     }
 }

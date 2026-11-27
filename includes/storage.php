@@ -3,26 +3,80 @@
 require_once __DIR__ . '/db.php';
 
 class Storage {
-    public static function validDir($dir) {
-        return is_string($dir) && preg_match('#^p[1-9][0-9]*/[a-f0-9]{32}$#D', $dir);
+    public static function validHash($hash) {
+        return is_string($hash) && preg_match('/^[a-f0-9]{64}$/D', $hash) === 1;
     }
 
-    public static function versionRoot($version) {
-        if (!self::validDir($version['storage_dir'] ?? '')) {
+    public static function blobPath($hash) {
+        if (!self::validHash($hash)) {
             throw new DomainException(t('api.storage.invalid_dir_id'));
         }
-        return PROTOTYPES_PATH . '/' . $version['storage_dir'];
+        return BLOBS_PATH . '/' . substr($hash, 0, 2) . '/' . substr($hash, 2, 2) . '/' . $hash;
     }
 
-    public static function filePath($version, $relative) {
+    public static function hasBlob($hash) {
+        return self::validHash($hash) && is_file(self::blobPath($hash));
+    }
+
+    public static function storeBlobFromFile($sourcePath, $hash) {
+        $dest = self::blobPath($hash);
+        if (is_file($dest)) return $dest;
+        $dir = dirname($dest);
+        if (!is_dir($dir) && !@mkdir($dir, 0700, true) && !is_dir($dir)) {
+            throw new DomainException(t('api.storage.mkdir_fail'));
+        }
+        $tmp = $dir . '/.tmp_' . $hash . '_' . bin2hex(random_bytes(4));
+        if (!@copy($sourcePath, $tmp)) {
+            @unlink($tmp);
+            throw new DomainException(t('api.ver.mkdir_fail'));
+        }
+        if (!@rename($tmp, $dest)) {
+            @unlink($tmp);
+            if (!is_file($dest)) throw new DomainException(t('api.ver.mkdir_fail'));
+        }
+        return $dest;
+    }
+
+    public static function storeBlobFromString($content, $hash) {
+        $dest = self::blobPath($hash);
+        if (is_file($dest)) return $dest;
+        $dir = dirname($dest);
+        if (!is_dir($dir) && !@mkdir($dir, 0700, true) && !is_dir($dir)) {
+            throw new DomainException(t('api.storage.mkdir_fail'));
+        }
+        $tmp = $dir . '/.tmp_' . $hash . '_' . bin2hex(random_bytes(4));
+        if (@file_put_contents($tmp, $content, LOCK_EX) === false) {
+            @unlink($tmp);
+            throw new DomainException(t('api.ver.mkdir_fail'));
+        }
+        if (!@rename($tmp, $dest)) {
+            @unlink($tmp);
+            if (!is_file($dest)) throw new DomainException(t('api.ver.mkdir_fail'));
+        }
+        return $dest;
+    }
+
+    public static function normalizeRelativePath($relative) {
         $relative = str_replace('\\', '/', (string)$relative);
         if ($relative === '' || $relative[0] === '/' || strpos($relative, "\0") !== false) return false;
         foreach (explode('/', $relative) as $part) {
             if ($part === '' || $part === '.' || $part === '..' || $part[0] === '.') return false;
         }
-        $root = realpath(self::versionRoot($version));
-        $path = realpath(self::versionRoot($version) . '/' . $relative);
-        return $root && $path && strpos($path, $root . DIRECTORY_SEPARATOR) === 0 && is_file($path) ? $path : false;
+        return $relative;
+    }
+
+    public static function filePath($version, $relative) {
+        $verId = (int)($version['id'] ?? 0);
+        if ($verId < 1) return false;
+        $rel = self::normalizeRelativePath($relative);
+        if ($rel === false) return false;
+        $storedHash = DB::value(
+            'SELECT stored_hash FROM version_files WHERE version_id = ? AND rel_path = ? LIMIT 1',
+            [$verId, $rel]
+        );
+        if (!self::validHash($storedHash)) return false;
+        $path = self::blobPath($storedHash);
+        return is_file($path) ? $path : false;
     }
 
     public static function removeTree($dir, $base) {
@@ -44,25 +98,58 @@ class Storage {
         }
     }
 
-    /** 在删除元数据的同一事务中登记清理任务，失败可重试。 */
-    public static function queueRemoval($db, $version) {
-        if (self::validDir($version['storage_dir'] ?? '')) {
-            $db->prepare('INSERT OR IGNORE INTO asset_gc (storage_dir) VALUES (?)')->execute([$version['storage_dir']]);
+    /** 在删除/替换版本文件的同一事务中登记孤立 Blob 清理任务，失败可重试。 */
+    public static function queueVersionRemoval($db, $versionId) {
+        $verId = (int)$versionId;
+        if ($verId < 1) return;
+        $now = time();
+        $stmt = $db->prepare('SELECT DISTINCT stored_hash FROM version_files WHERE version_id = ?');
+        $stmt->execute([$verId]);
+        $hashes = $stmt->fetchAll(PDO::FETCH_COLUMN);
+        $stmt->closeCursor();
+        if (!empty($hashes)) {
+            $gc = $db->prepare('INSERT OR IGNORE INTO asset_gc (blob_hash, queued_at) VALUES (?, ?)');
+            foreach ($hashes as $hash) {
+                if (self::validHash($hash)) $gc->execute([$hash, $now]);
+            }
+        }
+        $db->prepare('DELETE FROM version_files WHERE version_id = ?')->execute([$verId]);
+    }
+
+    public static function queueHashRemoval($db, $hash) {
+        if (self::validHash($hash)) {
+            $db->prepare('INSERT OR IGNORE INTO asset_gc (blob_hash, queued_at) VALUES (?, ?)')->execute([$hash, time()]);
         }
     }
 
     public static function collectGarbage($db) {
         // 元数据可能已经提交；清理失败只保留重试任务，不能逆转业务结果。
         try {
-            foreach ($db->query('SELECT storage_dir FROM asset_gc LIMIT 20')->fetchAll() as $row) {
+            $rows = $db->query('SELECT blob_hash FROM asset_gc LIMIT 100')->fetchAll();
+            $checkRef = $db->prepare('SELECT 1 FROM version_files WHERE stored_hash = ? LIMIT 1');
+            $delBlobMeta = $db->prepare('DELETE FROM blobs WHERE stored_hash = ? AND NOT EXISTS (SELECT 1 FROM version_files WHERE raw_hash = blobs.raw_hash)');
+            $delGc = $db->prepare('DELETE FROM asset_gc WHERE blob_hash = ?');
+            foreach ($rows as $row) {
+                $hash = $row['blob_hash'] ?? '';
                 try {
-                    $check = $db->prepare('SELECT 1 FROM versions WHERE storage_dir = ? LIMIT 1');
-                    $check->execute([$row['storage_dir']]);
-                    if ($check->fetchColumn()) continue;
-                    if (self::validDir($row['storage_dir']) && self::removeTree(PROTOTYPES_PATH . '/' . $row['storage_dir'], PROTOTYPES_PATH)) {
-                        $db->prepare('DELETE FROM asset_gc WHERE storage_dir = ?')->execute([$row['storage_dir']]);
+                    $checkRef->execute([$hash]);
+                    $inUse = (bool)$checkRef->fetchColumn();
+                    $checkRef->closeCursor();
+                    if ($inUse) {
+                        $delGc->execute([$hash]);
+                        continue;
+                    }
+                    if (!self::validHash($hash)) {
+                        $delGc->execute([$hash]);
+                        continue;
+                    }
+                    $path = self::blobPath($hash);
+                    $removed = !is_file($path) || @unlink($path);
+                    if ($removed) {
+                        $delBlobMeta->execute([$hash]);
+                        $delGc->execute([$hash]);
                     } else {
-                        error_log('[protoloft] 私有资产清理待重试: ' . $row['storage_dir']);
+                        error_log('[protoloft] 私有资产清理待重试: ' . $hash);
                     }
                 } catch (Throwable $e) {
                     error_log('[protoloft] 资产清理任务待重试: ' . $e->getMessage());
@@ -82,9 +169,11 @@ class Storage {
     }
 
     public static function deleteItemRecords($db, $id) {
-        $stmt = $db->prepare('SELECT * FROM versions WHERE item_id = ?');
+        $stmt = $db->prepare('SELECT id FROM versions WHERE item_id = ?');
         $stmt->execute([$id]);
-        foreach ($stmt->fetchAll() as $version) self::queueRemoval($db, $version);
+        $verIds = $stmt->fetchAll(PDO::FETCH_COLUMN);
+        $stmt->closeCursor();
+        foreach ($verIds as $verId) self::queueVersionRemoval($db, $verId);
         self::deleteAnnotations($db, 'item_id', $id);
         $db->prepare('DELETE FROM share_codes WHERE item_id = ?')->execute([$id]);
         $db->prepare('DELETE FROM versions WHERE item_id = ?')->execute([$id]);

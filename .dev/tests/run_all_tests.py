@@ -224,6 +224,13 @@ SUITES = [
         "type": "python"
     },
     {
+        "id": "blob_dedup",
+        "name": "Blob 去重存储、跨项目秒传与迁移维护闭环",
+        "cmd": ["python3", "-B", str(TESTS_DIR / "blob_dedup_regression.py")],
+        "needs_php": True,
+        "type": "python"
+    },
+    {
         "id": "profile_avatar",
         "name": "个人头像八种造型、独立配色与多角色保存",
         "cmd": ["python3", "-B", str(TESTS_DIR / "profile_avatar_regression.py")],

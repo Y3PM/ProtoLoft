@@ -65,6 +65,31 @@ switch ($action) {
         jsonResponse(true, ['chunk_index' => $index]);
         break;
 
+    case 'blob_check':
+        if (!Auth::canManage()) jsonResponse(false, null, t('api.no_perm'));
+        $rawList = json_decode($_POST['hashes'] ?? '[]', true);
+        if (!is_array($rawList)) jsonResponse(false, null, t('api.ver.chunk_param_err'));
+        $hashes = [];
+        foreach ($rawList as $h) {
+            if (Storage::validHash($h)) $hashes[$h] = true;
+            if (count($hashes) >= 30000) break;
+        }
+        $existing = [];
+        $hashKeys = array_keys($hashes);
+        foreach (array_chunk($hashKeys, 400) as $batch) {
+            $placeholders = implode(',', array_fill(0, count($batch), '?'));
+            $stmt = $db->prepare('SELECT raw_hash, stored_hash FROM blobs WHERE raw_hash IN (' . $placeholders . ')');
+            $stmt->execute($batch);
+            while ($row = $stmt->fetch()) {
+                if (Storage::hasBlob($row['stored_hash'])) {
+                    $existing[] = $row['raw_hash'];
+                }
+            }
+            $stmt->closeCursor();
+        }
+        jsonResponse(true, ['existing' => $existing]);
+        break;
+
     case 'version_publish':
         if (!Auth::canManage()) jsonResponse(false, null, t('api.no_perm'));
         @set_time_limit(300);
@@ -89,8 +114,16 @@ switch ($action) {
 
         $zipId = trim($_POST['zip_upload_id'] ?? '');
         $rpId = trim($_POST['rp_upload_id'] ?? '');
+        $rpHash = trim($_POST['rp_hash'] ?? '');
+        $manifestRaw = $_POST['blob_manifest'] ?? '';
+        $manifestItems = [];
+        if (is_string($manifestRaw) && trim($manifestRaw) !== '') {
+            $decodedManifest = json_decode($manifestRaw, true);
+            if (!is_array($decodedManifest)) jsonResponse(false, null, t('api.ver.chunk_param_err'));
+            $manifestItems = $decodedManifest;
+        }
         if ($itemId < 1) jsonResponse(false, null, t('api.items.select_item'));
-        if ($zipId === '') jsonResponse(false, null, t('api.ver.select_zip'));
+        if ($zipId === '' && empty($manifestItems)) jsonResponse(false, null, t('api.ver.select_zip'));
         $item = Auth::getItem($itemId);
         if (!$item || $item['type'] !== 'project' || !Auth::canEditItem($item)) jsonResponse(false, null, t('api.ver.no_publish_perm'));
 
@@ -110,36 +143,169 @@ switch ($action) {
         if (!$existing && $overwriteToken !== '') jsonResponse(false, null, t('api.ver.changed_refresh'));
         $effectiveName = $existing ? $existing['version_name'] : $name;
 
-        $storageDir = 'p' . $itemId . '/' . bin2hex(random_bytes(16));
-        $stage = PROTOTYPES_PATH . '/' . $storageDir;
+        $revisionId = 'p' . $itemId . '/' . bin2hex(random_bytes(16));
+        $stage = CHUNKS_PATH . '/stage_' . bin2hex(random_bytes(12));
         $mergedZip = null;
         $mergedRp = null;
         $committed = false;
         $cleanupChunks = false;
         try {
-            if (!mkdir($stage, 0700, true)) throw new DomainException(t('api.ver.mkdir_fail'));
-            $mergedZip = Storage::mergeChunks($zipId, 'zip', $uid);
-            $cleanupChunks = true;
-            $zip = ZipHandler::extractZip($mergedZip, $stage, '');
-            if (!$zip['success']) throw new DomainException($zip['message']);
-            $entry = ltrim($zip['entry_file'], '/');
+            $fileEntries = [];
+            $newBlobs = [];
+            $totalSize = 0;
+
+            if (!empty($manifestItems)) {
+                if (count($manifestItems) > 30000) throw new DomainException(t('api.zip.too_many_files'));
+                $wantedHashes = [];
+                foreach ($manifestItems as $mItem) {
+                    if (!is_array($mItem)) throw new DomainException(t('api.ver.chunk_param_err'));
+                    $mPath = str_replace('\\', '/', (string)($mItem['path'] ?? ''));
+                    $mHash = (string)($mItem['hash'] ?? '');
+                    if (substr($mPath, -1) === '/' || strtolower($mPath) === 'prototype.rp') continue;
+                    $unsafe = ZipHandler::validateRelativePath($mPath);
+                    if ($unsafe !== null) throw new DomainException($unsafe);
+                    if (!Storage::validHash($mHash)) throw new DomainException(t('api.ver.chunk_param_err'));
+                    $wantedHashes[$mHash] = true;
+                }
+                $blobMetaMap = [];
+                foreach (array_chunk(array_keys($wantedHashes), 400) as $batch) {
+                    $placeholders = implode(',', array_fill(0, count($batch), '?'));
+                    $bStmt = $db->prepare('SELECT raw_hash, stored_hash, stored_size FROM blobs WHERE raw_hash IN (' . $placeholders . ')');
+                    $bStmt->execute($batch);
+                    while ($bRow = $bStmt->fetch()) {
+                        $blobMetaMap[$bRow['raw_hash']] = $bRow;
+                    }
+                    $bStmt->closeCursor();
+                }
+                foreach ($manifestItems as $mItem) {
+                    $mPath = ltrim(str_replace('\\', '/', (string)($mItem['path'] ?? '')), '/');
+                    if ($mPath === '' || substr($mPath, -1) === '/' || strtolower($mPath) === 'prototype.rp') continue;
+                    $mHash = (string)$mItem['hash'];
+                    $bInfo = $blobMetaMap[$mHash] ?? null;
+                    if (!$bInfo || !Storage::hasBlob($bInfo['stored_hash'])) {
+                        throw new DomainException(t('api.ver.chunk_missing'));
+                    }
+                    $fSize = (int)$bInfo['stored_size'];
+                    $totalSize += $fSize;
+                    if ($totalSize > 500 * 1024 * 1024) throw new DomainException(t('api.zip.too_large'));
+                    $fileEntries[$mPath] = [
+                        'rel_path' => $mPath,
+                        'raw_hash' => $mHash,
+                        'stored_hash' => $bInfo['stored_hash'],
+                        'file_size' => $fSize
+                    ];
+                }
+            }
+
+            if ($zipId !== '') {
+                if (!mkdir($stage, 0700, true)) throw new DomainException(t('api.ver.mkdir_fail'));
+                $mergedZip = Storage::mergeChunks($zipId, 'zip', $uid);
+                $cleanupChunks = true;
+                $zip = ZipHandler::extractZip($mergedZip, $stage, '');
+                if (!$zip['success']) throw new DomainException($zip['message']);
+
+                // 注意：extractZip 已先做了 sanitizeDirectory，若需保留 raw_hash 则对原包条目计算 raw_hash；
+                // 为保证净化后的文件哈希准确，先在解压阶段分别记录 raw_hash -> stored_hash。
+                $rawHashesFromZip = [];
+                if (class_exists('ZipArchive')) {
+                    $za = new ZipArchive();
+                    if ($za->open($mergedZip) === true) {
+                        for ($zi = 0; $zi < $za->numFiles; $zi++) {
+                            $zName = ltrim(str_replace('\\', '/', (string)$za->getNameIndex($zi)), '/');
+                            if ($zName === '' || substr($zName, -1) === '/') continue;
+                            $zStream = $za->getStream($za->getNameIndex($zi));
+                            if ($zStream) {
+                                $ctx = hash_init('sha256');
+                                $zLen = 0;
+                                while (!feof($zStream)) {
+                                    $buf = fread($zStream, 65536);
+                                    if ($buf === false) break;
+                                    $zLen += strlen($buf);
+                                    hash_update($ctx, $buf);
+                                }
+                                fclose($zStream);
+                                $rawHashesFromZip[$zName] = ['hash' => hash_final($ctx), 'size' => $zLen];
+                            }
+                        }
+                        $za->close();
+                    }
+                }
+
+                $stageLen = strlen(rtrim($stage, '/\\')) + 1;
+                $iter = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($stage, FilesystemIterator::SKIP_DOTS));
+                foreach ($iter as $file) {
+                    if (!$file->isFile()) continue;
+                    $fullPath = $file->getPathname();
+                    $relPath = str_replace('\\', '/', substr($fullPath, $stageLen));
+                    if ($relPath === '' || strtolower($relPath) === 'prototype.rp') continue;
+                    $storedHash = hash_file('sha256', $fullPath);
+                    $storedSize = (int)$file->getSize();
+                    $rawInfo = $rawHashesFromZip[$relPath] ?? ['hash' => $storedHash, 'size' => $storedSize];
+                    $rawHash = $rawInfo['hash'];
+                    $rawSize = (int)$rawInfo['size'];
+                    Storage::storeBlobFromFile($fullPath, $storedHash);
+                    $newBlobs[$rawHash] = [
+                        'raw_hash' => $rawHash,
+                        'stored_hash' => $storedHash,
+                        'raw_size' => $rawSize,
+                        'stored_size' => $storedSize
+                    ];
+                    if (isset($fileEntries[$relPath])) {
+                        $totalSize -= (int)$fileEntries[$relPath]['file_size'];
+                    }
+                    $totalSize += $storedSize;
+                    if ($totalSize > 500 * 1024 * 1024) throw new DomainException(t('api.zip.too_large'));
+                    $fileEntries[$relPath] = [
+                        'rel_path' => $relPath,
+                        'raw_hash' => $rawHash,
+                        'stored_hash' => $storedHash,
+                        'file_size' => $storedSize
+                    ];
+                }
+            }
+
+            if (empty($fileEntries)) throw new DomainException(t('api.zip.empty'));
+            if (count($fileEntries) > 30000) throw new DomainException(t('api.zip.too_many_files'));
+            $entry = ltrim(ZipHandler::detectEntryFileFromPaths(array_keys($fileEntries)), '/');
             if ($entry === '') throw new DomainException(t('api.ver.no_html_in_zip'));
+            $fileSize = $totalSize;
+
             $rp = '';
-            if ($rpId !== '') {
+            $rpSize = 0;
+            $rpEntry = null;
+            if ($rpHash !== '') {
+                if (!Storage::validHash($rpHash)) throw new DomainException(t('api.ver.chunk_param_err'));
+                $rpRow = DB::row('SELECT stored_hash, stored_size FROM blobs WHERE raw_hash = ? LIMIT 1', [$rpHash]);
+                if (!$rpRow || !Storage::hasBlob($rpRow['stored_hash'])) throw new DomainException(t('api.ver.chunk_missing'));
+                $rp = 'prototype.rp';
+                $rpSize = (int)$rpRow['stored_size'];
+                $rpEntry = [
+                    'rel_path' => 'prototype.rp',
+                    'raw_hash' => $rpHash,
+                    'stored_hash' => $rpRow['stored_hash'],
+                    'file_size' => $rpSize
+                ];
+            } elseif ($rpId !== '') {
                 $mergedRp = Storage::mergeChunks($rpId, 'rp', $uid);
-                if (!copy($mergedRp, $stage . '/prototype.rp')) throw new DomainException(t('api.ver.rp_save_fail'));
+                $cleanupChunks = true;
+                $rpRawHash = hash_file('sha256', $mergedRp);
+                $rpSize = (int)filesize($mergedRp);
+                Storage::storeBlobFromFile($mergedRp, $rpRawHash);
+                $newBlobs[$rpRawHash] = [
+                    'raw_hash' => $rpRawHash,
+                    'stored_hash' => $rpRawHash,
+                    'raw_size' => $rpSize,
+                    'stored_size' => $rpSize
+                ];
                 $rp = 'prototype.rp';
-            } elseif ($existing && !empty($existing['rp_file'])) {
-                $oldRp = Storage::filePath($existing, $existing['rp_file']);
-                if (!$oldRp || !copy($oldRp, $stage . '/prototype.rp')) throw new DomainException(t('api.ver.rp_keep_fail'));
-                $rp = 'prototype.rp';
+                $rpEntry = [
+                    'rel_path' => 'prototype.rp',
+                    'raw_hash' => $rpRawHash,
+                    'stored_hash' => $rpRawHash,
+                    'file_size' => $rpSize
+                ];
             }
-            $rpSize = $rp !== '' ? filesize($stage . '/' . $rp) : 0;
-            $fileSize = 0;
-            foreach (new RecursiveIteratorIterator(new RecursiveDirectoryIterator($stage, FilesystemIterator::SKIP_DOTS)) as $file) {
-                if ($file->isFile()) $fileSize += $file->getSize();
-            }
-            $fileSize -= $rpSize;
+
             $db->beginTransaction();
             // 获取写锁后再次验证对象与版本，防止发布期间删除/交接造成越权。
             $db->exec('UPDATE versions SET id = id WHERE 0');
@@ -150,6 +316,39 @@ switch ($action) {
             if (($existing ? (int)$existing['id'] : 0) !== ($freshVersion ? (int)$freshVersion['id'] : 0)
                 || ($freshVersion && $freshVersion['storage_dir'] !== $existing['storage_dir'])) throw new DomainException(t('api.ver.updated_refresh'));
             if ($freshVersion && !Auth::canDeleteVersion($freshVersion)) throw new DomainException(t('api.ver.no_overwrite_perm'));
+
+            if ($rpEntry === null && $existing && !empty($existing['rp_file'])) {
+                $oldRpRow = $db->prepare('SELECT raw_hash, stored_hash, file_size FROM version_files WHERE version_id = ? AND rel_path = ? LIMIT 1');
+                $oldRpRow->execute([(int)$existing['id'], 'prototype.rp']);
+                $oldRpData = $oldRpRow->fetch();
+                $oldRpRow->closeCursor();
+                if (!$oldRpData || !Storage::hasBlob($oldRpData['stored_hash'])) {
+                    throw new DomainException(t('api.ver.rp_keep_fail'));
+                }
+                $rp = 'prototype.rp';
+                $rpSize = (int)$oldRpData['file_size'];
+                $rpEntry = [
+                    'rel_path' => 'prototype.rp',
+                    'raw_hash' => $oldRpData['raw_hash'],
+                    'stored_hash' => $oldRpData['stored_hash'],
+                    'file_size' => $rpSize
+                ];
+            }
+
+            foreach ($fileEntries as $fe) {
+                if (!Storage::hasBlob($fe['stored_hash'])) throw new DomainException(t('api.ver.chunk_missing'));
+            }
+            if ($rpEntry !== null && !Storage::hasBlob($rpEntry['stored_hash'])) {
+                throw new DomainException(t('api.ver.chunk_missing'));
+            }
+
+            if (!empty($newBlobs)) {
+                $insBlob = $db->prepare('INSERT OR IGNORE INTO blobs (raw_hash, stored_hash, raw_size, stored_size) VALUES (?, ?, ?, ?)');
+                foreach ($newBlobs as $nb) {
+                    $insBlob->execute([$nb['raw_hash'], $nb['stored_hash'], $nb['raw_size'], $nb['stored_size']]);
+                }
+            }
+
             $hasDefault = $db->prepare('SELECT 1 FROM versions WHERE item_id = ? AND is_default = 1 LIMIT 1');
             $hasDefault->execute([$itemId]);
             $hasDefaultVal = (bool)$hasDefault->fetchColumn();
@@ -158,15 +357,24 @@ switch ($action) {
             if ($makeDefault) $db->prepare('UPDATE versions SET is_default = 0 WHERE item_id = ?')->execute([$itemId]);
             if ($existing) {
                 $db->prepare('UPDATE versions SET entry_file = ?, rp_file = ?, storage_dir = ?, file_size = ?, rp_size = ?, changelog = ?, is_default = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?')
-                    ->execute([$entry, $rp, $storageDir, $fileSize, $rpSize, $changelog, $makeDefault ? 1 : 0, $existing['id']]);
+                    ->execute([$entry, $rp, $revisionId, $fileSize, $rpSize, $changelog, $makeDefault ? 1 : 0, $existing['id']]);
                 $verId = (int)$existing['id'];
-                Storage::queueRemoval($db, $existing);
+                Storage::queueVersionRemoval($db, $verId);
             } else {
                 $author = Auth::getCurrentUser()['name'];
                 $db->prepare('INSERT INTO versions (item_id, version_name, entry_file, rp_file, storage_dir, file_size, rp_size, changelog, is_default, created_by, author_name) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
-                    ->execute([$itemId, $name, $entry, $rp, $storageDir, $fileSize, $rpSize, $changelog, $makeDefault ? 1 : 0, $uid, $author]);
+                    ->execute([$itemId, $name, $entry, $rp, $revisionId, $fileSize, $rpSize, $changelog, $makeDefault ? 1 : 0, $uid, $author]);
                 $verId = (int)$db->lastInsertId();
             }
+
+            $insFile = $db->prepare('INSERT INTO version_files (version_id, rel_path, raw_hash, stored_hash, file_size) VALUES (?, ?, ?, ?, ?)');
+            foreach ($fileEntries as $fe) {
+                $insFile->execute([$verId, $fe['rel_path'], $fe['raw_hash'], $fe['stored_hash'], $fe['file_size']]);
+            }
+            if ($rpEntry !== null) {
+                $insFile->execute([$verId, $rpEntry['rel_path'], $rpEntry['raw_hash'], $rpEntry['stored_hash'], $rpEntry['file_size']]);
+            }
+
             $db->commit();
             $committed = true;
         } catch (Throwable $e) {
@@ -175,9 +383,9 @@ switch ($action) {
         } finally {
             if ($mergedZip) @unlink($mergedZip);
             if ($mergedRp) @unlink($mergedRp);
-            if (!$committed) Storage::removeTree($stage, PROTOTYPES_PATH);
+            if (is_dir($stage)) Storage::removeTree($stage, CHUNKS_PATH);
             if ($committed || $cleanupChunks) {
-                Storage::removeTree(Storage::chunkDir($zipId, $uid), CHUNKS_PATH);
+                if ($zipId !== '') Storage::removeTree(Storage::chunkDir($zipId, $uid), CHUNKS_PATH);
                 if ($rpId !== '') Storage::removeTree(Storage::chunkDir($rpId, $uid), CHUNKS_PATH);
             }
         }
@@ -294,7 +502,7 @@ switch ($action) {
             if (!$item || !Auth::canEditItem($item)) throw new DomainException(t('api.ver.no_item_op_perm'));
             if ($action === 'version_delete') {
                 if (!Auth::canDeleteVersion($version)) throw new DomainException(t('api.ver.delete_perm_only'));
-                Storage::queueRemoval($db, $version);
+                Storage::queueVersionRemoval($db, $id);
                 Storage::deleteAnnotations($db, 'ver_id', $id);
                 $db->prepare('DELETE FROM share_codes WHERE ver_id = ?')->execute([$id]);
                 $db->prepare('DELETE FROM versions WHERE id = ?')->execute([$id]);
@@ -332,22 +540,14 @@ switch ($action) {
         if (defined('MCP_REQUEST')) McpAccess::guardWrite($version['item_id']);
 
         $uid = (int)Auth::getCurrentUser()['id'];
-        $stage = Storage::versionRoot($version);
-        if (!is_dir($stage)) jsonResponse(false, null, t('api.ver.asset_dir_missing'));
-
         $mergedRp = null;
-        $tempDest = null;
-        $backupDest = null;
-        $destReplaced = false;
-        $preserveBackupOnFailure = false;
         $cleanupChunks = false;
         try {
             $mergedRp = Storage::mergeChunks($rpId, 'rp', $uid);
             $cleanupChunks = true;
-            $destFile = $stage . '/prototype.rp';
-            $tempDest = $stage . '/prototype.rp.tmp.' . bin2hex(random_bytes(6));
-            if (!copy($mergedRp, $tempDest)) throw new DomainException(t('api.ver.rp_stage_fail'));
-            $rpSize = filesize($tempDest);
+            $rpHash = hash_file('sha256', $mergedRp);
+            $rpSize = (int)filesize($mergedRp);
+            Storage::storeBlobFromFile($mergedRp, $rpHash);
 
             $db->beginTransaction();
             $db->exec('UPDATE versions SET id = id WHERE 0');
@@ -359,52 +559,30 @@ switch ($action) {
             if (!Auth::canDeleteVersion($lockedVer) || !Auth::canEditItem(Auth::getItem($lockedVer['item_id']))) throw new DomainException(t('api.ver.no_rp_mod_perm'));
             if ($lockedVer['storage_dir'] !== $version['storage_dir']) throw new DomainException(t('api.ver.updated_refresh'));
 
-            if (is_dir($destFile)) {
-                throw new DomainException(t('api.ver.rp_path_err'));
-            }
-            if (is_file($destFile)) {
-                $backupDest = $destFile . '.bak.' . bin2hex(random_bytes(6));
-                if (!@rename($destFile, $backupDest)) throw new DomainException(t('api.ver.rp_backup_fail'));
-            }
+            $oldRpStmt = $db->prepare('SELECT stored_hash FROM version_files WHERE version_id = ? AND rel_path = ? LIMIT 1');
+            $oldRpStmt->execute([$id, 'prototype.rp']);
+            $oldRpHash = $oldRpStmt->fetchColumn();
+            $oldRpStmt->closeCursor();
 
-            if (!@rename($tempDest, $destFile)) {
-                if ($backupDest && file_exists($backupDest)) {
-                    if (!@rename($backupDest, $destFile)) {
-                        $preserveBackupOnFailure = true;
-                    } else {
-                        $backupDest = null;
-                    }
-                }
-                throw new DomainException(t('api.ver.rp_write_fail'));
+            $db->prepare('INSERT OR IGNORE INTO blobs (raw_hash, stored_hash, raw_size, stored_size) VALUES (?, ?, ?, ?)')
+                ->execute([$rpHash, $rpHash, $rpSize, $rpSize]);
+            $db->prepare('INSERT OR REPLACE INTO version_files (version_id, rel_path, raw_hash, stored_hash, file_size) VALUES (?, ?, ?, ?, ?)')
+                ->execute([$id, 'prototype.rp', $rpHash, $rpHash, $rpSize]);
+            if (is_string($oldRpHash) && $oldRpHash !== '' && $oldRpHash !== $rpHash) {
+                Storage::queueHashRemoval($db, $oldRpHash);
             }
-            $destReplaced = true;
 
             $db->prepare('UPDATE versions SET rp_file = ?, rp_size = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?')
                 ->execute(['prototype.rp', $rpSize, $id]);
             $db->commit();
-
-            if ($backupDest && file_exists($backupDest)) @unlink($backupDest);
-            $backupDest = null;
         } catch (Throwable $e) {
             if ($db->inTransaction()) $db->rollBack();
-            if ($destReplaced) {
-                if ($backupDest && file_exists($backupDest)) {
-                    if (!@rename($backupDest, $destFile)) {
-                        $preserveBackupOnFailure = true;
-                    } else {
-                        $backupDest = null;
-                    }
-                } else {
-                    @unlink($destFile);
-                }
-            }
             throw $e;
         } finally {
-            if ($tempDest && file_exists($tempDest)) @unlink($tempDest);
-            if ($backupDest && file_exists($backupDest) && !$preserveBackupOnFailure) @unlink($backupDest);
             if ($mergedRp && file_exists($mergedRp)) @unlink($mergedRp);
             if ($cleanupChunks) Storage::removeTree(Storage::chunkDir($rpId, $uid), CHUNKS_PATH);
         }
+        Storage::collectGarbage($db);
         $freshStmt = $db->prepare('SELECT * FROM versions WHERE id = ?');
         $freshStmt->execute([$id]);
         $freshVersion = Auth::versionForClient($freshStmt->fetch());
@@ -434,7 +612,7 @@ switch ($action) {
         if (defined('MCP_REQUEST')) McpAccess::guardWrite($version['item_id']);
 
         $db->beginTransaction();
-        $oldRp = '';
+        $oldRpHash = '';
         try {
             $db->exec('UPDATE versions SET id = id WHERE 0');
             $stmtLock = $db->prepare('SELECT * FROM versions WHERE id = ?');
@@ -443,8 +621,14 @@ switch ($action) {
             $stmtLock->closeCursor();
             if (!$lockedVer) throw new DomainException(t('api.ver.removed'));
             if (!Auth::canDeleteVersion($lockedVer) || !Auth::canEditItem(Auth::getItem($lockedVer['item_id']))) throw new DomainException(t('api.ver.no_rp_remove_perm'));
-            $version = $lockedVer;
-            $oldRp = $lockedVer['rp_file'] ?? '';
+
+            $oldRpStmt = $db->prepare('SELECT stored_hash FROM version_files WHERE version_id = ? AND rel_path = ? LIMIT 1');
+            $oldRpStmt->execute([$id, 'prototype.rp']);
+            $oldRpHash = (string)$oldRpStmt->fetchColumn();
+            $oldRpStmt->closeCursor();
+
+            $db->prepare('DELETE FROM version_files WHERE version_id = ? AND rel_path = ?')->execute([$id, 'prototype.rp']);
+            if ($oldRpHash !== '') Storage::queueHashRemoval($db, $oldRpHash);
 
             $db->prepare('UPDATE versions SET rp_file = ?, rp_size = 0, updated_at = CURRENT_TIMESTAMP WHERE id = ?')
                 ->execute(['', $id]);
@@ -454,11 +638,7 @@ switch ($action) {
             throw $e;
         }
 
-        // 数据库事务成功提交后，安全清理磁盘底稿
-        if (!empty($oldRp)) {
-            $filePath = Storage::filePath($version, $oldRp);
-            if ($filePath && file_exists($filePath)) @unlink($filePath);
-        }
+        Storage::collectGarbage($db);
 
         $freshStmt = $db->prepare('SELECT * FROM versions WHERE id = ?');
         $freshStmt->execute([$id]);

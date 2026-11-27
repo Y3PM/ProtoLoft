@@ -94,6 +94,7 @@ console.log('[*] 1. 外链落地卡片特殊字符转义与点击委托安全验
             updateTopActionsState: () => {},
             renderWorkspaceWatermark: () => {},
             updateTopRpButtons: () => {},
+            buildWorkspaceUpdateMetaHtml: () => '',
             isProtoViewActive: () => false,
             GLOBAL_WATERMARK_ENABLED: false,
             CURRENT_USER: { id: 1, name: '管理员', role: 'admin' }

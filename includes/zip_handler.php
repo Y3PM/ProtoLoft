@@ -754,6 +754,73 @@ EOD;
     }
 
     /**
+     * 公开的路径安全校验（供秒传清单与解压共用）
+     */
+    public static function validateRelativePath($name) {
+        return self::inspectZipEntryName($name);
+    }
+
+    /**
+     * 基于相对路径列表智能探测入口文件（纯内存 BFS，无需遍历物理目录）
+     */
+    public static function detectEntryFileFromPaths($relPaths) {
+        $priorityFiles = ['start_with_pages.html', 'start.html', 'index.html', 'home.html'];
+        $dirFiles = [];
+        $dirSubs = [];
+
+        foreach ($relPaths as $rawPath) {
+            $norm = ltrim(str_replace('\\', '/', (string)$rawPath), '/');
+            if ($norm === '') continue;
+            $parts = explode('/', $norm);
+            $skip = false;
+            foreach ($parts as $seg) {
+                if ($seg === '' || $seg === '__MACOSX' || $seg[0] === '.') {
+                    $skip = true;
+                    break;
+                }
+            }
+            if ($skip) continue;
+            $fileName = array_pop($parts);
+            $dirRel = implode('/', $parts);
+            $dirFiles[$dirRel][] = $fileName;
+            $cur = '';
+            foreach ($parts as $sub) {
+                $next = ($cur !== '' ? $cur . '/' : '') . $sub;
+                if (!isset($dirSubs[$cur])) $dirSubs[$cur] = [];
+                if (!in_array($next, $dirSubs[$cur], true)) $dirSubs[$cur][] = $next;
+                $cur = $next;
+            }
+        }
+
+        $queue = [''];
+        $allHtmlFiles = [];
+        while (!empty($queue)) {
+            $curRel = array_shift($queue);
+            $curFiles = $dirFiles[$curRel] ?? [];
+            sort($curFiles, SORT_STRING);
+
+            foreach ($priorityFiles as $pf) {
+                if (in_array($pf, $curFiles, true)) {
+                    return ($curRel !== '' ? $curRel . '/' : '') . $pf;
+                }
+            }
+            foreach ($curFiles as $f) {
+                if (strtolower(pathinfo($f, PATHINFO_EXTENSION)) === 'html') {
+                    $allHtmlFiles[] = ($curRel !== '' ? $curRel . '/' : '') . $f;
+                }
+            }
+            $depth = $curRel === '' ? 0 : (substr_count($curRel, '/') + 1);
+            if ($depth < 6 && !empty($dirSubs[$curRel])) {
+                $subs = $dirSubs[$curRel];
+                sort($subs, SORT_STRING);
+                foreach ($subs as $sd) $queue[] = $sd;
+            }
+        }
+
+        return !empty($allHtmlFiles) ? $allHtmlFiles[0] : '';
+    }
+
+    /**
      * 解压 ZIP 原型包并自动净化
      */
     public static function extractZip($zipTmpPath, $targetDir, $baseRelPath) {
@@ -761,11 +828,11 @@ EOD;
             return ['success' => false, 'message' => t('api.zip.no_ext')];
         }
 
-        // 严格硬核防御: 解压目标路径必须位于 PROTOTYPES_PATH 私有路径之下
+        // 严格硬核防御: 解压目标路径必须位于 DATA_PATH 私有路径之下
         if (!file_exists($targetDir)) {
             @mkdir($targetDir, 0755, true);
         }
-        $realUploads = realpath(PROTOTYPES_PATH);
+        $realUploads = realpath(DATA_PATH);
         $realTarget = realpath($targetDir);
         
         $normUploads = $realUploads ? rtrim(str_replace('\\', '/', $realUploads), '/') . '/' : '';

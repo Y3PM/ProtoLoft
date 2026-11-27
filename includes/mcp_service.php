@@ -123,7 +123,7 @@ class McpService {
         }
         if ($name==='read_image') {
             $path=Storage::filePath($version,$args['path']);
-            if(!$path||filesize($path)>2*1024*1024||!preg_match('/\.(png|jpe?g|gif|webp)$/iD',$path))throw new DomainException(t('api.mcp.img_invalid'));
+            if(!$path||filesize($path)>2*1024*1024||!preg_match('/\.(png|jpe?g|gif|webp)$/iD',$args['path']))throw new DomainException(t('api.mcp.img_invalid'));
             $info=@getimagesize($path);
             if(!$info||!in_array($info['mime'],['image/png','image/jpeg','image/gif','image/webp'],true))throw new DomainException(t('api.mcp.img_mime_invalid'));
             return ['__image'=>base64_encode(file_get_contents($path)),'mimeType'=>$info['mime']];

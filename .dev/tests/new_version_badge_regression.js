@@ -16,8 +16,8 @@ const configPhp = fs.readFileSync(path.join(ROOT, 'includes/config.php'), 'utf-8
 console.log('[*] 开始执行新版本标识自动化回归测试 (增强版)...');
 
 // 1. 版本号升级回归
-assert(configPhp.includes("define('APP_VERSION', '3.2.0');"), "config.php 版本号应升为 3.2.0");
-console.log('  ✓ PASS: 系统常量 APP_VERSION 正确升至 3.2.0');
+assert(configPhp.includes("define('APP_VERSION', '3.3.0');"), "config.php 版本号应升为 3.3.0");
+console.log('  ✓ PASS: 系统常量 APP_VERSION 正确升至 3.3.0');
 
 // 2. CSS 样式契约与设计系统令牌映射 (严守铁律 3)
 assert(appCss.includes('--new-ver: #f43f5e;'), ":root 必须声明 --new-ver 状态色令牌");

@@ -64,14 +64,15 @@ class PrototypeContext {
             'truncated' => filesize($path) > 1024 * 1024 || mb_strlen(self::text($html, $limit + 1), 'UTF-8') > $limit];
     }
     public static function pages($version, $offset = 0, $limit = 100) {
-        $root = Storage::versionRoot($version);
+        $stmt = DB::getInstance()->prepare('SELECT rel_path FROM version_files WHERE version_id = ?');
+        $stmt->execute([(int)$version['id']]);
+        $allPaths = $stmt->fetchAll(PDO::FETCH_COLUMN);
+        $stmt->closeCursor();
         $pages = [];
-        $iterator = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($root, FilesystemIterator::SKIP_DOTS));
-        foreach ($iterator as $file) {
-            if ($file->isLink() || !$file->isFile() || !preg_match('/\.html?$/iD', $file->getFilename())) continue;
-            $relative = substr($file->getPathname(), strlen($root) + 1);
+        foreach ($allPaths as $relative) {
+            if (!preg_match('/\.html?$/iD', $relative)) continue;
             if (preg_match('#(^|/)(?:resources|plugins|images|\.\w+)(/|$)#i', $relative)) continue;
-            $pages[] = str_replace(DIRECTORY_SEPARATOR, '/', $relative);
+            $pages[] = $relative;
         }
         sort($pages, SORT_STRING);
         $list = [];

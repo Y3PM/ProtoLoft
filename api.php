@@ -327,6 +327,7 @@ $actionRoutes = [
 
     // 4. 版本发布与管理
     'upload_chunk' => 'versions',
+    'blob_check' => 'versions',
     'version_check_name' => 'versions',
     'version_publish' => 'versions',
     'version_update' => 'versions',

@@ -56,7 +56,9 @@ def main():
         return client.request('/share.php?s=' + code + query)[1]
     def settings(): return dict(db.execute('SELECT key,value FROM settings').fetchall())
     def files(): return {p.name:p.read_bytes() for p in (temp/'uploads/branding').glob('*') if p.is_file()}
-    def root(vid): return temp/'data/prototypes'/db.execute('SELECT storage_dir FROM versions WHERE id=?',(vid,)).fetchone()[0]
+    def blob_file(vid):
+        h = db.execute('SELECT stored_hash FROM version_files WHERE version_id=? LIMIT 1', (vid,)).fetchone()[0]
+        return temp / 'data/blobs' / h[:2] / h[2:4] / h
     def login_choice(email, remember):
         client = Client(base)
         _, body, headers = client.request('/api.php', {'action':'login','email':email,'password':PASS,'remember_me':str(remember)})
@@ -153,31 +155,31 @@ def main():
 
         # Filesystem failure must not change a committed operation into failure.
         garbage_item=ok(owner,'item_save',{'category_id':folder,'name':'Cleanup Test','type':'project'})['id']
-        delete_ver=publish(owner,garbage_item,'Delete','delete')['data']['id']; delete_root=root(delete_ver)
-        delete_root.chmod(0)
+        delete_ver=publish(owner,garbage_item,'Delete','delete')['data']['id']; delete_blob=blob_file(delete_ver); delete_bucket=delete_blob.parent
+        delete_bucket.chmod(0o500)
         try:
             result=owner.api('version_delete',{'id':delete_ver})
             check('unreadable cleanup reports successful version deletion',result['success'] and '清理待重试' in result['message'])
             check('deletion committed and failed cleanup remains queued',db.execute('SELECT COUNT(*) FROM versions WHERE id=?',(delete_ver,)).fetchone()[0]==0 and db.execute('SELECT COUNT(*) FROM asset_gc').fetchone()[0]==1)
-        finally: delete_root.chmod(0o700)
+        finally: delete_bucket.chmod(0o700)
         ok(owner,'version_set_default',{'id':new})
-        check('later operation retries and clears queued cleanup',not delete_root.exists() and db.execute('SELECT COUNT(*) FROM asset_gc').fetchone()[0]==0)
-        replace_ver=publish(owner,garbage_item,'Replace','before')['data']['id']; replace_root=root(replace_ver)
-        replace_root.chmod(0)
+        check('later operation retries and clears queued cleanup',not delete_blob.exists() and db.execute('SELECT COUNT(*) FROM asset_gc').fetchone()[0]==0)
+        replace_ver=publish(owner,garbage_item,'Replace','before')['data']['id']; replace_blob=blob_file(replace_ver); replace_bucket=replace_blob.parent
+        replace_bucket.chmod(0o500)
         try:
             result=publish(owner,garbage_item,'Replace','after')
             check('overwrite succeeds despite retired generation cleanup failure',result['success'] and '清理待重试' in result['message'] and b'after' in owner.request('/asset.php/v%d/index.html'%replace_ver)[1])
-        finally: replace_root.chmod(0o700)
+        finally: replace_bucket.chmod(0o700)
         ok(owner,'version_set_default',{'id':new})
-        check('retired generation cleanup can be retried safely',not replace_root.exists() and root(replace_ver).exists())
+        check('retired generation cleanup can be retried safely',not replace_blob.exists() and blob_file(replace_ver).exists())
         for action,label in [('item_delete','project'),('category_delete','folder')]:
             category=ok(owner,'category_save',{'name':'Temporary '+label})['id']
             iid=ok(owner,'item_save',{'category_id':category,'name':'Temporary','type':'project'})['id']
-            vid=publish(owner,iid,'V1','temporary')['data']['id']; path=root(vid);path.chmod(0)
+            vid=publish(owner,iid,'V1','temporary-'+label)['data']['id']; path=blob_file(vid); bucket=path.parent; bucket.chmod(0o500)
             try:
                 result=owner.api(action,{'id':iid if action=='item_delete' else category})
                 check(label+' deletion succeeds with cleanup queued',result['success'] and '清理待重试' in result['message'] and db.execute('SELECT COUNT(*) FROM items WHERE id=?',(iid,)).fetchone()[0]==0)
-            finally:path.chmod(0o700)
+            finally:bucket.chmod(0o700)
             ok(owner,'version_set_default',{'id':new})
             check(label+' queued directory is removed on retry',not path.exists())
 

@@ -1250,6 +1250,7 @@ $verSuffix = function($relPath) {
     <script src="assets/js/share.js?v=<?php echo $verSuffix('assets/js/share.js'); ?>"></script>
 <?php endif; ?>
 <?php if ($canManage): ?>
+    <script src="assets/js/zip-dedup.js?v=<?php echo $verSuffix('assets/js/zip-dedup.js'); ?>"></script>
     <script src="assets/js/admin.js?v=<?php echo $verSuffix('assets/js/admin.js'); ?>"></script>
 <?php endif; ?>
 

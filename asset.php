@@ -49,7 +49,7 @@ if (!$file) { http_response_code(404); exit; }
 session_write_close();
 $size = @filesize($file);
 $mtime = @filemtime($file);
-$etag = '"' . substr(sha1(($version['storage_dir'] ?? '') . '|' . $relative . '|' . (string)$size . '|' . (string)$mtime), 0, 24) . '"';
+$etag = '"' . substr(basename($file), 0, 24) . '"';
 header('ETag: ' . $etag);
 if ($mtime !== false) {
     header('Last-Modified: ' . gmdate('D, d M Y H:i:s', $mtime) . ' GMT');

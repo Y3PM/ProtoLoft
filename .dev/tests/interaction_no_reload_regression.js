@@ -88,6 +88,7 @@ console.log('\n[*] 2. 外链生命周期与意图守卫运行时仿真');
         renderWorkspaceWatermark: () => {},
         updateTopRpButtons: () => {},
         renderMarkdownSafe: (s) => s,
+        buildWorkspaceUpdateMetaHtml: () => '',
         getCsrfToken: () => 'token',
         currentSelectedItemId: 0
     };

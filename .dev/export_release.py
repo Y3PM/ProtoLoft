@@ -65,6 +65,7 @@ APPROVED_CORE_FILES = [
     'assets/js/share.js',
     'assets/js/ver-picker.js',
     'assets/js/watermark.js',
+    'assets/js/zip-dedup.js',
     'assets/js/vendor/zxcvbn-ts/core.min.js',
     'assets/js/vendor/zxcvbn-ts/language-common.min.js',
     'assets/js/vendor/zxcvbn-ts/language-en.min.js',

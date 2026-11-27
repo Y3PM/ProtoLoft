@@ -1783,63 +1783,146 @@ function handleVersionUpload(e) {
         pBar.style.width = '0%';
         pPercent.innerText = '0%';
 
-        var prepareZipPromise;
-        if (currentProtoSource.type === 'folder') {
-            if (!currentProtoSource.files || currentProtoSource.files.length === 0) {
-                throw new Error((typeof t === 'function' ? t('admin.upload.keep_one_file', null, '请至少保留 1 个文件再发布') : '请至少保留 1 个文件再发布'));
-            }
-            pText.innerText = (typeof t === 'function' ? t('admin.upload.packing_folder', null, '正在整理打包文件夹...') : '正在整理打包文件夹...');
-            prepareZipPromise = createZipBlobFromFolder(currentProtoSource.files, currentProtoSource.name, function(curr, tot) {
-                var p = Math.round((curr / tot) * 100);
-                pText.innerText = (typeof t === 'function' ? t('admin.upload.packing_progress', { curr: curr, tot: tot }, '正在整理文件夹 (' + curr + '/' + tot + ')...') : '正在整理文件夹 (' + curr + '/' + tot + ')...');
-                pBar.style.width = Math.min(95, Math.round(p * 0.2)) + '%';
-            }, currentProtoSource.packagePrefix);
+        var smartPromise;
+        if (typeof window !== 'undefined' && window.ProtoZipDedup && window.ProtoZipDedup.isSupported()) {
+            pText.innerText = (typeof t === 'function' ? t('admin.upload.dedup_scanning', null, '正在扫描本地文件指纹...') : '正在扫描本地文件指纹...');
+            smartPromise = window.ProtoZipDedup.prepareSmartUpload(currentProtoSource, rpFile, function(hashes) {
+                var chkFd = new FormData();
+                chkFd.append('action', 'blob_check');
+                chkFd.append('hashes', JSON.stringify(hashes));
+                return adminFetch('blob_check', chkFd).then(function(r) {
+                    return new Set((r && r.success && r.data && Array.isArray(r.data.existing)) ? r.data.existing : []);
+                }).catch(function() { return new Set(); });
+            }, function(stage, info) {
+                if (stage === 'scan' && info && info.total > 0) {
+                    pText.innerText = (typeof t === 'function' ? t('admin.upload.dedup_scan_progress', { curr: info.current, tot: info.total }, '正在校验文件指纹 (' + info.current + '/' + info.total + ')...') : '正在校验文件指纹 (' + info.current + '/' + info.total + ')...');
+                } else if (stage === 'check') {
+                    pText.innerText = (typeof t === 'function' ? t('admin.upload.dedup_checking', null, '正在比对服务器已有资源...') : '正在比对服务器已有资源...');
+                }
+            });
         } else {
-            prepareZipPromise = Promise.resolve(currentProtoSource.file);
+            smartPromise = Promise.resolve({ dedupUsed: false });
         }
 
-        return prepareZipPromise.then(function(zipFile) {
-            var zipUploadId = 'up_z_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7);
-            var rpUploadId = rpFile ? ('up_r_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7)) : '';
-            var totalBytes = (zipFile ? zipFile.size : 0) + (rpFile ? rpFile.size : 0);
+        return smartPromise.then(function(dedupRes) {
+            if (dedupRes && dedupRes.dedupUsed) {
+                var savedMb = (dedupRes.savedBytes / (1024 * 1024)).toFixed(1);
+                var uploadZip = dedupRes.zipBlob || null;
+                var uploadRp = dedupRes.uploadRpFile || null;
+                var zipUploadId = uploadZip ? ('up_z_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7)) : '';
+                var rpUploadId = uploadRp ? ('up_r_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7)) : '';
+                var totalBytes = (uploadZip ? uploadZip.size : 0) + (uploadRp ? uploadRp.size : 0);
 
-            pText.innerText = (typeof t === 'function' ? t('admin.upload.progress_uploading', null, '正在上传...') : '正在上传...');
-            return uploadFileChunks(zipFile, 'zip', zipUploadId, CHUNK_SIZE, function(bytes) {
-                uploadedBytes += bytes;
-                var pct = Math.min(99, Math.round((uploadedBytes / totalBytes) * 100));
-                pBar.style.width = pct + '%';
-                pPercent.innerText = pct + '%';
-            }).then(function() {
-                return uploadFileChunks(rpFile, 'rp', rpUploadId, CHUNK_SIZE, function(bytes) {
+                pText.innerText = (typeof t === 'function' ? t('admin.upload.dedup_uploading', { saved: savedMb }, '已秒传跳过 ' + savedMb + ' MB，正在上传差异文件...') : '已秒传跳过 ' + savedMb + ' MB，正在上传差异文件...');
+                var upChain = Promise.resolve();
+                if (uploadZip && totalBytes > 0) {
+                    upChain = upChain.then(function() {
+                        return uploadFileChunks(uploadZip, 'zip', zipUploadId, CHUNK_SIZE, function(bytes) {
+                            uploadedBytes += bytes;
+                            var pct = Math.min(99, Math.round((uploadedBytes / totalBytes) * 100));
+                            pBar.style.width = pct + '%';
+                            pPercent.innerText = pct + '%';
+                        });
+                    });
+                }
+                if (uploadRp && totalBytes > 0) {
+                    upChain = upChain.then(function() {
+                        return uploadFileChunks(uploadRp, 'rp', rpUploadId, CHUNK_SIZE, function(bytes) {
+                            uploadedBytes += bytes;
+                            var pct = Math.min(99, Math.round((uploadedBytes / totalBytes) * 100));
+                            pBar.style.width = pct + '%';
+                            pPercent.innerText = pct + '%';
+                        });
+                    });
+                }
+                return upChain.then(function() {
+                    pBar.style.width = '100%';
+                    pPercent.innerText = '100%';
+                    pText.innerText = (typeof t === 'function' ? t('admin.upload.progress_extracting', null, '正在解压发布...') : '正在解压发布...');
+
+                    var pubFd = new FormData();
+                    pubFd.append('action', 'version_publish');
+                    pubFd.append('item_id', itemId);
+                    pubFd.append('version_name', verName);
+                    pubFd.append('overwrite_token', overwriteToken);
+                    pubFd.append('changelog', changelog);
+                    pubFd.append('notify_webhook', notifyWebhook);
+                    pubFd.append('notify_item', notifyItem);
+                    pubFd.append('notify_global', notifyGlobal);
+                    pubFd.append('is_default', isDefault);
+                    pubFd.append('blob_manifest', JSON.stringify(dedupRes.manifest || []));
+                    if (uploadZip) {
+                        pubFd.append('zip_upload_id', zipUploadId);
+                        pubFd.append('zip_file_name', 'delta.zip');
+                    }
+                    if (dedupRes.rpHash) {
+                        pubFd.append('rp_hash', dedupRes.rpHash);
+                    } else if (uploadRp) {
+                        pubFd.append('rp_upload_id', rpUploadId);
+                        pubFd.append('rp_file_name', uploadRp.name);
+                    }
+                    return adminFetch('version_publish', pubFd);
+                });
+            }
+
+            var prepareZipPromise;
+            if (currentProtoSource.type === 'folder') {
+                if (!currentProtoSource.files || currentProtoSource.files.length === 0) {
+                    throw new Error((typeof t === 'function' ? t('admin.upload.keep_one_file', null, '请至少保留 1 个文件再发布') : '请至少保留 1 个文件再发布'));
+                }
+                pText.innerText = (typeof t === 'function' ? t('admin.upload.packing_folder', null, '正在整理打包文件夹...') : '正在整理打包文件夹...');
+                prepareZipPromise = createZipBlobFromFolder(currentProtoSource.files, currentProtoSource.name, function(curr, tot) {
+                    var p = Math.round((curr / tot) * 100);
+                    pText.innerText = (typeof t === 'function' ? t('admin.upload.packing_progress', { curr: curr, tot: tot }, '正在整理文件夹 (' + curr + '/' + tot + ')...') : '正在整理文件夹 (' + curr + '/' + tot + ')...');
+                    pBar.style.width = Math.min(95, Math.round(p * 0.2)) + '%';
+                }, currentProtoSource.packagePrefix);
+            } else {
+                prepareZipPromise = Promise.resolve(currentProtoSource.file);
+            }
+
+            return prepareZipPromise.then(function(zipFile) {
+                var zipUploadId = 'up_z_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7);
+                var rpUploadId = rpFile ? ('up_r_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7)) : '';
+                var totalBytes = (zipFile ? zipFile.size : 0) + (rpFile ? rpFile.size : 0);
+
+                pText.innerText = (typeof t === 'function' ? t('admin.upload.progress_uploading', null, '正在上传...') : '正在上传...');
+                return uploadFileChunks(zipFile, 'zip', zipUploadId, CHUNK_SIZE, function(bytes) {
                     uploadedBytes += bytes;
                     var pct = Math.min(99, Math.round((uploadedBytes / totalBytes) * 100));
                     pBar.style.width = pct + '%';
                     pPercent.innerText = pct + '%';
-                });
-            }).then(function() {
-                pBar.style.width = '100%';
-                pPercent.innerText = '100%';
-                pText.innerText = (typeof t === 'function' ? t('admin.upload.progress_extracting', null, '正在解压发布...') : '正在解压发布...');
+                }).then(function() {
+                    return uploadFileChunks(rpFile, 'rp', rpUploadId, CHUNK_SIZE, function(bytes) {
+                        uploadedBytes += bytes;
+                        var pct = Math.min(99, Math.round((uploadedBytes / totalBytes) * 100));
+                        pBar.style.width = pct + '%';
+                        pPercent.innerText = pct + '%';
+                    });
+                }).then(function() {
+                    pBar.style.width = '100%';
+                    pPercent.innerText = '100%';
+                    pText.innerText = (typeof t === 'function' ? t('admin.upload.progress_extracting', null, '正在解压发布...') : '正在解压发布...');
 
-                var pubFd = new FormData();
-                pubFd.append('action', 'version_publish');
-                pubFd.append('item_id', itemId);
-                pubFd.append('version_name', verName);
-                pubFd.append('overwrite_token', overwriteToken);
-                pubFd.append('changelog', changelog);
-                pubFd.append('notify_webhook', notifyWebhook);
-                pubFd.append('notify_item', notifyItem);
-                pubFd.append('notify_global', notifyGlobal);
-                pubFd.append('is_default', isDefault);
-                if (zipFile) {
-                    pubFd.append('zip_upload_id', zipUploadId);
-                    pubFd.append('zip_file_name', zipFile.name || 'prototype.zip');
-                }
-                if (rpFile) {
-                    pubFd.append('rp_upload_id', rpUploadId);
-                    pubFd.append('rp_file_name', rpFile.name);
-                }
-                return adminFetch('version_publish', pubFd);
+                    var pubFd = new FormData();
+                    pubFd.append('action', 'version_publish');
+                    pubFd.append('item_id', itemId);
+                    pubFd.append('version_name', verName);
+                    pubFd.append('overwrite_token', overwriteToken);
+                    pubFd.append('changelog', changelog);
+                    pubFd.append('notify_webhook', notifyWebhook);
+                    pubFd.append('notify_item', notifyItem);
+                    pubFd.append('notify_global', notifyGlobal);
+                    pubFd.append('is_default', isDefault);
+                    if (zipFile) {
+                        pubFd.append('zip_upload_id', zipUploadId);
+                        pubFd.append('zip_file_name', zipFile.name || 'prototype.zip');
+                    }
+                    if (rpFile) {
+                        pubFd.append('rp_upload_id', rpUploadId);
+                        pubFd.append('rp_file_name', rpFile.name);
+                    }
+                    return adminFetch('version_publish', pubFd);
+                });
             });
         });
     }).then(function(res) {

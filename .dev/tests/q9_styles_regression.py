@@ -28,11 +28,11 @@ def check_q9_standards():
     config_path = os.path.join(BASE_DIR, 'includes', 'config.php')
     with open(config_path, 'r', encoding='utf-8') as f:
         config_content = f.read()
-    if "define('APP_VERSION', '3.2.0');" in config_content:
+    if "define('APP_VERSION', '3.3.0');" in config_content:
         passed += 1
-        print("  ✓ [1/6] 版本号已正确迭代为 3.2.0")
+        print("  ✓ [1/6] 版本号已正确迭代为 3.3.0")
     else:
-        print("  ✗ [1/6] 版本号未正确设置为 3.2.0")
+        print("  ✗ [1/6] 版本号未正确设置为 3.3.0")
 
     # 2. 验证 modals.php Hex 清零
     total += 1
