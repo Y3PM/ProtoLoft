@@ -2,7 +2,7 @@
 /** 私有上传、完整校验与原子发布。旧版直传入口已移除。 */
 if (!defined('APP_VERSION')) exit;
 
-/** 名称是展示标签，不参与物理路径；不限制版本号格式或改写大小写。 */
+/** 名称是展示标签，不参与物理路径；不限制格式并保留原始大小写展示，同项目内查重不区分大小写。 */
 function normalizeVersionName($raw) {
     if (!is_string($raw) || !mb_check_encoding($raw, 'UTF-8')) throw new DomainException(t('api.ver.invalid_name'));
     if (preg_match('/[\x00-\x1F\x7F-\x{009F}\x{2028}\x{2029}]/u', $raw)) throw new DomainException(t('api.ver.no_ctrl_chars'));
@@ -10,6 +10,23 @@ function normalizeVersionName($raw) {
     if ($name === '') throw new DomainException(t('api.ver.enter_name'));
     if (mb_strlen($name, 'UTF-8') > 30) throw new DomainException(t('api.ver.name_len_30'));
     return $name;
+}
+
+/** 忽略大小写查找项目内同名版本；若历史旧库存在多条仅大小写不同的记录，优先命中精确匹配。 */
+function findExistingVersionByName($db, $itemId, $name, $excludeId = 0) {
+    $sql = 'SELECT * FROM versions WHERE item_id = ? AND version_name = ? COLLATE NOCASE';
+    $params = [(int)$itemId, $name];
+    if ((int)$excludeId > 0) {
+        $sql .= ' AND id != ?';
+        $params[] = (int)$excludeId;
+    }
+    $sql .= ' ORDER BY (version_name = ?) DESC, is_default DESC, id DESC LIMIT 1';
+    $params[] = $name;
+    $stmt = $db->prepare($sql);
+    $stmt->execute($params);
+    $row = $stmt->fetch();
+    $stmt->closeCursor();
+    return $row ?: null;
 }
 
 function versionOverwriteToken($version) {
@@ -23,12 +40,13 @@ switch ($action) {
         $name = normalizeVersionName($_POST['version_name'] ?? '');
         $item = Auth::getItem($itemId);
         if (!$item || $item['type'] !== 'project' || !Auth::canEditItem($item)) jsonResponse(false, null, t('api.ver.no_publish_perm'));
-        $check = $db->prepare('SELECT * FROM versions WHERE item_id = ? AND version_name = ?');
-        $check->execute([$itemId, $name]);
-        $existing = $check->fetch();
+        $existing = findExistingVersionByName($db, $itemId, $name);
         if ($existing && !Auth::canDeleteVersion($existing)) jsonResponse(false, null, t('api.ver.no_replace_other'));
-        jsonResponse(true, ['version_name' => $name, 'exists' => (bool)$existing,
-            'overwrite_token' => $existing ? versionOverwriteToken($existing) : '']);
+        jsonResponse(true, [
+            'version_name' => $existing ? $existing['version_name'] : $name,
+            'exists' => (bool)$existing,
+            'overwrite_token' => $existing ? versionOverwriteToken($existing) : ''
+        ]);
         break;
 
     case 'upload_chunk':
@@ -82,10 +100,7 @@ switch ($action) {
             jsonResponse(false, null, t('admin.upload.notify_needs_log'));
         }
         $uid = (int)Auth::getCurrentUser()['id'];
-        $check = $db->prepare('SELECT * FROM versions WHERE item_id = ? AND version_name = ?');
-        $check->execute([$itemId, $name]);
-        $existing = $check->fetch();
-        $check->closeCursor();
+        $existing = findExistingVersionByName($db, $itemId, $name);
         if ($existing && !Auth::canDeleteVersion($existing)) jsonResponse(false, null, t('api.ver.no_overwrite_other'));
         $overwriteToken = $_POST['overwrite_token'] ?? '';
         if (!is_string($overwriteToken)) jsonResponse(false, null, t('api.ver.overwrite_token_invalid'));
@@ -93,6 +108,7 @@ switch ($action) {
             jsonResponse(false, ['requires_confirmation' => true], t('api.ver.overwrite_reconfirm'));
         }
         if (!$existing && $overwriteToken !== '') jsonResponse(false, null, t('api.ver.changed_refresh'));
+        $effectiveName = $existing ? $existing['version_name'] : $name;
 
         $storageDir = 'p' . $itemId . '/' . bin2hex(random_bytes(16));
         $stage = PROTOTYPES_PATH . '/' . $storageDir;
@@ -130,9 +146,7 @@ switch ($action) {
             if (defined('MCP_REQUEST')) McpAccess::guardWrite($itemId);
             $freshItem = Auth::getItem($itemId);
             if (!$freshItem || !Auth::canEditItem($freshItem)) throw new DomainException(t('api.ver.item_changed_refresh'));
-            $check->execute([$itemId, $name]);
-            $freshVersion = $check->fetch();
-            $check->closeCursor();
+            $freshVersion = findExistingVersionByName($db, $itemId, $name);
             if (($existing ? (int)$existing['id'] : 0) !== ($freshVersion ? (int)$freshVersion['id'] : 0)
                 || ($freshVersion && $freshVersion['storage_dir'] !== $existing['storage_dir'])) throw new DomainException(t('api.ver.updated_refresh'));
             if ($freshVersion && !Auth::canDeleteVersion($freshVersion)) throw new DomainException(t('api.ver.no_overwrite_perm'));
@@ -183,7 +197,7 @@ switch ($action) {
         $notifyResults = [];
         $failedChannels = [];
         if (!empty($uniqueHooks)) {
-            $payload = ['item_name' => $item['name'], 'version_name' => $name, 'is_overwrite' => (bool)$existing,
+            $payload = ['item_name' => $item['name'], 'version_name' => $effectiveName, 'is_overwrite' => (bool)$existing,
                 'author' => Auth::getCurrentUser()['name'], 'content' => $changelog, 'link' => app_url('index.php#item=' . $itemId . '&vid=' . $verId)];
             foreach ($uniqueHooks as $hookUrl => $channels) {
                 $res = Webhook::send($hookUrl, 'version_update', $payload);
@@ -212,7 +226,7 @@ switch ($action) {
         jsonResponse(true, [
             'id' => $verId,
             'version_id' => $verId,
-            'version_name' => $name,
+            'version_name' => $effectiveName,
             'version' => Auth::versionForClient($publishedStmt->fetch()),
             'notify_results' => $notifyResults
         ], $msg);
@@ -237,10 +251,7 @@ switch ($action) {
             if (!$item || !Auth::canEditItem($item)) throw new DomainException(t('api.ver.no_item_op_perm'));
             if (defined('MCP_REQUEST')) McpAccess::guardWrite($version['item_id']);
 
-            $check = $db->prepare('SELECT id FROM versions WHERE item_id = ? AND version_name = ? AND id != ?');
-            $check->execute([$version['item_id'], $name, $id]);
-            $hasDup = (bool)$check->fetch();
-            $check->closeCursor();
+            $hasDup = (bool)findExistingVersionByName($db, $version['item_id'], $name, $id);
             if ($hasDup) throw new DomainException(t('api.ver.duplicate_name'));
 
             $db->prepare('UPDATE versions SET version_name = ?, changelog = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?')

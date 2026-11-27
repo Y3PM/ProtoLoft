@@ -339,7 +339,7 @@ class DB {
         // 高性能索引集群
         $db->exec("
             CREATE INDEX IF NOT EXISTS idx_items_cat ON items(category_id, sort_order);
-            CREATE UNIQUE INDEX IF NOT EXISTS idx_versions_name ON versions(item_id, version_name);
+            CREATE UNIQUE INDEX IF NOT EXISTS idx_versions_name ON versions(item_id, version_name COLLATE NOCASE);
             CREATE INDEX IF NOT EXISTS idx_versions_item ON versions(item_id, is_default);
             CREATE INDEX IF NOT EXISTS idx_spaces_slug ON spaces(slug);
             CREATE INDEX IF NOT EXISTS idx_share_codes_target ON share_codes(item_id, ver_id);

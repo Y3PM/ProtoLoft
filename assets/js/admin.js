@@ -1756,9 +1756,10 @@ function handleVersionUpload(e) {
         if (!res.success) throw new Error(res.message || (typeof t === 'function' ? t('admin.upload.err_check_name', null, '版本名称检查失败，请重试') : '版本名称检查失败，请重试'));
         overwriteToken = res.data.overwrite_token || '';
         if (!res.data.exists) return true;
+        var targetVerName = (res.data && res.data.version_name) ? res.data.version_name : verName;
         return showConfirm({
             title: (typeof t === 'function' ? t('admin.upload.replace_title', null, '替换已有版本') : '替换已有版本'),
-            message: (typeof t === 'function' ? t('admin.upload.replace_confirm', { name: verName }, '版本「' + verName + '」已存在，继续将替换其原型文件和更新日志。') : '版本「' + verName + '」已存在，继续将替换其原型文件和更新日志。'),
+            message: (typeof t === 'function' ? t('admin.upload.replace_confirm', { name: targetVerName }, '版本「' + targetVerName + '」已存在，继续将替换其原型文件和更新日志。') : '版本「' + targetVerName + '」已存在，继续将替换其原型文件和更新日志。'),
             confirmText: (typeof t === 'function' ? t('admin.upload.replace_btn', null, '确认替换') : '确认替换'),
             isDanger: true
         });
@@ -1848,7 +1849,7 @@ function handleVersionUpload(e) {
         if (res.success) {
             if (typeof resetQuickCreateFlow === 'function') resetQuickCreateFlow();
             if (res.data && res.data.version && res.data.version.id && typeof markVersionAsRead === 'function') {
-                markVersionAsRead(res.data.version.id);
+                markVersionAsRead(res.data.version.id, res.data.version.updated_at || res.data.version.created_at);
             }
             if (isAdminConsoleOpen()) {
                 closeModal('uploadModal');
@@ -1856,9 +1857,10 @@ function handleVersionUpload(e) {
                 showToast(res.message || (typeof t === 'function' ? t('admin.upload.success', null, '版本发布成功') : '版本发布成功'), 'success');
                 syncPublishedVersion(itemId, res.data.version);
             } else {
+                var publishedVerName = (res.data && res.data.version_name) ? res.data.version_name : verName;
                 pText.innerText = (typeof t === 'function' ? t('admin.upload.progress_done_loading', null, '发布成功！正在加载预览...') : '发布成功！正在加载预览...');
                 showToast(res.message || (typeof t === 'function' ? t('admin.upload.success', null, '版本发布成功') : '版本发布成功'), 'success', 2800, true);
-                window.location.hash = '#item=' + itemId + '&v=' + encodeURIComponent(verName);
+                window.location.hash = '#item=' + itemId + '&v=' + encodeURIComponent(publishedVerName);
                 setTimeout(function() {
                     window.location.reload();
                 }, 300);
@@ -1878,7 +1880,7 @@ function handleVersionUpload(e) {
 function syncPublishedVersion(itemId, version) {
     if (!version) return;
     if (version.id && typeof markVersionAsRead === 'function') {
-        markVersionAsRead(version.id);
+        markVersionAsRead(version.id, version.updated_at || version.created_at);
     }
     if (typeof hydrateAdminRowVersions === 'function') hydrateAdminRowVersions(itemId);
     var latest = [];
@@ -1891,8 +1893,14 @@ function syncPublishedVersion(itemId, version) {
             if (parseInt(existing.id, 10) === parseInt(version.id, 10)) return;
             latest.push(Object.assign({}, existing, version.is_default ? {is_default:0} : {}));
         });
+        latest.sort(function(a, b) {
+            var dA = parseInt(a.is_default, 10) ? 1 : 0;
+            var dB = parseInt(b.is_default, 10) ? 1 : 0;
+            if (dA !== dB) return dB - dA;
+            return (parseInt(b.id, 10) || 0) - (parseInt(a.id, 10) || 0);
+        });
         $node.data('versions', latest).attr('data-versions', JSON.stringify(latest));
-        $node.find('.badge-ver').text(version.version_name);
+        $node.find('.badge-ver').text(latest[0].version_name);
         $node.find('.btn-table-ver').html('<span class="duo-icon-slot" data-duo-icon="history"><i class="ri-history-line duo-rest-icon"></i></span> ' + esc(typeof t === 'function' ? t('ver.count_btn', { n: latest.length }, latest.length + ' 个版本') : latest.length + ' 个版本'));
     });
     if (parseInt(currentVerManageItemId, 10) === parseInt(itemId, 10)) {

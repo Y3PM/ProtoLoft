@@ -379,30 +379,65 @@ function parseVerDate(timeStr) {
     return isNaN(t) ? 0 : t;
 }
 
-function getReadVersionIds() {
+function getReadVersionMap() {
+    var map = {};
     try {
         var raw = localStorage.getItem('protoloft_read_versions');
-        return raw ? JSON.parse(raw) : [];
+        if (!raw) return map;
+        var parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) {
+            var now = Date.now();
+            for (var i = 0; i < parsed.length; i++) {
+                var idNum = parseInt(parsed[i], 10);
+                if (idNum > 0) map[String(idNum)] = now;
+            }
+            try { localStorage.setItem('protoloft_read_versions', JSON.stringify(map)); } catch(e2) {}
+            return map;
+        }
+        if (parsed && typeof parsed === 'object') {
+            var keys = Object.keys(parsed);
+            for (var j = 0; j < keys.length; j++) {
+                var kNum = parseInt(keys[j], 10);
+                var ts = Number(parsed[keys[j]]);
+                if (kNum > 0 && isFinite(ts) && ts > 0) map[String(kNum)] = ts;
+            }
+        }
     } catch(e) {
-        return [];
+        return {};
     }
+    return map;
 }
 
-function isVersionRead(verId) {
+function isVersionRead(verId, updatedAt) {
     if (!verId) return true;
-    var ids = getReadVersionIds();
-    return ids.indexOf(parseInt(verId, 10)) !== -1;
+    var map = getReadVersionMap();
+    var recordedTs = map[String(parseInt(verId, 10))];
+    if (!recordedTs) return false;
+    var verTs = updatedAt ? parseVerDate(updatedAt) : 0;
+    if (verTs > 0) {
+        return recordedTs >= verTs;
+    }
+    return true;
 }
 
-function markVersionAsRead(verId) {
+function markVersionAsRead(verId, updatedAt) {
     var idNum = parseInt(verId, 10);
     if (!idNum) return;
-    var ids = getReadVersionIds();
-    if (ids.indexOf(idNum) === -1) {
-        ids.push(idNum);
-        if (ids.length > 500) ids = ids.slice(ids.length - 500);
+    var map = getReadVersionMap();
+    var key = String(idNum);
+    var verTs = updatedAt ? parseVerDate(updatedAt) : 0;
+    var ts = verTs > 0 ? verTs : Date.now();
+    if (!map[key] || ts > map[key]) {
+        map[key] = ts;
+        var entries = Object.keys(map);
+        if (entries.length > 500) {
+            entries.sort(function(a, b) { return map[a] - map[b]; });
+            for (var i = 0; i < entries.length - 500; i++) {
+                delete map[entries[i]];
+            }
+        }
         try {
-            localStorage.setItem('protoloft_read_versions', JSON.stringify(ids));
+            localStorage.setItem('protoloft_read_versions', JSON.stringify(map));
         } catch(e) {}
     }
 }
@@ -413,7 +448,7 @@ function isVersionNew(v) {
     if (!t) return false;
     var now = Date.now();
     if (now - t > NEW_VERSION_TTL || t - now > 86400000) return false;
-    return !isVersionRead(v.id);
+    return !isVersionRead(v.id, v.updated_at || v.created_at);
 }
 
 function getItemNewVersion(versions) {
@@ -552,7 +587,7 @@ function selectItem(itemId, el, targetVerName, isUserDirectClick) {
     // 检查是否有未读新版本 (仅用户手动点击到对应版本才消除，防止首屏自动选中与深链静默消点)
     var newVer = typeof getItemNewVersion === 'function' ? getItemNewVersion(versions) : null;
     if (Boolean(isUserDirectClick) && newVer && currentVer && parseInt(currentVer.id, 10) === parseInt(newVer.id, 10)) {
-        if (typeof markVersionAsRead === 'function') markVersionAsRead(currentVer.id);
+        if (typeof markVersionAsRead === 'function') markVersionAsRead(currentVer.id, currentVer.updated_at || currentVer.created_at);
         $el.removeClass('has-new-ver').removeAttr('data-new-ver-id');
         newVer = typeof getItemNewVersion === 'function' ? getItemNewVersion(versions) : null;
     }
@@ -607,7 +642,7 @@ function selectItem(itemId, el, targetVerName, isUserDirectClick) {
         if (typeof syncVersionPicker === 'function') syncVersionPicker('barVerSelect');
         var v0IsNew = typeof isVersionNew === 'function' ? isVersionNew(versions[0]) : false;
         if (Boolean(isUserDirectClick) && v0IsNew && currentVer && parseInt(currentVer.id, 10) === parseInt(versions[0].id, 10)) {
-            if (typeof markVersionAsRead === 'function') markVersionAsRead(versions[0].id);
+            if (typeof markVersionAsRead === 'function') markVersionAsRead(versions[0].id, versions[0].updated_at || versions[0].created_at);
             $el.removeClass('has-new-ver').removeAttr('data-new-ver-id');
             v0IsNew = false;
         }
@@ -805,7 +840,7 @@ function onTopVersionChange(selectEl) {
 
     // 切换到对应新版本时的消除逻辑 (只有点击到对应版本的时候才全部消失)
     if ($opt.attr('data-is-new') === '1' || (typeof isVersionNew === 'function' && isVersionNew({ id: verId, updated_at: time }))) {
-        if (typeof markVersionAsRead === 'function') markVersionAsRead(verId);
+        if (typeof markVersionAsRead === 'function') markVersionAsRead(verId, time);
         $opt.attr('data-is-new', '0');
         var $curItem = $('#item-node-' + currentSelectedItemId);
         if ($curItem.length) {

@@ -39,8 +39,8 @@ console.log('  ✓ PASS: app.js 严守 isUserDirectClick 用户物理点击门�
 
 // 4. admin.js 会话内状态同步回调与发版人天然已读
 assert(adminJs.includes('refreshCategoryTreeNewBadges'), "admin.js 缺少 refreshCategoryTreeNewBadges 回调支持");
-assert(adminJs.includes('markVersionAsRead(res.data.version.id)'), "admin.js 发版成功缺少发版人 markVersionAsRead 调用");
-assert(adminJs.includes('markVersionAsRead(version.id)'), "admin.js syncPublishedVersion 缺少 markVersionAsRead 调用");
+assert(adminJs.includes('markVersionAsRead(res.data.version.id,'), "admin.js 发版成功缺少发版人 markVersionAsRead 调用");
+assert(adminJs.includes('markVersionAsRead(version.id,'), "admin.js syncPublishedVersion 缺少 markVersionAsRead 调用");
 console.log('  ✓ PASS: admin.js 覆盖会话内发版与版本操作红点自愈同步且发版人天然已读');
 
 // 5. ver-picker.js 选项与触发器联动 (支持已选新项点击即消)
@@ -54,13 +54,19 @@ console.log('  ✓ PASS: ver-picker.js 自定义选择器完整联动新标且�
 // 6. 从 app.js 真实源码动态正则提取函数进行仿真执行 (拒绝手抄副本)
 const parseVerDateMatch = appJs.match(/function parseVerDate\([\s\S]*?^}/m);
 assert(parseVerDateMatch, "无法从 app.js 提取 parseVerDate 函数体");
+const getReadVersionMapMatch = appJs.match(/function getReadVersionMap\([\s\S]*?^}/m);
+assert(getReadVersionMapMatch, "无法从 app.js 提取 getReadVersionMap 函数体");
+const isVersionReadMatch = appJs.match(/function isVersionRead\([\s\S]*?^}/m);
+assert(isVersionReadMatch, "无法从 app.js 提取 isVersionRead 函数体");
 const isVersionNewMatch = appJs.match(/function isVersionNew\([\s\S]*?^}/m);
 assert(isVersionNewMatch, "无法从 app.js 提取 isVersionNew 函数体");
 const markVersionAsReadMatch = appJs.match(/function markVersionAsRead\([\s\S]*?^}/m);
 assert(markVersionAsReadMatch, "无法从 app.js 提取 markVersionAsRead 函数体");
 
 const now = Date.now();
+const twoDaysAgo = new Date(now - 2 * 24 * 3600 * 1000).toISOString().replace('T', ' ').substring(0, 19);
 const oneDayAgo = new Date(now - 24 * 3600 * 1000).toISOString().replace('T', ' ').substring(0, 19);
+const twoHoursAgo = new Date(now - 2 * 3600 * 1000).toISOString().replace('T', ' ').substring(0, 19);
 const fourDaysAgo = new Date(now - 4 * 24 * 3600 * 1000).toISOString().replace('T', ' ').substring(0, 19);
 
 let mockStore = { 'protoloft_read_versions': JSON.stringify([999]) };
@@ -71,6 +77,10 @@ const sandbox = {
         setItem: (k, v) => { mockStore[k] = String(v); }
     },
     parseInt: parseInt,
+    Number: Number,
+    isFinite: isFinite,
+    Object: Object,
+    Array: Array,
     Date: Date,
     JSON: JSON,
     String: String,
@@ -79,33 +89,29 @@ const sandbox = {
 
 vm.createContext(sandbox);
 vm.runInContext(parseVerDateMatch[0], sandbox);
+vm.runInContext(getReadVersionMapMatch[0], sandbox);
+vm.runInContext(isVersionReadMatch[0], sandbox);
 vm.runInContext(markVersionAsReadMatch[0], sandbox);
-vm.runInContext(`
-function getReadVersionIds() {
-    try {
-        var raw = localStorage.getItem('protoloft_read_versions');
-        return raw ? JSON.parse(raw) : [];
-    } catch(e) { return []; }
-}
-function isVersionRead(verId) {
-    if (!verId) return true;
-    var ids = getReadVersionIds();
-    return ids.indexOf(parseInt(verId, 10)) !== -1;
-}
-` + isVersionNewMatch[0], sandbox);
+vm.runInContext(isVersionNewMatch[0], sandbox);
 
 // 测试 A: 1天前未读版本 -> 真实源码函数计算应为 true
-assert.strictEqual(sandbox.isVersionNew({ id: 101, updated_at: oneDayAgo }), true);
+assert.strictEqual(sandbox.isVersionNew({ id: 101, updated_at: twoDaysAgo }), true);
 
 // 测试 B: 4天前未读版本 -> 真实源码函数计算应为 false (TTL 到期)
 assert.strictEqual(sandbox.isVersionNew({ id: 102, updated_at: fourDaysAgo }), false);
 
-// 测试 C: 1天前但已读版本 (id 999) -> 真实源码函数计算应为 false
+// 测试 C: 旧数组缓存 [999] 自动迁移为时间戳，1天前旧更新保持已读不误弹
 assert.strictEqual(sandbox.isVersionNew({ id: 999, updated_at: oneDayAgo }), false);
+assert.strictEqual(Array.isArray(JSON.parse(mockStore['protoloft_read_versions'])), false);
 
 // 测试 D: 运行时 markVersionAsRead 消除验证
-sandbox.markVersionAsRead(101);
-assert.strictEqual(sandbox.isVersionNew({ id: 101, updated_at: oneDayAgo }), false);
+sandbox.markVersionAsRead(101, twoDaysAgo);
+assert.strictEqual(sandbox.isVersionNew({ id: 101, updated_at: twoDaysAgo }), false);
 
-console.log('  ✓ PASS: 从 app.js 真实源码动态提取函数体，3天TTL/已读/消点仿真全部通过');
+// 测试 E: 已读历史版本被覆盖更新 (updated_at 晚于已读记录) 后重新亮红点，再次查看后消点
+assert.strictEqual(sandbox.isVersionNew({ id: 101, updated_at: twoHoursAgo }), true);
+sandbox.markVersionAsRead(101, twoHoursAgo);
+assert.strictEqual(sandbox.isVersionNew({ id: 101, updated_at: twoHoursAgo }), false);
+
+console.log('  ✓ PASS: 从 app.js 真实源码动态提取函数体，3天TTL/旧缓存迁移/覆盖重亮红点/消点仿真全部通过');
 console.log('[*] 全部 6 组全链路增强断言校验通过！');

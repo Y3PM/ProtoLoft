@@ -8,6 +8,7 @@
 ## 发布前修复（全新版本，未发布）
 
 - 2026-11-27（3.2.0 体验与部署模板微调）：
+  - **版本名称大小写不敏感与历史版本覆盖重亮红点** (`includes/db.php`, `includes/actions/versions.php`, `assets/js/app.js`, `assets/js/admin.js`)：新增 `findExistingVersionByName()` 与 `COLLATE NOCASE` 唯一索引，实现项目内查重与覆盖忽略大小写（保留原版本名展示、允许修改自身大小写、兼容旧库）；将前端 `protoloft_read_versions` 升级为 `id → updated_at` 时间戳映射（自动迁移旧数组缓存），覆盖更新历史版本后曾读成员重新触发红点提醒；`new_version_badge_regression.js`（6 组）、`security_regression.py`（173 项）、`concurrent_collision_regression.py`（12 项）与 `mcp_collaboration_regression.py`（94 项）全过。
   - **项目管理文件夹筛选排序提示** (`includes/modals.php`, `assets/css/app.css`, `assets/js/admin.js`, `includes/lang/{zh-CN,zh-TW,en}.php`)：在控制中心「项目管理 → 原型项目 / 外部链接」文件夹选择下拉框左侧新增 `28×28` 排序引导图标（`ri-arrow-up-down-line`）与 Linear 风格提示气泡（支持悬停/聚焦/点击触发、移入气泡不消失、`ESC` 仅关闭气泡不误关控制中心弹窗、切子页签自动收起；选定具体文件夹后自动切换晴空蓝激活态并联动更新提示文案，三语词库同步）；浏览器专项 `.dev/tests/sort_hint_browser.py` 11/11 通过。
   - **Nginx 部署模板根路径锚点修正** (`.dev/export_release.py`, `release/DEPLOY.md`, `.dev/docs/deployments/2026-11-27-v3.2.0.md`)：为 `location ~ ^/(data|includes|\.dev|\.git)(/|$)` 与 `location ~* ^/uploads/.*\.(rp|php|phtml|phar|py|sh)$` 补齐 `^` 开头锚点并补充子目录部署注释，避免将 Axure 原型内部 `/asset.php/v*/data/...` 请求误判为站点私有目录而返回 403。
 
