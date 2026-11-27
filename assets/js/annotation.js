@@ -298,6 +298,9 @@
 
     function timeAgo(dateStr) {
         if (!dateStr) return '';
+        if (typeof window !== 'undefined' && typeof window.formatFriendlyTime === 'function') {
+            return window.formatFriendlyTime(dateStr, { isUtc: true, mode: 'plain' });
+        }
         var ts = annotationTimestamp(dateStr);
         if (isNaN(ts)) return dateStr;
         var now = Date.now();
@@ -307,6 +310,14 @@
         if (diff < 86400) return (typeof t === 'function' ? t('common.hours_ago', { n: Math.floor(diff / 3600) }, Math.floor(diff / 3600) + ' 小时前') : Math.floor(diff / 3600) + ' 小时前');
         if (diff < 2592000) return (typeof t === 'function' ? t('common.days_ago', { n: Math.floor(diff / 86400) }, Math.floor(diff / 86400) + ' 天前') : Math.floor(diff / 86400) + ' 天前');
         return dateStr.substring(0, 10);
+    }
+
+    function renderAnnoTimeHtml(dateStr) {
+        if (!dateStr) return '';
+        if (typeof window !== 'undefined' && typeof window.renderFriendlyTimeHtml === 'function') {
+            return window.renderFriendlyTimeHtml(dateStr, { isUtc: true, mode: 'plain' });
+        }
+        return esc(timeAgo(dateStr));
     }
 
     // 严格检查当前是否真正处于有效原型/外链查看视图
@@ -803,7 +814,7 @@
                         <div class="anno-reply-item">
                             <div class="anno-reply-head">
                                 <span class="anno-reply-author">${esc(r.author_name)}</span>
-                                <span class="anno-reply-time">${timeAgo(r.created_at)}</span>
+                                <span class="anno-reply-time">${renderAnnoTimeHtml(r.created_at)}</span>
                             </div>
                             <div class="anno-reply-content">${esc(r.content)}</div>
                         </div>
@@ -839,7 +850,7 @@
                     <div class="anno-card-meta">
                         <span class="anno-card-author">${esc(a.author_name)}</span>
                         ${a.author_dept ? `<span class="anno-card-dept">${esc(a.author_dept)}</span>` : ''}
-                        <span class="anno-card-time">${timeAgo(a.created_at)}</span>
+                        <span class="anno-card-time">${renderAnnoTimeHtml(a.created_at)}</span>
                     </div>
                     ${sourceNote}
                     <div class="anno-card-content">${esc(a.content)}</div>

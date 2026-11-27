@@ -87,7 +87,14 @@ switch ($action) {
             jsonResponse(true, ['count' => $count]);
         }
         $stmt = $db->query("SELECT id, email, name, email as username, name as display_name, department as apply_remark, department, role, status, created_at FROM users WHERE status = 0 ORDER BY id DESC");
-        jsonResponse(true, $stmt->fetchAll());
+        $pendingRows = $stmt->fetchAll();
+        foreach ($pendingRows as &$pr) {
+            if (!empty($pr['created_at'])) {
+                $pr['created_at'] = Auth::toLocalTime($pr['created_at']);
+            }
+        }
+        unset($pr);
+        jsonResponse(true, $pendingRows);
         break;
 
     case 'approve_user':

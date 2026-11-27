@@ -846,7 +846,8 @@ $renderItemOwnersCell = function($item, $usersMap) use ($editorShareAllowed) {
                                 'cat_name' => $catName,
                                 'has_rp' => !empty($ur['rp_file']),
                                 'author' => $author,
-                                'time_str' => $timeFmt
+                                'time_str' => $timeFmt,
+                                'exact_time' => $ts ? date('Y-m-d H:i:s', $ts) : ''
                             ];
                         }
                     }
@@ -1025,7 +1026,11 @@ $renderItemOwnersCell = function($item, $usersMap) use ($editorShareAllowed) {
                                         <?php if ($ur['has_rp']): ?>
                                             <span class="upload-rp-badge" title="<?php echo htmlspecialchars(t('admin.dash.rp_archived_tip')); ?>">RP</span>
                                         <?php endif; ?>
-                                        <span class="upload-time"><?php echo htmlspecialchars($ur['time_str']); ?></span>
+                                        <?php if (!empty($ur['exact_time'])): ?>
+                                            <span class="upload-time"><time class="friendly-time" datetime="<?php echo htmlspecialchars($ur['exact_time']); ?>" data-time-raw="<?php echo htmlspecialchars($ur['exact_time']); ?>" data-time-mode="plain" data-time-utc="0" data-exact-time="<?php echo htmlspecialchars($ur['exact_time']); ?>"><?php echo htmlspecialchars($ur['time_str']); ?></time></span>
+                                        <?php else: ?>
+                                            <span class="upload-time"><?php echo htmlspecialchars($ur['time_str']); ?></span>
+                                        <?php endif; ?>
                                     </div>
                                     <?php endforeach; ?>
                                 <?php endif; ?>

@@ -5612,3 +5612,23 @@ button.user-badge { border:0; background-color:transparent; text-align:left; fon
         display: block;
     }
 }
+
+.friendly-time {
+    cursor: default;
+    transition: color 0.15s ease;
+}
+
+.friendly-time:hover {
+    text-decoration: underline dotted var(--border-strong);
+    text-underline-offset: 3px;
+}
+
+.linear-time-popover {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    font-variant-numeric: tabular-nums;
+    font-size: 11.5px;
+    letter-spacing: 0.2px;
+    white-space: nowrap;
+    pointer-events: none;
+    padding: 5px 9px;
+}

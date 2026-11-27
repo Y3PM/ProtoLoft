@@ -520,6 +520,28 @@ $(document).ready(function() {
     }
 });
 
+function buildWorkspaceUpdateMetaHtml(authorName, time) {
+    var timeHtml = '';
+    if (time) {
+        timeHtml = (typeof renderFriendlyTimeHtml === 'function')
+            ? renderFriendlyTimeHtml(time, { mode: 'updated' })
+            : esc(typeof t === 'function' ? t('workspace.updated_at', { time: time }, '更新于 ' + time) : ('更新于 ' + time));
+    }
+    if (authorName && timeHtml) {
+        var metaText = (typeof t === 'function')
+            ? t('workspace.author_meta', { author: esc(authorName), text: timeHtml }, '@' + esc(authorName) + ' · ' + timeHtml)
+            : ('@' + esc(authorName) + ' · ' + timeHtml);
+        return '<i class="ri-user-line" style="margin-right:3px;font-size:12px;opacity:0.85;"></i>' + metaText;
+    }
+    if (authorName) {
+        return '<i class="ri-user-line" style="margin-right:3px;font-size:12px;opacity:0.85;"></i>@' + esc(authorName);
+    }
+    if (timeHtml) {
+        return '<i class="ri-time-line" style="margin-right:3px;font-size:12px;opacity:0.85;"></i>' + timeHtml;
+    }
+    return '';
+}
+
 // 选中项目 (isUserDirectClick: 仅当用户在工作台左侧手动显式点击时为 true；可选第 5 参数 replaceHistory 为 true 时原地替换历史项)
 function selectItem(itemId, el, targetVerName, isUserDirectClick) {
     var $el = $(el);
@@ -669,15 +691,7 @@ function selectItem(itemId, el, targetVerName, isUserDirectClick) {
         authorName = $el.data('ver-creator') || $el.data('creator-name') || '';
     }
 
-    // 格式化输出: @张三三 · 更新于 2026-10-26 08:58:03
-    var metaHtml = '';
-    if (authorName && time) {
-        metaHtml = '<i class="ri-user-line" style="margin-right:3px;font-size:12px;opacity:0.85;"></i>' + esc(typeof t === 'function' ? t('workspace.author_updated_at', {author: authorName, time: time}, '@' + authorName + ' · 更新于 ' + time) : ('@' + authorName + ' · 更新于 ' + time));
-    } else if (authorName) {
-        metaHtml = '<i class="ri-user-line" style="margin-right:3px;font-size:12px;opacity:0.85;"></i>@' + esc(authorName);
-    } else if (time) {
-        metaHtml = '<i class="ri-time-line" style="margin-right:3px;font-size:12px;opacity:0.85;"></i>' + esc(typeof t === 'function' ? t('workspace.updated_at', {time: time}, '更新于 ' + time) : ('更新于 ' + time));
-    }
+    var metaHtml = buildWorkspaceUpdateMetaHtml(authorName, time);
 
     if (metaHtml) {
         $('#barTime').html(metaHtml).show();
@@ -858,14 +872,7 @@ function onTopVersionChange(selectEl) {
     var $item = $('#item-node-' + currentSelectedItemId);
     $item.data('href', href).data('ver', ver).data('ver-id', verId).data('rp', rp).data('time', time).data('token', token).data('share-code', shareCode);
 
-    var metaHtml = '';
-    if (author && time) {
-        metaHtml = '<i class="ri-user-line" style="margin-right:3px;font-size:12px;opacity:0.85;"></i>' + esc(typeof t === 'function' ? t('workspace.author_updated_at', { author: author, time: time }, '@' + author + ' · 更新于 ' + time) : '@' + author + ' · 更新于 ' + time);
-    } else if (author) {
-        metaHtml = '<i class="ri-user-line" style="margin-right:3px;font-size:12px;opacity:0.85;"></i>@' + esc(author);
-    } else if (time) {
-        metaHtml = '<i class="ri-time-line" style="margin-right:3px;font-size:12px;opacity:0.85;"></i>' + esc(typeof t === 'function' ? t('workspace.updated_at', { time: time }, '更新于 ' + time) : '更新于 ' + time);
-    }
+    var metaHtml = buildWorkspaceUpdateMetaHtml(author, time);
 
     if (metaHtml) {
         $('#barTime').html(metaHtml).show();
@@ -2092,14 +2099,7 @@ function handleSaveProfile(e) {
                         var $barTime = $('#barTime');
                         if ($barTime.length) {
                             var itemTime = $curNode.data('time') || '';
-                            var metaHtml = '';
-                            if (newName && itemTime) {
-                                metaHtml = '<i class="ri-user-line" style="margin-right:3px;font-size:12px;opacity:0.85;"></i>' + esc(typeof t === 'function' ? t('workspace.author_updated_at', {author: newName, time: itemTime}, '@' + newName + ' · 更新于 ' + itemTime) : ('@' + newName + ' · 更新于 ' + itemTime));
-                            } else if (newName) {
-                                metaHtml = '<i class="ri-user-line" style="margin-right:3px;font-size:12px;opacity:0.85;"></i>@' + esc(newName);
-                            } else if (itemTime) {
-                                metaHtml = '<i class="ri-time-line" style="margin-right:3px;font-size:12px;opacity:0.85;"></i>' + esc(typeof t === 'function' ? t('workspace.updated_at', {time: itemTime}, '更新于 ' + itemTime) : ('更新于 ' + itemTime));
-                            }
+                            var metaHtml = buildWorkspaceUpdateMetaHtml(newName, itemTime);
                             if (metaHtml) {
                                 $barTime.html(metaHtml).show();
                             } else {

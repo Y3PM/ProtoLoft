@@ -564,7 +564,7 @@ Auth::recordAccessLog($item['id'], $item['name'], $curVerName, 'share');
             </div>
 
             <?php if (!empty($updateTime)): ?>
-                <span class="current-update-time" id="shareUpdateTime" style="display:inline-block;"><i class="ri-time-line" style="margin-right:3px;font-size:12px;opacity:0.85;"></i><?php echo htmlspecialchars(t('workspace.updated_at', ['time' => $updateTime])); ?></span>
+                <span class="current-update-time" id="shareUpdateTime" style="display:inline-block;"><i class="ri-time-line" style="margin-right:3px;font-size:12px;opacity:0.85;"></i><time class="friendly-time" datetime="<?php echo htmlspecialchars($updateTime); ?>" data-time-raw="<?php echo htmlspecialchars($updateTime); ?>" data-time-mode="updated" data-time-utc="0" data-exact-time="<?php echo htmlspecialchars($updateTime); ?>"><?php echo htmlspecialchars(t('workspace.updated_at', ['time' => $updateTime])); ?></time></span>
             <?php else: ?>
                 <span class="current-update-time" id="shareUpdateTime" style="display:none;"></span>
             <?php endif; ?>
@@ -716,7 +716,10 @@ Auth::recordAccessLog($item['id'], $item['name'], $curVerName, 'share');
 
         // 更新更新时间
         if (time) {
-            $('#shareUpdateTime').html('<i class="ri-time-line" style="margin-right:3px;font-size:12px;opacity:0.85;"></i>' + esc(t('workspace.updated_at', {time: time}, '更新于 ' + time))).show();
+            var shareTimeHtml = (typeof renderFriendlyTimeHtml === 'function')
+                ? renderFriendlyTimeHtml(time, { mode: 'updated' })
+                : esc(t('workspace.updated_at', {time: time}, '更新于 ' + time));
+            $('#shareUpdateTime').html('<i class="ri-time-line" style="margin-right:3px;font-size:12px;opacity:0.85;"></i>' + shareTimeHtml).show();
         } else {
             $('#shareUpdateTime').hide().empty();
         }

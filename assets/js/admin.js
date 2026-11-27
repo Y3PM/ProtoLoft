@@ -3848,7 +3848,7 @@ function loadUserList() {
                         <span title="${contribTip}"${versionCount > 0 ? ' style="font-weight:600;color:var(--text-1);"' : ' style="color:var(--text-3);"'}>${versionCount}/${projectCount}</span>
                     </td>
                     <td style="padding:10px 12px;color:var(--text-2);font-size:12.5px;">${deptText}</td>
-                    <td style="padding:10px 12px;color:var(--text-3);font-size:12px;">${esc(u.created_at)}</td>
+                    <td style="padding:10px 12px;color:var(--text-3);font-size:12px;">${u.created_at ? (typeof renderFriendlyTimeHtml === 'function' ? renderFriendlyTimeHtml(u.created_at, { mode: 'date' }) : esc(u.created_at)) : '-'}</td>
                     <td style="padding:10px 12px;text-align:right;">
                         ${actionButtons}
                     </td>
@@ -4451,7 +4451,7 @@ function renderPendingUsers(users) {
                     </td>
                     <td style="padding:10px 12px;color:var(--text-2);font-size:12.5px;">${deptText}</td>
                     <td style="padding:10px 12px;">${roleBadge}</td>
-                    <td style="padding:10px 12px;color:var(--text-3);font-size:12px;">${esc(u.created_at || '-')}</td>
+                    <td style="padding:10px 12px;color:var(--text-3);font-size:12px;">${u.created_at ? (typeof renderFriendlyTimeHtml === 'function' ? renderFriendlyTimeHtml(u.created_at, { mode: 'plain' }) : esc(u.created_at)) : '-'}</td>
                     <td style="padding:10px 12px;text-align:right;white-space:nowrap;">
                         <select id="pendingRole_${id}" class="m-select-sm" style="margin-right:6px;">
                             <option value="viewer"${requestedRole === 'viewer' ? ' selected' : ''}>${lblRoleViewer}</option>
@@ -6116,7 +6116,8 @@ function renderVersionManageView() {
         var safeVerName = esc(ver.version_name || 'V1.0');
         var hasRp = !!ver.rp_file;
         var creatorName = ver.creator_name ? esc(ver.creator_name) : '';
-        var timeStr = esc(ver.updated_at || ver.created_at || '');
+        var rawTimeStr = ver.updated_at || ver.created_at || '';
+        var timeHtml = rawTimeStr ? (typeof renderFriendlyTimeHtml === 'function' ? renderFriendlyTimeHtml(rawTimeStr, { mode: 'plain' }) : esc(rawTimeStr)) : '—';
 
         var verCreatedBy = parseInt(ver.created_by || 0, 10);
         var isCurrentUserAdmin = (typeof CURRENT_USER !== 'undefined' && CURRENT_USER && CURRENT_USER.role === 'admin');
@@ -6196,7 +6197,7 @@ function renderVersionManageView() {
                 '<div class="ver-card-meta">' +
                     authorHtml +
                     '<span class="ver-card-separator">·</span>' +
-                    '<span class="ver-card-time"><i class="ri-time-line"></i>' + (timeStr || '—') + '</span>' +
+                    '<span class="ver-card-time"><i class="ri-time-line"></i>' + timeHtml + '</span>' +
                 '</div>' +
             '</div>' +
             logBodyHtml +

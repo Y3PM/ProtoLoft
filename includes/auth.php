@@ -1292,6 +1292,9 @@ class Auth {
         foreach ($rows as &$row) {
             $row['username'] = $row['email'];
             $row['display_name'] = $row['name'];
+            if (!empty($row['created_at'])) {
+                $row['created_at'] = self::toLocalTime($row['created_at']);
+            }
             // item_count 仅服务于交接：归属与指定关系不因账号停用或发版范围变化而消失。
             $row['item_count'] = (int)$row['item_count'];
             $stat = isset($publicationStats[(int)$row['id']]) ? $publicationStats[(int)$row['id']] : [];
