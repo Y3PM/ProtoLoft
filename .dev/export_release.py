@@ -208,7 +208,16 @@ def create_deploy_guide(target_dir: Path, version: str):
 
 ## 四、安装与运维说明
 - 安装时系统会自动生成一次性安全密钥至 `data/install_token.php`（权限 `0644` 以兼容 FTP 与 PHP 属主分离环境直接读取；若部署在多租户共享宿主机，强烈建议安装前通过环境变量 `PROTOLOFT_INSTALL_TOKEN` 注入自定义 12 位密钥）；
-- 安装完成后系统会自动销毁安装密钥并生成 `data/install.lock` 锁定安装。
+- 安装完成后系统会自动销毁安装密钥并生成 `data/install.lock` 锁定安装；
+- **关于秒传**：v3.3.0 起支持浏览器本地计算文件指纹进行跨版本/跨项目秒传；在纯 HTTP（非 `localhost`）内网环境下，由于浏览器未开放 `crypto.subtle`，系统会自动无感降级为普通分片上传，属于预期行为。
+
+## 五、从 v3.2.x 升级至 v3.3.x 存量数据迁移说明
+v3.3.0 启用了全新内容寻址 Blob 去重存储引擎（`data/blobs/`）。若从 v3.2.x 及更早版本升级：
+1. **先备份**：提前备份线上 `data/` 目录；
+2. **上传代码与一次性迁移脚本**：将 `protoloft/` 覆盖上传至站点根目录，同时从源码仓库 `.dev/tools/migrate_blobs.php` 手动上传至站点根目录；
+3. **自动维护保护**：站点根目录存在 `migrate_blobs.php` 期间，全站对外自动返回 HTTP 503 维护提示，防止迁前错读；
+4. **执行归档迁移**：浏览器访问 `https://您的域名/migrate_blobs.php`，使用管理员账号登录并点击 **「开始迁移」**，脚本会自动建表并将旧版 `data/prototypes/` 分批归档至 `data/blobs/` 后清理旧目录（幂等可重试）；
+5. **删文件恢复**：迁移提示完成后，**通过 FTP 删除站点根目录的 `migrate_blobs.php`**，站点即刻恢复正常访问。
 - 祝协作顺畅！立象以尽意 · 披图而同心。
 """
     (target_dir / 'DEPLOY.md').write_text(guide_content, encoding='utf-8')

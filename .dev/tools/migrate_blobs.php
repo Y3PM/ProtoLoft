@@ -187,6 +187,14 @@ p{margin:0 0 18px;color:#6b7280;font-size:13px;line-height:1.6}
     <div class="log" id="logBox"></div>
     <div class="ok" id="doneBox" <?php echo $pendingCount === 0 ? 'style="display:block"' : ''; ?>>迁移已全部完成！请立即通过 FTP 删除网站根目录下的 <code>migrate_blobs.php</code>，站点将自动恢复正常访问。</div>
     <script>
+    function appendLog(text, isErr) {
+        var log = document.getElementById('logBox');
+        var row = document.createElement('div');
+        if (isErr) row.style.color = '#dc2626';
+        row.textContent = text;
+        log.appendChild(row);
+        log.scrollTop = log.scrollHeight;
+    }
     function runMigrate() {
         var btn = document.getElementById('startBtn');
         var log = document.getElementById('logBox');
@@ -201,14 +209,13 @@ p{margin:0 0 18px;color:#6b7280;font-size:13px;line-height:1.6}
                 .then(function(r) { return r.json(); })
                 .then(function(res) {
                     if (!res.success) {
-                        log.innerHTML += '<div style="color:#dc2626">失败: ' + (res.message || '未知错误') + '</div>';
+                        appendLog('失败: ' + (res.message || '未知错误'), true);
                         btn.disabled = false;
                         btn.innerText = '重试迁移';
                         return;
                     }
                     if (res.migrated) {
-                        log.innerHTML += '<div>✓ ' + res.migrated + '</div>';
-                        log.scrollTop = log.scrollHeight;
+                        appendLog('✓ ' + res.migrated, false);
                     }
                     if (res.done) {
                         btn.innerText = '迁移完成';
@@ -218,7 +225,7 @@ p{margin:0 0 18px;color:#6b7280;font-size:13px;line-height:1.6}
                     }
                 })
                 .catch(function(err) {
-                    log.innerHTML += '<div style="color:#dc2626">网络异常: ' + err.message + '</div>';
+                    appendLog('网络异常: ' + err.message, true);
                     btn.disabled = false;
                     btn.innerText = '重试迁移';
                 });

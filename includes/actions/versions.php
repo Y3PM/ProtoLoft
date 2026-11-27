@@ -368,11 +368,20 @@ switch ($action) {
             }
 
             $insFile = $db->prepare('INSERT INTO version_files (version_id, rel_path, raw_hash, stored_hash, file_size) VALUES (?, ?, ?, ?, ?)');
+            $clearGc = $db->prepare('DELETE FROM asset_gc WHERE blob_hash = ?');
+            $clearedHashes = [];
             foreach ($fileEntries as $fe) {
                 $insFile->execute([$verId, $fe['rel_path'], $fe['raw_hash'], $fe['stored_hash'], $fe['file_size']]);
+                if (!isset($clearedHashes[$fe['stored_hash']])) {
+                    $clearGc->execute([$fe['stored_hash']]);
+                    $clearedHashes[$fe['stored_hash']] = true;
+                }
             }
             if ($rpEntry !== null) {
                 $insFile->execute([$verId, $rpEntry['rel_path'], $rpEntry['raw_hash'], $rpEntry['stored_hash'], $rpEntry['file_size']]);
+                if (!isset($clearedHashes[$rpEntry['stored_hash']])) {
+                    $clearGc->execute([$rpEntry['stored_hash']]);
+                }
             }
 
             $db->commit();
@@ -564,6 +573,7 @@ switch ($action) {
             $oldRpHash = $oldRpStmt->fetchColumn();
             $oldRpStmt->closeCursor();
 
+            if (!Storage::hasBlob($rpHash)) throw new DomainException(t('api.ver.chunk_missing'));
             $db->prepare('INSERT OR IGNORE INTO blobs (raw_hash, stored_hash, raw_size, stored_size) VALUES (?, ?, ?, ?)')
                 ->execute([$rpHash, $rpHash, $rpSize, $rpSize]);
             $db->prepare('INSERT OR REPLACE INTO version_files (version_id, rel_path, raw_hash, stored_hash, file_size) VALUES (?, ?, ?, ?, ?)')
@@ -571,6 +581,7 @@ switch ($action) {
             if (is_string($oldRpHash) && $oldRpHash !== '' && $oldRpHash !== $rpHash) {
                 Storage::queueHashRemoval($db, $oldRpHash);
             }
+            $db->prepare('DELETE FROM asset_gc WHERE blob_hash = ?')->execute([$rpHash]);
 
             $db->prepare('UPDATE versions SET rp_file = ?, rp_size = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?')
                 ->execute(['prototype.rp', $rpSize, $id]);

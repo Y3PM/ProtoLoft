@@ -6,11 +6,13 @@ Webhook 关键词安全设置回归测试套件
 并验证当平台由于安全设置拦截时，服务端返回自愈诊断提示。
 """
 
+import argparse
+import shutil
 import subprocess
 import json
 import sys
 
-def test_webhook_payloads():
+def test_webhook_payloads(php_bin='php'):
     php_code = """
     require_once __DIR__ . '/includes/webhook.php';
 
@@ -47,7 +49,7 @@ def test_webhook_payloads():
     echo json_encode($results, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
     """
 
-    res = subprocess.run(['php', '-r', php_code], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+    res = subprocess.run([php_bin, '-r', php_code], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
     if res.returncode != 0:
         print(f"❌ PHP 执行失败: {res.stderr}")
         return False
@@ -118,7 +120,7 @@ def test_webhook_payloads():
     }
     echo json_encode($out, JSON_UNESCAPED_UNICODE);
     """
-    res_loc = subprocess.run(['php', '-r', locale_php], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+    res_loc = subprocess.run([php_bin, '-r', locale_php], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
     assert res_loc.returncode == 0, res_loc.stderr
     loc_data = json.loads(res_loc.stdout)
     for loc in ('zh-CN', 'zh-TW', 'en'):
@@ -156,11 +158,14 @@ def test_webhook_payloads():
     }
     echo "OK";
     """
-    res_err = subprocess.run(['php', '-r', test_error_handling], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+    res_err = subprocess.run([php_bin, '-r', test_error_handling], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
     assert res_err.stdout.strip() == "OK", "诊断逻辑测试失败"
     print("✅ 机器人安全校验拦截自愈诊断测试通过！")
     return True
 
 if __name__ == '__main__':
-    ok = test_webhook_payloads()
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--php', default=shutil.which('php') or 'php')
+    args = parser.parse_args()
+    ok = test_webhook_payloads(args.php)
     sys.exit(0 if ok else 1)

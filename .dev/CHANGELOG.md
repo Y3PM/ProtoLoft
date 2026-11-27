@@ -7,6 +7,12 @@
 
 ## 发布前修复（全新版本，未发布）
 
+- 2026-11-27（3.3.0 全局 Blob 去重存储、前端秒传与审查收口 · 经用户明确授意升级次版本号至 3.3.0）：
+  - **全局内容寻址 Blob 池** (`includes/config.php`, `includes/db.php`, `includes/storage.php`, `includes/zip_handler.php`, `includes/actions/versions.php`, `asset.php`, `includes/prototype_context.php`, `includes/mcp_service.php`)：新增 `data/blobs/` 两级分桶实体池与 `blobs`（记录 `raw_hash -> stored_hash` 净化注入映射）、`version_files` 清单表及 `asset_gc` 引用计数回收；同项目多版本与跨项目共用模板/PDF/图片及 `.rp` 底稿全站仅存一份；`asset.php` 直接使用内容哈希作为强 `ETag` 跨版本复用缓存；修复并发删版与发布事务的 GC 竞态（写锁内清除新引用的 `asset_gc` 队列并复核物理文件）。
+  - **前端本地 ZIP/文件夹解析秒传** (`assets/js/zip-dedup.js`, `assets/js/admin.js`, `api.php`, `index.php`, `includes/lang/{zh-CN,zh-TW,en}.php`)：纯原生 JS 读取 ZIP Central Directory 与 `DecompressionStream` 流式解压、或直接读取文件夹 `File`（优先 `_relativePath` 并剥离公共父目录），使用 `crypto.subtle.digest('SHA-256')` 与 `blob_check` 比对后仅打包上传差异文件；纯 HTTP 非 `localhost` 或不支持格式自动无感降级。
+  - **一次性迁移与自动维护门** (`.dev/tools/migrate_blobs.php`, `includes/config.php`, `.dev/export_release.py`)：根目录存在 `migrate_blobs.php` 时自动返回 HTTP 503 维护提示，管理员登录后分批归档旧 `data/prototypes/` 并自动清理旧目录，删除文件即刻恢复；已补充 `DEPLOY.md` 存量迁移与纯 HTTP 降级说明，日志输出改用 `textContent` 防注入。
+  - **工作台准实时同步轮询** (`api.php`, `includes/actions/items.php`, `assets/js/app.js`)：新增只读 `items_versions_sync` 接口与 45 秒轮询同步，支持项目与版本变动的静默刷新与结构性提示。
+
 - 2026-11-27（3.2.0 体验与部署模板微调）：
   - **全站友好时间与悬停精确提示** (`assets/js/i18n.js`, `assets/css/app.css`, `assets/js/{app,admin,annotation}.js`, `includes/{auth,modals}.php`, `includes/actions/users.php`, `includes/lang/{zh-CN,zh-TW,en}.php`, `share.php`)：封装统一 7 档三语友好时间引擎与每分钟自动刷新机制及全局顶层等宽数字精确时间气泡（自动上下翻转、视口防裁切），同步接入工作台顶栏、外链分享页顶栏、版本卡片、最近发版动态、批注与回复、入驻申请及正式成员加入日期（顺带补齐成员/申请接口本地时区转换），系统日志/水印/到期日/推送保持精确时间不变；新增 `friendly_time_regression.js`（22 项）与 `friendly_time_browser.py`（13 项）全部通过。
   - **版本名称大小写不敏感与历史版本覆盖重亮红点** (`includes/db.php`, `includes/actions/versions.php`, `assets/js/app.js`, `assets/js/admin.js`)：新增 `findExistingVersionByName()` 与 `COLLATE NOCASE` 唯一索引，实现项目内查重与覆盖忽略大小写（保留原版本名展示、允许修改自身大小写、兼容旧库）；将前端 `protoloft_read_versions` 升级为 `id → updated_at` 时间戳映射（自动迁移旧数组缓存），覆盖更新历史版本后曾读成员重新触发红点提醒；`new_version_badge_regression.js`（6 组）、`security_regression.py`（173 项）、`concurrent_collision_regression.py`（12 项）与 `mcp_collaboration_regression.py`（94 项）全过。

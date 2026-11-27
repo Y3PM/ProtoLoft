@@ -164,8 +164,15 @@ SUITES = [
         "id": "webhook_keyword",
         "name": "Webhook 安全关键词与自愈诊断全平台覆盖",
         "cmd": ["python3", "-B", str(TESTS_DIR / "webhook_keyword_regression.py")],
-        "needs_php": False,
+        "needs_php": True,
         "type": "python"
+    },
+    {
+        "id": "friendly_time",
+        "name": "全站友好时间格式化与悬停精确时间边界",
+        "cmd": ["node", str(TESTS_DIR / "friendly_time_regression.js")],
+        "needs_php": False,
+        "type": "node"
     },
     {
         "id": "notification_copy",
