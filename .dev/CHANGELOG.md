@@ -7,6 +7,10 @@
 
 ## 发布前修复（全新版本，未发布）
 
+- 2026-11-27（3.2.0 体验与部署模板微调）：
+  - **项目管理文件夹筛选排序提示** (`includes/modals.php`, `assets/css/app.css`, `assets/js/admin.js`, `includes/lang/{zh-CN,zh-TW,en}.php`)：在控制中心「项目管理 → 原型项目 / 外部链接」文件夹选择下拉框左侧新增 `28×28` 排序引导图标（`ri-arrow-up-down-line`）与 Linear 风格提示气泡（支持悬停/聚焦/点击触发、移入气泡不消失、`ESC` 仅关闭气泡不误关控制中心弹窗、切子页签自动收起；选定具体文件夹后自动切换晴空蓝激活态并联动更新提示文案，三语词库同步）；浏览器专项 `.dev/tests/sort_hint_browser.py` 11/11 通过。
+  - **Nginx 部署模板根路径锚点修正** (`.dev/export_release.py`, `release/DEPLOY.md`, `.dev/docs/deployments/2026-11-27-v3.2.0.md`)：为 `location ~ ^/(data|includes|\.dev|\.git)(/|$)` 与 `location ~* ^/uploads/.*\.(rp|php|phtml|phar|py|sh)$` 补齐 `^` 开头锚点并补充子目录部署注释，避免将 Axure 原型内部 `/asset.php/v*/data/...` 请求误判为站点私有目录而返回 403。
+
 - 2026-11-26（3.2.0 全局多语言支持）：实现基于系统全局设置（**简体中文 `zh-CN` [默认]** / **繁體中文 `zh-TW`** / **English `en`**）的全站三语闭环切换，并将系统版本号正式升至 `3.2.0`：
   - **多语言内核与三语词库** (`includes/i18n.php`, `includes/lang/{zh-CN,zh-TW,en}.php`, `assets/js/i18n.js`)：建立兼容 PHP 7.0+ 的轻量 `I18n` 渲染与格式化引擎及前端 `window.t()`/`window.getLocale()`；三语词库保持 **1,595** 个键严格对齐（`{placeholder}` 一致性校验全过），中文语境保留品牌名称「立象原型」与口号「立象以尽意 · 披图而同心」，英文切换为官方定稿「ProtoLoft」与「Give ideas a shared home.」（全词库零中文字符）；Webhook 安全关键词按方案 B 全语言统一为 **`ProtoLoft`**（简体落款 `来自 · 立象原型 (ProtoLoft)`，繁体落款 `來自 · 立象原型 (ProtoLoft)`，英文落款 `From · ProtoLoft`，英文属性行冒号统一使用半角 `: `），切换系统语言无需调整外部群机器人配置。
   - **系统设置与全链路闭环**：在控制中心「系统设置 → 基础设置」新增「系统语言」开关（`settings.system_language`），服务端 `includes/actions/system.php` 通过 `I18n::isValidLocale()` 白名单校验持久化；全站已闭环覆盖登录锁屏/工作台 (`index.php` + `includes/modals.php` + `includes/login_modal.php`)、安装向导 (`install.php`)、外发分享沙箱 (`share.php`)、前端脚本（全部保留 `typeof t === 'function'` 守卫兼容隔离单元切片）、全量 API 接口与鉴权审计日志 (`api.php` / `includes/auth.php` / `includes/actions/*.php`)、邮件模板 (`includes/mailer.php`)、Webhook 通知 (`includes/webhook.php`) 以及 MCP 接入指南与协议响应 (`mcp.php` / `includes/views/mcp-guide.php` / `includes/mcp_service.php`)；普通审阅人（Viewer）页面通过 `I18n::jsCatalog()` 剔除 `admin.*` 词库且仍不加载 `admin.js`。

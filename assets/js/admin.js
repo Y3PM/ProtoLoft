@@ -2482,6 +2482,7 @@ window.confirmDeleteCategory = confirmDeleteCategory;
 function switchOverviewSubTab(subTab) {
     subTab = (subTab === 'links' || subTab === 'folders') ? subTab : 'projects';
     sessionStorage.setItem('overview_active_subtab', subTab);
+    if (typeof closeAllLinearHintPopovers === 'function') closeAllLinearHintPopovers();
     $('#btnSubtabProjects, #btnSubtabLinks, #btnSubtabFolders').removeClass('active');
     $('#overviewTableProjects, #overviewTableLinks, #overviewTableFolders').hide();
     $('#overviewActionsProjects, #overviewActionsLinks, #overviewActionsFolders').hide();
@@ -2592,6 +2593,7 @@ function filterProjectsByCategory(catId) {
             $('#overviewTableProjects tbody').append(emptyFilterHtml);
         }
     }
+    if (typeof updateOverviewSortHint === 'function') updateOverviewSortHint('project', catId);
 }
 window.filterProjectsByCategory = filterProjectsByCategory;
 
@@ -2629,6 +2631,7 @@ function filterLinksByCategory(catId) {
             $('#overviewTableLinks tbody').append(emptyFilterHtml);
         }
     }
+    if (typeof updateOverviewSortHint === 'function') updateOverviewSortHint('link', catId);
 }
 window.filterLinksByCategory = filterLinksByCategory;
 
@@ -5248,12 +5251,14 @@ function openAdminConsole(defaultTab, subTab) {
 }
 
 function closeAdminConsole() {
+    if (typeof closeAllLinearHintPopovers === 'function') closeAllLinearHintPopovers();
     var modal = document.getElementById('adminConsoleModal');
     if (modal) closeModal('adminConsoleModal');
 }
 
 function switchAdminTab(tabKey, subTab) {
     if (tabKey === 'security') tabKey = 'brand';
+    if (typeof closeAllLinearHintPopovers === 'function') closeAllLinearHintPopovers();
 
     // 每次切换 Tab 自动将内容视口滚动到最顶端
     var contentBody = document.querySelector('.admin-content-body');
@@ -7053,3 +7058,286 @@ $(document).on('click', '.btn-delete-cat-trigger', function(e) {
     var count = $(this).data('count') || $(this).attr('data-count') || 0;
     confirmDeleteCategory(catId, catName, count);
 });
+
+// Linear 风格提示气泡 (Toggletip：支持悬停、聚焦、点击与 ESC 优先收起)
+var linearHintGlobalsBound = false;
+
+function isHintPopoverOpen(pop) {
+    if (!pop) return false;
+    try {
+        if (pop.matches && pop.matches(':popover-open')) return true;
+    } catch (e) {}
+    return pop.classList ? pop.classList.contains('is-open') : false;
+}
+
+function syncHintTriggerExpanded(hintId, isOpen) {
+    if (!hintId || typeof document === 'undefined') return;
+    var triggers = document.querySelectorAll('[interestfor]');
+    for (var i = 0; i < triggers.length; i++) {
+        var trig = triggers[i];
+        if (trig.getAttribute('interestfor') !== hintId) continue;
+        if (trig._hintOwnsExpanded) {
+            trig.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+        }
+        if (!isOpen && trig.classList) {
+            trig.classList.remove('interest-source');
+        }
+    }
+}
+
+function closeHintPopover(pop) {
+    if (!pop) return;
+    if (pop._hintHideTimer) {
+        clearTimeout(pop._hintHideTimer);
+        pop._hintHideTimer = null;
+    }
+    if (typeof pop.hidePopover === 'function') {
+        try {
+            if (isHintPopoverOpen(pop)) pop.hidePopover();
+        } catch (e) {}
+    }
+    if (pop.classList) {
+        pop.classList.remove('is-open');
+    }
+    syncHintTriggerExpanded(pop.id, false);
+}
+
+function closeAllLinearHintPopovers(exceptPop) {
+    if (typeof document === 'undefined') return false;
+    var pops = document.querySelectorAll('.linear-hint-popover');
+    var closedAny = false;
+    for (var i = 0; i < pops.length; i++) {
+        var pop = pops[i];
+        if (exceptPop && pop === exceptPop) continue;
+        if (isHintPopoverOpen(pop)) {
+            closeHintPopover(pop);
+            closedAny = true;
+        }
+    }
+    return closedAny;
+}
+window.closeAllLinearHintPopovers = closeAllLinearHintPopovers;
+
+function positionHintPopover(trig, pop) {
+    if (!trig || !pop || typeof window === 'undefined') return;
+    var trigRect = trig.getBoundingClientRect();
+    var tipRect = pop.getBoundingClientRect();
+    if (!tipRect.width && !tipRect.height) return;
+    var gap = 8;
+    var vw = window.innerWidth || (document.documentElement && document.documentElement.clientWidth) || 1280;
+    var top = trigRect.top - tipRect.height - gap;
+    if (top < 8) {
+        top = trigRect.bottom + gap;
+    }
+    var left = trigRect.left + (trigRect.width - tipRect.width) / 2;
+    left = Math.max(8, Math.min(left, vw - tipRect.width - 8));
+    pop.classList.add('is-js-positioned');
+    pop.style.left = Math.round(left) + 'px';
+    pop.style.top = Math.round(top) + 'px';
+}
+
+function openHintPopover(trig, pop, useJsPosition) {
+    if (!trig || !pop) return;
+    if (pop._hintHideTimer) {
+        clearTimeout(pop._hintHideTimer);
+        pop._hintHideTimer = null;
+    }
+    closeAllLinearHintPopovers(pop);
+    var alreadyOpen = isHintPopoverOpen(pop);
+    if (!alreadyOpen) {
+        if (useJsPosition) pop.style.visibility = 'hidden';
+        if (typeof pop.showPopover === 'function') {
+            try {
+                pop.showPopover({ source: trig });
+            } catch (e) {
+                try { pop.showPopover(); } catch (e2) {}
+            }
+        }
+        pop.classList.add('is-open');
+    }
+    if (useJsPosition) {
+        positionHintPopover(trig, pop);
+        pop.style.visibility = '';
+    }
+    trig.classList.add('interest-source');
+    if (trig._hintOwnsExpanded) {
+        trig.setAttribute('aria-expanded', 'true');
+    }
+}
+
+function scheduleCloseHintPopover(pop) {
+    if (!pop) return;
+    if (pop._hintHideTimer) clearTimeout(pop._hintHideTimer);
+    pop._hintHideTimer = setTimeout(function() {
+        pop._hintHideTimer = null;
+        closeHintPopover(pop);
+    }, 120);
+}
+
+function bindLinearHintGlobalListeners() {
+    if (linearHintGlobalsBound || typeof document === 'undefined') return;
+    linearHintGlobalsBound = true;
+
+    // 浏览器不支持 popover="hint" 时，在 beforetoggle 切为 auto 以保留轻关闭能力
+    var probe = document.createElement('div');
+    if ('popover' in probe) {
+        try {
+            probe.popover = 'hint';
+            if (probe.popover !== 'hint') {
+                document.addEventListener('beforetoggle', function(ev) {
+                    var tgt = ev.target;
+                    if (!tgt || !tgt.getAttribute || !tgt.id) return;
+                    var isToggletip = tgt.getAttribute('popover') === 'hint'
+                        && document.querySelector('[popovertarget="' + tgt.id + '"]');
+                    if (ev.newState === 'open' && isToggletip) {
+                        tgt.popover = 'auto';
+                    }
+                }, true);
+            }
+        } catch (e) {}
+    }
+
+    // toggle 事件不冒泡，必须在捕获阶段统一同步 aria-expanded 与激活状态
+    document.addEventListener('toggle', function(ev) {
+        var tgt = ev.target;
+        if (!tgt || !tgt.classList || !tgt.classList.contains('linear-hint-popover')) return;
+        var openState = ev.newState ? (ev.newState === 'open') : isHintPopoverOpen(tgt);
+        syncHintTriggerExpanded(tgt.id, openState);
+    }, true);
+
+    // 捕获阶段优先于 document 级 modalKeyboardBoundary 拦截 ESC，避免关气泡时误关控制中心弹窗
+    var keyTarget = (typeof window !== 'undefined' && window.addEventListener) ? window : document;
+    keyTarget.addEventListener('keydown', function(ev) {
+        if (ev.key !== 'Escape' && ev.keyCode !== 27) return;
+        if (closeAllLinearHintPopovers()) {
+            ev.preventDefault();
+            if (typeof ev.stopImmediatePropagation === 'function') ev.stopImmediatePropagation();
+            ev.stopPropagation();
+        }
+    }, true);
+
+    document.addEventListener('scroll', function(ev) {
+        var pops = document.querySelectorAll('.linear-hint-popover');
+        for (var i = 0; i < pops.length; i++) {
+            var pop = pops[i];
+            if (!isHintPopoverOpen(pop)) continue;
+            if (ev && ev.target && (ev.target === pop || (pop.contains && pop.contains(ev.target)))) {
+                continue;
+            }
+            closeHintPopover(pop);
+        }
+    }, true);
+
+    if (typeof window !== 'undefined' && window.addEventListener) {
+        window.addEventListener('resize', function() {
+            closeAllLinearHintPopovers();
+        });
+    }
+
+    document.addEventListener('click', function(ev) {
+        var pops = document.querySelectorAll('.linear-hint-popover');
+        for (var i = 0; i < pops.length; i++) {
+            var pop = pops[i];
+            if (!isHintPopoverOpen(pop)) continue;
+            var trig = pop.id ? document.querySelector('[interestfor="' + pop.id + '"]') : null;
+            if (pop.contains(ev.target) || (trig && trig.contains(ev.target))) continue;
+            closeHintPopover(pop);
+        }
+    });
+}
+
+function initLinearHintPopovers(root) {
+    if (typeof document === 'undefined') return;
+    bindLinearHintGlobalListeners();
+
+    var scope = root || document;
+    var triggers = scope.querySelectorAll('[interestfor]');
+    var hasNativeInterest = (typeof HTMLButtonElement !== 'undefined' && HTMLButtonElement.prototype && ('interestForElement' in HTMLButtonElement.prototype));
+    var hasNativeAnchor = (typeof CSS !== 'undefined' && typeof CSS.supports === 'function' && CSS.supports('position-area: block-start'));
+    var needFallback = !hasNativeInterest || !hasNativeAnchor;
+
+    for (var i = 0; i < triggers.length; i++) {
+        var trig = triggers[i];
+        var targetId = trig.getAttribute('interestfor');
+        if (!targetId) continue;
+        var pop = document.getElementById(targetId);
+        if (!pop || !pop.classList.contains('linear-hint-popover')) continue;
+
+        if (!pop.hasAttribute('role')) {
+            pop.setAttribute('role', 'tooltip');
+        }
+        var opensOnClick = trig.hasAttribute('popovertarget') || trig.hasAttribute('commandfor');
+        if (opensOnClick && !trig.hasAttribute('aria-expanded')) {
+            trig._hintOwnsExpanded = true;
+            trig.setAttribute('aria-expanded', isHintPopoverOpen(pop) ? 'true' : 'false');
+        }
+
+        if (needFallback && !trig._linearHintBound) {
+            trig._linearHintBound = true;
+            (function(triggerEl, popEl) {
+                triggerEl.addEventListener('mouseenter', function() {
+                    openHintPopover(triggerEl, popEl, true);
+                });
+                triggerEl.addEventListener('focus', function() {
+                    openHintPopover(triggerEl, popEl, true);
+                });
+                triggerEl.addEventListener('mouseleave', function() {
+                    scheduleCloseHintPopover(popEl);
+                });
+                triggerEl.addEventListener('blur', function() {
+                    scheduleCloseHintPopover(popEl);
+                });
+                triggerEl.addEventListener('click', function(ev) {
+                    if (ev && typeof ev.preventDefault === 'function') ev.preventDefault();
+                    openHintPopover(triggerEl, popEl, true);
+                });
+                if (!popEl._linearHintPopBound) {
+                    popEl._linearHintPopBound = true;
+                    popEl.addEventListener('mouseenter', function() {
+                        if (popEl._hintHideTimer) {
+                            clearTimeout(popEl._hintHideTimer);
+                            popEl._hintHideTimer = null;
+                        }
+                    });
+                    popEl.addEventListener('mouseleave', function() {
+                        scheduleCloseHintPopover(popEl);
+                    });
+                }
+            })(trig, pop);
+        }
+    }
+}
+window.initLinearHintPopovers = initLinearHintPopovers;
+
+function updateOverviewSortHint(type, catId) {
+    if (typeof document === 'undefined') return;
+    catId = parseInt(catId || 0, 10);
+    var isLink = (type === 'link');
+    var btn = document.getElementById(isLink ? 'linkSortHintBtn' : 'projectSortHintBtn');
+    var tip = document.getElementById(isLink ? 'linkSortHintTip' : 'projectSortHintTip');
+    var sel = document.getElementById(isLink ? 'filterLinkCategory' : 'filterProjectCategory');
+    var defaultKey = isLink ? 'admin.proj.filter_link_folder_tip' : 'admin.proj.filter_folder_tip';
+    var defaultFallback = isLink ? '选定文件夹后，可调整链接顺序' : '选定文件夹后，可调整项目顺序';
+    var activeTip = (typeof t === 'function')
+        ? t('admin.proj.sort_active_tip', null, '已选定文件夹，可点击右侧箭头调整顺序')
+        : '已选定文件夹，可点击右侧箭头调整顺序';
+    var defaultTip = (typeof t === 'function')
+        ? t(defaultKey, null, defaultFallback)
+        : defaultFallback;
+    var nextText = catId > 0 ? activeTip : defaultTip;
+
+    if (btn) btn.classList.toggle('is-active', catId > 0);
+    if (tip) tip.textContent = nextText;
+    if (sel) sel.setAttribute('title', nextText);
+}
+window.updateOverviewSortHint = updateOverviewSortHint;
+
+if (typeof document !== 'undefined') {
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', function() {
+            initLinearHintPopovers();
+        });
+    } else {
+        initLinearHintPopovers();
+    }
+}

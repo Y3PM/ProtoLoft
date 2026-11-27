@@ -179,13 +179,15 @@ def create_deploy_guide(target_dir: Path, version: str):
 
 ## 二、前置安全加固（重要 · 强烈建议在安装前配置）
 - 系统核心私有数据与原型存放在 `data/` 目录，Apache 用户系统已内置 `.htaccess` 全自动阻断 Web 直读。
-- **若使用 Nginx / OpenResty**，请在站点配置文件中加入以下规则（兼容根目录与子目录部署），以防止敏感文件被直接下载：
+- **若使用 Nginx / OpenResty**，请在站点配置文件中加入以下规则，以防止敏感文件被直接下载：
   ```nginx
-  location ~ /(data|includes)/ {{
+  # 必须保留开头 ^ 锚点，避免误拦截 Axure 原型内部 /asset.php/v*/data/... 资源
+  # （若部署在子目录如 /protoloft/，请将 ^/ 替换为 ^/protoloft/）
+  location ~ ^/(data|includes|\\.dev|\\.git)(/|$) {{
       deny all;
       return 403;
   }}
-  location ~* /uploads/.*\\.(rp|php|phtml|phar|py|sh)$ {{
+  location ~* ^/uploads/.*\\.(rp|php|phtml|phar|py|sh)$ {{
       deny all;
       return 403;
   }}

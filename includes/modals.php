@@ -1212,21 +1212,33 @@ $renderItemOwnersCell = function($item, $usersMap) use ($editorShareAllowed) {
                             <button type="button" id="btnSubtabFolders" class="console-subtab-btn log-subtab-btn" onclick="switchOverviewSubTab('folders')"><?php echo htmlspecialchars(t('admin.proj.tab_folders')); ?></button>
                         </div>
                         <div id="overviewActionsProjects" style="display:flex;gap:8px;align-items:center;">
-                            <select id="filterProjectCategory" class="m-select-md" onchange="filterProjectsByCategory(this.value)" style="min-width:130px;" title="<?php echo htmlspecialchars(t('admin.proj.filter_folder_tip')); ?>">
-                                <option value="0"><?php echo htmlspecialchars(t('admin.proj.all_folders')); ?></option>
-                                <?php foreach ($cats as $c): ?>
-                                    <option value="<?php echo $c['id']; ?>"><?php echo htmlspecialchars($c['name']); ?></option>
-                                <?php endforeach; ?>
-                            </select>
+                            <div class="overview-folder-sort-group">
+                                <button type="button" id="projectSortHintBtn" class="sort-hint-trigger" interestfor="projectSortHintTip" popovertarget="projectSortHintTip" popovertargetaction="show" aria-label="<?php echo htmlspecialchars(t('admin.proj.sort_hint_aria')); ?>">
+                                    <i class="ri-arrow-up-down-line" aria-hidden="true"></i>
+                                </button>
+                                <div id="projectSortHintTip" class="linear-hint-popover" popover="hint" role="tooltip"><?php echo htmlspecialchars(t('admin.proj.filter_folder_tip')); ?></div>
+                                <select id="filterProjectCategory" class="m-select-md" onchange="filterProjectsByCategory(this.value)" style="min-width:130px;" title="<?php echo htmlspecialchars(t('admin.proj.filter_folder_tip')); ?>">
+                                    <option value="0"><?php echo htmlspecialchars(t('admin.proj.all_folders')); ?></option>
+                                    <?php foreach ($cats as $c): ?>
+                                        <option value="<?php echo $c['id']; ?>"><?php echo htmlspecialchars($c['name']); ?></option>
+                                    <?php endforeach; ?>
+                                </select>
+                            </div>
                             <button type="button" class="btn-primary btn-md" onclick="openItemModal(0, <?php echo !empty($cats) ? $cats[0]['id'] : 0; ?>, 'project')"><span class="duo-icon-slot" data-duo-icon="circle-plus"><i class="ri-add-line duo-rest-icon"></i></span> <?php echo htmlspecialchars(t('admin.item.new_project')); ?></button>
                         </div>
                         <div id="overviewActionsLinks" style="display:none;gap:8px;align-items:center;">
-                            <select id="filterLinkCategory" class="m-select-md" onchange="filterLinksByCategory(this.value)" style="min-width:130px;" title="<?php echo htmlspecialchars(t('admin.proj.filter_folder_tip')); ?>">
-                                <option value="0"><?php echo htmlspecialchars(t('admin.proj.all_folders')); ?></option>
-                                <?php foreach ($cats as $c): ?>
-                                    <option value="<?php echo $c['id']; ?>"><?php echo htmlspecialchars($c['name']); ?></option>
-                                <?php endforeach; ?>
-                            </select>
+                            <div class="overview-folder-sort-group">
+                                <button type="button" id="linkSortHintBtn" class="sort-hint-trigger" interestfor="linkSortHintTip" popovertarget="linkSortHintTip" popovertargetaction="show" aria-label="<?php echo htmlspecialchars(t('admin.proj.sort_hint_aria')); ?>">
+                                    <i class="ri-arrow-up-down-line" aria-hidden="true"></i>
+                                </button>
+                                <div id="linkSortHintTip" class="linear-hint-popover" popover="hint" role="tooltip"><?php echo htmlspecialchars(t('admin.proj.filter_link_folder_tip')); ?></div>
+                                <select id="filterLinkCategory" class="m-select-md" onchange="filterLinksByCategory(this.value)" style="min-width:130px;" title="<?php echo htmlspecialchars(t('admin.proj.filter_link_folder_tip')); ?>">
+                                    <option value="0"><?php echo htmlspecialchars(t('admin.proj.all_folders')); ?></option>
+                                    <?php foreach ($cats as $c): ?>
+                                        <option value="<?php echo $c['id']; ?>"><?php echo htmlspecialchars($c['name']); ?></option>
+                                    <?php endforeach; ?>
+                                </select>
+                            </div>
                             <button type="button" class="btn-primary btn-md" onclick="openItemModal(0, <?php echo !empty($cats) ? $cats[0]['id'] : 0; ?>, 'link')"><span class="duo-icon-slot" data-duo-icon="circle-plus"><i class="ri-add-line duo-rest-icon"></i></span> <?php echo htmlspecialchars(t('admin.item.new_link')); ?></button>
                         </div>
                         <div id="overviewActionsFolders" style="display:none;gap:8px;align-items:center;">
